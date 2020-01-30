@@ -1,0 +1,22 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ required "Must provide a storage class name." .Values.storageClass.name.iscsi}}
+  annotations:
+    storageclass.beta.kubernetes.io/is-default-class: {{ .Values.storageClass.isDefault | quote }}
+provisioner: infinibox-csi-driver
+reclaimPolicy: {{ required "Must provide a storage class reclaim policy." .Values.storageClass.reclaimPolicy }}
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  storage_protocol: {{ required "Provide a storage type name." .Values.storageClass.iscsi }}
+  storagepool: {{ required "Provide a Infinidat storage pool name." .Values.storagePool }}
+  csi.storage.k8s.io/node-publish-secret-name: {{ required "Provide a Infinibox secret name." .Values.Infinibox.SecretName }}
+  csi.storage.k8s.io/node-publish-secret-namespace: {{ .Release.Namespace }}
+  csi.storage.k8s.io/fstype: ext4
+  targetPortal: 172.17.35.71
+  iscsiInterface: "default"
+  readOnly: "false"
+  chapAuthDiscovery: "false"
+  chapAuthSession: "false"
+  networkspace: "niscsi"
