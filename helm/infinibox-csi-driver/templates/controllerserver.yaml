@@ -1,0 +1,167 @@
+apiVersion: v1
+kind: ServiceAccount
+imagePullSecrets:
+- name: {{ .Release.Name }}-creds
+metadata:
+  name: {{ .Release.Name }}-driver
+  namespace: {{ .Release.Namespace }}
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-driver
+rules:
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["csi.storage.k8s.io"]
+    resources: ["csinodeinfos"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents"]
+    verbs: ["create", "get", "list", "watch", "update", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshots"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create", "list", "watch", "delete"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-driver
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-driver
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-driver
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-driver
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-driver
+  serviceName: {{ .Release.Name }}-driver
+  replicas: {{ required "count of instances required." .Values.instanceCount }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-driver
+    spec:
+      serviceAccount: {{ .Release.Name }}-driver
+      containers:
+        - name: attacher
+          image: {{ required "csi attacher sidercar image." .Values.images.attachersidecar }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/run/csi/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi
+        - name: provisioner
+          image: {{ required "csi provisioner sidecar container image." .Values.images.provisionersidecar }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--provisioner=infinibox-csi-driver"
+            - "--volume-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
+            - "--volume-name-uuid-length=10"
+            #- --feature-gates=Topology=true
+            - "--connection-timeout=300s"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/run/csi/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi
+        - name: snapshotter
+          image: {{ required "csi snapshotter sidecar container image." .Values.images.snapshottersidecar }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--connection-timeout=15s"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/run/csi/csi.sock
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi
+        - name: driver
+          #image: nikhilbarge/infinibox-csi-driver:test1 
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: Always
+          #command: [ "/infinibox-csi-driver" ]  
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true             
+          env:
+            - name: CSI_ENDPOINT
+              value: /var/run/csi/csi.sock
+            - name: APP_LOG_LEVEL
+              value: {{ .Values.logLevel }}
+            - name: CSI_DRIVER_NAME
+              value: {{ .Values.csiDriverName }}
+            - name: X_CSI_MODE
+              value: controller
+            - name: X_CSI_DEBUG
+              value: "true"
+            - name: X_CSI_INFINIBOX_API
+              value: {{ required "Provide a Infinibox REST API gateway HTTPS endpoint." .Values.restBaseUrl }}
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: X_CSI_INFINIBOX_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.Infinibox.SecretName }}
+                  key: username
+            - name: X_CSI_INFINIBOX_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.Infinibox.SecretName }}
+                  key: password
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi
+      volumes:
+        - name: socket-dir
+          emptyDir:
