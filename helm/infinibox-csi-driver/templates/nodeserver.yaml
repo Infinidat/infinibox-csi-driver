@@ -78,9 +78,9 @@ spec:
             capabilities:
               add: ["SYS_MODULE"]
             allowPrivilegeEscalation: true
-          #image: nikhilbarge/infinibox-csi-driver:test1 
-          image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
+          image: niteshgadekar/driver:1.0 
+          #image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: Never
           #command: [ "/infinibox-csi-driver" ]
           env:
             - name: CSI_ENDPOINT

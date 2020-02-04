@@ -27,6 +27,8 @@ func main() {
 	}
 	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
 		configParams["nodeIPAddress"] = nodeip
+		configParams["nodeid"] = nodeip
+		storage.NodeId = nodeip
 	}
 
 	gocsi.Run(
@@ -35,6 +37,7 @@ func main() {
 		"A Infinibox CSI Driver Plugin",
 		usage,
 		provider.New(configParams))
+
 }
 
 // set global log level

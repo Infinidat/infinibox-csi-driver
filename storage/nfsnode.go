@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/util/mount"
 )
 
 func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
@@ -25,10 +24,8 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	log.Debug("NodePublishVolume")
 	log.Infof("NodePublishVolume volumeID %v", req.GetVolumeId())
 	log.Infof("Node IP address %v", nfs.cs.nodeIPAddress)
-
 	targetPath := req.GetTargetPath()
-	mounter := mount.New("")
-	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
+	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			if err := os.MkdirAll(targetPath, 0750); err != nil {
@@ -57,28 +54,16 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if req.GetReadonly() {
 		mountOptions = append(mountOptions, "ro")
 	}
-
 	log.Debug("Mount options  %v", mountOptions)
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 	log.Debug("Mount sourcePath %v, tagetPath %v", source, targetPath)
-	err = mounter.Mount(source, targetPath, "nfs", mountOptions)
+	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		log.Errorf("fail to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
-	//Add export Rule
-	exportID := req.GetVolumeContext()["exportID"]
-	exportBlock := req.GetVolumeContext()["exportBlock"]
-	access := req.GetVolumeContext()["nfs_export_permissions"]
-
-	err = nfs.cs.AddExportRule(exportID, exportBlock, access, nfs.cs.nodeIPAddress)
-	if err != nil {
-		log.Errorf("fail to add export rule %v", err)
-		return nil, status.Errorf(codes.Internal, "ail to add export rule  %s", err)
-	}
-
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -86,15 +71,13 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	log.Debug("NodeUnpublishVolume Method")
 	log.Infof("** NodeUnpublishVolume Node IP address %v", nfs.cs.nodeIPAddress)
 	targetPath := req.GetTargetPath()
-	mounter := mount.New("")
-	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
+	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Warnf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 	if notMnt {
 		if err := os.Remove(targetPath); err != nil {
@@ -102,7 +85,7 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 		}
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
-	if err := mounter.Unmount(targetPath); err != nil {
+	if err := nfs.mounter.Unmount(targetPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
 	}
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {

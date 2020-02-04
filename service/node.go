@@ -10,9 +10,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/kubernetes/pkg/util/mount"
 )
 
 func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	log.Println("Node method Main NodePublishVolume----------------------------------->")
 	log.Debug("Node method Main NodePublishVolume")
 	voltype := req.GetVolumeId()
 	log.Infof("NodePublishVolume called with volume name", voltype)
@@ -27,14 +29,22 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 
 	// get operator
 	storageNode, err := storage.NewStorageNode(storagePorotcol, config)
-	if storageNode != nil {
-		return storageNode.NodePublishVolume(ctx, req)
+	if storageNode == nil || err != nil {
+		log.Error("Error Occured: ", err)
+		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
-	log.Error("Error Occured: ", err)
-	return nil, status.Error(codes.Internal, err.Error())
+	volproto := strings.Split(voltype, "$$")
+	req.VolumeId = volproto[0]
+	resp, err := storageNode.NodePublishVolume(ctx, req)
+	req.VolumeId = voltype
+	if err != nil {
+		log.Error("Error Occured: ", err)
+	}
+	return resp, err
 }
 
 func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	log.Println("Node method Main NodeUnPublishVolume----------------------------------->")
 	voltype := req.GetVolumeId()
 	log.Infof("NodeUnpublishVolume called with volume name", voltype)
 	volproto := strings.Split(voltype, "$$")
@@ -64,6 +74,13 @@ func (s *service) NodeGetCapabilities(
 			{
 				Type: &csi.NodeServiceCapability_Rpc{
 					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+					},
+				},
+			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
 						Type: csi.NodeServiceCapability_RPC_UNKNOWN,
 					},
 				},
@@ -79,11 +96,35 @@ func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) 
 	}, nil
 }
 func (s *service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+
+	log.Infof("------------------------------------------------------------------------------------------------")
+	log.Infof("------------IN s.NodeStageVolume req %v ", req)
+
+	mounter := mount.New("")
+	targetPath := req.GetStagingTargetPath()
+	log.Infof("------------IN s.targetPath ctx %v ", targetPath)
+	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
+	log.Infof("------------IN s.notMnt,  ctx %v ", notMnt)
+	log.Infof("------------IN s.notMnt, err  ctx %v ", err)
+
+	log.Infof("------------------------------------------------------------------------------------------------")
+
+	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	log.Infof("---------------*******************************-------------------------------------------------")
+	log.Infof("------------IN s.NodeUnstageVolume req %v ", req)
+	mounter := mount.New("")
+	targetPath := req.GetStagingTargetPath()
+	log.Infof("------------IN NodeUnstageVolume s.targetPath ctx %v ", targetPath)
+	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
+	log.Infof("------------IN NodeUnstageVolume s.notMnt,  ctx %v ", notMnt)
+	log.Infof("------------IN NodeUnstageVolume s.notMnt, err  ctx %v ", err)
+
+	log.Infof("------------------------------------------------------------------------------------------------")
+
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 func (s *service) NodeGetVolumeStats(
 	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
