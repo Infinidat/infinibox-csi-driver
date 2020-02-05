@@ -137,9 +137,9 @@ spec:
             - name: socket-dir
               mountPath: /var/run/csi      
         - name: driver
-          image: nikhilbarge/infinibox-csi-driver:test1 
-          #image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Never
+          #image: nikhilbarge/infinibox-csi-driver:test1 
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: Always
           #command: [ "/infinibox-csi-driver"  ]  
           securityContext:
             privileged: true

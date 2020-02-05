@@ -8,4 +8,4 @@
  fi
 rpcbind
 # # Start infinibox-csi-driver
-/infinibox-csi-driver $*
+exec /infinibox-csi-driver $*
