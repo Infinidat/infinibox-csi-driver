@@ -19,7 +19,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
-    verbs: ["get", "list", "watch", "create", "delete", "update"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "watch", "update"]
@@ -31,10 +31,13 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["csi.storage.k8s.io"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
     resources: ["csinodeinfos"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["watch", "list", "get"]
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
@@ -97,7 +100,7 @@ spec:
           image: {{ required "csi provisioner sidecar container image." .Values.images.provisionersidecar }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--provisioner=infinibox-csi-driver"
+            #- "--provisioner=infinibox-csi-driver" deprecated
             - "--volume-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
             - "--volume-name-uuid-length=10"
             #- --feature-gates=Topology=true
@@ -122,11 +125,22 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
+        - name: resizer
+          image: {{ required "csi attacher sidercar image." .Values.images.resizersidecar }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/run/csi/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi      
         - name: driver
-          image: niteshgadekar/driver:1.0
-         # image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Never
-          #command: [ "/infinibox-csi-driver" ]  
+          #image: nikhilbarge/infinibox-csi-driver:test1 
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: Always
+          #command: [ "/infinibox-csi-driver"  ]  
           securityContext:
             privileged: true
             capabilities:
@@ -148,7 +162,7 @@ spec:
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
-                  fieldPath: spec.nodeName                
+                  fieldPath: spec.nodeName
             - name: X_CSI_INFINIBOX_USER
               valueFrom:
                 secretKeyRef:

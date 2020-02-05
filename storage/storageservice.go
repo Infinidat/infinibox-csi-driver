@@ -62,48 +62,50 @@ type commonservice struct {
 	nodeIPAddress     string
 }
 
-// To return specific implementation of storage
-func NewStorageController(storageType string, configparams ...map[string]interface{}) (storageoperations, error) {
-	comnserv, err := buildCommonService(configparams[0])
+//NewStorageController : To return specific implementation of storage
+func NewStorageController(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
+	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
-		if storageType == "fc" {
+		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
-		} else if storageType == "iscsi" {
+		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
-		} else if storageType == "nfs" {
+		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
 		}
-		return nil, errors.New("Error: Invalid storage protocol")
+		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
 	return nil, err
 }
 
-// To return specific implementation of storage
-func NewStorageNode(storageType string, configparams ...map[string]interface{}) (storageoperations, error) {
-	comnserv, err := buildCommonService(configparams[0])
+//NewStorageNode : To return specific implementation of storage
+func NewStorageNode(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
+	comnserv, err := buildCommonService(nil, nil)
 	if err == nil {
-		if storageType == "fc" {
+		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
-		} else if storageType == "iscsi" {
+		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
-		} else if storageType == "nfs" {
+		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
 		}
-		return nil, errors.New("Error: Invalid storage protocol")
+		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
 	return nil, err
 }
 
-func buildCommonService(config map[string]interface{}) (commonservice, error) {
+func buildCommonService(config map[string]string, secretMap map[string]string) (commonservice, error) {
 	commonserv := commonservice{}
+	log.Debugf("--------------------->>>>buildCommonService secretes secretMap  %v: ", secretMap)
 	if config != nil {
-		if config["secretname"] == nil || config["namespace"] == nil {
-			return commonserv, errors.New("Error: missing required fields 'secretname', 'namespace'")
+		log.Debugf("buildCommonService2 secretes secretMap  %v: ", secretMap)
+		if secretMap == nil || len(secretMap) < 3 {
+			log.Error("Api client cannot be initialized without proper secrets")
+			return commonserv, errors.New("secrets are missing or not valid")
 		}
 		commonserv = commonservice{
 			api: &api.ClientService{
-				SecretName: config["secretname"].(string),
-				NameSpace:  config["namespace"].(string),
+				SecretsMap: secretMap,
 			},
 		}
 		err := commonserv.verifyApiClient()
@@ -111,15 +113,15 @@ func buildCommonService(config map[string]interface{}) (commonservice, error) {
 			log.Error("API client not initialized.", err)
 			return commonserv, err
 		}
-		if config["nodeid"] == nil {
+		if config["nodeid"] == "" {
 			log.Error("Validation Error: 'nodeid' is required field.")
 		} else {
-			commonserv.nodeID = config["nodeid"].(string)
+			commonserv.nodeID = config["nodeid"]
 		}
-		if config["nodeIPAddress"] == nil {
+		if config["nodeIPAddress"] == "" {
 			log.Error("Validation Error: 'nodeIPAddress' is required field.")
 		} else {
-			commonserv.nodeIPAddress = config["nodeIPAddress"].(string)
+			commonserv.nodeIPAddress = config["nodeIPAddress"]
 		}
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
@@ -264,8 +266,8 @@ func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAd
 		log.Errorf("invalid parameters")
 		return errors.New("fail to add export rule")
 	}
-	exportId, _ := strconv.Atoi(exportID)
-	_, err = cs.api.AddNodeInExport(exportId, access, false, clientIPAdd)
+	expID, _ := strconv.Atoi(exportID)
+	_, err = cs.api.AddNodeInExport(expID, access, false, clientIPAdd)
 	if err != nil {
 		log.Errorf("fail to add export rule %v", err)
 		return
@@ -273,6 +275,7 @@ func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAd
 	return nil
 }
 
+// DeleteExportRule :
 func DeleteExportRule(volumeID, clientIPAdd string) error {
 
 	return nil

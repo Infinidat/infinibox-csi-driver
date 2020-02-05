@@ -153,16 +153,16 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 
 // ExportFileSystem :
 func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
-        urlPost := "api/rest/exports"
-        exportResp := ExportResponse{}
-        resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
-        if err != nil {
-                return nil, err
-        }
-        if reflect.DeepEqual(exportResp, ExportResponse{}) {
-                exportResp, _ = resp.(ExportResponse)
-        }
-        return &exportResp, nil
+	urlPost := "api/rest/exports"
+	exportResp := ExportResponse{}
+	resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
+	if err != nil {
+		return nil, err
+	}
+	if reflect.DeepEqual(exportResp, ExportResponse{}) {
+		exportResp, _ = resp.(ExportResponse)
+	}
+	return &exportResp, nil
 }
 
 // GetExportByID :
@@ -488,19 +488,20 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 		return
 	}
 	return
+}
 
 func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
-        uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
-        fileSystemResp := FileSystem{}
+	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
+	fileSystemResp := FileSystem{}
 
-        resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
-        if err != nil {
-                log.Errorf("Error occured while updating filesystem : %s", err)
-                return nil, err
-        }
+	resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
+	if err != nil {
+		log.Errorf("Error occured while updating filesystem : %s", err)
+		return nil, err
+	}
 
-        if fileSystem == (FileSystem{}) {
-                fileSystem, _ = resp.(FileSystem)
-        }
-        return &fileSystemResp, nil
+	if fileSystem == (FileSystem{}) {
+		fileSystem, _ = resp.(FileSystem)
+	}
+	return &fileSystemResp, nil
 }

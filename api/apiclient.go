@@ -5,8 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
-	"infinibox-csi-driver/api/clientgo"
+	"net"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strconv"
 
@@ -59,14 +60,18 @@ type Client interface {
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
 type ClientService struct {
-	api              client.RestClient
-	StroageClassName string
-	NameSpace        string
-	SecretName       string
+	api        client.RestClient
+	SecretsMap map[string]string
 }
 
 //NewClient : Create New Client
 func (c *ClientService) NewClient() (*ClientService, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("NewClient Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	restclient, err := client.NewRestClient()
 	if err != nil {
 		return c, err
@@ -77,6 +82,11 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 //DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("DeleteVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	path := "/api/rest/volumes/" + strconv.Itoa(volumeID)
 	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
 	if err != nil {
@@ -86,10 +96,15 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 }
 
 //CreateVolume : create volume with volume details provided in storage pool provided
-func (c *ClientService) CreateVolume(
-	volume *VolumeParam,
-	storagePoolName string) (*Volume, error) {
+func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("CreateVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	log.Debugf("CreateVolume called with storagepoolname %s", storagePoolName)
+
 	path := "/api/rest/volumes"
 	poolID, err := c.GetStoragePoolIDByName(storagePoolName)
 	log.Debugf("CreateVolume fetched storagepool poolID %s", poolID)
@@ -112,6 +127,12 @@ func (c *ClientService) CreateVolume(
 
 //FindStoragePool : Find storage pool either by id or name
 func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("FindStoragePool Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	log.Debugf("FindStoragePool called with either id %d or name %s", id, name)
 	storagePools, err := c.GetStoragePool(id, name)
 	log.Debugf("FindStoragePool GetStoragePool got storagePools %v", storagePools)
@@ -129,8 +150,13 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 }
 
 //GetStoragePool : Get storage pool(s) either by id or name
-func (c *ClientService) GetStoragePool(poolID int64,
-	storagepoolname string) ([]StoragePool, error) {
+func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetStoragePool Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	log.Debugf("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
 	storagePool := StoragePool{}
 	storagePools := []StoragePool{}
@@ -198,6 +224,12 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 
 // GetVolumeByName : find volume with given name
 func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetStoragePool Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	voluri := "/api/rest/volumes"
 	volumes := []Volume{}
 	queryParam := make(map[string]interface{})
@@ -221,6 +253,12 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 
 //GetVolume : get volume by id
 func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	var (
 		path    string
 		volume  = Volume{}
@@ -264,6 +302,12 @@ func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
 
 //CreateSnapshotVolume : Create volume from snapshot
 func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*SnapshotVolumesResp, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("CreateSnapshotVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
 	resp, err := c.getJSONResponse(
@@ -281,7 +325,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*Snaps
 func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("error while getting target iqn " + fmt.Sprint(res))
+			err = errors.New("GetNetworkSpaceByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	netspaces := []NetworkSpace{}
@@ -305,7 +349,7 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 func (c *ClientService) GetLunByVolumeID(volumeID string) (lun LunInfo, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("error while getting target iqn " + fmt.Sprint(res))
+			err = errors.New("GetLunByVolumeID Panic occured - " + fmt.Sprint(res))
 		}
 	}()
 	lunInfo := []LunInfo{}
@@ -328,7 +372,7 @@ func (c *ClientService) GetLunByVolumeID(volumeID string) (lun LunInfo, err erro
 func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("error while getting host " + fmt.Sprint(res))
+			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -354,7 +398,7 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("error while unmapping volume from host " + fmt.Sprint(res))
+			err = errors.New("UnMapVolumeFromHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
@@ -371,7 +415,7 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("error while mapping volume to host " + fmt.Sprint(res))
+			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
@@ -390,7 +434,13 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, 
 // **************************************************Util Methods*********************************************
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
 	log.Debugf("getJSONResponse request made for method: %s and apiuri %s", method, apiuri)
-	hostsecret, err := c.getAPIConfigForStorageClass()
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in getJSONResponse while makeing %s request on %s url error : %v ", method, apiuri, err)
+			err = errors.New("error in getJSONResponse " + fmt.Sprint(res))
+		}
+	}()
+	hostsecret, err := c.getAPIConfig()
 	if err != nil {
 		log.Errorf("Error occured: %v ", err)
 		return nil, err
@@ -417,11 +467,18 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 
 func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (resp interface{}, err error) {
 	log.Debugf("request made for apiuri %s", apiuri)
-	hostsecret, err := c.getAPIConfigForStorageClass()
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in getResponseWithQueryString while making request on %s url error : %v ", apiuri, err)
+			err = errors.New("error in getResponseWithQueryString " + fmt.Sprint(res))
+		}
+	}()
+	hostsecret, err := c.getAPIConfig()
 	if err != nil {
 		log.Errorf("Error occured: %v ", err)
 		return nil, err
 	}
+
 	queryString := ""
 	for key, val := range queryParam {
 		if queryString != "" {
@@ -431,29 +488,38 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 	}
 	log.Debugf("getResponseWithQueryString queryString is %s ", queryString)
 	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
-	//expectedResp = resp
 	log.Debugf("getResponseWithQueryString return err %v ", err)
 
 	return resp, err
 }
 
-func (c *ClientService) getAPIConfigForStorageClass() (client.HostConfig, error) {
-	// if hs, ok := secretsMap[cs.SecretName]; ok {
-	// 	return hs, nil
-	// } else {
-	kubeclient := clientgo.BuildClient()
-	secrets, err := kubeclient.GetSecret(c.SecretName, c.NameSpace)
-	if err != nil {
-		return client.HostConfig{}, err
+func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Error("error in getAPIConfig : ", err)
+			err = errors.New("error in getAPIConfig " + fmt.Sprint(res))
+		}
+	}()
+	if c.SecretsMap == nil {
+		return hostconfig, errors.New("Secret not found")
 	}
-	if secrets["hostip"] != "" && secrets["username"] != "" && secrets["password"] != "" {
-		hs := client.HostConfig{}
-		hs.ApiHost = "https://" + secrets["hostip"] + "/"
-		hs.UserName = secrets["username"]
-		hs.Password = secrets["password"]
-		// secretsMap[cs.StroageClassName] = hs
-		return hs, nil
+	if c.SecretsMap["hosturl"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
+
+		hosturl, err := url.ParseRequestURI(c.SecretsMap["hosturl"])
+		if err != nil {
+			log.Error("hosturl is not url, checking if it is valid IpAddress")
+			if net.ParseIP(c.SecretsMap["hosturl"]) != nil {
+				hostconfig.ApiHost = "https://" + c.SecretsMap["hosturl"] + "/"
+			} else {
+				return hostconfig, err
+			}
+			log.Info("setting url as ", hostconfig.ApiHost)
+		} else {
+			hostconfig.ApiHost = hosturl.String()
+		}
+		hostconfig.UserName = c.SecretsMap["username"]
+		hostconfig.Password = c.SecretsMap["password"]
+		return hostconfig, nil
 	}
-	//}
-	return client.HostConfig{}, errors.New("Secret not found with name " + c.SecretName)
+	return hostconfig, errors.New("host configuration is not valid")
 }

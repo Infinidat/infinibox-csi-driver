@@ -51,11 +51,19 @@ type RestClient interface {
 
 type restclient struct {
 	RestClient
+	SecretMap map[string]string
 }
 
 // Get :
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
 	log.Debugf("called client.Get with url %s ", url)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Get() while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Get() " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -74,6 +82,13 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
 	log.Debugf("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in GetWithQueryString while making request on %s url error : %v ", url, err)
+			err = errors.New("error in GetWithQueryString " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -92,7 +107,14 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called client.Post with url %s", url)
+	log.Debugf("called Post with url %s", url)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Post while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Post " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -112,7 +134,14 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called client.Put with url %s  ", url)
+	log.Debugf("called Put with url %s  ", url)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Put while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Put " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -130,6 +159,13 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 }
 
 func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostConfig) (interface{}, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Delete while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Delete " + fmt.Sprint(res))
+		}
+	}()
 	log.Debugf("called client.Delete with url %s  ", url)
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)

@@ -16,7 +16,10 @@ infiniboxbinpath: /bin/infinibox
 volumeNamePrefix: csi
 storagePool: "iscsipool"
 logLevel: "info"
-csiDriverName : "csi-infinibox-driver.infinidat.com"
+
+# name of the driver 
+#  note same name will be used for provisioner name
+csiDriverName : "infinibox-csi-driver"
 
 username: "nikhilbarge"
 password: "@n8411898007"
@@ -25,7 +28,14 @@ Infinibox:
   SecretName: infinibox-creds
   username: admin
   password: "123456"
-  apihost: 172.17.35.61
+  hosturl: 172.17.35.61
+
+Infinibox2:
+  SecretName: infinibox-creds2
+  username: admin2
+  password: "1234562"
+  hosturl: 172.17.35.62
+
 
 Initiator:
   SecretName: InitiatorSecretName
@@ -36,18 +46,22 @@ Initiator:
 # Image paths 
 images:
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar
-  attachersidecar: quay.io/k8scsi/csi-attacher:v1.0.1
+  attachersidecar: quay.io/k8scsi/csi-attacher:v2.1.0
 
   # "images.provisioner-sidercar" defines the container image used for the csi provisioner sidecar
-  provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.0.1 
+  provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.5.0
 
   # "images.snapshotter-sidercar" defines the container image used for the csi snapshotter sidercar
-  snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v1.0.1
+  snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v1.2.2
 
   # "images.registrar-sidercar" defines the container images used for the csi registrar sidercar
-  registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.0.2
+  registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
 
-  csidriver: docker.io/niteshgadekar/driver:1.0
+  # "images.resizer-sidercar" defines the container image used for the csi provisioner sidecar
+  resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
+
+  # images.csidriver defines csidriver image used for external provisioning
+  csidriver: docker.io/gadekarnitesh/infinibox-csi-driver:1.1.0.1
 
 storageClass:
   name:
