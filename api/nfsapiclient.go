@@ -152,17 +152,17 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 }
 
 // ExportFileSystem :
-func (c *ClientService) ExportFileSystem(export ExportFileSys) (ExportResponse, error) {
-	urlPost := "api/rest/exports"
-	exportResp := ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, exportResp)
-	if err != nil {
-		return exportResp, err
-	}
-	if reflect.DeepEqual(exportResp, ExportResponse{}) {
-		exportResp, _ = resp.(ExportResponse)
-	}
-	return exportResp, nil
+func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
+        urlPost := "api/rest/exports"
+        exportResp := ExportResponse{}
+        resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
+        if err != nil {
+                return nil, err
+        }
+        if reflect.DeepEqual(exportResp, ExportResponse{}) {
+                exportResp, _ = resp.(ExportResponse)
+        }
+        return &exportResp, nil
 }
 
 // GetExportByID :
@@ -277,4 +277,20 @@ func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRoot
 
 func removeIndex(s []Permissions, index int) []Permissions {
 	return append(s[:index], s[index+1:]...)
+}
+
+func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
+        uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
+        fileSystemResp := FileSystem{}
+
+        resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
+        if err != nil {
+                log.Errorf("Error occured while updating filesystem : %s", err)
+                return nil, err
+        }
+
+        if fileSystem == (FileSystem{}) {
+                fileSystem, _ = resp.(FileSystem)
+        }
+        return &fileSystemResp, nil
 }

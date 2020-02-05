@@ -129,9 +129,17 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
+                        &csi.ControllerServiceCapability{
+                                Type: &csi.ControllerServiceCapability_Rpc{
+                                        Rpc: &csi.ControllerServiceCapability_RPC{
+                                                Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+                                        },
+                                },
+                        },
 		},
 	}, nil
 }
+
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	storageController, _ := storage.NewStorageController(req.String(), nil)
 	if storageController != nil {
@@ -148,9 +156,20 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 }
 
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	storageController, _ := storage.NewStorageController(req.String(), nil)
-	if storageController != nil {
-		return storageController.ControllerExpandVolume(ctx, req)
-	}
-	return nil, nil
+        configparams := make(map[string]interface{})
+        configparams["nodeid"] = s.nodeID
+        configparams["nodeIPAddress"] = s.nodeIPAddress
+        log.Infof("Main ExpandVolume nodeid, nodeIPAddress %s %s", s.nodeID, s.nodeIPAddress)
+        volDetails := req.GetVolumeId()
+        volDetail := strings.Split(volDetails, "$$")
+        if len(volDetail) != 2 {
+                return nil, status.Error(codes.Internal, "volume Id and storage protocol not found")
+        }
+        storageController, err := storage.NewStorageController(volDetail[1], configparams)
+        if storageController != nil {
+                csiResp, err := storageController.ControllerExpandVolume(ctx, req)
+                return csiResp, err
+        }
+        log.Error("UpdateVolume Error Occured: ", err)
+        return nil, status.Error(codes.Internal, err.Error())
 }
