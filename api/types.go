@@ -214,6 +214,7 @@ type FileSystem struct {
 	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
 	Provtype   string `json:"provtype,omitempty"`
 	Size       int64  `json:"size,omitempty"`
+	ParentID   int64    `json:"parent_id,omitempty"`
 }
 
 type ExportPathRef struct {

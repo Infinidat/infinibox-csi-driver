@@ -39,7 +39,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		return csiResp, err
 	}
 	log.Error("CreateVolume Error Occured: ", err)
-	return nil, status.Error(codes.Internal, err.Error())
+	return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
 }
 
 func (s *service) createVolumeFromSnapshot(req *csi.CreateVolumeRequest,
@@ -61,23 +61,77 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	config["nodeid"] = s.nodeID
 	config["namespace"] = volproto[2]
 	config["secretname"] = volproto[3]
-	storageController, err := storage.NewStorageController(volproto[0], config)
+	storageController, err := storage.NewStorageController(volproto[1], config)
 	if storageController != nil {
-		return storageController.DeleteVolume(ctx, req)
+		req.VolumeId = volproto[0]
+		deleteResponce, err := storageController.DeleteVolume(ctx, req)
+		if err != nil {
+			log.Error("Error Occured: ", err)
+		}
+		req.VolumeId = voltype
+		return deleteResponce, err
 	}
-	log.Error("Error Occured: ", err)
+
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
 func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("------------IN s.req.GetNodeId() %v ", req.GetNodeId())
+
+	voltype := req.GetVolumeId()
+	log.Infof("ControllerPublishVolume called with volume name", voltype)
+	volproto := strings.Split(voltype, "$$")
+	log.Infof("ControllerPublishVolume volproto", volproto)
+	if len(volproto) != 4 {
+		return nil, status.Error(codes.Internal, "volume Id and other details not found")
+	}
+	config := make(map[string]interface{})
+	config["nodeid"] = s.nodeID
+	config["namespace"] = volproto[2]
+	config["secretname"] = volproto[3]
+	config["nodeIPAddress"] = req.GetNodeId()
+
+	log.Infof("------------IN config ctx %v", config)
+	storageController, err := storage.NewStorageController(volproto[1], config)
+	if err != nil {
+		log.Infof("-----------err ctx %v", err)
+	}
+	if storageController != nil {
+		return storageController.ControllerPublishVolume(ctx, req)
+	}
+
+	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
 func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("------------IN ControllerUnpublishVolume req.GetNodeId() %v", req.GetNodeId())
+	log.Infof("------------IN ControllerUnpublishVolume ctx %v", ctx)
+	voltype := req.GetVolumeId()
+	log.Infof("ControllerUnpublishVolume called with volume name", voltype)
+	volproto := strings.Split(voltype, "$$")
+	log.Infof("ControllerUnpublishVolume volproto", volproto)
+	if len(volproto) != 4 {
+		return nil, status.Error(codes.Internal, "volume Id and other details not found")
+	}
+	config := make(map[string]interface{})
+	config["nodeid"] = s.nodeID
+	config["namespace"] = volproto[2]
+	config["secretname"] = volproto[3]
+	config["nodeIPAddress"] = req.GetNodeId()
+
+	log.Infof("------------IN config ctx %v", config)
+	storageController, err := storage.NewStorageController(volproto[1], config)
+	if err != nil {
+		log.Error("Error Occured: ", err)
+		return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+	if storageController != nil {
+		return storageController.ControllerUnpublishVolume(ctx, req)
+	}
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	return &csi.ValidateVolumeCapabilitiesResponse{}, nil
 }
 
 func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
@@ -119,6 +173,20 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
 						Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
+					},
+				},
+			},
+			&csi.ControllerServiceCapability{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+					},
+				},
+			},
+			&csi.ControllerServiceCapability{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
 					},
 				},
 			},

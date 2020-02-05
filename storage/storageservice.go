@@ -13,6 +13,7 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	csictx "github.com/rexray/gocsi/context"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/kubernetes/pkg/util/mount"
 )
 
 const (
@@ -51,6 +52,7 @@ type nfsstorage struct {
 	exportBlock  string
 	ipAddress    string
 	cs           commonservice
+	mounter      mount.Interface
 }
 
 type commonservice struct {
@@ -69,7 +71,7 @@ func NewStorageController(storageType string, configparams ...map[string]interfa
 		} else if storageType == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
 		} else if storageType == "nfs" {
-			return &nfsstorage{cs: comnserv}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol")
 	}
@@ -85,7 +87,7 @@ func NewStorageNode(storageType string, configparams ...map[string]interface{}) 
 		} else if storageType == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
 		} else if storageType == "nfs" {
-			return &nfsstorage{cs: comnserv}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol")
 	}

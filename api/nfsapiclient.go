@@ -182,7 +182,7 @@ func (c *ClientService) GetExportByID(exportID int) (*ExportResponse, error) {
 
 // GetExportByFileSystem :
 func (c *ClientService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
-	uri := "api/rest/exports?filesystem_id" + strconv.FormatInt(fileSystemID, 10)
+	uri := "api/rest/exports?filesystem_id=" + strconv.FormatInt(fileSystemID, 10)
 	eResp := []ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
@@ -209,11 +209,18 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
 		eResp, _ = resp.(ExportResponse)
 	}
+	index := -1
 	permissionList := eResp.Permissions
-	for _, permission := range permissionList {
+	for i, permission := range permissionList {
 		if permission.Client == ip {
 			flag = true
 		}
+		if permission.Client == "*" {
+			index = i
+		}
+	}
+	if index != -1 {
+		//permissionList = removeIndex(permissionList, index)
 	}
 	if flag == false {
 		newPermission := Permissions{
@@ -235,12 +242,44 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	return &eResp, nil
 }
 
-//DeleteNodeFromExport : Export should be updated in case of node deletion in k8s cluster
-func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
+//DeleteExportRule method
+func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) error {
+	exportArray, err := c.GetExportByFileSystem(fileSystemID)
+	if err != nil {
+		log.Errorf("Error occured while getting export : %v", err)
+		return err
+	}
+	for _, export := range *exportArray {
+		uri := "api/rest/exports/" + strconv.FormatInt(export.ID, 10)
+		eResp := ExportResponse{}
+		resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+		if err != nil {
+			log.Errorf("Error occured while getting export path : %s", err)
+			return err
+		}
+		if reflect.DeepEqual(eResp, ExportResponse{}) {
+			eResp, _ = resp.(ExportResponse)
+		}
+		permission_list := eResp.Permissions
+		for _, permission := range permission_list {
+			if permission.Client == ipAddress {
+				_, err = c.DeleteNodeFromExport(export.ID, permission.Access, permission.NoRootSquash, ipAddress)
+				if err != nil {
+					log.Errorf("Error occured while getting export path : %s", err)
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
+func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
 	flag := false
 	var index int
 	exportPathRef := ExportPathRef{}
-	uri := "api/rest/exports/" + strconv.Itoa(exportID)
+	uri := "api/rest/exports/" + strconv.FormatInt(exportID, 10)
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
@@ -260,6 +299,13 @@ func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRoot
 
 	if flag == true {
 		permissionList = removeIndex(permissionList, index)
+		if len(permissionList) == 0 {
+			defaultPermission := Permissions{}
+			defaultPermission.Access = "RW"
+			defaultPermission.Client = "*"
+			defaultPermission.NoRootSquash = true
+			permissionList = append(permissionList, defaultPermission)
+		}
 		exportPathRef.Permissions = permissionList
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {
@@ -270,7 +316,7 @@ func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRoot
 			eResp, _ = resp.(ExportResponse)
 		}
 	} else {
-		fmt.Printf("Given Ip %s address not found in the list", ip)
+		log.Errorf("Given Ip %s address not found in the list", ip)
 	}
 	return &eResp, nil
 }
@@ -278,6 +324,170 @@ func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRoot
 func removeIndex(s []Permissions, index int) []Permissions {
 	return append(s[:index], s[index+1:]...)
 }
+
+//FileSystemSnapshot file system snapshot request parameter
+type FileSystemSnapshot struct {
+	ParentID       int64  `json:"parent_id"`
+	SnpashotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
+}
+
+//FileSystemSnapshotResponce file system snapshot Response
+type FileSystemSnapshotResponce struct {
+	SnapshotID  int64  `json:"id"`
+	Name        string `json:"name,omitempty"`
+	DatasetType string `json:"dataset_type,omitempty"`
+}
+
+//CreateFileSystemSnapshot method create the filesystem snapshot
+func (c *ClientService) CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error) {
+	log.Debugf("CreateFileSystemSnapshot  sourceFileSystemID=%s,snapshotName=%s", sourceFileSystemID, snapshotName)
+	path := "/api/rest/filesystems"
+	fileSysSnap := FileSystemSnapshot{}
+	fileSysSnap.ParentID = sourceFileSystemID
+	fileSysSnap.SnpashotName = snapshotName
+	fileSysSnap.WriteProtected = true
+	log.Error("fileSysSnap", fileSysSnap)
+	snapShotResponce := FileSystemSnapshotResponce{}
+	resp, err := c.getJSONResponse(http.MethodPost, path, fileSysSnap, &snapShotResponce)
+	if err != nil {
+		log.Errorf("fail to create %v", err)
+		return nil, err
+	}
+	if (FileSystemSnapshotResponce{}) == snapShotResponce {
+		snapShotResponce, _ = resp.(FileSystemSnapshotResponce)
+	}
+	log.Errorf("CreateFileSystemSnapshot post api response %v", snapShotResponce)
+	return &snapShotResponce, nil
+}
+
+//FileSystemHasChild method return true is the filesystemID has child else false
+func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
+	hasChild := false
+	voluri := "/api/rest/filesystems/"
+	filesystem := []FileSystem{}
+	queryParam := make(map[string]interface{})
+	queryParam["parent_id"] = fileSystemID
+	resp, err := c.getResponseWithQueryString(voluri, queryParam, &filesystem)
+	if err != nil {
+		log.Errorf("fail to check FileSystemHasChild %v", err)
+		return hasChild
+	}
+	if len(filesystem) == 0 {
+		filesystem, _ = resp.([]FileSystem)
+	}
+	if len(filesystem) > 0 {
+		hasChild = true
+	}
+	return hasChild
+}
+
+//
+const (
+	//TOBEDELETED status
+	TOBEDELETED = "host.k8s.to_be_deleted"
+)
+
+func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
+	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TOBEDELETED
+	metadata := Metadata{}
+	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
+	if err != nil {
+		log.Debugf("Error occured while getting metadata value: %s", err)
+		return false
+	}
+	if metadata == (Metadata{}) {
+		metadata, _ = resp.(Metadata)
+	}
+	status, statusErr := strconv.ParseBool(metadata.Value)
+	if statusErr != nil {
+		log.Debugf("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
+		status = false
+	}
+	return status
+
+}
+
+func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, error) {
+	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
+	eResp := FileSystem{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+	if err != nil {
+		log.Errorf("Error occured while getting fileSystem: %s", err)
+		return nil, err
+	}
+	if reflect.DeepEqual(eResp, FileSystem{}) {
+		eResp, _ = resp.(FileSystem)
+	}
+	return &eResp, nil
+}
+
+func (c *ClientService) GetParentID(fileSystemID int64) int64 {
+	fileSystem, err := c.GetFileSystemByID(fileSystemID)
+	if err != nil {
+		log.Errorf("Error occured while getting fileSystem: %s", err)
+		return 0
+	}
+	return fileSystem.ParentID
+}
+
+//DeleteParentFileSystem method delete the ascenders of fileystem
+func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { //delete fileystem's parent ID
+	//first check .. hasChild ...
+	hasChild := c.FileSystemHasChild(fileSystemID)
+	if !hasChild && c.GetMetadataStatus(fileSystemID) { //If No child and to_be_delete_status =true in metadata then
+		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
+		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
+		if err != nil {
+			log.Errorf("failt to delete filesystem %v", err)
+			return
+		}
+		if parentID != 0 {
+			c.DeleteParentFileSystem(parentID)
+		}
+	}
+	return
+}
+
+//DeleteFileSystemComplete method delete the fileystem
+func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
+
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while deleting filesystem " + fmt.Sprint(res))
+		}
+	}()
+
+	//1. Delete export path
+	exportResp, err := c.GetExportByFileSystem(fileSystemID)
+	if err != nil {
+		log.Errorf("failt to delete export path %v", err)
+		return
+	}
+	for _, ep := range *exportResp {
+		_, err = c.DeleteExportPath(ep.ID)
+		if err != nil {
+			log.Errorf("failt to delete export path %v", err)
+			return
+		}
+	}
+	log.Debug("Export path deleted successfully")
+
+	//2.delete metadata
+	_, err = c.DetachMetadataFromObject(fileSystemID)
+	if err != nil {
+		log.Errorf("fail to delete metadata %v", err)
+		return
+	}
+
+	//3. delete file system
+	log.Infof("delete FileSystem FileSystemID %v", fileSystemID)
+	_, err = c.DeleteFileSystem(fileSystemID)
+	if err != nil {
+		log.Errorf("failt to delete filesystem %v", err)
+		return
+	}
+	return
 
 func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
         uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)

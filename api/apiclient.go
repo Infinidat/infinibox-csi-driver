@@ -43,7 +43,17 @@ type Client interface {
 	GetExportByID(exportID int) (*ExportResponse, error)
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
+
+	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
+	CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error)
+
+	DeleteFileSystemComplete(fileSystemID int64) (err error)
+	DeleteParentFileSystem(fileSystemID int64) (err error)
+	GetParentID(fileSystemID int64) int64
+	GetFileSystemByID(fileSystemID int64) (*FileSystem, error)
+	GetMetadataStatus(fileSystemID int64) bool
+	FileSystemHasChild(fileSystemID int64) bool
+	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 }
 

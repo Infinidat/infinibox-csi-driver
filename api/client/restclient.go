@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -27,13 +28,14 @@ type apiresponse struct {
 
 var rClient *resty.Client
 
-//NewRestClient : Initialize http client 
+//NewRestClient : Initialize http client
 func NewRestClient() (*restclient, error) {
 	if rClient == nil {
 		rClient = resty.New()
 		rClient.SetHeader("Content-Type", "application/json")
 		rClient.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 		rClient.SetDisableWarn(true)
+		rClient.SetTimeout(15 * time.Second)
 	}
 	return &restclient{}, nil
 }
@@ -48,7 +50,7 @@ type RestClient interface {
 }
 
 type restclient struct {
-	RestClient 
+	RestClient
 }
 
 // Get :

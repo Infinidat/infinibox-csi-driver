@@ -12,9 +12,15 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
+	ptypes "github.com/golang/protobuf/ptypes"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	//TOBEDELETED status
+	TOBEDELETED = "host.k8s.to_be_deleted"
 )
 
 // NFSVolumeServiceType servier type
@@ -90,31 +96,16 @@ func validateParameter(config map[string]string) (bool, map[string]string) {
 	return validationStatus, validationStatusMap
 }
 
-func getPVName(pvName string, pvPrfix string) string {
-	if pvPrfix != "" {
-		result := strings.HasPrefix(pvName, pvPrfix)
-		if !result {
-			strArray := strings.Split(pvName, "-")
-			if len(strArray) > 1 {
-				pvName := pvPrfix + strArray[1]
-				return pvName
-			}
-		}
-	}
-	return pvName
-}
-
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	log.Debug("Creating Volume")
 	log.Infof("Request parameter %v", req.GetParameters())
-
+	log.Errorf("-----------> %v", req.GetVolumeContentSource())
 	//Adding the the request parameter into Map config
 	config := make(map[string]string)
 	for key, value := range req.GetParameters() {
 		config[key] = value
 	}
-	pvName := getPVName(req.GetName(), config["vol_prefix"])
-
+	pvName := req.GetName()
 	log.Debug("PV name ", pvName)
 	validationStatus, validationStatusMap := validateParameter(config)
 	if !validationStatus {
@@ -139,14 +130,37 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		}
 	}
 	log.Infoln("accessTypeBlock accessTypeBlock=%v  accessTypeMount=%v", accessTypeBlock, accessTypeMount)
-	//nfsVolume := NewCreateNFSVolume(pvName, config, capacity)
-	//exportpath := path.Join(dataRoot, pvName)
 
 	nfs.pVName = pvName
 	nfs.configmap = config
 	nfs.capacity = capacity
 	nfs.exportpath = path.Join(dataRoot, pvName)
+	//clone and snapshot
+	log.Errorf("--ContentSource: req.GetVolumeContentSource() %v", req.GetVolumeContentSource())
 
+	contentSource := &csi.VolumeContentSource{}
+	content := req.GetVolumeContentSource()
+
+	var sourceSnapshotID string
+	var sourceVolumeID string
+	if content != nil {
+		if content.GetSnapshot() != nil {
+			log.Debug("-content.GetSnapshot----------> %v", content.GetSnapshot())
+			sourceSnapshotID = content.GetSnapshot().GetSnapshotId()
+			contentSource = req.GetVolumeContentSource()
+		} else if sourceVolume := content.GetVolume(); sourceVolume != nil {
+			sourceVolumeID = content.GetVolume().GetVolumeId()
+			log.Debug("--content.GetVolume()---------> %v", sourceVolumeID)
+			contentSource = req.GetVolumeContentSource()
+		}
+	}
+	if sourceSnapshotID != "" { //volume frm snapshot
+		log.Debug("sourceSnapshotID....%s", sourceSnapshotID)
+
+	} else if sourceVolumeID != "" { //volume from PV
+		log.Debug("sourceVolumeID....%s", sourceVolumeID)
+
+	}
 	infinidatVol, createVolumeErr := nfs.CreateNFSVolume()
 
 	if createVolumeErr != nil {
@@ -166,9 +180,13 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 			VolumeId:      (*infinidatVol).VolID,
 			CapacityBytes: capacity,
 			VolumeContext: config,
-			ContentSource: req.GetVolumeContentSource(),
+			ContentSource: contentSource,
 		},
 	}, nil
+}
+
+func (nfs *nfsstorage) createVolumeFrmSnapshot(sourceSnapshotID string) {
+	log.Debugf("createVolumeFrmSnapshot sourceSnapshotID: %s", sourceSnapshotID)
 }
 
 //CreateNFSVolume create volumne method
@@ -332,8 +350,9 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
+	log.Debugf("DeleteVolume ... %s", req.GetVolumeId())
 	volumeID := req.GetVolumeId()
-	//nfsVolume := NewDeleteNFSVolume(volID)
+
 	volID, err := strconv.ParseInt(volumeID, 10, 64)
 	if err != nil {
 		log.Errorf("Invalid Volume ID %v", err)
@@ -355,50 +374,71 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while deleting filesystem " + fmt.Sprint(res))
+			return
 		}
 	}()
 
-	//1. Delete export path
-	exportResp, err := nfs.cs.api.GetExportByFileSystem(nfs.uniqueID)
-	if err != nil {
-		log.Errorf("failt to delete export path %v", err)
-		return
-	}
-	for _, ep := range *exportResp {
-		//err = deleteExport(ep.ID, ep.Block)
-		_, err = nfs.cs.api.DeleteExportPath(ep.ID)
+	hasChild := nfs.cs.api.FileSystemHasChild(nfs.uniqueID)
+	if hasChild {
+		metadata := make(map[string]interface{})
+		metadata[TOBEDELETED] = true
+		_, err = nfs.cs.api.AttachMetadataToObject(nfs.uniqueID, metadata)
 		if err != nil {
-			log.Errorf("failt to delete export path %v", err)
-			return
+			log.Errorf("error while Set metadata %v", err)
+			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
 		}
-	}
-	log.Debug("Export path deleted successfully")
-
-	//2.delete metadata
-	_, err = nfs.cs.api.DetachMetadataFromObject(nfs.uniqueID)
-	if err != nil {
-		log.Errorf("failt to delete metadata %v", err)
 		return
 	}
-	//*******************************/
-	//3. delete file system
-	log.Infof("delete FileSystem FileSystemID %v", nfs.uniqueID)
-	_, err = nfs.cs.api.DeleteFileSystem(nfs.uniqueID)
+	//get parenID
+	parentID := nfs.cs.api.GetParentID(nfs.uniqueID)
+	err = nfs.cs.api.DeleteFileSystemComplete(nfs.uniqueID)
 	if err != nil {
-		log.Errorf("failt to delete filesystem %v", err)
-		return
+		log.Errorf("error while Set metadata %v", err)
+		err = errors.New("error while delete file system")
 	}
-	log.Debug("filesystem deleted successfully")
+	if parentID != 0 {
+		nfs.cs.api.DeleteParentFileSystem(parentID)
+	}
 	return
 }
 
 //============================================Unimplemented Methods=========================//
 
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+	log.Debugf("inner ControllerPublishVolume req %v", req)
+	log.Debugf("inner ControllerPublishVolume ctx %v", ctx)
+	log.Debugf("innermap %v", nfs.cs.nodeIPAddress)
+	//Add export Rule
+	exportID := req.GetVolumeContext()["exportID"]
+	exportBlock := req.GetVolumeContext()["exportBlock"]
+	access := req.GetVolumeContext()["nfs_export_permissions"]
+	noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
+	if castErr != nil {
+		log.Errorf("fail to cast no_root_squash .set default =true")
+		noRootSquash = true
+	}
+	log.Info("exportID,exportBlock,access,nodeIPaddress", exportID, exportBlock, access, nfs.cs.storagePoolIdName, ":::", nfs.cs.nodeIPAddress)
+	eportid, _ := strconv.Atoi(exportID)
+	_, err := nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nfs.cs.nodeIPAddress)
+	if err != nil {
+		log.Errorf("fail to add export rule %v", err)
+		return &csi.ControllerPublishVolumeResponse{}, status.Errorf(codes.Internal, "fail to add export rule  %s", err)
+	}
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
 func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+	log.Debugf("inner ControllerUnpublishVolume req %v", req)
+	log.Debugf("inner ControllerUnpublishVolume ctx %v", ctx)
+	voltype := req.GetVolumeId()
+	log.Debugf("ControllerUnpublishVolume called with volume name", voltype, req.GetNodeId())
+	volproto := strings.Split(voltype, "$$")
+	fileID, _ := strconv.ParseInt(volproto[0], 10, 64)
+	err := nfs.cs.api.DeleteExportRule(fileID, req.GetNodeId())
+	if err != nil {
+		log.Errorf("fail to DeleteExportRule rule %v", err)
+		return &csi.ControllerUnpublishVolumeResponse{}, status.Errorf(codes.Internal, "fail to DeleteExportRule rule  %s", err)
+	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
@@ -406,23 +446,47 @@ func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.
 }
 
 func (nfs *nfsstorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return nil, nil
+	log.Debugf("####ListVolumes %v", ctx, req)
+	return &csi.ListVolumesResponse{}, nil
 }
 
 func (nfs *nfsstorage) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	return nil, nil
+	log.Debugf("####ListSnapshots %v", ctx, req)
+	return &csi.ListSnapshotsResponse{}, nil
 }
 func (nfs *nfsstorage) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	return nil, nil
+	log.Debugf("####GetCapacity %v", ctx, req)
+	return &csi.GetCapacityResponse{}, nil
 }
 func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	return nil, nil
+	log.Debugf("####ControllerGetCapabilities %v", ctx, req)
+	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
 func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	return nil, nil
+	srcVolume := req.GetSourceVolumeId()
+	log.Error("CreateSnapshot GetSourceVolumeId(): ", srcVolume)
+	log.Error("CreateSnapshot GetName() ", req.GetName())
+	volproto := strings.Split(srcVolume, "$$")
+	n, _ := strconv.ParseInt(volproto[0], 10, 64)
+	resp, err := nfs.cs.api.CreateFileSystemSnapshot(n, req.GetName())
+	if err != nil {
+		log.Errorf("fail to create snapshot %s error %v", req.GetName(), err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+	log.Error("CreateFileSystemSnapshot resp() ", resp)
+	snapshot := &csi.Snapshot{
+		SnapshotId:     req.GetName(),
+		SourceVolumeId: srcVolume,
+		ReadyToUse:     true,
+		CreationTime:   ptypes.TimestampNow(),
+		SizeBytes:      1000,
+	}
+	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
+	return snapshotResp, nil
 }
+
 func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return nil, nil
+	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
