@@ -32,7 +32,7 @@ type Client interface {
 
 	// for nfs
 	OneTimeValidation(poolname string, networkspace string) (list string, err error)
-	ExportFileSystem(export ExportFileSys) (ExportResponse, error)
+	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
 	CreateExportPath(exportRef *ExportPathRef) (*ExportResponse, error)
 	DeleteExportPath(exportID int64) (*ExportResponse, error)
 	DeleteFileSystem(fileSystemID int64) (*FileSystem, error)
@@ -44,6 +44,7 @@ type Client interface {
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
+	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations

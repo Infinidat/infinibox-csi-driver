@@ -426,5 +426,40 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 }
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	return nil, nil
+        log.Debug("ExpandVolume")
+        if req.GetVolumeId() == "" {
+                return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
+        }
+
+        if req.GetCapacityRange() == nil {
+                return nil, status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+        }
+
+        volDetails := req.GetVolumeId()
+        volDetail := strings.Split(volDetails, "$$")
+        ID, err := strconv.ParseInt(volDetail[0], 10, 64)
+        if err != nil {
+                log.Errorf("Invalid Volume ID %v", err)
+                return &csi.ControllerExpandVolumeResponse{}, nil
+        }
+
+        capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+        if capacity < gib {
+                capacity = gib
+                log.Warn("Volume Minimum capacity should be greater 1 GB")
+        }
+        log.Infof("volumen capacity %v", capacity)
+        var fileSys api.FileSystem
+        fileSys.Size = capacity
+        // Expand file system size
+        _, err = nfs.cs.api.UpdateFilesystem(ID, fileSys)
+        if err != nil {
+                log.Errorf("Failed to update file system %v", err)
+                return &csi.ControllerExpandVolumeResponse{}, err
+        }
+        log.Infoln("Filesystem updated successfully")
+        return &csi.ControllerExpandVolumeResponse{
+                CapacityBytes:         capacity,
+                NodeExpansionRequired: false,
+        }, nil
 }
