@@ -33,7 +33,7 @@ func main() {
 
 	gocsi.Run(
 		context.Background(),
-		service.Name,
+		service.ServiceName,
 		"A Infinibox CSI Driver Plugin",
 		usage,
 		provider.New(configParams))
@@ -44,9 +44,11 @@ func main() {
 func configureLog(logLevel string) {
 	ll, err := log.ParseLevel(logLevel)
 	if err != nil {
+		log.Error("Invalid logging level: ", logLevel)
 		ll = log.InfoLevel // to be set to error level
 	}
 	logrus.SetLevel(ll)
+	log.Debug("Logging  level set to ", logrus.GetLevel().String())
 }
 
 const usage = `   `

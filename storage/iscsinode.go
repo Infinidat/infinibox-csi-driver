@@ -39,17 +39,16 @@ func (iscsi *iscsistorage) NodePublishVolume(
 	req *csi.NodePublishVolumeRequest) (
 	*csi.NodePublishVolumeResponse, error) {
 
-
 	iscsiInfo, err := iscsi.getISCSIInfo(req)
 	if err != nil {
 
-		return nil, status.Error(codes.Internal, err.Error())
+		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	diskMounter := iscsi.getISCSIDiskMounter(iscsiInfo, req)
 
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -62,7 +61,7 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(
 	targetPath := req.GetTargetPath()
 	err := iscsi.DetachDisk(*diskUnmounter, targetPath)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return &csi.NodeUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
@@ -311,9 +310,10 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.No
 }
 
 func (iscsi *iscsistorage) getISCSIDiskUnmounter(req *csi.NodeUnpublishVolumeRequest) *iscsiDiskUnmounter {
+	volproto := strings.Split(req.GetVolumeId(), "$$")
 	return &iscsiDiskUnmounter{
 		iscsiDisk: &iscsiDisk{
-			VolName: req.GetVolumeId(),
+			VolName: volproto[0],
 		},
 		mounter: mount.New(""),
 		exec:    mount.NewOsExec(),
@@ -419,10 +419,10 @@ type iscsiDiskUnmounter struct {
 }
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeStageVolume not implemented")
+	return &csi.NodeStageVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeStageVolume not implemented")
 }
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeUnstageVolume not implemented")
+	return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeUnstageVolume not implemented")
 }
 
 func (iscsi *iscsistorage) NodeGetCapabilities(
@@ -451,10 +451,10 @@ func (iscsi *iscsistorage) NodeGetInfo(
 
 func (iscsi *iscsistorage) NodeGetVolumeStats(
 	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
 
 }
 
 func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	return &csi.NodeExpandVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String())
 }
