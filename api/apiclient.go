@@ -43,6 +43,7 @@ type Client interface {
 	GetExportByID(exportID int) (*ExportResponse, error)
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
+
 	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error)
 
@@ -53,6 +54,7 @@ type Client interface {
 	GetMetadataStatus(fileSystemID int64) bool
 	FileSystemHasChild(fileSystemID int64) bool
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
+	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations

@@ -85,6 +85,13 @@ func (s *service) NodeGetCapabilities(
 					},
 				},
 			},
+                        {
+                                Type: &csi.NodeServiceCapability_Rpc{
+                                        Rpc: &csi.NodeServiceCapability_RPC{
+                                                Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+                                        },
+                                },
+                        },
 		},
 	}, nil
 }
@@ -127,5 +134,10 @@ func (s *service) NodeGetVolumeStats(
 }
 
 func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+        volID := req.GetVolumeId()
+        if len(volID) == 0 {
+                return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
+        }
+
+        return &csi.NodeExpandVolumeResponse{}, nil
 }
