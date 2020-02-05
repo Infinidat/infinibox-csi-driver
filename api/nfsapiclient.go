@@ -208,11 +208,18 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
 		eResp, _ = resp.(ExportResponse)
 	}
+	index := -1
 	permissionList := eResp.Permissions
-	for _, permission := range permissionList {
+	for i, permission := range permissionList {
 		if permission.Client == ip {
 			flag = true
 		}
+		if permission.Client == "*" {
+			index = i
+		}
+	}
+	if index != -1 {
+		//permissionList = removeIndex(permissionList, index)
 	}
 	if flag == false {
 		newPermission := Permissions{
@@ -291,6 +298,13 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 
 	if flag == true {
 		permissionList = removeIndex(permissionList, index)
+		if len(permissionList) == 0 {
+			defaultPermission := Permissions{}
+			defaultPermission.Access = "RW"
+			defaultPermission.Client = "*"
+			defaultPermission.NoRootSquash = true
+			permissionList = append(permissionList, defaultPermission)
+		}
 		exportPathRef.Permissions = permissionList
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {

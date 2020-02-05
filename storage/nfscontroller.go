@@ -412,9 +412,14 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	exportID := req.GetVolumeContext()["exportID"]
 	exportBlock := req.GetVolumeContext()["exportBlock"]
 	access := req.GetVolumeContext()["nfs_export_permissions"]
+	noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
+	if castErr != nil {
+		log.Errorf("fail to cast no_root_squash .set default =true")
+		noRootSquash = true
+	}
 	log.Info("exportID,exportBlock,access,nodeIPaddress", exportID, exportBlock, access, nfs.cs.storagePoolIdName, ":::", nfs.cs.nodeIPAddress)
 	eportid, _ := strconv.Atoi(exportID)
-	_, err := nfs.cs.api.AddNodeInExport(eportid, access, false, nfs.cs.nodeIPAddress)
+	_, err := nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nfs.cs.nodeIPAddress)
 	if err != nil {
 		log.Errorf("fail to add export rule %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Errorf(codes.Internal, "fail to add export rule  %s", err)
