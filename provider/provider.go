@@ -6,6 +6,7 @@ import (
 	"github.com/rexray/gocsi"
 )
 
+//New initialise the parameter to controller and nodeserver
 func New(config map[string]string) gocsi.StoragePluginProvider {
 	srvc := service.New(config)
 	return &gocsi.StoragePlugin{

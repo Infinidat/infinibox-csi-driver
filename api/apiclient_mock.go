@@ -16,6 +16,7 @@ type MockApiClient struct {
 	mock.Mock
 }
 
+
 //Get : mock for get request
 func (m *MockApiClient) Get(ctx context.Context, url string, hostconfig client.HostConfig, expectedResp interface{}) (interface{}, error) {
 	args := m.Called(ctx, url, hostconfig, &expectedResp)

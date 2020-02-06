@@ -25,7 +25,6 @@ type Client interface {
 	GetVolume(volumeid int) ([]Volume, error)
 	CreateSnapshotVolume(snapshotParam *SnapshotDef) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
-	GetLunByVolumeID(volumeID string) (lunID LunInfo, err error)
 	GetHostByName(hostName string) (host Host, err error)
 	MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
@@ -107,7 +106,7 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 
 	path := "/api/rest/volumes"
 	poolID, err := c.GetStoragePoolIDByName(storagePoolName)
-	log.Debugf("CreateVolume fetched storagepool poolID %s", poolID)
+	log.Debugf("CreateVolume fetched storagepool poolID %d", poolID)
 	if err != nil {
 		return nil, err
 	}
@@ -343,29 +342,6 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 		nspace = netspaces[0]
 	}
 	return nspace, nil
-}
-
-// GetLunByVolumeID - Get Lun details by volumeID
-func (c *ClientService) GetLunByVolumeID(volumeID string) (lun LunInfo, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetLunByVolumeID Panic occured - " + fmt.Sprint(res))
-		}
-	}()
-	lunInfo := []LunInfo{}
-	uri := "api/rest/volumes/" + volumeID + "/luns"
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &lunInfo)
-	if err != nil {
-		log.Errorf("error occured whilte rtriving IQN: %v", err)
-		return lun, err
-	}
-	if len(lunInfo) == 0 {
-		lunInfo, _ = resp.([]LunInfo)
-	}
-	if len(lunInfo) > 0 {
-		lun = lunInfo[0]
-	}
-	return lun, nil
 }
 
 //GetHostByName - get host details for given hostname

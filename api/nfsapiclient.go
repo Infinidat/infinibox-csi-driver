@@ -341,7 +341,6 @@ type FileSystemSnapshotResponce struct {
 
 //CreateFileSystemSnapshot method create the filesystem snapshot
 func (c *ClientService) CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error) {
-	log.Debugf("CreateFileSystemSnapshot  sourceFileSystemID=%s,snapshotName=%s", sourceFileSystemID, snapshotName)
 	path := "/api/rest/filesystems"
 	fileSysSnap := FileSystemSnapshot{}
 	fileSysSnap.ParentID = sourceFileSystemID
@@ -439,7 +438,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
 		if err != nil {
-			log.Errorf("fail to delete filesystem,filesystemID:%s error:%v", fileSystemID, err)
+			log.Errorf("fail to delete filesystem,filesystemID:%d error:%v", fileSystemID, err)
 			return
 		}
 		if parentID != 0 {

@@ -94,13 +94,6 @@ func (m *MockClient) GetNetworkSpaceByName(networkSpaceName string) (api.Network
 	return resp, err
 }
 
-func (m *MockClient) GetLunByVolumeID(volumeID string) (api.LunInfo, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(api.LunInfo)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
 func (m *MockClient) GetHostByName(hostName string) (api.Host, error) {
 	args := m.Called()
 	resp, _ := args.Get(0).(api.Host)

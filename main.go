@@ -12,10 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//starting method of CSI-Driver
 func main() {
 	configParams := make(map[string]string)
 	if nodeid, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		configParams["nodeid"] = nodeid
 		storage.NodeId = nodeid
 	}
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
