@@ -39,7 +39,7 @@ type Client interface {
 	DeleteFileSystem(fileSystemID int64) (*FileSystem, error)
 	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
 	DetachMetadataFromObject(objectID int64) (*[]Metadata, error)
-	CreateFilesystem(fileSystem FileSystem) (*FileSystem, error)
+	CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error)
 	GetFileSystemCount() (int, error)
 	GetExportByID(exportID int) (*ExportResponse, error)
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)

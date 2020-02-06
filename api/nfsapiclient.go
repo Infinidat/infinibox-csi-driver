@@ -122,17 +122,17 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 }
 
 // CreateFilesystem :
-func (c *ClientService) CreateFilesystem(fileSystem FileSystem) (*FileSystem, error) {
+func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
 	uri := "api/rest/filesystems/"
 	fileSystemResp := FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, fileSystem, &fileSystemResp)
+	_, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
 	if err != nil {
 		log.Errorf("Error occured while creating filesystem : %s", err)
 		return nil, err
 	}
-	if fileSystem == (FileSystem{}) {
-		fileSystem, _ = resp.(FileSystem)
-	}
+	/*if resp != nil {
+		fileSystem, _ := resp.(FileSystem)
+	}*/
 	return &fileSystemResp, nil
 }
 
@@ -439,7 +439,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
 		if err != nil {
-			log.Errorf("failt to delete filesystem %v", err)
+			log.Errorf("fail to delete filesystem,filesystemID:%s error:%v", fileSystemID, err)
 			return
 		}
 		if parentID != 0 {
@@ -461,13 +461,13 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	//1. Delete export path
 	exportResp, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("failt to delete export path %v", err)
+		log.Errorf("fail to delete export path %v", err)
 		return
 	}
 	for _, ep := range *exportResp {
 		_, err = c.DeleteExportPath(ep.ID)
 		if err != nil {
-			log.Errorf("failt to delete export path %v", err)
+			log.Errorf("fail to delete export path %v", err)
 			return
 		}
 	}
@@ -484,7 +484,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	log.Infof("delete FileSystem FileSystemID %v", fileSystemID)
 	_, err = c.DeleteFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("failt to delete filesystem %v", err)
+		log.Errorf("fail to delete filesystem %v", err)
 		return
 	}
 	return

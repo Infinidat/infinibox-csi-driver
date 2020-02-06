@@ -77,27 +77,11 @@ func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) 
 }
 func (s *service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	log.Infof("------------IN s.NodeStageVolume req %v ", req)
-	mounter := mount.New("")
-	targetPath := req.GetStagingTargetPath()
-	log.Infof("------------IN s.targetPath ctx %v ", targetPath)
-	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
-	log.Infof("------------IN s.notMnt,  ctx %v ", notMnt)
-	log.Infof("------------IN s.notMnt, err  %v ", err)
-	log.Infof("------------------------------------------------------------------------------------------------")
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Infof("------------IN s.NodeUnstageVolume req %v ", req)
-	mounter := mount.New("")
-	targetPath := req.GetStagingTargetPath()
-	log.Infof("------------IN NodeUnstageVolume s.targetPath ctx %v ", targetPath)
-	notMnt, err := mounter.IsLikelyNotMountPoint(targetPath)
-	log.Infof("------------IN NodeUnstageVolume s.notMnt,  ctx %v ", notMnt)
-	log.Infof("------------IN NodeUnstageVolume s.notMnt, err  %v ", err)
-
-	log.Infof("------------------------------------------------------------------------------------------------")
-
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 func (s *service) NodeGetVolumeStats(
