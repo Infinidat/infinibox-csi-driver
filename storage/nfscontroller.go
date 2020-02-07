@@ -7,12 +7,10 @@ import (
 	"infinibox-csi-driver/api"
 	"path"
 	"strconv"
-
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/glog"
-	ptypes "github.com/golang/protobuf/ptypes"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -463,67 +461,107 @@ func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.C
 	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
 func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+	var snapshotID string
 	srcVolume := req.GetSourceVolumeId()
-	log.Error("CreateSnapshot GetSourceVolumeId(): ", srcVolume)
-	log.Error("CreateSnapshot GetName() ", req.GetName())
+	log.Debug("CreateSnapshot GetSourceVolumeId(): ", srcVolume)
+	snapshotName := req.GetName()
+	log.Debug("CreateSnapshot GetName() ", snapshotName)
 	volproto := strings.Split(srcVolume, "$$")
-	n, _ := strconv.ParseInt(volproto[0], 10, 64)
-	resp, err := nfs.cs.api.CreateFileSystemSnapshot(n, req.GetName())
+	if len(volproto) != 4 {
+		return nil, status.Error(codes.Internal, "volume Id and other details not found")
+	}
+
+	sourceFilesystemID, _ := strconv.ParseInt(volproto[0], 10, 64)
+	snapshotArray, err := nfs.cs.api.GetSnapshotByName(snapshotName)
+	for _, snap := range *snapshotArray {
+		if snap.ParentId == sourceFilesystemID {
+			log.Debug("Got snapshot so returning nil")
+			return &csi.CreateSnapshotResponse{
+				Snapshot: &csi.Snapshot{
+					SizeBytes:      snap.Size,
+					SnapshotId:     fmt.Sprint(snap.SnapshotID),
+					SourceVolumeId: fmt.Sprint(snap.ParentId),
+					CreationTime:   snap.CreatedAt,
+					ReadyToUse:     true,
+				},
+			}, nil
+		}
+	}
+
+	resp, err := nfs.cs.api.CreateFileSystemSnapshot(sourceFilesystemID, snapshotName)
 	if err != nil {
-		log.Errorf("fail to create snapshot %s error %v", req.GetName(), err)
+		log.Errorf("Failed to create snapshot %s error %v", req.GetName(), err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
-	log.Error("CreateFileSystemSnapshot resp() ", resp)
+
+	log.Debug("CreateFileSystemSnapshot resp() ", resp)
+	snapshotID = strconv.FormatInt(resp.SnapshotID, 10) + "$$" + volproto[1] + "$$" + volproto[2] + "$$" + volproto[3]
+
 	snapshot := &csi.Snapshot{
-		SnapshotId:     req.GetName(),
-		SourceVolumeId: srcVolume,
+		SnapshotId:     snapshotID,
+		SourceVolumeId: volproto[0],
 		ReadyToUse:     true,
-		CreationTime:   ptypes.TimestampNow(),
-		SizeBytes:      1000,
+		CreationTime:   resp.CreatedAt,
+		SizeBytes:      resp.Size,
 	}
+
+	log.Debug("CreateFileSystemSnapshot resp() ", snapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
 	return snapshotResp, nil
 }
 
 func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+	snapshotID := req.GetSnapshotId()
+	log.Debug("It is in nfsController-------------------------------------")
+	log.Debug("Delete Snapshot GetSnapshotId(): ", snapshotID)
+	volproto := strings.Split(snapshotID, "$$")
+	if len(volproto) != 4 {
+		return nil, status.Error(codes.Internal, "snapshot Id and other details not found")
+	}
+	snapID, _ := strconv.ParseInt(volproto[0], 10, 64)
+	err := nfs.cs.api.DeleteParentFileSystem(snapID)
+	if err != nil {
+		log.Errorf("Failed to delete snapshot %s error %v", snapID, err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-        log.Debug("ExpandVolume")
-        if req.GetVolumeId() == "" {
-                return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-        }
+	log.Debug("ExpandVolume")
+	if req.GetVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
+	}
 
-        if req.GetCapacityRange() == nil {
-                return nil, status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
-        }
+	if req.GetCapacityRange() == nil {
+		return nil, status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+	}
 
-        volDetails := req.GetVolumeId()
-        volDetail := strings.Split(volDetails, "$$")
-        ID, err := strconv.ParseInt(volDetail[0], 10, 64)
-        if err != nil {
-                log.Errorf("Invalid Volume ID %v", err)
-                return &csi.ControllerExpandVolumeResponse{}, nil
-        }
+	volDetails := req.GetVolumeId()
+	volDetail := strings.Split(volDetails, "$$")
+	ID, err := strconv.ParseInt(volDetail[0], 10, 64)
+	if err != nil {
+		log.Errorf("Invalid Volume ID %v", err)
+		return &csi.ControllerExpandVolumeResponse{}, nil
+	}
 
-        capacity := int64(req.GetCapacityRange().GetRequiredBytes())
-        if capacity < gib {
-                capacity = gib
-                log.Warn("Volume Minimum capacity should be greater 1 GB")
-        }
-        log.Infof("volumen capacity %v", capacity)
-        var fileSys api.FileSystem
-        fileSys.Size = capacity
-        // Expand file system size
-        _, err = nfs.cs.api.UpdateFilesystem(ID, fileSys)
-        if err != nil {
-                log.Errorf("Failed to update file system %v", err)
-                return &csi.ControllerExpandVolumeResponse{}, err
-        }
-        log.Infoln("Filesystem updated successfully")
-        return &csi.ControllerExpandVolumeResponse{
-                CapacityBytes:         capacity,
-                NodeExpansionRequired: false,
-        }, nil
+	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	if capacity < gib {
+		capacity = gib
+		log.Warn("Volume Minimum capacity should be greater 1 GB")
+	}
+	log.Infof("volumen capacity %v", capacity)
+	var fileSys api.FileSystem
+	fileSys.Size = capacity
+	// Expand file system size
+	_, err = nfs.cs.api.UpdateFilesystem(ID, fileSys)
+	if err != nil {
+		log.Errorf("Failed to update file system %v", err)
+		return &csi.ControllerExpandVolumeResponse{}, err
+	}
+	log.Infoln("Filesystem updated successfully")
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         capacity,
+		NodeExpansionRequired: false,
+	}, nil
 }

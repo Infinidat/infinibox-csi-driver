@@ -5,9 +5,8 @@ import (
 	"infinibox-csi-driver/storage"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -197,47 +196,91 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
-                        &csi.ControllerServiceCapability{
-                                Type: &csi.ControllerServiceCapability_Rpc{
-                                        Rpc: &csi.ControllerServiceCapability_RPC{
-                                                Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-                                        },
-                                },
-                        },
+			&csi.ControllerServiceCapability{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+					},
+				},
+			},
 		},
 	}, nil
 }
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	storageController, _ := storage.NewStorageController(req.String(), nil)
+	log.Infof("------------IN Create Snapshot req.GetSourceVolumeId() %v", req.GetSourceVolumeId())
+	log.Infof("------------IN Create Snapshot ctx %v", ctx)
+	voltype := req.GetSourceVolumeId()
+	log.Infof("Create Snapshot called with volume Id", voltype)
+	volproto := strings.Split(voltype, "$$")
+	log.Infof("Create Snapshot volproto", volproto)
+	if len(volproto) != 4 {
+		return nil, status.Error(codes.Internal, "volume Id and other details not found")
+	}
+	config := make(map[string]interface{})
+	config["nodeid"] = s.nodeID
+	config["namespace"] = volproto[2]
+	config["secretname"] = volproto[3]
+	config["nodeIPAddress"] = s.nodeIPAddress
+
+	log.Infof("------------IN config ctx %v", config)
+	storageController, err := storage.NewStorageController(volproto[1], config)
+	if err != nil {
+		log.Error("Error Occured: ", err)
+		return &csi.CreateSnapshotResponse{}, status.Error(codes.Internal, err.Error())
+	}
 	if storageController != nil {
 		return storageController.CreateSnapshot(ctx, req)
 	}
-	return nil, nil
+	return &csi.CreateSnapshotResponse{}, nil
 }
+
 func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	storageController, _ := storage.NewStorageController(req.String(), nil)
+	log.Debug("---------------------------Here call in Delete snapshot---------------------------")
+	log.Debug("-------------------------------------------------------------------------------------")
+	log.Debug("---------------------------------------------------------------------------------")
+	log.Infof("------------IN Delete Snapshot req.GetSourceVolumeId() %v", req.GetSnapshotId())
+	log.Infof("------------IN Delete Snapshot ctx %v", ctx)
+	voltype := req.GetSnapshotId()
+	log.Infof("Delete Snapshot called with snapshot ID", voltype)
+	volproto := strings.Split(voltype, "$$")
+	log.Infof("Delete Snapshot volproto", volproto)
+	if len(volproto) != 4 {
+		return nil, status.Error(codes.Internal, "snapshot Id and other details not found")
+	}
+	config := make(map[string]interface{})
+	config["nodeid"] = s.nodeID
+	config["namespace"] = volproto[2]
+	config["secretname"] = volproto[3]
+	config["nodeIPAddress"] = s.nodeIPAddress
+
+	log.Infof("------------IN config ctx %v", config)
+	storageController, err := storage.NewStorageController(volproto[1], config)
+	if err != nil {
+		log.Error("Error Occured: ", err)
+		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, err.Error())
+	}
 	if storageController != nil {
 		return storageController.DeleteSnapshot(ctx, req)
 	}
-	return nil, nil
+	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-        configparams := make(map[string]interface{})
-        configparams["nodeid"] = s.nodeID
-        configparams["nodeIPAddress"] = s.nodeIPAddress
-        log.Infof("Main ExpandVolume nodeid, nodeIPAddress %s %s", s.nodeID, s.nodeIPAddress)
-        volDetails := req.GetVolumeId()
-        volDetail := strings.Split(volDetails, "$$")
-        if len(volDetail) != 2 {
-                return nil, status.Error(codes.Internal, "volume Id and storage protocol not found")
-        }
-        storageController, err := storage.NewStorageController(volDetail[1], configparams)
-        if storageController != nil {
-                csiResp, err := storageController.ControllerExpandVolume(ctx, req)
-                return csiResp, err
-        }
-        log.Error("UpdateVolume Error Occured: ", err)
-        return nil, status.Error(codes.Internal, err.Error())
+	configparams := make(map[string]interface{})
+	configparams["nodeid"] = s.nodeID
+	configparams["nodeIPAddress"] = s.nodeIPAddress
+	log.Infof("Main ExpandVolume nodeid, nodeIPAddress %s %s", s.nodeID, s.nodeIPAddress)
+	volDetails := req.GetVolumeId()
+	volDetail := strings.Split(volDetails, "$$")
+	if len(volDetail) != 4 {
+		return nil, status.Error(codes.Internal, "volume Id and storage protocol not found")
+	}
+	storageController, err := storage.NewStorageController(volDetail[1], configparams)
+	if storageController != nil {
+		csiResp, err := storageController.ControllerExpandVolume(ctx, req)
+		return csiResp, err
+	}
+	log.Error("UpdateVolume Error Occured: ", err)
+	return nil, status.Error(codes.Internal, err.Error())
 }

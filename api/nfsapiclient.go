@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/prometheus/common/log"
 )
 
@@ -91,6 +92,21 @@ func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error
 	return &fileSystem, nil
 }
 
+//GetSnapshotByName :
+func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+	uri := "api/rest/filesystems?name=" + snapshotName
+	snapshot := []FileSystemSnapshotResponce{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
+	if err != nil {
+		log.Errorf("Error occured while getting snapshot : %s ", err)
+		return nil, err
+	}
+	if len(snapshot) == 0 {
+		snapshot, _ = resp.([]FileSystemSnapshotResponce)
+	}
+	return &snapshot, nil
+}
+
 // AttachMetadataToObject :
 func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error) {
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
@@ -153,16 +169,16 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 
 // ExportFileSystem :
 func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
-        urlPost := "api/rest/exports"
-        exportResp := ExportResponse{}
-        resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
-        if err != nil {
-                return nil, err
-        }
-        if reflect.DeepEqual(exportResp, ExportResponse{}) {
-                exportResp, _ = resp.(ExportResponse)
-        }
-        return &exportResp, nil
+	urlPost := "api/rest/exports"
+	exportResp := ExportResponse{}
+	resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
+	if err != nil {
+		return nil, err
+	}
+	if reflect.DeepEqual(exportResp, ExportResponse{}) {
+		exportResp, _ = resp.(ExportResponse)
+	}
+	return &exportResp, nil
 }
 
 // GetExportByID :
@@ -334,9 +350,12 @@ type FileSystemSnapshot struct {
 
 //FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
-	SnapshotID  int64  `json:"id"`
-	Name        string `json:"name,omitempty"`
-	DatasetType string `json:"dataset_type,omitempty"`
+	SnapshotID  int64                `json:"id"`
+	Name        string               `json:"name,omitempty"`
+	DatasetType string               `json:"dataset_type,omitempty"`
+	ParentId    int64                `json:"parent_id,omitempty"`
+	Size        int64                `json:"size,omitempty"`
+	CreatedAt   *timestamp.Timestamp `json:"created_at,omitempty"`
 }
 
 //CreateFileSystemSnapshot method create the filesystem snapshot
@@ -346,7 +365,7 @@ func (c *ClientService) CreateFileSystemSnapshot(sourceFileSystemID int64, snaps
 	fileSysSnap := FileSystemSnapshot{}
 	fileSysSnap.ParentID = sourceFileSystemID
 	fileSysSnap.SnpashotName = snapshotName
-	fileSysSnap.WriteProtected = true
+	fileSysSnap.WriteProtected = false
 	log.Error("fileSysSnap", fileSysSnap)
 	snapShotResponce := FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, fileSysSnap, &snapShotResponce)
@@ -434,9 +453,13 @@ func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 //DeleteParentFileSystem method delete the ascenders of fileystem
 func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { //delete fileystem's parent ID
 	//first check .. hasChild ...
+	log.Debug("It is in DeleteParentFileSystem -----------------------------------")
 	hasChild := c.FileSystemHasChild(fileSystemID)
+	log.Debug("FileSystem has child status is ", hasChild)
 	if !hasChild && c.GetMetadataStatus(fileSystemID) { //If No child and to_be_delete_status =true in metadata then
-		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
+		log.Debug("It is inside GetMetadataStatus")
+		parentID := c.GetParentID(fileSystemID) // get the parentID .. before delete
+		log.Debug("parent iD : ", parentID)
 		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
 		if err != nil {
 			log.Errorf("failt to delete filesystem %v", err)
@@ -451,7 +474,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 
 //DeleteFileSystemComplete method delete the fileystem
 func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
-
+	log.Debug("Call in DeleteFileSystemComplete ----------------------------")
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while deleting filesystem " + fmt.Sprint(res))
@@ -474,11 +497,10 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	log.Debug("Export path deleted successfully")
 
 	//2.delete metadata
-	_, err = c.DetachMetadataFromObject(fileSystemID)
-	if err != nil {
-		log.Errorf("fail to delete metadata %v", err)
-		return
-	}
+	// _, err = c.DetachMetadataFromObject(fileSystemID)
+	// if err != nil {
+	// 	log.Errorf("fail to delete metadata %v", err)
+	// }
 
 	//3. delete file system
 	log.Infof("delete FileSystem FileSystemID %v", fileSystemID)
@@ -488,19 +510,34 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 		return
 	}
 	return
+}
 
 func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
-        uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
-        fileSystemResp := FileSystem{}
+	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
+	fileSystemResp := FileSystem{}
 
-        resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
-        if err != nil {
-                log.Errorf("Error occured while updating filesystem : %s", err)
-                return nil, err
-        }
+	resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
+	if err != nil {
+		log.Errorf("Error occured while updating filesystem : %s", err)
+		return nil, err
+	}
 
-        if fileSystem == (FileSystem{}) {
-                fileSystem, _ = resp.(FileSystem)
-        }
-        return &fileSystemResp, nil
+	if fileSystem == (FileSystem{}) {
+		fileSystem, _ = resp.(FileSystem)
+	}
+	return &fileSystemResp, nil
 }
+
+// func (c *ClientService) RestoreFilesystem(fileSystemID, snapshotID int64) (response *bool , err error) {
+//      uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 0) + "restore?approved=true"
+//      body :=
+//      response, err = c.getJSONResponse(http.MethodPut, uri, body, nil)
+//      if err != nil {
+//              log.Errorf("Error occured while updating filesystem : %s", err)
+//              return nil, err
+//      }
+//      // if fileSystem == (FileSystem{}) {
+//      //      fileSystem, _ = resp.(FileSystem)
+//      // }
+//      return &response, nil
+// }

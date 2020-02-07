@@ -1,11 +1,11 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: csidrivers.csi.storage.k8s.io
+  name: csidrivers.storage.k8s.io
   labels:
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
-  group: csi.storage.k8s.io
+  group: storage.k8s.io
   names:
     kind: CSIDriver
     plural: csidrivers
@@ -21,8 +21,8 @@ spec:
                 and that Kubernetes should call attach and wait for any attach operation
                 to complete before proceeding to mount.
               type: boolean
-            podInfoOnMountVersion:
+            podInfoOnMount:
               description: Indicates this CSI volume driver requires additional pod
                 information (like podName, podUID, etc.) during mount operations.
-              type: string
-  version: v1alpha1
+              type: boolean            
+  version: v1beta1

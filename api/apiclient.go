@@ -55,6 +55,7 @@ type Client interface {
 	FileSystemHasChild(fileSystemID int64) bool
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
+	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations

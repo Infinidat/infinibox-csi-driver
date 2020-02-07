@@ -1,7 +1,7 @@
-apiVersion: csi.storage.k8s.io/v1alpha1
+apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
-    name: infinibox
+  name: infinibox-csi-driver
 spec:
-    attachRequired: true
-    podInfoOnMountVersion: "v1"
+  attachRequired: true
+  podInfoOnMount: true
