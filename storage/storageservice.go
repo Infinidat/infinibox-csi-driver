@@ -96,9 +96,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 
 func buildCommonService(config map[string]string, secretMap map[string]string) (commonservice, error) {
 	commonserv := commonservice{}
-	log.Debugf("--------------------->>>>buildCommonService secretes secretMap  %v: ", secretMap)
 	if config != nil {
-		log.Debugf("buildCommonService2 secretes secretMap  %v: ", secretMap)
 		if secretMap == nil || len(secretMap) < 3 {
 			log.Error("Api client cannot be initialized without proper secrets")
 			return commonserv, errors.New("secrets are missing or not valid")
@@ -112,7 +110,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		if err != nil {
 			log.Error("API client not initialized.", err)
 			return commonserv, err
-		}
+		} //TODO:
 		if config["nodeid"] == "" {
 			log.Error("Validation Error: 'nodeid' is required field.")
 		} else {

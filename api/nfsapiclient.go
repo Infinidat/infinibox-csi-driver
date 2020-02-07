@@ -122,17 +122,17 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 }
 
 // CreateFilesystem :
-func (c *ClientService) CreateFilesystem(fileSystem FileSystem) (*FileSystem, error) {
+func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
 	uri := "api/rest/filesystems/"
 	fileSystemResp := FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, fileSystem, &fileSystemResp)
+	_, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
 	if err != nil {
 		log.Errorf("Error occured while creating filesystem : %s", err)
 		return nil, err
 	}
-	if fileSystem == (FileSystem{}) {
-		fileSystem, _ = resp.(FileSystem)
-	}
+	/*if resp != nil {
+		fileSystem, _ := resp.(FileSystem)
+	}*/
 	return &fileSystemResp, nil
 }
 
@@ -341,7 +341,6 @@ type FileSystemSnapshotResponce struct {
 
 //CreateFileSystemSnapshot method create the filesystem snapshot
 func (c *ClientService) CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error) {
-	log.Debugf("CreateFileSystemSnapshot  sourceFileSystemID=%s,snapshotName=%s", sourceFileSystemID, snapshotName)
 	path := "/api/rest/filesystems"
 	fileSysSnap := FileSystemSnapshot{}
 	fileSysSnap.ParentID = sourceFileSystemID
@@ -422,6 +421,7 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 	return &eResp, nil
 }
 
+//GetParentID method return the
 func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 	fileSystem, err := c.GetFileSystemByID(fileSystemID)
 	if err != nil {
@@ -439,7 +439,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
 		if err != nil {
-			log.Errorf("failt to delete filesystem %v", err)
+			log.Errorf("fail to delete filesystem,filesystemID:%d error:%v", fileSystemID, err)
 			return
 		}
 		if parentID != 0 {
@@ -461,13 +461,13 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	//1. Delete export path
 	exportResp, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("failt to delete export path %v", err)
+		log.Errorf("fail to delete export path %v", err)
 		return
 	}
 	for _, ep := range *exportResp {
 		_, err = c.DeleteExportPath(ep.ID)
 		if err != nil {
-			log.Errorf("failt to delete export path %v", err)
+			log.Errorf("fail to delete export path %v", err)
 			return
 		}
 	}
@@ -481,10 +481,10 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	}
 
 	//3. delete file system
-	log.Infof("delete FileSystem FileSystemID %v", fileSystemID)
+	log.Infof("delete FileSystem FileSystemID %d", fileSystemID)
 	_, err = c.DeleteFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("failt to delete filesystem %v", err)
+		log.Errorf("fail to delete filesystem %v", err)
 		return
 	}
 	return

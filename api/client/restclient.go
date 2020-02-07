@@ -243,7 +243,6 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 		if res != nil {
 			responseinmap := response.(map[string]interface{})
 			if responseinmap != nil {
-
 				if str, iserr := rc.parseError(responseinmap["error"]); iserr {
 					return nil, errors.New(str)
 				}

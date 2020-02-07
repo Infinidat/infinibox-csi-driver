@@ -28,7 +28,7 @@ func (suite *ApiTestSuite) Test_CreateVolumeGetStoragePoolIDByName_Fail() {
 	expectedError := errors.New("volume with given name not found")
 
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
 	volume := VolumeParam{Name: "test_volume"}
 	_, err := service.CreateVolume(&volume, "test_storage_pool")
@@ -47,7 +47,7 @@ func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
 	expectedError := errors.New("No such pool: test_storage_pool")
 	suite.clientMock.On("GetWithQueryString").Return(&storagePool, nil)
 	suite.serviceMock.On("getJSONResponse").Return(expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	volume := VolumeParam{Name: "test_volume",
@@ -70,7 +70,7 @@ func (suite *ApiTestSuite) Test_CreateVolume_Success() {
 	vol := &Volume{}
 	suite.clientMock.On("GetWithQueryString").Return(storagePools, nil)
 	suite.clientMock.On("Post").Return(vol, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	volume := VolumeParam{Name: "test_volume", PoolId: 1000, VolumeSize: 1000000000, ProvisionType: "THIN"}
@@ -84,7 +84,7 @@ func (suite *ApiTestSuite) Test_CreateVolume_Success() {
 func (suite *ApiTestSuite) Test_GetStoragePool_Fail() {
 	expectedError := errors.New("Unable to get given pool")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.GetStoragePool(1001, "test_storage_pool")
@@ -101,7 +101,7 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 	sp.ID = 0
 	storagePools = append(storagePools, sp)
 	suite.clientMock.On("GetWithQueryString").Return(storagePools, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.GetStoragePool(1001, "test_storage_pool")
@@ -114,7 +114,7 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Fail() {
 	expectedError := errors.New("volume with given name not found")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.GetStoragePoolIDByName("test_storage_pool")
@@ -127,7 +127,7 @@ func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Fail() {
 func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Success() {
 	var poolID int64
 	suite.clientMock.On("GetWithQueryString").Return(poolID, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.GetStoragePoolIDByName("test_storage_pool")
@@ -140,7 +140,7 @@ func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Success() {
 func (suite *ApiTestSuite) Test_GetVolumeByName_Fail() {
 	expectedError := errors.New("Unable to get given volume by name")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.GetVolumeByName("test_storage_pool")
@@ -157,7 +157,7 @@ func (suite *ApiTestSuite) Test_GetVolumeByName_Success() {
 	volume.ID = 0
 	volumes = append(volumes, volume)
 	suite.clientMock.On("GetWithQueryString").Return(volumes, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.GetVolumeByName("test_storage_pool")
@@ -170,7 +170,7 @@ func (suite *ApiTestSuite) Test_GetVolumeByName_Success() {
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 	expectedError := errors.New("Missing parameters")
 	suite.clientMock.On("Post").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	snapshotParams := SnapshotDef{ParentID: 1001}
@@ -186,7 +186,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 	expectedResponse := &SnapshotVolumesResp{}
 	expectedResponse.SnapshotGroupID = ""
 	suite.clientMock.On("Post").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	snapshotParams := SnapshotDef{ParentID: 1001, SnapshotName: "test_volume_resp"}
@@ -200,7 +200,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 func (suite *ApiTestSuite) Test_GetVolume_Fail() {
 	expectedError := errors.New("Unable to get given volume")
 	suite.clientMock.On("Get").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.GetVolume(101)
@@ -218,7 +218,7 @@ func (suite *ApiTestSuite) Test_GetVolume_Success() {
 	volume.ID = 0
 	volumes = append(volumes, volume)
 	suite.clientMock.On("Get").Return(volumes, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.GetVolume(101)
@@ -231,7 +231,7 @@ func (suite *ApiTestSuite) Test_GetVolume_Success() {
 func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Fail() {
 	expectedError := errors.New("Unable to get given network space by name")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.GetNetworkSpaceByName("test_network_space")
@@ -248,7 +248,7 @@ func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
 	network.ID = 0
 	//networks = append(networks, network)
 	suite.clientMock.On("GetWithQueryString").Return(network, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.GetNetworkSpaceByName("test_network_space")
@@ -258,37 +258,10 @@ func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
 	assert.Equal(suite.T(), network, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_GetLunByVolumeID_Fail() {
-	expectedError := errors.New("Unable to get LUN by given volume ID")
-	suite.clientMock.On("Get").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
-
-	// Act
-	_, err := service.GetLunByVolumeID("1001")
-
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetLunByVolumeID_Success() {
-	lunInfo := LunInfo{}
-	lunInfo.ID = 0
-	suite.clientMock.On("Get").Return(lunInfo, nil)
-	service := ClientService{api: suite.clientMock}
-
-	// Act
-	response, _ := service.GetLunByVolumeID("1001")
-
-	// Assert
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), lunInfo, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_GetHostByName_Fail() {
 	expectedError := errors.New("Unable to get host by given name")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.GetHostByName("test_host")
@@ -302,7 +275,7 @@ func (suite *ApiTestSuite) Test_GetHostByName_Success() {
 	hostResp := Host{}
 	hostResp.ID = 0
 	suite.clientMock.On("GetWithQueryString").Return(hostResp, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.GetHostByName("test_host")
@@ -315,7 +288,7 @@ func (suite *ApiTestSuite) Test_GetHostByName_Success() {
 func (suite *ApiTestSuite) Test_MapVolumeToHost_Fail() {
 	expectedError := errors.New("Volume ID is missing")
 	suite.clientMock.On("Post").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	_, err := service.MapVolumeToHost(1, 2)
@@ -329,7 +302,7 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 	luninfo := LunInfo{}
 	luninfo.ID = 0
 	suite.clientMock.On("Post").Return(luninfo, nil)
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	response, _ := service.MapVolumeToHost(1001, 2)
@@ -345,7 +318,7 @@ func (suite *ApiTestSuite) Test_UpdateFilesystem_Fail() {
 	suite.clientMock.On("Put").Return(nil, expectedError)
 	// service := api.ClientService{api: nil}
 	// service := suite.serviceMock
-	service := ClientService{api: suite.clientMock}
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
 	fileSystem := FileSystem{}
@@ -361,10 +334,7 @@ func (suite *ApiTestSuite) Test_UpdateFilesystem_Success() {
 	expectedResponse := &FileSystem{}
 	expectedResponse.Size = 0
 	suite.clientMock.On("Put").Return(expectedResponse, nil)
-	// service := api.ClientService{api: nil}
-	// service := suite.serviceMock
-	service := ClientService{api: suite.clientMock}
-
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
 	fileSystem := FileSystem{Size: 100}
 	response, _ := service.UpdateFilesystem(1001, fileSystem)
@@ -372,4 +342,12 @@ func (suite *ApiTestSuite) Test_UpdateFilesystem_Success() {
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+}
+
+func setSecret() map[string]string {
+	secretMap := make(map[string]string)
+	secretMap["username"] = "admin"
+	secretMap["password"] = "123456"
+	secretMap["hosturl"] = "https://172.17.35.61/"
+	return secretMap
 }
