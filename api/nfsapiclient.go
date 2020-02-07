@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api/client"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -56,7 +57,8 @@ func (c *ClientService) CreateExportPath(exportRef *ExportPathRef) (*ExportRespo
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, (ExportResponse{})) {
-		eResp, _ = resp.(ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(ExportResponse)
 	}
 	return &eResp, nil
 }
@@ -71,7 +73,8 @@ func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, (ExportResponse{})) {
-		eResp, _ = resp.(ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(ExportResponse)
 	}
 	return &eResp, nil
 }
@@ -86,7 +89,8 @@ func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error
 		return nil, err
 	}
 	if fileSystem == (FileSystem{}) {
-		fileSystem, _ = resp.(FileSystem)
+		apiresp := resp.(client.ApiResponse)
+		fileSystem, _ = apiresp.Result.(FileSystem)
 	}
 	return &fileSystem, nil
 }
@@ -101,7 +105,8 @@ func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]i
 		return nil, err
 	}
 	if len(metadata) == 0 {
-		metadata, _ = resp.([]Metadata)
+		apiresp := resp.(client.ApiResponse)
+		metadata, _ = apiresp.Result.([]Metadata)
 	}
 	return &metadata, nil
 }
@@ -116,7 +121,8 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 		return nil, err
 	}
 	if len(metadata) == 0 {
-		metadata, _ = resp.([]Metadata)
+		apiresp := resp.(client.ApiResponse)
+		metadata, _ = apiresp.Result.([]Metadata)
 	}
 	return &metadata, nil
 }
@@ -125,19 +131,21 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
 	uri := "api/rest/filesystems/"
 	fileSystemResp := FileSystem{}
-	_, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
+	resp, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
 	if err != nil {
 		log.Errorf("Error occured while creating filesystem : %s", err)
 		return nil, err
 	}
-	/*if resp != nil {
-		fileSystem, _ := resp.(FileSystem)
-	}*/
+	if fileSystemResp == (FileSystem{}) {
+		apiresp := resp.(client.ApiResponse)
+		fileSystemResp, _ = apiresp.Result.(FileSystem)
+	}
 	return &fileSystemResp, nil
 }
 
 // GetFileSystemCount :
 func (c *ClientService) GetFileSystemCount() (int, error) {
+	log.Info("IN GetFileSystemCount")
 	uri := "api/rest/filesystems"
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
@@ -145,10 +153,16 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 		log.Errorf("error occured while fetching filesystems : %s ", err)
 		return 0, err
 	}
+
+	apiresp := resp.(client.ApiResponse)
+	metadata := apiresp.MetaData
+
 	if len(filesystems) == 0 {
-		filesystems, _ = resp.([]FileSystem)
+		filesystems, _ = apiresp.Result.([]FileSystem)
 	}
-	return len(filesystems), nil
+	// return len(filesystems), nil
+	log.Info("GetFileSystemCount status success")
+	return metadata.NoOfObject, nil
 }
 
 // ExportFileSystem :
@@ -159,8 +173,10 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 	if err != nil {
 		return nil, err
 	}
+
 	if reflect.DeepEqual(exportResp, ExportResponse{}) {
-		exportResp, _ = resp.(ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		exportResp, _ = apiresp.Result.(ExportResponse)
 	}
 	return &exportResp, nil
 }
@@ -174,8 +190,10 @@ func (c *ClientService) GetExportByID(exportID int) (*ExportResponse, error) {
 		log.Errorf("Error occured while getting export path : %s", err)
 		return nil, err
 	}
+
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		eResp, _ = resp.(ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(ExportResponse)
 	}
 	return &eResp, nil
 }
@@ -190,7 +208,8 @@ func (c *ClientService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResp
 		return nil, err
 	}
 	if len(eResp) == 0 {
-		eResp, _ = resp.([]ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.([]ExportResponse)
 	}
 	return &eResp, nil
 }
@@ -207,7 +226,8 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		eResp, _ = resp.(ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(ExportResponse)
 	}
 	index := -1
 	permissionList := eResp.Permissions
@@ -258,7 +278,8 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 			return err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
-			eResp, _ = resp.(ExportResponse)
+			apiresp := resp.(client.ApiResponse)
+			eResp, _ = apiresp.Result.(ExportResponse)
 		}
 		permission_list := eResp.Permissions
 		for _, permission := range permission_list {
@@ -287,7 +308,8 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		eResp, _ = resp.(ExportResponse)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(ExportResponse)
 	}
 	permissionList := eResp.Permissions
 	for i, permission := range permissionList {
@@ -321,43 +343,22 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 	return &eResp, nil
 }
 
-func removeIndex(s []Permissions, index int) []Permissions {
-	return append(s[:index], s[index+1:]...)
-}
-
-//FileSystemSnapshot file system snapshot request parameter
-type FileSystemSnapshot struct {
-	ParentID       int64  `json:"parent_id"`
-	SnpashotName   string `json:"name"`
-	WriteProtected bool   `json:"write_protected"`
-}
-
-//FileSystemSnapshotResponce file system snapshot Response
-type FileSystemSnapshotResponce struct {
-	SnapshotID  int64  `json:"id"`
-	Name        string `json:"name,omitempty"`
-	DatasetType string `json:"dataset_type,omitempty"`
-}
-
 //CreateFileSystemSnapshot method create the filesystem snapshot
-func (c *ClientService) CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error) {
+func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+	log.Debugf("CreateFileSystemSnapshot  sourceFileSystemID=%s,snapshotName=%s", snapshotParam.ParentID, snapshotParam.SnapshotName)
 	path := "/api/rest/filesystems"
-	fileSysSnap := FileSystemSnapshot{}
-	fileSysSnap.ParentID = sourceFileSystemID
-	fileSysSnap.SnpashotName = snapshotName
-	fileSysSnap.WriteProtected = true
-	log.Error("fileSysSnap", fileSysSnap)
-	snapShotResponce := FileSystemSnapshotResponce{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, fileSysSnap, &snapShotResponce)
+	snapShotResponse := FileSystemSnapshotResponce{}
+	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
 	if err != nil {
 		log.Errorf("fail to create %v", err)
 		return nil, err
 	}
-	if (FileSystemSnapshotResponce{}) == snapShotResponce {
-		snapShotResponce, _ = resp.(FileSystemSnapshotResponce)
+	if (FileSystemSnapshotResponce{}) == snapShotResponse {
+		apiresp := resp.(client.ApiResponse)
+		snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
 	}
-	log.Errorf("CreateFileSystemSnapshot post api response %v", snapShotResponce)
-	return &snapShotResponce, nil
+	log.Errorf("CreateFileSystemSnapshot post api response %v", snapShotResponse)
+	return &snapShotResponse, nil
 }
 
 //FileSystemHasChild method return true is the filesystemID has child else false
@@ -373,7 +374,8 @@ func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
 		return hasChild
 	}
 	if len(filesystem) == 0 {
-		filesystem, _ = resp.([]FileSystem)
+		apiresp := resp.(client.ApiResponse)
+		filesystem, _ = apiresp.Result.([]FileSystem)
 	}
 	if len(filesystem) > 0 {
 		hasChild = true
@@ -396,7 +398,8 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 		return false
 	}
 	if metadata == (Metadata{}) {
-		metadata, _ = resp.(Metadata)
+		apiresp := resp.(client.ApiResponse)
+		metadata, _ = apiresp.Result.(Metadata)
 	}
 	status, statusErr := strconv.ParseBool(metadata.Value)
 	if statusErr != nil {
@@ -405,6 +408,34 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 	}
 	return status
 
+}
+
+func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetFileSystemByName Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	uri := "/api/rest/filesystems"
+	fsystems := []FileSystem{}
+	queryParam := make(map[string]interface{})
+	queryParam["name"] = fileSystemName
+	resp, err := c.getResponseWithQueryString(uri,
+		queryParam, &fsystems)
+	if err != nil {
+		return nil, err
+	}
+	if len(fsystems) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		fsystems, _ = apiresp.Result.([]FileSystem)
+	}
+	for _, fsystem := range fsystems {
+		if fsystem.Name == fileSystemName {
+			return &fsystem, nil
+		}
+	}
+	return nil, errors.New("filesystem with given name not found")
 }
 
 func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, error) {
@@ -416,7 +447,8 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, FileSystem{}) {
-		eResp, _ = resp.(FileSystem)
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(FileSystem)
 	}
 	return &eResp, nil
 }
@@ -501,7 +533,28 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSyst
 	}
 
 	if fileSystem == (FileSystem{}) {
-		fileSystem, _ = resp.(FileSystem)
+		apiresp := resp.(client.ApiResponse)
+		fileSystem, _ = apiresp.Result.(FileSystem)
 	}
 	return &fileSystemResp, nil
+}
+
+func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error) {
+	uri := "api/rest/filesystems/" + strconv.FormatInt(parentID, 10) + "/restore?approved=true"
+	var result bool
+	body := map[string]interface{}{"source_id": srcSnapShotID}
+	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &result)
+	if err != nil {
+		log.Errorf("Error occured while updating filesystem : %s", err)
+		return false, err
+	}
+
+	if result == false {
+		apiresp := resp.(client.ApiResponse)
+		result, _ = apiresp.Result.(bool)
+	}
+	return result, nil
+}
+func removeIndex(s []Permissions, index int) []Permissions {
+	return append(s[:index], s[index+1:]...)
 }

@@ -2,8 +2,11 @@ package storage
 
 import (
 	"errors"
+	"infinibox-csi-driver/api"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -38,6 +41,7 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 
 	sizeinGB = requiredVolSize / bytesofGiB
 	if sizeinGB == 0 {
+		log.Warn("Volumen Minimum capacity should be greater 1 GB")
 		sizeinGB = 1
 	}
 
@@ -73,4 +77,14 @@ func copyRequestParameters(parameters, out map[string]string) {
 			out[key] = val
 		}
 	}
+}
+
+func validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+	volproto := strings.Split(str, "$$")
+	if len(volproto) != 2 {
+		return volprotoconf, errors.New("volume Id and other details not found")
+	}
+	volprotoconf.VolumeID = volproto[0]
+	volprotoconf.StorageType = volproto[1]
+	return volprotoconf, nil
 }

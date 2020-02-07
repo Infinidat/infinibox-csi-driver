@@ -209,6 +209,31 @@ func (cs *commonservice) getCSIVolume(vol *api.Volume) *csi.Volume {
 	return vi
 }
 
+func (cs *commonservice) getCSIFsVolume(fsys *api.FileSystem) *csi.Volume {
+	log.Infof("getCSIFsVolume called with fsys %v", fsys)
+	storagePoolName := fsys.PoolName
+	log.Infof("getCSIFsVolume storagePoolName is %s", fsys.PoolName)
+	if storagePoolName == "" {
+		storagePoolName = cs.getStoragePoolNameFromID(fsys.PoolID)
+	}
+
+	// Make the additional volume attributes
+	attributes := map[string]string{
+		"ID":              strconv.FormatInt(fsys.ID, 10),
+		"Name":            fsys.Name,
+		"StoragePoolID":   strconv.FormatInt(fsys.PoolID, 10),
+		"StoragePoolName": storagePoolName,
+		"CreationTime":    time.Unix(int64(fsys.CreatedAt), 0).String(),
+	}
+
+	vi := &csi.Volume{
+		VolumeId:      strconv.FormatInt(fsys.ID, 10),
+		CapacityBytes: fsys.Size,
+		VolumeContext: attributes,
+	}
+	return vi
+}
+
 // Convert an SIO Volume into a CSI Snapshot object suitable for return.
 func (cs *commonservice) getCSISnapshot(vol *api.Volume) *csi.Snapshot {
 	snapshot := &csi.Snapshot{

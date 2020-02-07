@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	ptypes "github.com/golang/protobuf/ptypes"
+	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -98,10 +98,8 @@ func validateParameter(config map[string]string) (bool, map[string]string) {
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	log.Debug("Creating Volume of nfs protocol")
 	//Adding the the request parameter into Map config
-	config := make(map[string]string)
-	for key, value := range req.GetParameters() {
-		config[key] = value
-	}
+	config := req.GetParameters()
+
 	pvName := req.GetName()
 	log.Debug("Creating fileystem %s of nfs protocol ", pvName)
 	validationStatus, validationStatusMap := validateParameter(config)
@@ -122,35 +120,26 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	nfs.capacity = capacity
 	nfs.exportpath = path.Join(dataRoot, pvName) //TODO: export path prefix need to add here
 
-	contentSource := &csi.VolumeContentSource{}
-	content := req.GetVolumeContentSource()
+	// Volume content source support Volumes and Snapshots
+	contentSource := req.GetVolumeContentSource()
 
-	//this is for volumne cloning and snapshot
-	var sourceSnapshotID string
-	var sourceVolumeID string
-	if content != nil {
-		if content.GetSnapshot() != nil {
-			log.Infof("content.GetSnapshot %v", content.GetSnapshot())
-			sourceSnapshotID = content.GetSnapshot().GetSnapshotId()
-			contentSource = req.GetVolumeContentSource()
-		} else if sourceVolume := content.GetVolume(); sourceVolume != nil {
-			sourceVolumeID = content.GetVolume().GetVolumeId()
-			log.Infof("content.GetVolume() %v", sourceVolumeID)
-			contentSource = req.GetVolumeContentSource()
+	var infinidatVol *infinidatVolume
+	var createVolumeErr error
+	if contentSource != nil {
+		if contentSource.GetSnapshot() != nil {
+			infinidatVol, createVolumeErr = nfs.createVolumeFrmSnapshot(req, capacity, config["pool_name"])
+		} else if contentSource.GetVolume() != nil {
+			log.Debug("--content volumeId---------> ")
+			infinidatVol, createVolumeErr = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"])
+			log.Errorf("failed to create volume %v with error %v", infinidatVol, createVolumeErr)
+		}
+	} else {
+		infinidatVol, createVolumeErr = nfs.CreateNFSVolume()
+		if createVolumeErr != nil {
+			log.Errorf("failt to create volume %v", createVolumeErr)
+			return &csi.CreateVolumeResponse{}, createVolumeErr
 		}
 	}
-	if sourceSnapshotID != "" { //volume frm snapshot
-		log.Debug("sourceSnapshotID %s", sourceSnapshotID)
-	} else if sourceVolumeID != "" { //volume from PV
-		log.Debug("sourceVolumeID %s", sourceVolumeID)
-	}
-
-	infinidatVol, createVolumeErr := nfs.CreateNFSVolume()
-	if createVolumeErr != nil {
-		log.Errorf("fail to create volume nfs file system %s error: %v", pvName, createVolumeErr)
-		return &csi.CreateVolumeResponse{}, createVolumeErr
-	}
-
 	config["ipAddress"] = (*infinidatVol).IpAddress
 	config["volID"] = (*infinidatVol).VolID
 	config["volSize"] = strconv.Itoa(int((*infinidatVol).VolSize))
@@ -166,6 +155,219 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 			ContentSource: contentSource,
 		},
 	}, nil
+}
+
+func (nfs *nfsstorage) createVolumeFrmPVCSource(req *csi.CreateVolumeRequest, size int64, storagePool string) (infinidatVol *infinidatVolume, err error) {
+	log.Info("Called createVolumeFrmPVCSource")
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while creating volume from clone (PVC) " + fmt.Sprint(res))
+		}
+	}()
+	volume := req.GetVolumeContentSource().GetVolume()
+	name := req.GetName()
+
+	volproto, err := validateStorageType(volume.GetVolumeId())
+	if err != nil || volproto.VolumeID == "" {
+		return nil, errors.New("error getting volume id")
+	}
+	sourceVolumeID, err := strconv.ParseInt(volproto.VolumeID, 10, 64)
+	if err != nil {
+		return nil, errors.New("invalid volume id " + volproto.VolumeID)
+	}
+
+	// Lookup the VolumeSource source.
+	srcfsys, err := nfs.cs.api.GetFileSystemByID(sourceVolumeID)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "volume not found: %s", sourceVolumeID)
+	}
+
+	// Validate the size is the same.
+	if srcfsys.Size != size {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"volume %s has not valid size %d with requested %d ",
+			sourceVolumeID, srcfsys.Size, size)
+	}
+	// Validate the storagePool is the same.
+	storagePoolID, err := nfs.cs.api.GetStoragePoolIDByName(storagePool)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"error while getting storagepoolid with name %s ", storagePool)
+	}
+	if storagePoolID != srcfsys.PoolID {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"volume storage pool is different than the requested storage pool %s", storagePool)
+	}
+
+	snapParam := &api.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: name, WriteProtected: false}
+	log.Info("createVolumeFrmPVCSource creating filesystem with params : ", snapParam)
+	// Create snapshot
+	snapResponse, err := nfs.cs.api.CreateFileSystemSnapshot(snapParam)
+	if err != nil {
+		log.Errorf("Failed to create snapshot: %s error: %v", snapParam.SnapshotName, err.Error())
+		return nil, status.Errorf(codes.Internal, "Failed to create snapshot: %s", err.Error())
+	}
+	log.Info("createVolumeFrmPVCSource successfully created volume from clone with name: ", snapParam.SnapshotName)
+	nfs.fileSystemID = snapResponse.SnapShotID
+	err = nfs.createExportPath()
+	if err != nil {
+		log.Errorf("fail to export path %v", err)
+		return nil, err
+	}
+	log.Debug("exportpath created successfully")
+
+	nfs.ipAddress, err = nfs.cs.getNetworkSpaceIP(nfs.configmap)
+	if err != nil {
+		log.Errorf("fail to get networkspace ipaddress %v", err)
+		return nil, err
+	}
+	log.Debugf("getNetworkSpaceIP ipAddress", nfs.ipAddress)
+
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while AttachMetadata directory" + fmt.Sprint(res))
+		}
+		if err != nil && nfs.exportID != 0 {
+			glog.Infoln("Seemes to be some problem reverting created export id:", nfs.exportID)
+			nfs.cs.api.DeleteExportPath(nfs.exportID)
+		}
+	}()
+	metadata := make(map[string]interface{})
+	metadata["host.k8s.pvname"] = nfs.pVName
+	metadata["filesystem_type"] = ""
+	//attache metadata function need to implement
+	_, err = nfs.cs.api.AttachMetadataToObject(nfs.fileSystemID, metadata)
+	if err != nil {
+		log.Errorf("fail to attache metadata %v", err)
+		return nil, err
+	}
+
+	log.Debug("metadata attached successfully")
+	infinidatVol = &infinidatVolume{
+		VolID:        fmt.Sprint(nfs.fileSystemID),
+		VolName:      nfs.pVName,
+		VolSize:      nfs.capacity,
+		VolPath:      nfs.exportpath,
+		IpAddress:    nfs.ipAddress,
+		ExportID:     nfs.exportID,
+		ExportBlock:  nfs.exportBlock,
+		FileSystemID: nfs.fileSystemID,
+	}
+	return infinidatVol, nil
+}
+
+func (nfs *nfsstorage) createVolumeFrmSnapshot(req *csi.CreateVolumeRequest, size int64, storagePool string) (infinidatVol *infinidatVolume, err error) {
+	log.Info("Called createVolumeFrmSnapshot")
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while creating volume from clone (PVC) " + fmt.Sprint(res))
+		}
+	}()
+	snapshot := req.GetVolumeContentSource().GetSnapshot()
+	name := req.GetName()
+
+	// Lookup the Snapshot source.
+	volproto, err := validateStorageType(snapshot.GetSnapshotId())
+	if err != nil {
+		return nil, errors.New("error getting volume id")
+	}
+	sourceVolumeID, err := strconv.ParseInt(volproto.VolumeID, 10, 64)
+	if err != nil {
+		return nil, errors.New("invalid volume id " + volproto.VolumeID)
+	}
+
+	sourceFileSysVolume, err := nfs.cs.api.GetFileSystemByID(sourceVolumeID)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "volume not found: %s", sourceVolumeID)
+	}
+
+	if sourceFileSysVolume.Size != size {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"volume %s has not valid size %d with requested %d ",
+			sourceVolumeID, sourceFileSysVolume.Size, size)
+	}
+
+	storagePoolID, err := nfs.cs.api.GetStoragePoolIDByName(storagePool)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"error while getting storagepoolid with name %s ", storagePool)
+	}
+	if storagePoolID != sourceFileSysVolume.PoolID {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"volume storage pool is different than the requested storage pool %s", storagePool)
+	}
+
+	snapParam := &api.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: name, WriteProtected: false}
+	log.Info("createVolumeFrmPVCSource creating filesystem with params : ", snapParam)
+
+	// Create snapshot
+	snapResponse, err := nfs.cs.api.CreateFileSystemSnapshot(snapParam)
+	if err != nil {
+		log.Errorf("Failed to create snapshot: %s error: %v", snapParam.SnapshotName, err.Error())
+		return nil, status.Errorf(codes.Internal, "Failed to create snapshot: %s", err.Error())
+	}
+
+	isSuccess, err := nfs.cs.api.RestoreFileSystemFromSnapShot(sourceFileSysVolume.ID, snapResponse.SnapShotID)
+	if err != nil {
+		log.Errorf("Error while restoring snapshot %v", err)
+		return nil, status.Errorf(codes.Internal,
+			"error restoring snapshot from snapshot id  %d ", sourceFileSysVolume.ID)
+	}
+	if !isSuccess {
+		return nil, status.Errorf(codes.Internal, "restore volume from snapshot failed")
+	}
+	volume, err := nfs.cs.api.GetFileSystemByID(sourceFileSysVolume.ParentID)
+	if err != nil {
+		log.Errorf("Unable to retrive restored volume %v", err)
+		return nil, status.Errorf(codes.Internal, "Unable to retrive restored volume with id  %d ", sourceFileSysVolume.ParentID)
+	}
+	log.Info("createVolumeFrmPVCSource successfully created volume from snapshot with name: ", snapParam.SnapshotName)
+	nfs.fileSystemID = volume.ID
+	err = nfs.createExportPath()
+	if err != nil {
+		log.Errorf("fail to export path %v", err)
+		return nil, err
+	}
+	log.Debug("exportpath created successfully")
+
+	nfs.ipAddress, err = nfs.cs.getNetworkSpaceIP(nfs.configmap)
+	if err != nil {
+		log.Errorf("fail to get networkspace ipaddress %v", err)
+		return nil, err
+	}
+	log.Debugf("getNetworkSpaceIP ipAddress", nfs.ipAddress)
+
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while AttachMetadata directory" + fmt.Sprint(res))
+		}
+		if err != nil && nfs.exportID != 0 {
+			glog.Infoln("Seemes to be some problem reverting created export id:", nfs.exportID)
+			nfs.cs.api.DeleteExportPath(nfs.exportID)
+		}
+	}()
+	metadata := make(map[string]interface{})
+	metadata["host.k8s.pvname"] = nfs.pVName
+	metadata["filesystem_type"] = ""
+	//attache metadata function need to implement
+	_, err = nfs.cs.api.AttachMetadataToObject(nfs.fileSystemID, metadata)
+	if err != nil {
+		log.Errorf("fail to attache metadata %v", err)
+		return nil, err
+	}
+
+	log.Debug("metadata attached successfully")
+	infinidatVol = &infinidatVolume{
+		VolID:        fmt.Sprint(nfs.fileSystemID),
+		VolName:      nfs.pVName,
+		VolSize:      nfs.capacity,
+		VolPath:      nfs.exportpath,
+		IpAddress:    nfs.ipAddress,
+		ExportID:     nfs.exportID,
+		ExportBlock:  nfs.exportBlock,
+		FileSystemID: nfs.fileSystemID,
+	}
+	return infinidatVol, nil
 }
 
 //CreateNFSVolume create volumne method
@@ -437,7 +639,7 @@ func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.C
 	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
 func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	srcVolume := req.GetSourceVolumeId()
+	/*srcVolume := req.GetSourceVolumeId()
 	log.Error("CreateSnapshot GetSourceVolumeId(): ", srcVolume)
 	log.Error("CreateSnapshot GetName() ", req.GetName())
 	volproto := strings.Split(srcVolume, "$$")
@@ -456,11 +658,9 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		SizeBytes:      1000,
 	}
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
-	return snapshotResp, nil
-}
+	*/
+	return &csi.CreateSnapshotResponse{}, nil
 
-func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
@@ -500,4 +700,10 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,
 	}, nil
+}
+
+//============================================Unimplemented Methods=========================//
+
+func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+	return &csi.DeleteSnapshotResponse{}, nil
 }

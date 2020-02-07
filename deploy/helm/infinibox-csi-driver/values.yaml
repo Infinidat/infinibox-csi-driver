@@ -1,47 +1,18 @@
 # Default values for infinibox-csi-driver.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
-
-namespace: infini
 
 replicaCount: 1
 
 instanceCount: 1
 
-restBaseUrl: "https://172.17.35.61/"
-
-infiniboxbinpath: /bin/infinibox
-
+# prefix for pv name
 volumeNamePrefix: csi
-storagePool: "iscsipool"
+
+# log level of driver
 logLevel: "info"
 
 # name of the driver 
 #  note same name will be used for provisioner name
 csiDriverName : "infinibox-csi-driver"
-
-username: "nikhilbarge"
-password: "@n8411898007"
-
-Infinibox:
-  SecretName: infinibox-creds
-  username: admin
-  password: "123456"
-  hosturl: 172.17.35.61
-
-Infinibox2:
-  SecretName: infinibox-creds2
-  username: admin2
-  password: "1234562"
-  hosturl: 172.17.35.62
-
-
-Initiator:
-  SecretName: InitiatorSecretName
-  username: admin
-  password: "123456"
-
 
 # Image paths 
 images:
@@ -63,19 +34,15 @@ images:
   # images.csidriver defines csidriver image used for external provisioning
   csidriver: docker.io/gadekarnitesh/infinibox-csi-driver:1.1.0.1
 
-storageClass:
-  name:
-    fc: infiniboxcsidriver-fc
-    iscsi:  infiniboxcsidriver-iscsi
-    nfs:  infiniboxcsidriver-nfs
 
-  # "storageClass.isDefault" defines whether the primary storage class should be the # default.
-  isDefault: "true"
 
-  # "storageClass.reclaimPolicy" defines what will happen when a volume is
-  # removed from the Kubernetes API. Valid values are "Retain" and "Delete".
-  reclaimPolicy: Delete
-    
-  fc: fc
-  nfs: nfs
-  iscsi: iscsi
+# Infinibox secrets temp: will create secret for testing purpose
+# TODO : Remove following parameters
+username: admin
+password: "123456"
+
+Infinibox:
+  SecretName: infinibox-creds
+  username: admin
+  password: "123456"
+  hosturl: 172.17.35.61

@@ -43,18 +43,18 @@ type Client interface {
 	GetExportByID(exportID int) (*ExportResponse, error)
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-
 	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	CreateFileSystemSnapshot(sourceFileSystemID int64, snapshotName string) (*FileSystemSnapshotResponce, error)
-
+	CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error)
 	DeleteFileSystemComplete(fileSystemID int64) (err error)
 	DeleteParentFileSystem(fileSystemID int64) (err error)
 	GetParentID(fileSystemID int64) int64
 	GetFileSystemByID(fileSystemID int64) (*FileSystem, error)
+	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
 	GetMetadataStatus(fileSystemID int64) bool
 	FileSystemHasChild(fileSystemID int64) bool
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
+	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -118,7 +118,8 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 		return nil, err
 	}
 	if (Volume{}) == vol {
-		vol, _ = resp.(Volume)
+		apiresp := resp.(client.ApiResponse)
+		vol, _ = apiresp.Result.(Volume)
 	}
 	log.Debugf("CreateVolume post api response %v", vol)
 	return &vol, nil
@@ -166,7 +167,8 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 			return nil, err
 		}
 		if len(storagePools) == 0 {
-			storagePools, _ = resp.([]StoragePool)
+			apiresp := resp.(client.ApiResponse)
+			storagePools, _ = apiresp.Result.([]StoragePool)
 		}
 	} else {
 		queryParam := make(map[string]interface{})
@@ -181,7 +183,8 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 			return nil, err
 		}
 		if reflect.DeepEqual(storagePool, (StoragePool{})) {
-			storagePool, _ = resp.(StoragePool)
+			apiresp := resp.(client.ApiResponse)
+			storagePool, _ = apiresp.Result.(StoragePool)
 		}
 	}
 
@@ -209,7 +212,8 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 		return -1, fmt.Errorf("volume with given name not found")
 	}
 	if len(storagePools) == 0 {
-		storagePools, _ = resp.([]StoragePool)
+		apiresp := resp.(client.ApiResponse)
+		storagePools, _ = apiresp.Result.([]StoragePool)
 	}
 	if len(storagePools) > 0 {
 		return storagePools[0].ID, nil
@@ -239,7 +243,8 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 		return nil, err
 	}
 	if len(volumes) == 0 {
-		volumes, _ = resp.([]Volume)
+		apiresp := resp.(client.ApiResponse)
+		volumes, _ = apiresp.Result.([]Volume)
 	}
 	for _, vol := range volumes {
 		if vol.Name == volumename {
@@ -275,7 +280,8 @@ func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
 			return nil, err
 		}
 		if len(volumes) == 0 {
-			volumes, _ = resp.([]Volume)
+			apiresp := resp.(client.ApiResponse)
+			volumes, _ = apiresp.Result.([]Volume)
 		}
 	} else {
 		resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
@@ -283,7 +289,8 @@ func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
 			return nil, err
 		}
 		if volume == (Volume{}) {
-			volume, _ = resp.(Volume)
+			apiresp := resp.(client.ApiResponse)
+			volume, _ = apiresp.Result.(Volume)
 		}
 	}
 
@@ -309,13 +316,13 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*Snaps
 	}()
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
-	resp, err := c.getJSONResponse(
-		http.MethodPost, path, snapshotParam, &snapResp)
+	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapResp)
 	if err != nil {
 		return nil, err
 	}
 	if reflect.DeepEqual(snapResp, (SnapshotVolumesResp{})) {
-		snapResp, _ = resp.(SnapshotVolumesResp)
+		apiresp := resp.(client.ApiResponse)
+		snapResp, _ = apiresp.Result.(SnapshotVolumesResp)
 	}
 	return &snapResp, nil
 }
@@ -336,7 +343,8 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 		return nspace, err
 	}
 	if len(netspaces) == 0 {
-		netspaces, _ = resp.([]NetworkSpace)
+		apiresp := resp.(client.ApiResponse)
+		netspaces, _ = apiresp.Result.([]NetworkSpace)
 	}
 	if len(netspaces) > 0 {
 		nspace = netspaces[0]
@@ -361,7 +369,8 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 		return host, err
 	}
 	if len(hosts) == 0 {
-		hosts, _ = resp.([]Host)
+		apiresp := resp.(client.ApiResponse)
+		hosts, _ = apiresp.Result.([]Host)
 	}
 
 	if len(hosts) > 0 {
@@ -402,7 +411,8 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, 
 		return luninfo, err
 	}
 	if luninfo == (LunInfo{}) {
-		luninfo, _ = resp.(LunInfo)
+		apiresp := resp.(client.ApiResponse)
+		luninfo, _ = apiresp.Result.(LunInfo)
 	}
 	return luninfo, nil
 }
