@@ -7,7 +7,6 @@ import (
 	"infinibox-csi-driver/api"
 	"path"
 	"strconv"
-
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -639,28 +638,75 @@ func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.C
 	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
 func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	/*srcVolume := req.GetSourceVolumeId()
-	log.Error("CreateSnapshot GetSourceVolumeId(): ", srcVolume)
-	log.Error("CreateSnapshot GetName() ", req.GetName())
+	var snapshotID string
+	srcVolume := req.GetSourceVolumeId()
+	log.Debug("CreateSnapshot GetSourceVolumeId(): ", srcVolume)
+	snapshotName := req.GetName()
+	log.Debug("CreateSnapshot GetName() ", snapshotName)
 	volproto := strings.Split(srcVolume, "$$")
-	n, _ := strconv.ParseInt(volproto[0], 10, 64)
-	resp, err := nfs.cs.api.CreateFileSystemSnapshot(n, req.GetName())
+	if len(volproto) != 2 {
+		return nil, status.Error(codes.Internal, "volume Id and other details not found")
+	}
+
+	sourceFilesystemID, _ := strconv.ParseInt(volproto[0], 10, 64)
+	snapshotArray, err := nfs.cs.api.GetSnapshotByName(snapshotName)
+	for _, snap := range *snapshotArray {
+		if snap.ParentId == sourceFilesystemID {
+			log.Debug("Got snapshot so returning nil")
+			return &csi.CreateSnapshotResponse{
+				Snapshot: &csi.Snapshot{
+					SizeBytes:      snap.Size,
+					SnapshotId:     fmt.Sprint(snap.SnapShotID),
+					SourceVolumeId: fmt.Sprint(snap.ParentId),
+					CreationTime:   snap.CreatedAt,
+					ReadyToUse:     true,
+				},
+			}, nil
+		}
+	}
+	fileSysSnap := &api.FileSystemSnapshot{
+		ParentID:       sourceFilesystemID,
+		SnapshotName:   snapshotName,
+		WriteProtected: true,
+	}
+	resp, err := nfs.cs.api.CreateFileSystemSnapshot(fileSysSnap)
 	if err != nil {
-		log.Errorf("fail to create snapshot %s error %v", req.GetName(), err)
+		log.Errorf("Failed to create snapshot %s error %v", req.GetName(), err)
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
-	log.Error("CreateFileSystemSnapshot resp() ", resp)
-	snapshot := &csi.Snapshot{
-		SnapshotId:     req.GetName(),
-		SourceVolumeId: srcVolume,
-		ReadyToUse:     true,
-		CreationTime:   ptypes.TimestampNow(),
-		SizeBytes:      1000,
-	}
-	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
-	*/
-	return &csi.CreateSnapshotResponse{}, nil
 
+	log.Debug("CreateFileSystemSnapshot resp() ", resp)
+	snapshotID = strconv.FormatInt(resp.SnapShotID, 10) + "$$" + volproto[1]
+
+	snapshot := &csi.Snapshot{
+		SnapshotId:     snapshotID,
+		SourceVolumeId: volproto[0],
+		ReadyToUse:     true,
+		CreationTime:   resp.CreatedAt,
+		SizeBytes:      resp.Size,
+	}
+	log.Debug("CreateFileSystemSnapshot resp() ", snapshot)
+	return &csi.CreateSnapshotResponse{Snapshot: snapshot}, nil
+}
+
+func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+	snapshotID := req.GetSnapshotId()
+	log.Debug("It is in nfsController-------------------------------------")
+	log.Debug("Delete Snapshot GetSnapshotId(): ", snapshotID)
+	volproto := strings.Split(snapshotID, "$$")
+	if len(volproto) != 2 {
+		return nil, status.Error(codes.Internal, "snapshot Id and other details not found")
+	}
+	snapID, _ := strconv.ParseInt(volproto[0], 10, 64)
+
+	log.Debug("It is in nfsController-------------------------------------")
+	log.Debug("Delete Snapshot GetSnapshotId(): ", snapshotID)
+	_, err := nfs.cs.api.DeleteFileSystem(snapID)
+	if err != nil {
+		log.Errorf("Failed to delete snapshot %s error %v", snapID, err)
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+	return &csi.DeleteSnapshotResponse{}, nil
 }
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
@@ -700,10 +746,4 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,
 	}, nil
-}
-
-//============================================Unimplemented Methods=========================//
-
-func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return &csi.DeleteSnapshotResponse{}, nil
 }

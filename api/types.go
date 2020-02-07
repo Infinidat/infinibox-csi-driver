@@ -1,5 +1,7 @@
 package api
 
+import "github.com/golang/protobuf/ptypes/timestamp"
+
 type EndpointConfig struct {
 	Endpoint string
 	Version  string
@@ -263,10 +265,12 @@ type FileSystemSnapshot struct {
 
 //FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
-	SnapShotID  int64  `json:"id"`
-	Name        string `json:"name,omitempty"`
-	DatasetType string `json:"dataset_type,omitempty"`
-	Size        int64  `json:"size,omitempty"`
+	SnapShotID  int64                `json:"id"`
+	Name        string               `json:"name,omitempty"`
+	DatasetType string               `json:"dataset_type,omitempty"`
+	Size        int64                `json:"size,omitempty"`
+	ParentId    int64                `json:"parent_id,omitempty"`
+	CreatedAt   *timestamp.Timestamp `json:"created_at,omitempty"`
 }
 
 type VolumeProtocolConfig struct {
