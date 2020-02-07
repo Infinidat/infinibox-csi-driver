@@ -421,6 +421,7 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 	return &eResp, nil
 }
 
+//GetParentID method return the
 func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 	fileSystem, err := c.GetFileSystemByID(fileSystemID)
 	if err != nil {
@@ -480,7 +481,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	}
 
 	//3. delete file system
-	log.Infof("delete FileSystem FileSystemID %v", fileSystemID)
+	log.Infof("delete FileSystem FileSystemID %d", fileSystemID)
 	_, err = c.DeleteFileSystem(fileSystemID)
 	if err != nil {
 		log.Errorf("fail to delete filesystem %v", err)

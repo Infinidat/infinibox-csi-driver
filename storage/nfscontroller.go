@@ -146,11 +146,11 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	}
 
 	infinidatVol, createVolumeErr := nfs.CreateNFSVolume()
-
 	if createVolumeErr != nil {
 		log.Errorf("fail to create volume nfs file system %s error: %v", pvName, createVolumeErr)
 		return &csi.CreateVolumeResponse{}, createVolumeErr
 	}
+
 	config["ipAddress"] = (*infinidatVol).IpAddress
 	config["volID"] = (*infinidatVol).VolID
 	config["volSize"] = strconv.Itoa(int((*infinidatVol).VolSize))
@@ -331,10 +331,14 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 	nfs.uniqueID = volID
 	nfsDeleteErr := nfs.DeleteNFSVolume()
 	if nfsDeleteErr != nil {
+		if strings.Contains(nfsDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
+			log.Error("file system already delete from infinibox")
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		log.Errorf("fail to delete NFS Volume %v", nfsDeleteErr)
-		return &csi.DeleteVolumeResponse{}, nil
+		return &csi.DeleteVolumeResponse{}, nfsDeleteErr
 	}
-	log.Infoln("volume %v successfully deleted", volumeID)
+	log.Infof("volume %d successfully deleted", volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -348,6 +352,11 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 		}
 	}()
 
+	_, fileSystemErr := nfs.cs.api.GetFileSystemByID(nfs.uniqueID)
+	if fileSystemErr != nil {
+		log.Errorf("fail to check file system exist or not")
+		return
+	}
 	hasChild := nfs.cs.api.FileSystemHasChild(nfs.uniqueID)
 	if hasChild {
 		metadata := make(map[string]interface{})

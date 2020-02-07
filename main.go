@@ -8,7 +8,6 @@ import (
 
 	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -47,8 +46,8 @@ func configureLog(logLevel string) {
 		log.Error("Invalid logging level: ", logLevel)
 		ll = log.InfoLevel // to be set to error level
 	}
-	logrus.SetLevel(ll)
-	log.Debug("Logging  level set to ", logrus.GetLevel().String())
+	log.SetLevel(ll)
+	log.Debug("Logging  level set to ", log.GetLevel().String())
 }
 
 const usage = `   `
