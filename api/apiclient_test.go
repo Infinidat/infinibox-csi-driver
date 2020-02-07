@@ -184,7 +184,6 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 	// Test volume snapshot will be created
 	expectedResponse := &SnapshotVolumesResp{}
-	expectedResponse.SnapshotGroupID = ""
 	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 

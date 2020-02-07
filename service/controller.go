@@ -75,17 +75,16 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	}
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
-	storageController, err := storage.NewStorageController(volproto.storageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("fail to initialise storage controller while delete volume " + volproto.storageType)
+		err = errors.New("fail to initialise storage controller while delete volume " + volproto.StorageType)
 		return
 	}
-
-	req.VolumeId = volproto.volumeID
+	req.VolumeId = volproto.VolumeID
 	deleteResponce, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
 		log.Errorf("fail to delete volume %v", err)
-		err = errors.New("fail to delete volume of type " + volproto.storageType)
+		err = errors.New("fail to delete volume of type " + volproto.StorageType)
 		return
 	}
 	req.VolumeId = voltype
@@ -111,9 +110,9 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = req.GetNodeId()
 
-	storageController, err := storage.NewStorageController(volproto.storageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("fail to initialise storage controller while ControllerPublishVolume " + volproto.storageType)
+		err = errors.New("fail to initialise storage controller while ControllerPublishVolume " + volproto.StorageType)
 		return
 	}
 	controlePublishResponce, err = storageController.ControllerPublishVolume(ctx, req)
@@ -141,9 +140,9 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = req.GetNodeId()
-	storageController, err := storage.NewStorageController(volproto.storageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("fail to initialise storage controller while ControllerUnpublishVolume " + volproto.storageType)
+		err = errors.New("fail to initialise storage controller while ControllerUnpublishVolume " + volproto.StorageType)
 		return
 	}
 	controleUnPublishResponce, err = storageController.ControllerUnpublishVolume(ctx, req)
@@ -256,7 +255,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	if err != nil {
 		return &csi.ControllerExpandVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
-	storageController, err := storage.NewStorageController(volproto.storageType, configparams)
+	storageController, err := storage.NewStorageController(volproto.StorageType, configparams)
 	if storageController != nil {
 		csiResp, err := storageController.ControllerExpandVolume(ctx, req)
 		return csiResp, err

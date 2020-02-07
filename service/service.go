@@ -83,17 +83,12 @@ func (s *service) verifyController() error {
 	return nil
 }
 
-type VolumeProtocolConfig struct {
-	volumeID    string
-	storageType string
-}
-
-func (s *service) validateStorageType(str string) (volprotoconf VolumeProtocolConfig, err error) {
+func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")
 	}
-	volprotoconf.volumeID = volproto[0]
-	volprotoconf.storageType = volproto[1]
+	volprotoconf.VolumeID = volproto[0]
+	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil
 }

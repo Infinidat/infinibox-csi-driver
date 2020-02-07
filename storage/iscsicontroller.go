@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -33,12 +32,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if name == "" {
 		return &csi.CreateVolumeResponse{}, errors.New("Name cannot be empty")
 	}
-	fmt.Println(" request req.GetName() ===========> ", name)
 
-	// accessibility := req.GetAccessibilityRequirements()
-	// if accessibility != nil {
-	// 	return nil, errors.New("Volume AccessibilityRequirements is not currently supported")
-	// }
 	params = mergeStringMaps(params, req.GetSecrets())
 	log.Infof("params after mearge are %v", params)
 	// We require the storagePool name for creation
@@ -213,30 +207,22 @@ func (iscsi *iscsistorage) createVolumeFromSnapshot(req *csi.CreateVolumeRequest
 		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 	}
 
-	// Snapshot the source snapshot
-	//snapshotDefs := make([]*api.SnapshotDef, 0)
-	snapDef := &api.SnapshotDef{ParentID: snapshotID, SnapshotName: name}
+	// Volume the source volume
+	snapshotParam := &api.SnapshotDef{ParentID: snapshotID, SnapshotName: name}
 	//snapshotDefs = append(snapshotDefs, snapDef)
 	//snapParam := &api.SnapshotVolumesParam{SnapshotDefs: snapshotDefs}
 
 	// Create snapshot
-	snapResponse, err := iscsi.cs.api.CreateSnapshotVolume(snapDef)
+	snapResponse, err := iscsi.cs.api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create snapshot: %s", err.Error())
 	}
-	if len(snapResponse.VolumeIDList) != 1 {
-		return nil, status.Errorf(codes.Internal, "Expected volume ID to be returned but it was not")
-	}
 
 	// Retrieve created destination volumevolume
-	dstID := snapResponse.VolumeIDList[0]
-	volID, err := strconv.Atoi(dstID)
-	if err != nil {
-		return nil, errors.New("error getting volume id")
-	}
+	volID := snapResponse.SnapShotID
 	dstVol, err := iscsi.cs.getVolumeByID(volID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not retrieve created volume: %s", dstID)
+		return nil, status.Errorf(codes.Internal, "Could not retrieve created volume: %s", volID)
 	}
 	// Create a volume response and return it
 	csiVolume := iscsi.cs.getCSIVolume(dstVol)

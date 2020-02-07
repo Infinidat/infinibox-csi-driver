@@ -36,7 +36,7 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	if err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
-	protocolOperation, err := storage.NewStorageNode(volproto.storageType, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
 	if err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}

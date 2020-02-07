@@ -23,14 +23,6 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch", "update", "patch"]
-  # temp
-  # - apiGroups: [""]
-  #   resources: ["pods"]
-  #   verbs: ["get", "list", "watch"]
-  # - apiGroups: [""]
-  #   resources: ["secrets"]
-  #   verbs: ["get", "list"]
-  # temp end
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
     verbs: ["get", "list", "watch", "update"]
@@ -78,10 +70,9 @@ spec:
             capabilities:
               add: ["SYS_MODULE"]
             allowPrivilegeEscalation: true
-          #image: nikhilbarge/infinibox-csi-driver:test1 
-          image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
-          #command: [ "/infinibox-csi-driver" ]
+          image: nikhilbarge/infinibox-csi-driver:test1 
+          #image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: Never
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
@@ -95,8 +86,6 @@ spec:
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
               value: {{ .Values.csiDriverName }}
-            - name: X_CSI_INFINIBOX_API
-              value: {{ required "Provide a Infinibox REST API gateway HTTPS endpoint." .Values.restBaseUrl }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
