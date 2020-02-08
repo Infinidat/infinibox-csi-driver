@@ -558,3 +558,18 @@ func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID in
 func removeIndex(s []Permissions, index int) []Permissions {
 	return append(s[:index], s[index+1:]...)
 }
+
+//GetSnapshotByName :
+func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+	uri := "api/rest/filesystems?name=" + snapshotName
+	snapshot := []FileSystemSnapshotResponce{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
+	if err != nil {
+		log.Errorf("Error occured while getting snapshot : %s ", err)
+		return nil, err
+	}
+	if len(snapshot) == 0 {
+		snapshot, _ = resp.([]FileSystemSnapshotResponce)
+	}
+	return &snapshot, nil
+}
