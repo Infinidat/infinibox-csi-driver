@@ -8,14 +8,13 @@ import (
 
 	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
+//starting method of CSI-Driver
 func main() {
 	configParams := make(map[string]string)
 	if nodeid, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		configParams["nodeid"] = nodeid
 		storage.NodeId = nodeid
 	}
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
@@ -33,7 +32,7 @@ func main() {
 
 	gocsi.Run(
 		context.Background(),
-		service.Name,
+		service.ServiceName,
 		"A Infinibox CSI Driver Plugin",
 		usage,
 		provider.New(configParams))
@@ -44,9 +43,11 @@ func main() {
 func configureLog(logLevel string) {
 	ll, err := log.ParseLevel(logLevel)
 	if err != nil {
+		log.Error("Invalid logging level: ", logLevel)
 		ll = log.InfoLevel // to be set to error level
 	}
-	logrus.SetLevel(ll)
+	log.SetLevel(ll)
+	log.Debug("Logging  level set to ", log.GetLevel().String())
 }
 
 const usage = `   `

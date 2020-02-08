@@ -22,10 +22,6 @@ func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnsta
 
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Debug("NodePublishVolume")
-	log.Infof("NodePublishVolume volumeID %v", req.GetVolumeId())
-	log.Infof("NodePublishVolume GetVolumeContext====>>> %v", req.GetVolumeContext())
-	log.Infof("NodePublishVolume  GetPublishContext====>>> %v", req.GetPublishContext())
-	log.Infof("Node IP address %v", nfs.cs.nodeIPAddress)
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
@@ -70,8 +66,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 }
 
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Debug("NodeUnpublishVolume Method")
-	log.Infof("** NodeUnpublishVolume Node IP address %v", nfs.cs.nodeIPAddress)
+	log.Debug("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {

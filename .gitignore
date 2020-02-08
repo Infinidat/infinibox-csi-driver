@@ -1,0 +1,11 @@
+!.infinibox-csi-driver/
+# Folders
+vendor
+
+### VisualStudioCode ###
+.vscode/*
+
+# Build artifacts
+infinibox-csi-driver
+
+# other

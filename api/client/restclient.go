@@ -19,11 +19,16 @@ type HostConfig struct {
 	UserName string
 	Password string
 }
-
-type apiresponse struct {
-	Result   interface{} `json:"result,omitempty"`
-	MetaData interface{} `json:"metadata,omitempty"`
-	Error    interface{} `json:"error,omitempty"`
+type resultmetadata struct {
+	NoOfObject int `json:"number_of_objects,omitempty"`
+	TotalPages int `json"pages_total,omitempty"`
+	Page       int `json"page,omitempty"`
+	PageSize   int `json"page_size,omitempty"`
+}
+type ApiResponse struct {
+	Result   interface{}    `json:"result,omitempty"`
+	MetaData resultmetadata `json:"metadata,omitempty"`
+	Error    interface{}    `json:"error,omitempty"`
 }
 
 var rClient *resty.Client
@@ -51,11 +56,19 @@ type RestClient interface {
 
 type restclient struct {
 	RestClient
+	SecretMap map[string]string
 }
 
 // Get :
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
 	log.Debugf("called client.Get with url %s ", url)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Get() while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Get() " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -74,6 +87,13 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
 	log.Debugf("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in GetWithQueryString while making request on %s url error : %v ", url, err)
+			err = errors.New("error in GetWithQueryString " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -92,7 +112,14 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called client.Post with url %s", url)
+	log.Debugf("called Post with url %s", url)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Post while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Post " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -112,7 +139,14 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called client.Put with url %s  ", url)
+	log.Debugf("called Put with url %s  ", url)
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Put while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Put " + fmt.Sprint(res))
+		}
+	}()
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -130,6 +164,13 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 }
 
 func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostConfig) (interface{}, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			log.Errorf("error in Delete while making request on %s url error : %v ", url, err)
+			err = errors.New("error in Delete " + fmt.Sprint(res))
+		}
+	}()
 	log.Debugf("called client.Delete with url %s  ", url)
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)
@@ -156,7 +197,7 @@ func checkHttpClient() error {
 }
 
 //Method to check the response is valid or not
-func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye interface{}) (result interface{}, er error) {
+func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye interface{}) (result ApiResponse, er error) {
 	defer func() {
 		if recovered := recover(); recovered != nil && er == nil {
 			er = errors.New("error while parsing management api response " + fmt.Sprint(recovered) + "for request " + res.Request.URL)
@@ -164,36 +205,36 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 	}()
 
 	if res.StatusCode() == http.StatusUnauthorized {
-		return nil, errors.New("Request authentication failed for : " + res.Request.URL)
+		return result, errors.New("Request authentication failed for : " + res.Request.URL)
 	}
 
 	if res.StatusCode() == http.StatusServiceUnavailable {
-		return nil, errors.New(res.Status())
+		return result, errors.New(res.Status())
 	}
 
 	if err != nil {
 		log.Error("Error While Resty call for request " + res.Request.URL + err.Error())
-		return nil, err
+		return result, err
 	}
 	if resptpye != nil {
 		// start: bind to given struct type
-		apiresp := apiresponse{}
+		apiresp := ApiResponse{}
 		apiresp.Result = resptpye
 		if err := json.Unmarshal(res.Body(), &apiresp); err != nil {
 			log.Errorf("checkResponse expected type provided case. err %v", err)
-			return nil, er
+			return result, er
 		}
 		if res != nil {
 			if str, iserr := rc.parseError(apiresp.Error); iserr {
-				return nil, errors.New(str)
+				return result, errors.New(str)
 			}
 			if apiresp.Result != nil {
-				return apiresp.Result, nil
+				return apiresp, nil
 			} else {
-				return nil, errors.New("result part of response is nil for request " + res.Request.URL)
+				return result, errors.New("result part of response is nil for request " + res.Request.URL)
 			}
 		} else {
-			return nil, errors.New("empty response for " + res.Request.URL)
+			return result, errors.New("empty response for " + res.Request.URL)
 		}
 		// end: bind to given struct
 	} else {
@@ -201,26 +242,27 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 		var response interface{}
 		if er := json.Unmarshal(res.Body(), &response); er != nil {
 			log.Errorf("checkResponse expected type provided case. error %v", er)
-			return nil, er
+			return result, er
 		}
 
 		if res != nil {
 			responseinmap := response.(map[string]interface{})
 			if responseinmap != nil {
-
 				if str, iserr := rc.parseError(responseinmap["error"]); iserr {
-					return nil, errors.New(str)
+					return result, errors.New(str)
 				}
-				if result := responseinmap["result"]; result != nil {
-					return responseinmap["result"], nil
+				result.Result = responseinmap["result"]
+				result.Error = responseinmap["error"]
+				if result.Result != nil {
+					return result, nil
 				} else {
-					return nil, errors.New("result part of response is nil for request " + res.Request.URL)
+					return result, errors.New("result part of response is nil for request " + res.Request.URL)
 				}
 			} else {
-				return nil, errors.New("empty response for " + res.Request.URL)
+				return result, errors.New("empty response for " + res.Request.URL)
 			}
 		} else {
-			return nil, errors.New("empty response for " + res.Request.URL)
+			return result, errors.New("empty response for " + res.Request.URL)
 		}
 	}
 }

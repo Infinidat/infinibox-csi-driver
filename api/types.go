@@ -94,8 +94,12 @@ type SnapshotVolumesParam struct {
 }
 
 type SnapshotVolumesResp struct {
-	VolumeIDList    []string `json:"volumeIdList"`
-	SnapshotGroupID string   `json:"snapshotGroupId"`
+	SnapShotID int  `json:"id,omitempty"`
+	Size       int  `json:"size,omitempty"`
+	SsdEnabled bool `json:"ssd_enabled,omitempty"`
+	ParentID   int  `json:"parent_id,omitempty"`
+	PoolID     int  `json:"pool_id,omitempty"`
+	Name       int  `json:"name,omitempty"`
 }
 
 type NetworkSpace struct {
@@ -214,7 +218,18 @@ type FileSystem struct {
 	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
 	Provtype   string `json:"provtype,omitempty"`
 	Size       int64  `json:"size,omitempty"`
-	ParentID   int64    `json:"parent_id,omitempty"`
+	ParentID   int64  `json:"parent_id,omitempty"`
+	PoolName   string `json:"pool_name,omitempty"`
+	CreatedAt  int    `json:"created_at,omitempty"`
+}
+
+//FileSystemMetaData
+type FileSystemMetaData struct {
+	Ready           bool   `json:"ready,omitempty"`
+	NumberOfObjects int64  `json:"number_of_objects,omitempty"`
+	PageSize        string `json:"page_size,omitempty"`
+	PagesTotal      bool   `json:"pages_total,omitempty"`
+	Page            string `json:"provtype,omitempty"`
 }
 
 type ExportPathRef struct {
@@ -237,4 +252,26 @@ type Metadata struct {
 	Key        string `json:"key,omitempty"`
 	Value      string `json:"value,omitempty"`
 	ObjectType string `json:"object_type,omitempty"`
+}
+
+//FileSystemSnapshot file system snapshot request parameter
+type FileSystemSnapshot struct {
+	ParentID       int64  `json:"parent_id"`
+	SnapshotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
+}
+
+//FileSystemSnapshotResponce file system snapshot Response
+type FileSystemSnapshotResponce struct {
+	SnapShotID  int64  `json:"id"`
+	Name        string `json:"name,omitempty"`
+	DatasetType string `json:"dataset_type,omitempty"`
+	ParentId    int64  `json:"parent_id,omitempty"`
+	Size        int64  `json:"size,omitempty"`
+	CreatedAt   int64  `json:"created_at,omitempty"`
+}
+
+type VolumeProtocolConfig struct {
+	VolumeID    string
+	StorageType string
 }

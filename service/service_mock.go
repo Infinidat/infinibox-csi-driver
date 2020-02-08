@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+//
 type MockService struct {
 	mock.Mock
 }
@@ -89,13 +90,6 @@ func (m *MockClient) GetVolumeByName(volumename string) (*api.Volume, error) {
 func (m *MockClient) GetNetworkSpaceByName(networkSpaceName string) (api.NetworkSpace, error) {
 	args := m.Called()
 	resp, _ := args.Get(0).(api.NetworkSpace)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-func (m *MockClient) GetLunByVolumeID(volumeID string) (api.LunInfo, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(api.LunInfo)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
