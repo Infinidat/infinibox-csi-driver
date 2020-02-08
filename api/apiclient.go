@@ -55,6 +55,7 @@ type Client interface {
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
+	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
