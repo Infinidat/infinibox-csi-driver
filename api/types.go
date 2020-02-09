@@ -1,6 +1,6 @@
 package api
 
-import timestamp "github.com/golang/protobuf/ptypes/timestamp"
+import "github.com/golang/protobuf/ptypes/timestamp"
 
 type EndpointConfig struct {
 	Endpoint string

@@ -1,8 +1,28 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-infinibox-storageclas-nfs
+  name: ibox-nfs-storageclass-demo
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
+parameters:    
+    pool_name: N_pool_1 
+    nfs_networkspace: nsnas
+    vol_prefix: csi-   
+    provision_type: THIN    
+    storage_protocol: nfs    
+    nfs_mount_options: hard,rsize=1048576,wsize=1048576
+    nfs_export_permissions : RW
+    ssd_enabled: "true"
+    no_root_squash: "true"
+    csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+    csi.storage.k8s.io/provisioner-secret-namespace: infi
+    csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+    csi.storage.k8s.io/controller-publish-secret-namespace: infi
+    csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-stage-secret-namespace: infi
+    csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-publish-secret-namespace: infi
+    csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
+    csi.storage.k8s.io/controller-expand-secret-namespace: infi

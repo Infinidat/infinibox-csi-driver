@@ -5,5 +5,5 @@ RUN apt-get update && apt-get install -y nfs-common
 
 COPY setenv.sh /setenv.sh
 RUN chmod +x /setenv.sh
-COPY csi-driver-infinibox /infinibox-csi-driver
+COPY infinibox-csi-driver /infinibox-csi-driver
 ENTRYPOINT ["/setenv.sh"]

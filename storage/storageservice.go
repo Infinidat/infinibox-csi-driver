@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -304,10 +303,10 @@ func DeleteExportRule(volumeID, clientIPAdd string) error {
 	return nil
 }
 
-func (cs *commonservice) getNetworkSpaceIP(config map[string]string) (string, error) {
+func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
 
-	var networkSpace string
-	networkSpace = strings.Trim(strings.Split(config["nfs_networkspace"], ",")[0], " ")
+	// var networkSpace string
+	//networkSpace = strings.Trim(strings.Split(config["nfs_networkspace"], ",")[0], " ")
 
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
