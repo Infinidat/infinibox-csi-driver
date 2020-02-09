@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -110,17 +109,10 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		if err != nil {
 			log.Error("API client not initialized.", err)
 			return commonserv, err
-		} //TODO:
-		if config["nodeid"] == "" {
-			log.Error("Validation Error: 'nodeid' is required field.")
-		} else {
-			commonserv.nodeID = config["nodeid"]
 		}
-		if config["nodeIPAddress"] == "" {
-			log.Error("Validation Error: 'nodeIPAddress' is required field.")
-		} else {
-			commonserv.nodeIPAddress = config["nodeIPAddress"]
-		}
+		commonserv.nodeID = config["nodeid"]
+		commonserv.nodeIPAddress = config["nodeIPAddress"]
+
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
@@ -304,10 +296,10 @@ func DeleteExportRule(volumeID, clientIPAdd string) error {
 	return nil
 }
 
-func (cs *commonservice) getNetworkSpaceIP(config map[string]string) (string, error) {
+func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
 
-	var networkSpace string
-	networkSpace = strings.Trim(strings.Split(config["nfs_networkspace"], ",")[0], " ")
+	// var networkSpace string
+	//networkSpace = strings.Trim(strings.Split(config["nfs_networkspace"], ",")[0], " ")
 
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {

@@ -95,6 +95,21 @@ func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error
 	return &fileSystem, nil
 }
 
+//GetSnapshotByName :
+func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+	uri := "api/rest/filesystems?name=" + snapshotName
+	snapshot := []FileSystemSnapshotResponce{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
+	if err != nil {
+		log.Errorf("Error occured while getting snapshot : %s ", err)
+		return nil, err
+	}
+	if len(snapshot) == 0 {
+		snapshot, _ = resp.([]FileSystemSnapshotResponce)
+	}
+	return &snapshot, nil
+}
+
 // AttachMetadataToObject :
 func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error) {
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
@@ -466,9 +481,13 @@ func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 //DeleteParentFileSystem method delete the ascenders of fileystem
 func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { //delete fileystem's parent ID
 	//first check .. hasChild ...
+	log.Debug("It is in DeleteParentFileSystem -----------------------------------")
 	hasChild := c.FileSystemHasChild(fileSystemID)
+	log.Debug("FileSystem has child status is ", hasChild)
 	if !hasChild && c.GetMetadataStatus(fileSystemID) { //If No child and to_be_delete_status =true in metadata then
-		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
+		log.Debug("It is inside GetMetadataStatus")
+		parentID := c.GetParentID(fileSystemID) // get the parentID .. before delete
+		log.Debug("parent iD : ", parentID)
 		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
 		if err != nil {
 			log.Errorf("fail to delete filesystem,filesystemID:%d error:%v", fileSystemID, err)
@@ -483,7 +502,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 
 //DeleteFileSystemComplete method delete the fileystem
 func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
-
+	log.Debug("Call in DeleteFileSystemComplete ----------------------------")
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while deleting filesystem " + fmt.Sprint(res))
@@ -506,11 +525,10 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	log.Debug("Export path deleted successfully")
 
 	//2.delete metadata
-	_, err = c.DetachMetadataFromObject(fileSystemID)
-	if err != nil {
-		log.Errorf("fail to delete metadata %v", err)
-		return
-	}
+	// _, err = c.DetachMetadataFromObject(fileSystemID)
+	// if err != nil {
+	// 	log.Errorf("fail to delete metadata %v", err)
+	// }
 
 	//3. delete file system
 	log.Infof("delete FileSystem FileSystemID %d", fileSystemID)
@@ -559,17 +577,16 @@ func removeIndex(s []Permissions, index int) []Permissions {
 	return append(s[:index], s[index+1:]...)
 }
 
-//GetSnapshotByName :
-func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
-	uri := "api/rest/filesystems?name=" + snapshotName
-	snapshot := []FileSystemSnapshotResponce{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
-	if err != nil {
-		log.Errorf("Error occured while getting snapshot : %s ", err)
-		return nil, err
-	}
-	if len(snapshot) == 0 {
-		snapshot, _ = resp.([]FileSystemSnapshotResponce)
-	}
-	return &snapshot, nil
-}
+// func (c *ClientService) RestoreFilesystem(fileSystemID, snapshotID int64) (response *bool , err error) {
+//      uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 0) + "restore?approved=true"
+//      body :=
+//      response, err = c.getJSONResponse(http.MethodPut, uri, body, nil)
+//      if err != nil {
+//              log.Errorf("Error occured while updating filesystem : %s", err)
+//              return nil, err
+//      }
+//      // if fileSystem == (FileSystem{}) {
+//      //      fileSystem, _ = resp.(FileSystem)
+//      // }
+//      return &response, nil
+// }
