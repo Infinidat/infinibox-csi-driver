@@ -265,11 +265,11 @@ type FileSystemSnapshot struct {
 
 //FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
-	SnapShotID  int64                `json:"id"`
+	SnapshotID  int64                `json:"id"`
 	Name        string               `json:"name,omitempty"`
 	DatasetType string               `json:"dataset_type,omitempty"`
-	Size        int64                `json:"size,omitempty"`
 	ParentId    int64                `json:"parent_id,omitempty"`
+	Size        int64                `json:"size,omitempty"`
 	CreatedAt   *timestamp.Timestamp `json:"created_at,omitempty"`
 }
 

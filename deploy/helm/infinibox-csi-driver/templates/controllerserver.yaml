@@ -124,7 +124,6 @@ spec:
           image: {{ required "csi snapshotter sidecar container image." .Values.images.snapshottersidecar }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--timeout=60s"
             - "--v=5"
           env:
             - name: ADDRESS
@@ -152,7 +151,7 @@ spec:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
-            allowPrivilegeEscalation: true 
+            allowPrivilegeEscalation: true        
           env:
             - name: CSI_ENDPOINT
               value: /var/run/csi/csi.sock

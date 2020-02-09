@@ -16,7 +16,7 @@ import (
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recoved from CSI CreateVolume  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI CreateVolume  " + fmt.Sprint(res))
 		}
 	}()
 	//TODO: validate the required parameter
@@ -61,7 +61,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recoved from CSI DeleteVolume  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI DeleteVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -95,7 +95,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recoved from CSI ControllerPublishVolume  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -126,7 +126,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recoved from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -229,74 +229,89 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 	}, nil
 }
 
-func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	log.Infof("------------IN Create Snapshot req.GetSourceVolumeId() %v", req.GetSourceVolumeId())
-	log.Infof("------------IN Create Snapshot ctx %v", ctx)
+func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshot *csi.CreateSnapshotResponse, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from CSI CreateSnapshot  " + fmt.Sprint(res))
+		}
+	}()
+
+	log.Infof("Create Snapshot called with volume Id", req.GetSourceVolumeId())
 	volproto, err := s.validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
 		log.Errorf("fail to validate storage type %v", err)
-		return &csi.CreateSnapshotResponse{}, status.Error(codes.Internal, err.Error())
+		return
 	}
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = s.nodeIPAddress
 
-	log.Infof("------------IN config ctx %v", config)
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		log.Error("Error Occured: ", err)
-		return &csi.CreateSnapshotResponse{}, status.Error(codes.Internal, err.Error())
+		return
 	}
 	if storageController != nil {
-		return storageController.CreateSnapshot(ctx, req)
+		createSnapshot, err = storageController.CreateSnapshot(ctx, req)
+		return createSnapshot, err
 	}
-	return &csi.CreateSnapshotResponse{}, nil
+	return
 }
 
-func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	log.Debug("---------------------------Here call in Delete snapshot---------------------------")
-	log.Debug("-------------------------------------------------------------------------------------")
-	log.Debug("---------------------------------------------------------------------------------")
-	log.Infof("------------IN Delete Snapshot req.GetSourceVolumeId() %v", req.GetSnapshotId())
-	log.Infof("------------IN Delete Snapshot ctx %v", ctx)
+func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshot *csi.DeleteSnapshotResponse, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
+		}
+	}()
+
+	log.Infof("Delete Snapshot called with snapshot Id", req.GetSnapshotId())
 	volproto, err := s.validateStorageType(req.GetSnapshotId())
 	if err != nil {
 		log.Errorf("fail to validate storage type %v", err)
-		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, err.Error())
+		return
 	}
+
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = s.nodeIPAddress
 
-	log.Infof("------------IN config ctx %v", config)
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		log.Error("Error Occured: ", err)
-		return &csi.DeleteSnapshotResponse{}, status.Error(codes.Internal, err.Error())
+		return
 	}
 	if storageController != nil {
-		return storageController.DeleteSnapshot(ctx, req)
+		deleteSnapshot, err := storageController.DeleteSnapshot(ctx, req)
+		return deleteSnapshot, err
 	}
-	return &csi.DeleteSnapshotResponse{}, nil
+	return
 }
 
-func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	log.Info("call karoty")
+func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
+		}
+	}()
+
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
 	configparams["nodeIPAddress"] = s.nodeIPAddress
-	log.Infof("Main ExpandVolume nodeid, nodeIPAddress %s %s", s.nodeID, s.nodeIPAddress)
-	log.Infof("Main ExpandVolume req.GetVolumeId() %s", req.GetVolumeId())
 
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		return &csi.ControllerExpandVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return
 	}
+
 	storageController, err := storage.NewStorageController(volproto.StorageType, configparams, req.GetSecrets())
-	if storageController != nil {
-		csiResp, err := storageController.ControllerExpandVolume(ctx, req)
-		return csiResp, err
+	if err != nil {
+		log.Error("Error Occured: ", err)
+		return
 	}
-	log.Error("UpdateVolume Error Occured: ", err)
-	return &csi.ControllerExpandVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	if storageController != nil {
+		expandVolume, err = storageController.ControllerExpandVolume(ctx, req)
+		return expandVolume, err
+	}
+	return
 }
