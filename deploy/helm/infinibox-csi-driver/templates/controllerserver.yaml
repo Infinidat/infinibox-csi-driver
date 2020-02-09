@@ -124,7 +124,6 @@ spec:
           image: {{ required "csi snapshotter sidecar container image." .Values.images.snapshottersidecar }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--timeout=60s"
             - "--v=5"
           env:
             - name: ADDRESS
@@ -145,14 +144,14 @@ spec:
             - name: socket-dir
               mountPath: /var/run/csi      
         - name: driver
-          image: dhanashreebiradar/infinibox-csi-driver:test2
-          #image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Never
+          #image: nikhilbarge/infinibox-csi-driver:test1
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: Always
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
-            allowPrivilegeEscalation: true 
+            allowPrivilegeEscalation: true        
           env:
             - name: CSI_ENDPOINT
               value: /var/run/csi/csi.sock

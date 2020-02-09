@@ -343,6 +343,72 @@ func (suite *ApiTestSuite) Test_UpdateFilesystem_Success() {
 	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
 }
 
+func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Fail() {
+	// Test volume snapshot will not be created
+	expectedError := errors.New("Missing parameters")
+	suite.clientMock.On("Post").Return(nil, expectedError)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	// Act
+	fileSystemSnapshot := &FileSystemSnapshot{
+		ParentID:       1000,
+		WriteProtected: true,
+	}
+	_, err := service.CreateFileSystemSnapshot(fileSystemSnapshot)
+
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
+	// Test volume snapshot will be created
+	expectedResponse := &FileSystemSnapshotResponce{}
+	expectedResponse.Name = ""
+	suite.clientMock.On("Put").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	fileSystemSnapshot := &FileSystemSnapshot{
+		ParentID:       1000,
+		SnapshotName:   "test_snapshot",
+		WriteProtected: true,
+	}
+
+	// Act
+	response, _ := service.CreateFileSystemSnapshot(fileSystemSnapshot)
+
+	// Assert
+	assert.NotNil(suite.T(), response, "Response should not be nil")
+	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_DeleteFileSystem_Fail() {
+	// Test volume snapshot will not be created
+	expectedError := errors.New("Missing parameters")
+	suite.clientMock.On("Delete").Return(nil, expectedError)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	// Act
+	_, err := service.DeleteFileSystem(1001)
+
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
+	// Test volume snapshot will be created
+	expectedResponse := &FileSystem{}
+	expectedResponse.Size = 0
+	suite.clientMock.On("Delete").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	response, _ := service.DeleteFileSystem(1001)
+
+	// Assert
+	assert.NotNil(suite.T(), response, "Response should not be nil")
+	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+}
+
 func setSecret() map[string]string {
 	secretMap := make(map[string]string)
 	secretMap["username"] = "admin"
