@@ -150,9 +150,9 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 
 	// Volume content source support Volumes and Snapshots
 	contentSource := req.GetVolumeContentSource()
-	log.Debug("----------------------------------->content volume source is : ", contentSource)
+	log.Debug("content volume source is : ", contentSource)
 	if contentSource != nil {
-		log.Debug("------------------------------->content volume source type is ", contentSource.GetType)
+		log.Debug("content volume source type is ", contentSource.GetType)
 		if contentSource.GetSnapshot() != nil {
 			csiResp, err = nfs.createVolumeFrmSnapshot(req, capacity, config["pool_name"])
 			if err != nil {

@@ -109,17 +109,10 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		if err != nil {
 			log.Error("API client not initialized.", err)
 			return commonserv, err
-		} //TODO:
-		if config["nodeid"] == "" {
-			log.Error("Validation Error: 'nodeid' is required field.")
-		} else {
-			commonserv.nodeID = config["nodeid"]
 		}
-		if config["nodeIPAddress"] == "" {
-			log.Error("Validation Error: 'nodeIPAddress' is required field.")
-		} else {
-			commonserv.nodeIPAddress = config["nodeIPAddress"]
-		}
+		commonserv.nodeID = config["nodeid"]
+		commonserv.nodeIPAddress = config["nodeIPAddress"]
+
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
