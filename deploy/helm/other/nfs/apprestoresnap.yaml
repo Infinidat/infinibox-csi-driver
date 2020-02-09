@@ -13,4 +13,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: ibox-snapshot-pvc-restore-demo-2
+        claimName: ibox-snapshot-pvc-restore-demo

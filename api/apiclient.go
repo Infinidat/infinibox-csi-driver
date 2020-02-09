@@ -494,7 +494,7 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 
 		hosturl, err := url.ParseRequestURI(c.SecretsMap["hosturl"])
 		if err != nil {
-			log.Error("hosturl is not url, checking if it is valid IpAddress")
+			log.Warn("hosturl is not url, checking if it is valid IpAddress")
 			if net.ParseIP(c.SecretsMap["hosturl"]) != nil {
 				hostconfig.ApiHost = "https://" + c.SecretsMap["hosturl"] + "/"
 			} else {
