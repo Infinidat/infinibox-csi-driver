@@ -54,8 +54,8 @@ type Client interface {
 	FileSystemHasChild(fileSystemID int64) bool
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
-	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
+	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -508,7 +508,7 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 
 		hosturl, err := url.ParseRequestURI(c.SecretsMap["hosturl"])
 		if err != nil {
-			log.Error("hosturl is not url, checking if it is valid IpAddress")
+			log.Warn("hosturl is not url, checking if it is valid IpAddress")
 			if net.ParseIP(c.SecretsMap["hosturl"]) != nil {
 				hostconfig.ApiHost = "https://" + c.SecretsMap["hosturl"] + "/"
 			} else {
