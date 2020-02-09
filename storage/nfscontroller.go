@@ -659,7 +659,6 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		CreationTime:   resp.CreatedAt,
 		SizeBytes:      resp.Size,
 	}
-
 	log.Debug("CreateFileSystemSnapshot resp() ", snapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
 	return snapshotResp, nil

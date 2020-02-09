@@ -5,9 +5,9 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 BINARY_NAME=infinibox-csi-driver
-DOCKER_USER=nikhilbarge
-DOCKER_IMAGE=infinibox-csi-driver
-DOCKER_IMAGE_TAG= test1
+DOCKER_USER=infinidat
+DOCKER_IMAGE=infinidat-csi-driver
+DOCKER_IMAGE_TAG= 1.1.0.2
 
 all: build docker-build docker-push
 
