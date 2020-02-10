@@ -52,11 +52,11 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if req.GetReadonly() {
 		mountOptions = append(mountOptions, "ro")
 	}
-	log.Debug("Mount options  %v", mountOptions)
+
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	log.Debug("Mount sourcePath %v, tagetPath %v", source, targetPath)
+	//log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		log.Errorf("fail to mount source path '%s' : %s", source, err)
@@ -88,13 +88,6 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
-
-	err = DeleteExportRule(req.GetVolumeId(), nfs.cs.nodeIPAddress)
-	if err != nil {
-		log.Errorf("fail to delete export rule %v", err)
-		return nil, status.Errorf(codes.Internal, "fail to delete export rule  %s", err)
-	}
-
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

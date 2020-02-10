@@ -2,6 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: ibox-pod-pvc-clone-demo
+  namespace: infi
 spec:
   containers:
     - name: my-frontend

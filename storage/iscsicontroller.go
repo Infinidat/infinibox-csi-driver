@@ -222,7 +222,7 @@ func (iscsi *iscsistorage) createVolumeFromSnapshot(req *csi.CreateVolumeRequest
 	volID := snapResponse.SnapShotID
 	dstVol, err := iscsi.cs.getVolumeByID(volID)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not retrieve created volume: %s", volID)
+		return nil, status.Errorf(codes.Internal, "Could not retrieve created volume: %d", volID)
 	}
 	// Create a volume response and return it
 	csiVolume := iscsi.cs.getCSIVolume(dstVol)
