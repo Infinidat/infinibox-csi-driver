@@ -678,8 +678,12 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 	}
 
 	snapshotID, _ := strconv.ParseInt(volproto.VolumeID, 10, 64)
-	snapshot, err := nfs.cs.api.GetFileSystemByID(snapshotID)
-	if snapshot == nil {
+	_, err = nfs.cs.api.GetFileSystemByID(snapshotID)
+	if err != nil {
+		if strings.Contains(err.Error(), "FILESYSTEM_NOT_FOUND") {
+			log.Debug("snapshot already deleted")
+			err = nil
+		}
 		return
 	}
 
