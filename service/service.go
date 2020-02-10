@@ -89,7 +89,7 @@ func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtoc
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")
 	}
-	log.Info("volproto---------------->", volproto)
+	log.Info("volproto ", volproto)
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil

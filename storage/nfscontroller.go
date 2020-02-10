@@ -296,7 +296,7 @@ func (nfs *nfsstorage) createVolumeFrmSnapshot(req *csi.CreateVolumeRequest, siz
 	if !isSuccess {
 		return nil, status.Errorf(codes.Internal, "restore volume from snapshot failed")
 	}
-	fileSysVol, err := nfs.cs.api.GetFileSystemByID(sourceFileSysVolume.ParentID)
+	fileSysVol, err := nfs.cs.api.GetFileSystemByID(snapResponse.SnapshotID)
 	if err != nil {
 		log.Errorf("Unable to retrive restored volume %v", err)
 		return nil, status.Errorf(codes.Internal, "Unable to retrive restored volume with id  %d ", sourceFileSysVolume.ParentID)
