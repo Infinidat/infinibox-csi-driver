@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -253,7 +254,7 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 			storagePoolName = pool.Name
 			cs.storagePoolIdName[id] = pool.Name
 		} else {
-			log.Error("Could not found StoragePool: %d", id)
+			log.Errorf("Could not found StoragePool: %d", id)
 		}
 	}
 	return storagePoolName
@@ -290,12 +291,6 @@ func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAd
 	return nil
 }
 
-// DeleteExportRule :
-func DeleteExportRule(volumeID, clientIPAdd string) error {
-
-	return nil
-}
-
 func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
 
 	// var networkSpace string
@@ -308,5 +303,13 @@ func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) 
 	if len(nspace.Portals) == 0 {
 		return "", errors.New("Ip address not found")
 	}
-	return nspace.Portals[0].IpAdress, nil
+	index := getRandomIndex(len(nspace.Portals))
+	return nspace.Portals[index].IpAdress, nil
+}
+
+func getRandomIndex(max int) int {
+	rand.Seed(time.Now().UnixNano())
+	min := 0
+	index := rand.Intn(max-min) + min
+	return index
 }
