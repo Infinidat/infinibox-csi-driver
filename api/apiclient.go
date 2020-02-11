@@ -136,7 +136,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 			err = errors.New("FindStoragePool Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("FindStoragePool called with either id %d or name %s", id, name)
+	log.Infof("FindStoragePool called with either id %d or name %s", id, name)
 	storagePools, err := c.GetStoragePool(id, name)
 	if err != nil {
 		return StoragePool{}, fmt.Errorf("Error getting storage pool %s", err)
@@ -159,7 +159,7 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 			err = errors.New("GetStoragePool Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
+	log.Infof("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
 	storagePool := StoragePool{}
 	storagePools := []StoragePool{}
 
@@ -348,7 +348,7 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	queryParam := map[string]interface{}{"name": networkSpaceName}
 	resp, err := c.getResponseWithQueryString(path, queryParam, &netspaces)
 	if err != nil {
-		log.Errorf("No such network space : ", networkSpaceName)
+		log.Errorf("No such network space : %s", networkSpaceName)
 		return nspace, err
 	}
 	if len(netspaces) == 0 {
@@ -375,7 +375,7 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	queryParam := map[string]interface{}{"name": hostName}
 	resp, err := c.getResponseWithQueryString(uri, queryParam, &hosts)
 	if err != nil {
-		log.Errorf("No such host : ", hostName)
+		log.Errorf("No such host : %s", hostName)
 		return host, err
 	}
 	if len(hosts) == 0 {
@@ -397,7 +397,7 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 			err = errors.New("UnMapVolumeFromHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Remove mapping of volume %d from host %d", volumeID, hostID)
+	log.Infof("Remove mapping of volume %d from host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
 	body := map[string]interface{}{"volume_id": volumeID}
 	_, err = c.getJSONResponse(http.MethodDelete, uri, body, nil)
@@ -405,7 +405,7 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 		log.Errorf("Error occured while unmapping volume from host %v", err)
 		return err
 	}
-	log.Info("Successfully removed mapping of volume %d from host %d", volumeID, hostID)
+	log.Infof("Successfully removed mapping of volume %d from host %d", volumeID, hostID)
 	return nil
 }
 
@@ -416,7 +416,7 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, 
 			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Map volume of %d to host %d", volumeID, hostID)
+	log.Infof("Map volume of %d to host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
 	body := map[string]interface{}{"volume_id": volumeID}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &luninfo)
@@ -428,7 +428,7 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, 
 		apiresp := resp.(client.ApiResponse)
 		luninfo, _ = apiresp.Result.(LunInfo)
 	}
-	log.Info("Successfully mapped volume of %d to host %d", volumeID, hostID)
+	log.Infof("Successfully mapped volume of %d to host %d", volumeID, hostID)
 	return luninfo, nil
 }
 

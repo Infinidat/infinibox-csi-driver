@@ -56,7 +56,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	//log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
+	log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		log.Errorf("fail to mount source path '%s' : %s", source, err)
