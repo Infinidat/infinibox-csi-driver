@@ -69,8 +69,7 @@ spec:
             privileged: true
             capabilities:
               add: ["SYS_MODULE"]
-            allowPrivilegeEscalation: true
-          #image: nikhilbarge/infinibox-csi-driver:test1
+            allowPrivilegeEscalation: true          
           image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: Always
           env:

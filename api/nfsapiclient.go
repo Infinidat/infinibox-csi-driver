@@ -76,7 +76,7 @@ func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("CreateVolume Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("DeleteExportPath Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Delete export path : ", exportID)
@@ -641,23 +641,38 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 	//1. Delete export path
 	exportResp, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("fail to delete export path %v", err)
-		return
-	}
-	for _, ep := range *exportResp {
-		_, err = c.DeleteExportPath(ep.ID)
-		if err != nil {
+		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
+			err = nil
+		} else {
 			log.Errorf("fail to delete export path %v", err)
 			return
 		}
 	}
+	if exportResp != nil {
+		for _, ep := range *exportResp {
+			_, err = c.DeleteExportPath(ep.ID)
+			if err != nil {
+				if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
+					err = nil
+				} else {
+					log.Errorf("fail to delete export path %v", err)
+					return
+				}
+			}
+		}
+	}
+
 	log.Debug("Export path deleted successfully")
 
 	//2.delete metadata
 	_, err = c.DetachMetadataFromObject(fileSystemID)
 	if err != nil {
-		log.Errorf("fail to delete metadata %v", err)
-		return
+		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
+			err = nil
+		} else {
+			log.Errorf("fail to delete metadata %v", err)
+			return
+		}
 	}
 
 	//3. delete file system

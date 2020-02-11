@@ -12,8 +12,6 @@ import (
 )
 
 func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Println("Node method Main NodePublishVolume----------------------------------->")
-	log.Debug("Node method Main NodePublishVolume")
 	voltype := req.GetVolumeId()
 	log.Infof("NodePublishVolume called with volume name", voltype)
 	storagePorotcol := req.GetVolumeContext()["storage_protocol"]

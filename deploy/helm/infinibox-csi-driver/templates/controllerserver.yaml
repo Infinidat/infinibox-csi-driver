@@ -124,7 +124,9 @@ spec:
           image: {{ required "csi snapshotter sidecar container image." .Values.images.snapshottersidecar }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v=5"
+            - "--v=5"   
+            - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
+            - "--snapshot-name-uuid-length=10"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -143,8 +145,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi      
-        - name: driver
-          #image: nikhilbarge/infinibox-csi-driver:test1
+        - name: driver          
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: Always
           securityContext:
