@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/protobuf/ptypes"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -535,7 +536,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 			err = errors.New("Recoved from CSI CreateSnapshot  " + fmt.Sprint(res))
 		}
 	}()
-
+	//var ts *timestamp.Timestamp
 	var snapshotID string
 	snapshotName := req.GetName()
 	log.Debugf("Create Snapshot of name %s", snapshotName)
@@ -557,7 +558,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 					SizeBytes:      snap.Size,
 					SnapshotId:     snapshotID,
 					SourceVolumeId: req.GetSourceVolumeId(),
-					CreationTime:   snap.CreatedAt,
+					CreationTime:   ptypes.TimestampNow(),
 					ReadyToUse:     true,
 				},
 			}, nil
@@ -575,12 +576,13 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		log.Errorf("Failed to create snapshot %s error %v", snapshotName, err)
 		return
 	}
+
 	snapshotID = strconv.FormatInt(resp.SnapshotID, 10) + "$$" + volproto.StorageType
 	snapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: req.GetSourceVolumeId(),
 		ReadyToUse:     true,
-		CreationTime:   resp.CreatedAt,
+		CreationTime:   ptypes.TimestampNow(),
 		SizeBytes:      resp.Size,
 	}
 	log.Debug("CreateFileSystemSnapshot resp() ", snapshot)

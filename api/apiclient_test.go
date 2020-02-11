@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"infinibox-csi-driver/api/client"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,12 +42,11 @@ func (suite *ApiTestSuite) Test_CreateVolumeGetStoragePoolIDByName_Fail() {
 func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
 	storagePool := []StoragePool{}
 	sp := StoragePool{}
-	sp.Name = "name1"
-	sp.ID = 1
 	storagePool = append(storagePool, sp)
+	expectedResponse := client.ApiResponse{Result: storagePool}
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	expectedError := errors.New("No such pool: test_storage_pool")
-	suite.clientMock.On("GetWithQueryString").Return(&storagePool, nil)
-	suite.serviceMock.On("getJSONResponse").Return(expectedError)
+	suite.clientMock.On("Post").Return(nil, expectedError)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
@@ -64,21 +64,20 @@ func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
 func (suite *ApiTestSuite) Test_CreateVolume_Success() {
 	storagePools := []StoragePool{}
 	sp := StoragePool{}
-	sp.Name = "name1"
-	sp.ID = 1
 	storagePools = append(storagePools, sp)
-	vol := &Volume{}
-	suite.clientMock.On("GetWithQueryString").Return(storagePools, nil)
-	suite.clientMock.On("Post").Return(vol, nil)
+	expectedResponse := client.ApiResponse{Result: storagePools}
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	expectedResponse = client.ApiResponse{Result: &Volume{}}
+	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	volume := VolumeParam{Name: "test_volume", PoolId: 1000, VolumeSize: 1000000000, ProvisionType: "THIN"}
-	response, _ := service.CreateVolume(&volume, "name1")
+	volumeparam := VolumeParam{Name: "test_volume", PoolId: 5307, VolumeSize: 1000000000, ProvisionType: "THIN"}
+	response, _ := service.CreateVolume(&volumeparam, "test_name")
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), vol, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetStoragePool_Fail() {
@@ -97,10 +96,9 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Fail() {
 func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 	storagePools := []StoragePool{}
 	sp := StoragePool{}
-	sp.Name = ""
-	sp.ID = 0
 	storagePools = append(storagePools, sp)
-	suite.clientMock.On("GetWithQueryString").Return(storagePools, nil)
+	expectedResponse := client.ApiResponse{Result: storagePools}
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
@@ -108,7 +106,7 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), storagePools, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Fail() {
@@ -152,19 +150,18 @@ func (suite *ApiTestSuite) Test_GetVolumeByName_Fail() {
 
 func (suite *ApiTestSuite) Test_GetVolumeByName_Success() {
 	volumes := []Volume{}
-	volume := Volume{}
-	volume.Name = "test_storage_pool"
-	volume.ID = 0
+	volume := Volume{Name: "test1"}
 	volumes = append(volumes, volume)
-	suite.clientMock.On("GetWithQueryString").Return(volumes, nil)
+	expectedResponse := client.ApiResponse{Result: volumes}
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	response, _ := service.GetVolumeByName("test_storage_pool")
+	response, _ := service.GetVolumeByName("test1")
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), &volume, response, "Response not returned as expected")
+	assert.Equal(suite.T(), volume, *response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
@@ -183,7 +180,8 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 	// Test volume snapshot will be created
-	expectedResponse := &SnapshotVolumesResp{}
+	//expectedResponse := &SnapshotVolumesResp{}
+	expectedResponse := client.ApiResponse{Result: &SnapshotVolumesResp{}}
 	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
@@ -193,7 +191,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetVolume_Fail() {
@@ -213,10 +211,9 @@ func (suite *ApiTestSuite) Test_GetVolume_Success() {
 	// Test volume will be created
 	volumes := []Volume{}
 	volume := Volume{}
-	volume.Name = ""
-	volume.ID = 0
 	volumes = append(volumes, volume)
-	suite.clientMock.On("Get").Return(volumes, nil)
+	expectedResponse := client.ApiResponse{Result: volumes}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
@@ -224,7 +221,7 @@ func (suite *ApiTestSuite) Test_GetVolume_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), volumes, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Fail() {
@@ -242,11 +239,10 @@ func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Fail() {
 
 func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
 	//networks := []NetworkSpace{}
-	network := NetworkSpace{}
-	network.Name = ""
-	network.ID = 0
+	expectedResponse := client.ApiResponse{Result: NetworkSpace{}}
+
 	//networks = append(networks, network)
-	suite.clientMock.On("GetWithQueryString").Return(network, nil)
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
@@ -254,7 +250,7 @@ func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), network, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetHostByName_Fail() {
@@ -271,9 +267,9 @@ func (suite *ApiTestSuite) Test_GetHostByName_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_GetHostByName_Success() {
-	hostResp := Host{}
-	hostResp.ID = 0
-	suite.clientMock.On("GetWithQueryString").Return(hostResp, nil)
+	expectedResponse := client.ApiResponse{Result: Host{}}
+
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
@@ -281,7 +277,7 @@ func (suite *ApiTestSuite) Test_GetHostByName_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), hostResp, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_MapVolumeToHost_Fail() {
@@ -298,9 +294,9 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
-	luninfo := LunInfo{}
-	luninfo.ID = 0
-	suite.clientMock.On("Post").Return(luninfo, nil)
+	expectedResponse := client.ApiResponse{Result: LunInfo{HostClusterID: 0, VolumeID: 0, CLustered: false, HostID: 0, ID: 0, Lun: 0}}
+
+	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
@@ -308,7 +304,7 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), luninfo, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_UpdateFilesystem_Fail() {
@@ -330,8 +326,8 @@ func (suite *ApiTestSuite) Test_UpdateFilesystem_Fail() {
 
 func (suite *ApiTestSuite) Test_UpdateFilesystem_Success() {
 	// Test volume snapshot will be created
-	expectedResponse := &FileSystem{}
-	expectedResponse.Size = 0
+	expectedResponse := client.ApiResponse{Result: &FileSystem{}}
+
 	suite.clientMock.On("Put").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
@@ -340,7 +336,7 @@ func (suite *ApiTestSuite) Test_UpdateFilesystem_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Fail() {
@@ -362,10 +358,9 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
-	// Test volume snapshot will be created
-	expectedResponse := &FileSystemSnapshotResponce{}
-	expectedResponse.Name = ""
-	suite.clientMock.On("Put").Return(expectedResponse, nil)
+	expectedResponse := client.ApiResponse{Result: &FileSystemSnapshotResponce{SnapshotID: 0, Name: "", DatasetType: "", ParentId: 0, Size: 0, CreatedAt: 0}}
+
+	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	fileSystemSnapshot := &FileSystemSnapshot{
 		ParentID:       1000,
@@ -378,7 +373,7 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_DeleteFileSystem_Fail() {
@@ -397,8 +392,9 @@ func (suite *ApiTestSuite) Test_DeleteFileSystem_Fail() {
 
 func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
 	// Test volume snapshot will be created
-	expectedResponse := &FileSystem{}
-	expectedResponse.Size = 0
+	//expectedResponse := &FileSystem{}
+	// expectedResponse.Size = 0
+	expectedResponse := client.ApiResponse{Result: &FileSystem{ID: 0, PoolID: 0, Name: "", SsdEnabled: false, Provtype: "", Size: 0, ParentID: 0, PoolName: "", CreatedAt: 0}}
 	suite.clientMock.On("Delete").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
@@ -406,7 +402,7 @@ func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func setSecret() map[string]string {

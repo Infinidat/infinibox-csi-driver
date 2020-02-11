@@ -3,8 +3,8 @@ package api
 import (
 	"context"
 	"infinibox-csi-driver/api/client"
-
 	//"infinibox-csi-driver/api"
+
 	"github.com/stretchr/testify/mock"
 )
 
@@ -18,7 +18,7 @@ type MockApiClient struct {
 
 //Get : mock for get request
 func (m *MockApiClient) Get(ctx context.Context, url string, hostconfig client.HostConfig, expectedResp interface{}) (interface{}, error) {
-	args := m.Called(ctx, url, hostconfig, &expectedResp)
+	args := m.Called()
 	resp, _ := args.Get(0).(interface{})
 	err, _ := args.Get(1).(error)
 	return resp, err
