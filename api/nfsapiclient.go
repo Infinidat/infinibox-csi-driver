@@ -47,30 +47,6 @@ func (c *ClientService) OneTimeValidation(poolname string, networkspace string) 
 	return validList, errors.New("provide valid network spaces")
 }
 
-//CreateExportPath :
-func (c *ClientService) CreateExportPath(exportRef *ExportPathRef) (*ExportResponse, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("CreateExportPath Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
-	log.Info("Create export path for filesystem : ", exportRef.FilesystemId)
-	uri := "api/rest/exports/"
-	eResp := ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, exportRef, &eResp)
-	if err != nil {
-		log.Errorf("Error occured while creating export path : %s", err)
-		return nil, err
-	}
-	if reflect.DeepEqual(eResp, (ExportResponse{})) {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(ExportResponse)
-	}
-	log.Info("Created export path : ", eResp.ExportPath)
-	return &eResp, nil
-}
-
 // DeleteExportPath :
 func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error) {
 	var err error
@@ -241,31 +217,6 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 	}
 	log.Info("Exported FileSystem : ", exportResp.FilesystemId)
 	return &exportResp, nil
-}
-
-// GetExportByID :
-func (c *ClientService) GetExportByID(exportID int) (*ExportResponse, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetExportByID Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
-	log.Info("Get export path : ", exportID)
-	uri := "api/rest/exports/" + strconv.Itoa(exportID)
-	eResp := ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-	if err != nil {
-		log.Errorf("Error occured while getting export path : %s", err)
-		return nil, err
-	}
-
-	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(ExportResponse)
-	}
-	log.Info("Got export path : ", exportID)
-	return &eResp, nil
 }
 
 // GetExportByFileSystem :
