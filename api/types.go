@@ -31,7 +31,7 @@ type Volume struct {
 	RmrSnapshotGuid       string `json:"rmr_snapshot_guid,omitempty"`
 	CapacitySavings       int    `json:"capacity_savings,omitempty"`
 	Name                  string `json:"name,omitempty"`
-	CreatedAt             int    `json:"created_at,omitempty"`
+	CreatedAt             int64  `json:"created_at,omitempty"`
 	PoolId                int64  `json:"pool_id,omitempty"`
 	PoolName              string `json:"pool_name,omitempty"`
 	CompressionEnabled    bool   `json:"compression_enabled,omitempty"`
@@ -87,21 +87,13 @@ type StoragePool struct {
 	FreePhysicalSpace        int      `json:"free_physical_space"`
 }
 
-type SnapshotDef struct {
-	ParentID     int    `json:"parent_id,omitempty"`
-	SnapshotName string `json:"name,omitempty"`
-}
-type SnapshotVolumesParam struct {
-	SnapshotDefs []*SnapshotDef `json:"snapshotDefs"`
-}
-
 type SnapshotVolumesResp struct {
-	SnapShotID int  `json:"id,omitempty"`
-	Size       int  `json:"size,omitempty"`
-	SsdEnabled bool `json:"ssd_enabled,omitempty"`
-	ParentID   int  `json:"parent_id,omitempty"`
-	PoolID     int  `json:"pool_id,omitempty"`
-	Name       int  `json:"name,omitempty"`
+	SnapShotID int   `json:"id,omitempty"`
+	Size       int64 `json:"size,omitempty"`
+	SsdEnabled bool  `json:"ssd_enabled,omitempty"`
+	ParentID   int   `json:"parent_id,omitempty"`
+	PoolID     int   `json:"pool_id,omitempty"`
+	Name       int   `json:"name,omitempty"`
 }
 
 type NetworkSpace struct {
@@ -276,4 +268,11 @@ type FileSystemSnapshotResponce struct {
 type VolumeProtocolConfig struct {
 	VolumeID    string
 	StorageType string
+}
+
+//VolumeSnapshot volume snapshot request parameter
+type VolumeSnapshot struct {
+	ParentID       int    `json:"parent_id"`
+	SnapshotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
 }

@@ -746,7 +746,7 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("UpdateFilesystem Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("GetSnapshotByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Get snapshot : ", snapshotName)

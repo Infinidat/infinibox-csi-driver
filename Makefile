@@ -5,11 +5,14 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 BINARY_NAME=infinibox-csi-driver
-DOCKER_USER=infinidat
+DOCKER_USER=nikhilbarge
 DOCKER_IMAGE=infinidat-csi-driver
-DOCKER_IMAGE_TAG= 1.1.0.2
+DOCKER_IMAGE_TAG=test1
 
-all: build docker-build docker-push
+ifeq ($(env),prod)
+	DOCKER_USER=infinidat
+	DOCKER_IMAGE_TAG=1.1.0.2
+endif
 
 clean:
 	$(GOCLEAN)
@@ -46,4 +49,4 @@ docker-push:
 
 buildlocal: build docker-build
 
-
+all: build docker-build docker-push

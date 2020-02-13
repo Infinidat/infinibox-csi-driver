@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: ibox-pod-pvc-demo
+  name: ibox-pod-restore-snapshot-demo
   namespace: infi
 spec:
   containers:
@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: ibox-pvc-demo
+        claimName: ibox-snapshot-pvc-restore-demo

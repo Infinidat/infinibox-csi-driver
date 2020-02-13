@@ -173,7 +173,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	snapshotParams := SnapshotDef{ParentID: 1001}
+	snapshotParams := VolumeSnapshot{ParentID: 1001}
 	_, err := service.CreateSnapshotVolume(&snapshotParams)
 
 	// Assert
@@ -188,7 +188,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	snapshotParams := SnapshotDef{ParentID: 1001, SnapshotName: "test_volume_resp"}
+	snapshotParams := VolumeSnapshot{ParentID: 1001, SnapshotName: "test_volume_resp"}
 	response, _ := service.CreateSnapshotVolume(&snapshotParams)
 
 	// Assert

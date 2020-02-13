@@ -41,7 +41,24 @@ username: admin
 password: "123456"
 
 Infinibox:
-  SecretName: infinibox-creds
+  SecretName: infinibox-creds1
   username: admin
   password: "123456"
   hosturl: 172.17.35.61
+
+InfiniboxSecrets:
+  host1:
+    SecretName: infinibox-creds1
+    username: admin
+    password: "123456"
+    hosturl: 172.17.35.61
+    namespace: "infi"
+    chap: false
+  host2:
+    SecretName: infinibox-creds2
+    username: admin
+    password: "123456"
+    hosturl: 172.17.35.61
+    namespace: "infi"
+    chap: false
+    

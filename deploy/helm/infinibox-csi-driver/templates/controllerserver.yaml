@@ -125,7 +125,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"   
-            - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
+            - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created snapshot names" .Values.volumeNamePrefix }}"
             - "--snapshot-name-uuid-length=10"
           env:
             - name: ADDRESS
@@ -146,8 +146,9 @@ spec:
             - name: socket-dir
               mountPath: /var/run/csi      
         - name: driver          
-          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
+          #image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          image: nikhilbarge/infinidat-csi-driver:test1
+          imagePullPolicy: Never
           securityContext:
             privileged: true
             capabilities:

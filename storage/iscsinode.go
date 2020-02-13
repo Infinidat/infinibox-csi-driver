@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -20,25 +19,11 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util"
 )
 
-var (
-	chap_st = []string{
-		"discovery.sendtargets.auth.username",
-		"discovery.sendtargets.auth.password",
-		"discovery.sendtargets.auth.username_in",
-		"discovery.sendtargets.auth.password_in"}
-	chap_sess = []string{
-		"node.session.auth.username",
-		"node.session.auth.password",
-		"node.session.auth.username_in",
-		"node.session.auth.password_in"}
-	ifaceTransportNameRe = regexp.MustCompile(`iface.transport_name = (.*)\n`)
-)
-
 func (iscsi *iscsistorage) NodePublishVolume(
 	ctx context.Context,
 	req *csi.NodePublishVolumeRequest) (
 	*csi.NodePublishVolumeResponse, error) {
-
+	log.Print("IN NodePublishVolume req.GetVolumeId()---------------------------->  : ", req.GetVolumeId())
 	iscsiInfo, err := iscsi.getISCSIInfo(req)
 	if err != nil {
 
@@ -176,48 +161,33 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) e
 }
 
 func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
+	log.Info("getISCSIInfo req.GetVolumeContext()------------>", req.GetVolumeContext())
 	volName := req.GetVolumeContext()["Name"]
 	tp := req.GetVolumeContext()["targetPortal"]
-	networkSpace := req.GetVolumeContext()["networkspace"]
-	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpace)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting network space")
-	}
-	iqn := nspace.Properties.IscsiIqn
+	iface := req.GetVolumeContext()["iscsiInterface"]
+	iqn := req.GetVolumeContext()["iqn"]
+	portals := req.GetVolumeContext()["portals"]
 	lun := req.GetVolumeContext()["lun"]
-	portals := nspace.Portals
+	portalsList := strings.Split(portals, ",")
 	secret := req.GetSecrets()
+	log.Info("getISCSIInfo ------------>", secret)
 
-	// temp -->
-	secretmanual := make(map[string]string)
-	secretmanual["node.session.auth.username"] = iqn
-	secretmanual["node.session.auth.password"] = secret["password"]
-	secretmanual["node.session.auth.username_in"] = ""
-	secretmanual["node.session.auth.password_in"] = ""
-
-	secretmanual["node.sendtargets.auth.username"] = iqn
-	secretmanual["node.sendtargets.auth.password"] = secret["password"]
-	secretmanual["node.sendtargets.auth.username_in"] = ""
-	secretmanual["node.sendtargets.auth.password_in"] = ""
-	// temp -->
-
-	sessionSecret, err := parseSessionSecret(secretmanual)
+	sessionSecret, err := parseSessionSecret(secret)
 	if err != nil {
 		return nil, err
 	}
-	discoverySecret, err := parseDiscoverySecret(secretmanual)
+	discoverySecret, err := parseDiscoverySecret(secret)
 	if err != nil {
 		return nil, err
 	}
 
 	portal := iscsi.portalMounter(tp)
-	//	portal := portalMounter(tp)
 	var bkportal []string
 	bkportal = append(bkportal, portal)
-	for _, portal := range portals {
-		bkportal = append(bkportal, iscsi.portalMounter(portal.IpAdress))
+	for _, p := range portalsList {
+		bkportal = append(bkportal, iscsi.portalMounter(p))
 	}
-	iface := req.GetVolumeContext()["iscsiInterface"]
+
 	initiatorName := iscsi.cs.getIscsiInitiatorName()
 
 	doDiscovery := true

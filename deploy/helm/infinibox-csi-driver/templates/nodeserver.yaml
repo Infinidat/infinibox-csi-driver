@@ -68,10 +68,15 @@ spec:
           securityContext:
             privileged: true
             capabilities:
-              add: ["SYS_MODULE"]
+              add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true          
-          image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
+          #image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
+          image: nikhilbarge/infinidat-csi-driver:test1
+          imagePullPolicy: Never
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock"]
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock

@@ -17,15 +17,12 @@ import (
 )
 
 const (
-	Name                 = "infinibox-csi-driver"
-	bytesInKiB           = 1024
-	KeyThickProvisioning = "thickprovisioning"
-	thinProvisioned      = "Thin"
-	thickProvisioned     = "Thick"
+	bytesInKiB             = 1024
+	KeyVolumeProvisionType = "provision_type"
 )
 
 var (
-	NodeId string = ""
+	NodeName string = ""
 )
 
 type storageoperations interface {
@@ -58,7 +55,7 @@ type nfsstorage struct {
 type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
-	nodeID            string
+	nodeName          string
 	nodeIPAddress     string
 }
 
@@ -111,7 +108,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			log.Error("API client not initialized.", err)
 			return commonserv, err
 		}
-		commonserv.nodeID = config["nodeid"]
+		commonserv.nodeName = NodeName
 		commonserv.nodeIPAddress = config["nodeIPAddress"]
 
 	}
@@ -135,19 +132,9 @@ func (cs *commonservice) getIscsiInitiatorName() string {
 	}
 	return ""
 }
-func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
-
-	// The `GetVolume` API returns a slice of volumes, but when only passing
-	// in a volume ID, the response will be just the one volume
-	vols, err := cs.api.GetVolume(id)
-	if err != nil {
-		return nil, err
-	}
-	return &vols[0], nil
-}
 
 func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err error) {
-	host, err := cs.api.GetHostByName(cs.nodeID)
+	host, err := cs.api.GetHostByName(cs.nodeName)
 	if err != nil {
 		return luninfo, err
 	}
@@ -159,19 +146,11 @@ func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err
 }
 
 func (cs *commonservice) unMapVolumeFromhost(volumeID int) (err error) {
-	host, err := cs.api.GetHostByName(cs.nodeID)
+	host, err := cs.api.GetHostByName(cs.nodeName)
 	if err != nil {
 		return err
 	}
 	err = cs.api.UnMapVolumeFromHost(host.ID, volumeID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (cs *commonservice) deleteVolume(volumeID int) (err error) {
-	err = cs.api.DeleteVolume(volumeID)
 	if err != nil {
 		return err
 	}
@@ -185,7 +164,6 @@ func (cs *commonservice) getCSIVolume(vol *api.Volume) *csi.Volume {
 	if storagePoolName == "" {
 		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolId)
 	}
-
 	// Make the additional volume attributes
 	attributes := map[string]string{
 		"ID":              strconv.Itoa(vol.ID),
@@ -258,22 +236,6 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 		}
 	}
 	return storagePoolName
-}
-
-func (cs *commonservice) getVolType(params map[string]string) string {
-	volType := thinProvisioned
-	if tp, ok := params[KeyThickProvisioning]; ok {
-		tpb, err := strconv.ParseBool(tp)
-		if err != nil {
-			log.Error("invalid boolean received provision received params")
-		} else if tpb {
-			volType = thickProvisioned
-		} else {
-			volType = thinProvisioned
-		}
-	}
-
-	return volType
 }
 
 //AddExportRule add export rule
