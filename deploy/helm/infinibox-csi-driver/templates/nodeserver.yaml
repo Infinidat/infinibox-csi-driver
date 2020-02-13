@@ -70,8 +70,9 @@ spec:
             capabilities:
               add: ["SYS_MODULE"]
             allowPrivilegeEscalation: true          
-          image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
+          #image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
+          image: niteshgadekar/driver:2.0 
+          imagePullPolicy: Never
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock

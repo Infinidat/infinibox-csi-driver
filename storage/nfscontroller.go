@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
@@ -307,8 +308,20 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	return
 }
 
+func getPermission(permission string) ([]map[string]interface{}, error) {
+	result := strings.Replace(permission, "'", "\"", -1)
+	var permissionMap []map[string]interface{}
+	log.Debugf("**************--nfs_export_permissions %v", result)
+	err := json.Unmarshal([]byte(result), &permissionMap)
+	if err != nil {
+		log.Errorf("invalid nfs_export_permissions formate", err)
+	}
+	log.Debugf("=====>>nfs_export_permissions %v", permissionMap)
+	return permissionMap, err
+}
+
 func (nfs *nfsstorage) createExportPath() (err error) {
-	access := nfs.configmap["nfs_export_permissions"]
+	/*access := nfs.configmap["nfs_export_permissions"]
 	if access == "" {
 		access = NfsExportPermissions
 	}
@@ -317,10 +330,25 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 		rootsquash = fmt.Sprint(NoRootSquash)
 	}
 	rootsq, _ := strconv.ParseBool(rootsquash) //TODO
+	*/
+	log.Debugf("----------------nfs_export_permissions %v", nfs.configmap["nfs_export_permissions"])
+	permissionsMapArray, err := getPermission(nfs.configmap["nfs_export_permissions"])
+	if err != nil {
+		return
+	}
 	var permissionsput []map[string]interface{}
-
-	permissionsput = append(permissionsput, map[string]interface{}{"access": access, "no_root_squash": rootsq, "client": "*"})
-
+	for _, pass := range permissionsMapArray {
+		fmt.Println("*******pass**", pass)
+		access := pass["access"].(string)
+		rootsq, err := strconv.ParseBool(pass["no_root_squash"].(string))
+		if err != nil {
+			rootsq = true
+		}
+		client := pass["client"].(string)
+		fmt.Println("*********", access, rootsq, client)
+		permissionsput = append(permissionsput, map[string]interface{}{"access": access, "no_root_squash": rootsq, "client": client})
+	}
+	fmt.Println("##########", permissionsput)
 	var exportFileSystem api.ExportFileSys
 	exportFileSystem.FilesystemID = nfs.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
@@ -481,7 +509,7 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 //ControllerPublishVolume
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	exportID := req.GetVolumeContext()["exportID"]
-	access := req.GetVolumeContext()["nfs_export_permissions"]
+	access := NfsExportPermissions
 	noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
 	if castErr != nil {
 		log.Debug("fail to cast no_root_squash .set default =true")
