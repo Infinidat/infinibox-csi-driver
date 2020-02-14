@@ -1,9 +1,11 @@
 package api
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
+	"net"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -243,6 +245,22 @@ func (c *ClientService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResp
 	return &eResp, nil
 }
 
+func compareClientIP(permissionIP, ip string) bool {
+	flag := false
+	if strings.Contains(permissionIP, "-") {
+		iprange := strings.Split(permissionIP, "-")
+		ip1 := net.ParseIP(iprange[0])
+		ip2 := net.ParseIP(iprange[1])
+		clientIP := net.ParseIP(ip)
+		if bytes.Compare(clientIP, ip1) >= 0 && bytes.Compare(clientIP, ip2) <= 0 {
+			flag = true
+		}
+	} else if permissionIP == ip {
+		flag = true
+	}
+	return flag
+}
+
 //AddNodeInExport : Export should be updated in case of node addition in k8s cluster
 func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
 	var err error
@@ -268,8 +286,9 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	index := -1
 	permissionList := eResp.Permissions
 	for i, permission := range permissionList {
-		if permission.Client == ip {
+		if compareClientIP(permission.Client, ip) {
 			flag = true
+			log.Debug("Node IP address already added in export rule")
 		}
 		if permission.Client == "*" {
 			index = i
@@ -288,7 +307,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		exportPathRef.Permissions = permissionList
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {
-			log.Errorf("Error occured while getting export path : %s", err)
+			log.Errorf("Error occured while updating export rule : %s", err)
 			return nil, err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {

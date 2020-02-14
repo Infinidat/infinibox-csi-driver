@@ -145,7 +145,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi      
-        - name: driver          
+        - name: driver                 
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: Always
           securityContext:

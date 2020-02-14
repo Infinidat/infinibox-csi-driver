@@ -111,6 +111,10 @@ spec:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - --kubelet-registration-path=/var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
