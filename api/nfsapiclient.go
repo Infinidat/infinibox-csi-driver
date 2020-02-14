@@ -288,17 +288,18 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	for i, permission := range permissionList {
 		if compareClientIP(permission.Client, ip) {
 			flag = true
+			log.Debug("Node IP address already added in export rule")
 		}
 		if permission.Client == "*" {
 			index = i
 		}
 	}
 	if index != -1 {
-		//permissionList = removeIndex(permissionList, index)
+		permissionList = removeIndex(permissionList, index)
 	}
 	if flag == false {
 		newPermission := Permissions{
-			Access:       "RW",
+			Access:       access,
 			NoRootSquash: noRootSquash,
 			Client:       ip,
 		}

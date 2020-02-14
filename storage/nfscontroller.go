@@ -82,12 +82,12 @@ const (
 )
 
 func validateParameter(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "nfs_networkspace"} //TODO: add remaining paramters
+	compulsaryFields := []string{"pool_name", "nfs_networkspace", "nfs_export_permissions"} //TODO: add remaining paramters
 	validationStatus := true
 	validationStatusMap := make(map[string]string)
 	for _, param := range compulsaryFields {
 		if config[param] == "" {
-			validationStatusMap[param] = param + " valume missing"
+			validationStatusMap[param] = param + " value missing"
 			validationStatus = false
 		}
 	}
@@ -311,44 +311,35 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 func getPermission(permission string) ([]map[string]interface{}, error) {
 	result := strings.Replace(permission, "'", "\"", -1)
 	var permissionMap []map[string]interface{}
-	log.Debugf("**************--nfs_export_permissions %v", result)
 	err := json.Unmarshal([]byte(result), &permissionMap)
 	if err != nil {
 		log.Errorf("invalid nfs_export_permissions formate", err)
 	}
-	log.Debugf("=====>>nfs_export_permissions %v", permissionMap)
 	return permissionMap, err
 }
 
 func (nfs *nfsstorage) createExportPath() (err error) {
-	/*access := nfs.configmap["nfs_export_permissions"]
-	if access == "" {
-		access = NfsExportPermissions
-	}
-	rootsquash := nfs.configmap["no_root_squash"]
-	if rootsquash == "" {
-		rootsquash = fmt.Sprint(NoRootSquash)
-	}
-	rootsq, _ := strconv.ParseBool(rootsquash) //TODO
-	*/
-	log.Debugf("----------------nfs_export_permissions %v", nfs.configmap["nfs_export_permissions"])
 	permissionsMapArray, err := getPermission(nfs.configmap["nfs_export_permissions"])
 	if err != nil {
 		return
 	}
 	var permissionsput []map[string]interface{}
 	for _, pass := range permissionsMapArray {
-		fmt.Println("*******pass**", pass)
 		access := pass["access"].(string)
-		rootsq, err := strconv.ParseBool(pass["no_root_squash"].(string))
-		if err != nil {
-			rootsq = true
+		var rootsq bool
+		_, ok := pass["no_root_squash"].(string)
+		if ok {
+			rootsq, err = strconv.ParseBool(pass["no_root_squash"].(string))
+			if err != nil {
+				log.Debug("fail to cast no_root_squash value in export permission . setting default value 'true' ")
+				rootsq = true
+			}
+		} else {
+			rootsq = pass["no_root_squash"].(bool)
 		}
 		client := pass["client"].(string)
-		fmt.Println("*********", access, rootsq, client)
 		permissionsput = append(permissionsput, map[string]interface{}{"access": access, "no_root_squash": rootsq, "client": client})
 	}
-	fmt.Println("##########", permissionsput)
 	var exportFileSystem api.ExportFileSys
 	exportFileSystem.FilesystemID = nfs.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
@@ -379,7 +370,6 @@ func (nfs *nfsstorage) createFileSystem() (err error) {
 		return
 	}
 	var namepool = nfs.configmap["pool_name"]
-	//TODO:
 	poolID, err := nfs.cs.api.GetStoragePoolIDByName(namepool)
 	if err != nil {
 		log.Errorf("fail to get GetPoolID by pool_name %s", namepool)
