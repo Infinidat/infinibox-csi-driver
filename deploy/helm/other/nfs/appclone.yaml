@@ -1,0 +1,17 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: ibox-pod-pvc-clone-demo
+  namespace: infi
+spec:
+  containers:
+    - name: my-frontend
+      image: busybox
+      volumeMounts:
+      - mountPath: "/tmp/data"
+        name: ibox-pod-clone-demo
+      command: [ "sleep", "1000" ]
+  volumes:
+    - name: ibox-pod-clone-demo
+      persistentVolumeClaim:
+        claimName: ibox-pvc-clone-demo
