@@ -208,11 +208,7 @@ func (suite *ApiTestSuite) Test_GetVolume_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_GetVolume_Success() {
-	// Test volume will be created
-	volumes := []Volume{}
-	volume := Volume{}
-	volumes = append(volumes, volume)
-	expectedResponse := client.ApiResponse{Result: volumes}
+	expectedResponse := client.ApiResponse{Result: &Volume{}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
@@ -930,6 +926,63 @@ func (suite *ApiTestSuite) Test_UpdateVolume_Success() {
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_GetVolumeSnapshotByParentID_Fail() {
+	// Test volume snapshot will not be created
+	expectedError := errors.New("Missing parameters")
+	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	// Act
+	_, err := service.GetVolumeSnapshotByParentID(1001)
+
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_GetVolumeSnapshotByParentID_Success() {
+	var volumeResponse []Volume
+	expectedResponse := client.ApiResponse{Result: &volumeResponse}
+
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	// Act
+	response, _ := service.GetVolumeSnapshotByParentID(1001)
+
+	// Assert
+	assert.NotNil(suite.T(), response, "Response should not be nil")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_DeleteVolume_Fail() {
+	var metadatas []Metadata
+	expectedResponse := client.ApiResponse{Result: &metadatas}
+	suite.clientMock.On("Delete").Return(expectedResponse, nil)
+	expectedError := errors.New("Given volume ID doesnt exist")
+	suite.clientMock.On("Delete").Return(nil, expectedError)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	// Act
+	err := service.DeleteVolume(1001)
+
+	// Assert
+	assert.Equal(suite.T(), nil, err, "Error not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_DeleteVolume_Success() {
+	var metadatas []Metadata
+	expectedResponse := client.ApiResponse{Result: &metadatas}
+	suite.clientMock.On("Delete").Return(expectedResponse, nil)
+	suite.clientMock.On("Delete").Return(nil, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	err := service.DeleteVolume(1001)
+
+	// Assert
+	assert.Equal(suite.T(), nil, err, "Response not returned as expected")
 }
 
 func setSecret() map[string]string {
