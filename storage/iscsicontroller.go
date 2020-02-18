@@ -16,6 +16,12 @@ import (
 )
 
 func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI CreateVolume " + fmt.Sprint(res))
+		}
+	}()
 	cr := req.GetCapacityRange()
 	sizeBytes, err := verifyVolumeSize(cr)
 	if err != nil {
@@ -117,6 +123,12 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 }
 
 func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI DeleteVolume " + fmt.Sprint(res))
+		}
+	}()
 	log.Debug("Called DeleteVolume")
 	if req.GetVolumeId() == "" {
 		return nil, status.Errorf(codes.Internal,
@@ -162,6 +174,12 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 }
 
 func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest, name string, sizeInKbytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI createVolumeFromVolumeContent " + fmt.Sprint(res))
+		}
+	}()
 	volumecontent := req.GetVolumeContentSource()
 	volumeContentID := ""
 	var restoreType string
@@ -262,7 +280,7 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from ISCSI CreateSnapshot  " + fmt.Sprint(res))
+			err = errors.New("Recovered from ISCSI ControllerExpandVolume " + fmt.Sprint(res))
 		}
 	}()
 
