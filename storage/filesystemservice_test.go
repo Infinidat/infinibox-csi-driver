@@ -76,7 +76,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeq
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	fsMetada := getfsMetadata()
 	var poolID int64 = 10
-	var fsID int64 = 11
+	var fsID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(1, nil)

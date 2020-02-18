@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
@@ -11,7 +10,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/kubernetes/pkg/util/mount"
-	
 )
 
 //treeq constants
@@ -286,15 +284,6 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 	return
 }
 
-func getPermission(permission string) ([]map[string]interface{}, error) {
-	result := strings.Replace(permission, "'", "\"", -1)
-	var permissionMap []map[string]interface{}
-	err := json.Unmarshal([]byte(result), &permissionMap)
-	if err != nil {
-		log.Errorf("invalid nfs_export_permissions formate %v", err)
-	}
-	return permissionMap, err
-}
 func (filesystem *FilesystemService) createExportPath() (err error) {
 	permissionsMapArray, err := getPermission(filesystem.configmap["nfs_export_permissions"])
 	if err != nil {
