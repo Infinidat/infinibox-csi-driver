@@ -22,13 +22,15 @@ type Client interface {
 	FindStoragePool(id int64, name string) (StoragePool, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	GetVolumeByName(volumename string) (*Volume, error)
-	GetVolume(volumeid int) ([]Volume, error)
-	CreateSnapshotVolume(snapshotParam *SnapshotDef) (*SnapshotVolumesResp, error)
+	GetVolume(volumeid int) (*Volume, error)
+	CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
 	GetHostByName(hostName string) (host Host, err error)
 	MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
 	DeleteVolume(volumeID int) (err error)
+	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
+	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 
 	// for nfs
 	OneTimeValidation(poolname string, networkspace string) (list string, err error)
@@ -259,7 +261,7 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 }
 
 //GetVolume : get volume by id
-func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
+func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -267,57 +269,28 @@ func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
 		}
 	}()
 	log.Info("Get a Volume of ID : ", volumeid)
-	var (
-		path    string
-		volume  = Volume{}
-		volumes = []Volume{}
-	)
-	if volumeid != -1 {
-		path = "/api/rest/volumes/" + strconv.Itoa(volumeid)
-	} else {
-		path = "/api/rest/volumes"
+	volume := Volume{}
+	path := "/api/rest/volumes/" + strconv.Itoa(volumeid)
+	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
+	if err != nil {
+		return nil, err
 	}
-
-	if volumeid == -1 {
-		resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volumes)
-		if err != nil {
-			return nil, err
-		}
-		if len(volumes) == 0 {
-			apiresp := resp.(client.ApiResponse)
-			volumes, _ = apiresp.Result.([]Volume)
-		}
-	} else {
-		resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
-		if err != nil {
-			return nil, err
-		}
-		if volume == (Volume{}) {
-			apiresp := resp.(client.ApiResponse)
-			volume, _ = apiresp.Result.(Volume)
-		}
+	if volume == (Volume{}) {
+		apiresp := resp.(client.ApiResponse)
+		volume, _ = apiresp.Result.(Volume)
 	}
-
-	if volumeid == -1 {
-		var volumesNew []Volume
-		for _, volume := range volumes {
-			volumesNew = append(volumesNew, volume)
-		}
-		volumes = volumesNew
-	} else {
-		volumes = append(volumes, volume)
-	}
-	return volumes, nil
+	return &volume, nil
 }
 
 //CreateSnapshotVolume : Create volume from snapshot
-func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*SnapshotVolumesResp, error) {
+func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("CreateSnapshotVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
+	log.Debug(" Call in Create snapshot")
 	log.Info("Create a volume from snapshot : ", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
@@ -329,7 +302,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*Snaps
 		apiresp := resp.(client.ApiResponse)
 		snapResp, _ = apiresp.Result.(SnapshotVolumesResp)
 	}
-	log.Info("Created a volume : ", snapResp.Name)
+	log.Info("Created snapshot : ", snapResp.Name)
 	return &snapResp, nil
 }
 
@@ -521,4 +494,54 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		return hostconfig, nil
 	}
 	return hostconfig, errors.New("host configuration is not valid")
+}
+
+//GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
+func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetVolumeSnapshotByParentID Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	voluri := "/api/rest/volumes/"
+	volumes := []Volume{}
+	queryParam := make(map[string]interface{})
+	queryParam["parent_id"] = volumeID
+	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
+	if err != nil {
+		log.Errorf("fail to check GetVolumeSnapshotByParentID %v", err)
+		return &volumes, err
+	}
+	if len(volumes) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		volumes, _ = apiresp.Result.([]Volume)
+	}
+	return &volumes, err
+}
+
+//UpdateVolume : update volume
+func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("UpdateVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("Update volume : ", volumeID)
+	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
+	volumeResp := Volume{}
+
+	resp, err := c.getJSONResponse(http.MethodPut, uri, volume, &volumeResp)
+	if err != nil {
+		log.Errorf("Error occured while updating volume : %s", err)
+		return nil, err
+	}
+
+	if volumeResp == (Volume{}) {
+		apiresp := resp.(client.ApiResponse)
+		volumeResp, _ = apiresp.Result.(Volume)
+	}
+	log.Info("Updated volume : ", volumeID)
+	return &volumeResp, nil
 }

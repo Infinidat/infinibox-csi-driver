@@ -170,7 +170,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	snapshotParams := SnapshotDef{ParentID: 1001}
+	snapshotParams := VolumeSnapshot{ParentID: 1001}
 	_, err := service.CreateSnapshotVolume(&snapshotParams)
 
 	// Assert
@@ -186,7 +186,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	snapshotParams := SnapshotDef{ParentID: 1001, SnapshotName: "test_volume_resp"}
+	snapshotParams := VolumeSnapshot{ParentID: 1001, SnapshotName: "test_volume_resp"}
 	response, _ := service.CreateSnapshotVolume(&snapshotParams)
 
 	// Assert
@@ -898,6 +898,38 @@ func (suite *ApiTestSuite) Test_RestoreFileSystemFromSnapShot_Success() {
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse, response, "Response not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_UpdateVolume_Fail() {
+	// Test volume snapshot will not be created
+	expectedError := errors.New("Missing parameters")
+	suite.clientMock.On("Put").Return(nil, expectedError)
+	// service := api.ClientService{api: nil}
+	// service := suite.serviceMock
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	// Act
+	volume := Volume{}
+	_, err := service.UpdateVolume(1001, volume)
+
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
+}
+
+func (suite *ApiTestSuite) Test_UpdateVolume_Success() {
+	// Test volume snapshot will be created
+	expectedResponse := client.ApiResponse{Result: &Volume{}}
+
+	suite.clientMock.On("Put").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	volume := Volume{Size: 100}
+	response, _ := service.UpdateVolume(1001, volume)
+
+	// Assert
+	assert.NotNil(suite.T(), response, "Response should not be nil")
+	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
 func setSecret() map[string]string {
