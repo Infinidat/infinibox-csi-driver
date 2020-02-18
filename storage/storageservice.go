@@ -17,15 +17,16 @@ import (
 )
 
 const (
-	Name                 = "infinibox-csi-driver"
-	bytesInKiB           = 1024
-	KeyThickProvisioning = "thickprovisioning"
-	thinProvisioned      = "Thin"
-	thickProvisioned     = "Thick"
+	Name                   = "infinibox-csi-driver"
+	bytesInKiB             = 1024
+	KeyThickProvisioning   = "thickprovisioning"
+	thinProvisioned        = "Thin"
+	thickProvisioned       = "Thick"
+	KeyVolumeProvisionType = "provision_type"
 )
 
 var (
-	NodeId string = ""
+	NodeName string = ""
 )
 
 type storageoperations interface {
@@ -58,7 +59,7 @@ type nfsstorage struct {
 type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
-	nodeID            string
+	nodeName          string
 	nodeIPAddress     string
 }
 
@@ -111,13 +112,14 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			log.Error("API client not initialized.", err)
 			return commonserv, err
 		}
-		commonserv.nodeID = config["nodeid"]
+		commonserv.nodeName = NodeName
 		commonserv.nodeIPAddress = config["nodeIPAddress"]
 
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
 }
+
 func (cs *commonservice) verifyApiClient() error {
 	log.Info("verifying api client")
 	c, err := cs.api.NewClient()
@@ -143,11 +145,11 @@ func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &vols[0], nil
+	return vols, nil
 }
 
 func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err error) {
-	host, err := cs.api.GetHostByName(cs.nodeID)
+	host, err := cs.api.GetHostByName(cs.nodeName)
 	if err != nil {
 		return luninfo, err
 	}
@@ -159,7 +161,7 @@ func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err
 }
 
 func (cs *commonservice) unMapVolumeFromhost(volumeID int) (err error) {
-	host, err := cs.api.GetHostByName(cs.nodeID)
+	host, err := cs.api.GetHostByName(cs.nodeName)
 	if err != nil {
 		return err
 	}

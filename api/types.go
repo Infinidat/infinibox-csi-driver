@@ -1,7 +1,5 @@
 package api
 
-import "github.com/golang/protobuf/ptypes/timestamp"
-
 type EndpointConfig struct {
 	Endpoint string
 	Version  string
@@ -96,12 +94,12 @@ type SnapshotVolumesParam struct {
 }
 
 type SnapshotVolumesResp struct {
-	SnapShotID int  `json:"id,omitempty"`
-	Size       int  `json:"size,omitempty"`
-	SsdEnabled bool `json:"ssd_enabled,omitempty"`
-	ParentID   int  `json:"parent_id,omitempty"`
-	PoolID     int  `json:"pool_id,omitempty"`
-	Name       int  `json:"name,omitempty"`
+	SnapShotID int   `json:"id,omitempty"`
+	Size       int64 `json:"size,omitempty"`
+	SsdEnabled bool  `json:"ssd_enabled,omitempty"`
+	ParentID   int   `json:"parent_id,omitempty"`
+	PoolID     int   `json:"pool_id,omitempty"`
+	Name       int   `json:"name,omitempty"`
 }
 
 type NetworkSpace struct {
@@ -265,15 +263,22 @@ type FileSystemSnapshot struct {
 
 //FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
-	SnapshotID  int64                `json:"id"`
-	Name        string               `json:"name,omitempty"`
-	DatasetType string               `json:"dataset_type,omitempty"`
-	ParentId    int64                `json:"parent_id,omitempty"`
-	Size        int64                `json:"size,omitempty"`
-	CreatedAt   *timestamp.Timestamp `json:"created_at,omitempty"`
+	SnapshotID  int64  `json:"id"`
+	Name        string `json:"name,omitempty"`
+	DatasetType string `json:"dataset_type,omitempty"`
+	ParentId    int64  `json:"parent_id,omitempty"`
+	Size        int64  `json:"size,omitempty"`
+	CreatedAt   int64  `json:"created_at,omitempty"`
 }
 
 type VolumeProtocolConfig struct {
 	VolumeID    string
 	StorageType string
+}
+
+//VolumeSnapshot volume snapshot request parameter
+type VolumeSnapshot struct {
+	ParentID       int    `json:"parent_id"`
+	SnapshotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
 }

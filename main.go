@@ -14,8 +14,8 @@ import (
 //starting method of CSI-Driver
 func main() {
 	configParams := make(map[string]string)
-	if nodeid, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		storage.NodeId = nodeid
+	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
+		storage.NodeName = nodeName
 	}
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
 		configParams["drivername"] = drivername
@@ -27,7 +27,6 @@ func main() {
 	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
 		configParams["nodeIPAddress"] = nodeip
 		configParams["nodeid"] = nodeip
-		storage.NodeId = nodeip
 	}
 
 	gocsi.Run(
