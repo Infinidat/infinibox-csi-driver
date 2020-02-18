@@ -295,7 +295,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		}
 	}
 	if index != -1 {
-		permissionList = removeIndex(permissionList, index)
+		//permissionList = removeIndex(permissionList, index)
 	}
 	if flag == false {
 		newPermission := Permissions{

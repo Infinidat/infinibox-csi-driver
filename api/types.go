@@ -225,11 +225,11 @@ type FileSystem struct {
 
 //FileSystemMetaData
 type FileSystemMetaData struct {
-	Ready           bool   `json:"ready,omitempty"`
-	NumberOfObjects int64  `json:"number_of_objects,omitempty"`
-	PageSize        string `json:"page_size,omitempty"`
-	PagesTotal      bool   `json:"pages_total,omitempty"`
-	Page            string `json:"provtype,omitempty"`
+	Ready           bool `json:"ready,omitempty"`
+	NumberOfObjects int  `json:"number_of_objects,omitempty"`
+	PageSize        int  `json:"page_size,omitempty"`
+	PagesTotal      int  `json:"pages_total,omitempty"`
+	Page            int  `json:"provtype,omitempty"`
 }
 
 type ExportPathRef struct {

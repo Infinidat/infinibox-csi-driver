@@ -56,6 +56,11 @@ type Client interface {
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
+
+	GetFileSystemsByPoolID(poolID int64, page int) (*FSMetadata, error)
+	GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int, err error)
+	CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error)
+	DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -203,7 +208,7 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 			err = errors.New("error while Get Pool ID  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get ID of a storage pool by Name : ", name)
+	log.Infof("Get ID of a storage pool by Name : %s", name)
 	storagePools := []StoragePool{}
 	//To get the pool_id for corresponding poolname
 	var poolID int64 = -1
@@ -212,7 +217,7 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 	queryParam["name"] = name
 	resp, err := c.getResponseWithQueryString(urlpool, queryParam, &storagePools)
 	if err != nil {
-		return -1, fmt.Errorf("volume with given name not found")
+		return -1, fmt.Errorf("fail to get pool ID from pool Name: %s", name)
 	}
 	if len(storagePools) == 0 {
 		apiresp := resp.(client.ApiResponse)

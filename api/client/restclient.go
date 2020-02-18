@@ -19,7 +19,7 @@ type HostConfig struct {
 	UserName string
 	Password string
 }
-type resultmetadata struct {
+type Resultmetadata struct {
 	NoOfObject int `json:"number_of_objects,omitempty"`
 	TotalPages int `json"pages_total,omitempty"`
 	Page       int `json"page,omitempty"`
@@ -27,7 +27,7 @@ type resultmetadata struct {
 }
 type ApiResponse struct {
 	Result   interface{}    `json:"result,omitempty"`
-	MetaData resultmetadata `json:"metadata,omitempty"`
+	MetaData Resultmetadata `json:"metadata,omitempty"`
 	Error    interface{}    `json:"error,omitempty"`
 }
 

@@ -10,6 +10,7 @@ import (
 
 type MockApiService struct {
 	mock.Mock
+	Client
 }
 
 type MockApiClient struct {
@@ -54,4 +55,60 @@ func (m *MockApiClient) GetWithQueryString(ctx context.Context, url string, host
 	resp, _ := args.Get(0).(interface{})
 	err, _ := args.Get(1).(error)
 	return resp, err
+}
+
+//GetStoragePoolIDByName mock
+func (m *MockApiService) GetStoragePoolIDByName(poolName string) (int64, error) {
+	args := m.Called(poolName)
+	resp, _ := args.Get(0).(int64)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+//GetFileSystemsByPoolID mock
+func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int) (*FSMetadata, error) {
+	args := m.Called(poolID, page)
+	resp, _ := args.Get(0).(FSMetadata)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//GetFilesytemTreeqCount mock
+func (m *MockApiService) GetFilesytemTreeqCount(filesystemID int64) (int, error) {
+	args := m.Called(filesystemID)
+	resp, _ := args.Get(0).(int)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+//CreateTreeq mock
+func (m *MockApiService) CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error) {
+	args := m.Called(filesystemID, treeqParameter)
+	resp, _ := args.Get(0).(Treeq)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//AttachMetadataToObject mock
+func (m *MockApiService) AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error) {
+	args := m.Called(objectID, body)
+	resp, _ := args.Get(0).([]Metadata)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//UpdateFilesystem
+func (m *MockApiService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
+	args := m.Called(fileSystemID, fileSystem)
+	resp, _ := args.Get(0).(FileSystem)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//GetExportByFileSystem
+func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
+	args := m.Called(fileSystemID)
+	resp, _ := args.Get(0).([]ExportResponse)
+	err, _ := args.Get(1).(error)
+	return &resp, err
 }
