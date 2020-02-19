@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -88,13 +89,23 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 			err = errors.New("DeleteVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	path := "/api/rest/volumes/" + strconv.Itoa(volumeID)
+	_, err = c.DetachMetadataFromObject(int64(volumeID))
+	if err != nil {
+		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
+			err = nil
+		} else {
+			log.Errorf("fail to delete metadata %v", err)
+			return
+		}
+	}
+
+	path := "/api/rest/volumes/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
 	if err != nil {
 		return err
 	}
 	log.Info("Deleted Volume : ", volumeID)
-	return nil
+	return
 }
 
 //CreateVolume : create volume with volume details provided in storage pool provided
