@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
-	"k8s.io/kubernetes/pkg/util/mount"
 )
 
 //treeq constants
@@ -46,22 +45,17 @@ type FilesystemService struct {
 	exportBlock  string
 	ipAddress    string
 
-	cs      commonservice
-	mounter mount.Interface
-
+	cs       commonservice
 	poolID   int64
 	treeqCnt int
 
 	treeqVolume map[string]string
-
-	//TODO: also need to add os files to easy to mock
 }
 
 func getFilesystemService(serviceType string, c commonservice) *FilesystemService {
 	if NFSTREEQ == serviceType {
 		return &FilesystemService{
 			cs:          c,
-			mounter:     mount.New(""),
 			treeqVolume: make(map[string]string),
 		}
 	}

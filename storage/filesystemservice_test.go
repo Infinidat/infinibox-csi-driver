@@ -13,16 +13,14 @@ import (
 )
 
 func (suite *FileSystemServiceSuite) SetupTest() {
-	suite.nfsMountMock = new(MockNfsMounter)
 	suite.api = new(api.MockApiService)
 	suite.cs = &commonservice{api: suite.api}
 }
 
 type FileSystemServiceSuite struct {
 	suite.Suite
-	nfsMountMock *MockNfsMounter
-	api          *api.MockApiService
-	cs           *commonservice
+	api *api.MockApiService
+	cs  *commonservice
 }
 
 func TestFileSystemServiceSuite(t *testing.T) {
@@ -32,7 +30,7 @@ func TestFileSystemServiceSuite(t *testing.T) {
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_GetPoolIDByPoolName_error() {
 	expectedErr := errors.New("some error")
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
-	service := FilesystemService{mounter: suite.nfsMountMock, cs: *suite.cs}
+	service := FilesystemService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID()
 	assert.NotNil(suite.T(), err, "empty object")
 
@@ -41,7 +39,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_GetPoolIDByPoo
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() {
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	service := FilesystemService{mounter: suite.nfsMountMock, cs: *suite.cs}
+	service := FilesystemService{cs: *suite.cs}
 	configmap := make(map[string]string)
 	configmap[MAXFILESYSTEMSIZE] = "4mib"
 	service.configmap = configmap
@@ -55,7 +53,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FileSystemByPo
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(nil, expectedErr)
-	service := FilesystemService{mounter: suite.nfsMountMock, cs: *suite.cs}
+	service := FilesystemService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID()
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -68,7 +66,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeq
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(0, expectedErr)
-	service := FilesystemService{mounter: suite.nfsMountMock, cs: *suite.cs}
+	service := FilesystemService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID()
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -85,7 +83,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
 	fsMetada2 := getfsMetadata2()
 	suite.api.On("GetFileSystemsByPoolID", poolID, 2).Return(*fsMetada2, nil)
-	service := FilesystemService{mounter: suite.nfsMountMock, cs: *suite.cs}
+	service := FilesystemService{cs: *suite.cs}
 	/** paramter values to filesystemService  */
 	service.capacity = 1000
 	service.exportpath = "/exportPath"
@@ -113,7 +111,7 @@ func (suite *FileSystemServiceSuite) Test_CreateNFSVolume_Success() {
 	suite.api.On("AttachMetadataToObject", fsID, mock.Anything).Return(*metadataResp, nil)
 
 	suite.api.On("UpdateFilesystem", fsID, mock.Anything).Return(nil, nil)
-	service := FilesystemService{mounter: suite.nfsMountMock, cs: *suite.cs}
+	service := FilesystemService{cs: *suite.cs}
 	/** paramter values to filesystemService  */
 	service.capacity = 1000
 	service.pVName = "csi-TestTreeq"

@@ -98,6 +98,7 @@ func getNodePublishVolumeRequest(tagetPath string, publishContexMap map[string]s
 		PublishContext: publishContexMap,
 	}
 }
+
 func getPublishContexMap() map[string]string {
 	contextMap := make(map[string]string)
 	contextMap["nfs_mount_options"] = "hard,rsize=1048576,wsize=1048576"
@@ -145,7 +146,13 @@ type MockNfsMounter struct {
 func (m *MockNfsMounter) IsLikelyNotMountPoint(file string) (bool, error) {
 	args := m.Called(file)
 	resp, _ := args.Get(0).(bool)
-	err, _ := args.Get(1).(error)
+	var err error
+	if args.Get(1) == nil {
+		err = nil
+	} else {
+		err, _ = args.Get(1).(error)
+	}
+
 	return resp, err
 }
 
@@ -160,6 +167,9 @@ func (m *MockNfsMounter) Mount(source string, target string, fstype string, opti
 
 func (m *MockNfsMounter) Unmount(targetPath string) error {
 	args := m.Called(targetPath)
+	if args.Get(0) == nil {
+		return nil
+	}
 	err := args.Get(0).(error)
 	return err
 }
