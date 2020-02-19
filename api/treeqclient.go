@@ -96,7 +96,7 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("CreateTreeq Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("Create Treeq Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Create filesystem")
@@ -138,7 +138,7 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("DeleteTreeq Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("Delete Treeq Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/helper"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -45,6 +46,8 @@ type treeqstorage struct {
 	csi.ControllerServer
 	csi.NodeServer
 	filesysService *FilesystemService
+	osHelper       helper.OsHelper
+	mounter        mount.Interface
 }
 type nfsstorage struct {
 	uniqueID  int64
@@ -81,7 +84,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv)}, nil
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -100,7 +103,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv)}, nil
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}

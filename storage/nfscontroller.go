@@ -313,7 +313,7 @@ func getPermission(permission string) ([]map[string]interface{}, error) {
 	var permissionMap []map[string]interface{}
 	err := json.Unmarshal([]byte(result), &permissionMap)
 	if err != nil {
-		log.Errorf("invalid nfs_export_permissions formate %v", err)
+		log.Errorf("invalid nfs_export_permissions format %v", err)
 	}
 	return permissionMap, err
 }
