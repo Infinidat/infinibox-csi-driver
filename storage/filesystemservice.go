@@ -18,9 +18,8 @@ const (
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
 	MAXFILESYSTEMS         = "max_filesystems"
 	MAXFILESYSTEMSIZE      = "max_filesystem_size"
-	FSPREFIX               = "fs_prefix"
-	PVPREFIX               = "pv_prefix"
 	UNIXPERMISSION         = "nfs_unix_permissions"
+	TREEQPATHPREFIX        = "treeq_path_prefix"
 
 	//Treeq count
 	TREEQCOUNT = "host.k8s.treeqs"
@@ -30,6 +29,17 @@ const (
 const (
 	NFSTREEQ = "nfs_treeq"
 	NFS      = "nfs"
+)
+
+//Operation declare for treeq count operation
+type ACTION int
+
+const (
+	//Increment operation
+	IncrementTreeqCount ACTION = 1 + iota
+	//decrement operation
+	DecrementTreeqCount
+	NONE
 )
 
 //FilesystemService file system services
@@ -115,8 +125,8 @@ func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.Fil
 	return
 }
 
-//CreateNFSVolume create volumne method
-func (filesystem *FilesystemService) CreateNFSVolume() (err error) {
+//CreateTreeqVolume create volumne method
+func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while creating treeq method " + fmt.Sprint(res))
@@ -151,8 +161,8 @@ func (filesystem *FilesystemService) CreateNFSVolume() (err error) {
 		err = errors.New("fail to Create Treeq")
 		return
 	}
-
-	filesystem.treeqVolume["ID"] = strconv.FormatInt(treeqResponse.ID, 10)
+	filesystem.treeqVolume["ID"] = strconv.FormatInt(filesystemID, 10)
+	filesystem.treeqVolume["TREEQID"] = strconv.FormatInt(treeqResponse.ID, 10)
 	filesystem.treeqVolume["ipAddress"] = filesystem.ipAddress
 	filesystem.treeqVolume["volumePath"] = path.Join(filesystem.exportpath, treeqResponse.Path)
 
@@ -167,12 +177,9 @@ func (filesystem *FilesystemService) CreateNFSVolume() (err error) {
 		}
 	}()
 
-	//update treeq count in metadta //AttachMetadataToObject()
-	metadataParamter := make(map[string]interface{})
-	metadataParamter[TREEQCOUNT] = filesystem.treeqCnt + 1
-	_, metadataErr := filesystem.cs.api.AttachMetadataToObject(filesystemID, metadataParamter)
-	if metadataErr != nil {
-		log.Errorf("fail to increment treeq count %s error %v", TREEQCOUNT, err)
+	treeqCount := filesystem.treeqCnt + 1
+	_, updateTreeqErr := filesystem.UpdateTreeqCnt(filesystemID, NONE, treeqCount)
+	if updateTreeqErr != nil {
 		err = errors.New("fail to increment treeq count as metadata")
 		return
 	}
@@ -184,7 +191,7 @@ func (filesystem *FilesystemService) CreateNFSVolume() (err error) {
 		}
 		if err != nil && filesystemID != 0 {
 			log.Infof("Seemes to be some problem reverting treeqcount")
-			filesystem.cs.api.AttachMetadataToObject(filesystemID, metadataParamter)
+			filesystem.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
 		}
 	}()
 
@@ -317,7 +324,7 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 }
 
 func (filesystem *FilesystemService) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "nfs_networkspace"}
+	compulsaryFields := []string{"pool_name", "nfs_networkspace", "nfs_export_permissions"}
 	validationStatus := true
 	validationStatusMap := make(map[string]string)
 	for _, param := range compulsaryFields {
@@ -333,10 +340,9 @@ func (filesystem *FilesystemService) validateTreeqParameters(config map[string]s
 func getDefaultValues() map[string]string {
 	defaultConfigMap := make(map[string]string)
 	defaultConfigMap[PROVISIONTYPE] = "thin"
-	defaultConfigMap[PVSIZE] = "1gib"
 	defaultConfigMap[MAXTREEQSPERFILESYSTEM] = "1000"
 	defaultConfigMap[MAXFILESYSTEMS] = "1000"
-	defaultConfigMap[MAXFILESYSTEMSIZE] = "100gib"
+	defaultConfigMap[MAXFILESYSTEMSIZE] = "100tib"
 	defaultConfigMap[UNIXPERMISSION] = "750"
 	return defaultConfigMap
 }
@@ -389,15 +395,18 @@ func convertToByte(size string) (bytes int64, err error) {
 	return
 }
 
-func (filesystem *FilesystemService) setExportpathPrefix() {
-	if prefix, ok := filesystem.configmap[FSPREFIX]; ok {
-		filesystem.exportpath = path.Join(prefix, filesystem.pVName)
+func (filesystem *FilesystemService) getTreeqPath() string {
+	prefix := path.Join("/", filesystem.pVName)
+	if prefix, ok := filesystem.configmap[TREEQPATHPREFIX]; ok {
+		prefix = path.Join("/", prefix, filesystem.pVName)
+		return prefix
 	}
+	return prefix
 }
 
 func (filesystem *FilesystemService) getTreeParameters() map[string]interface{} {
 	treeqParameter := make(map[string]interface{})
-	treeqParameter["path"] = "/" + filesystem.pVName
+	treeqParameter["path"] = filesystem.getTreeqPath()
 	treeqParameter["name"] = filesystem.pVName
 	treeqParameter["hard_capacity"] = filesystem.capacity
 	treeqParameter["mode"] = filesystem.getTreeModePermission()
@@ -423,4 +432,95 @@ func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 		break
 	}
 	return nil
+}
+
+//treeq delete
+
+func isTreeQEmpty(treeq api.Treeq) bool {
+	if treeq.UsedCapacity > 0 {
+		return false
+	}
+	return true
+}
+
+//DeleteNFSVolume delete volumne method
+func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
+
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while deleting treeq " + fmt.Sprint(res))
+			return
+		}
+	}()
+	//1.treeq exist or not checked
+	treeq, err := filesystem.cs.api.GetTreeq(filesystemID, treeqID)
+	if err != nil {
+		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
+			err = errors.New("Treeq does not exist on infinibox")
+			return nil
+		}
+		log.Errorf("Error occured while getting treeq: %s", err)
+		return err
+	}
+
+	//2.if treeq has usedcapacity >0 then..
+	if !isTreeQEmpty(*treeq) {
+		log.Error("Can't delete NFS-treeq PV with data")
+		err = errors.New("Can't delete NFS-treeq PV with data")
+		return
+	}
+	//3 first decremnt the treeq count to recover
+	// In case of 1 - we are deleting the file system,
+	treeqCnt, err := filesystem.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
+	if err != nil {
+		log.Error("fail to update treeq count")
+		return
+	}
+
+	//4.delete the treeq
+	_, err = filesystem.cs.api.DeleteTreeq(filesystemID, treeqID)
+	if err != nil {
+		log.Error("fail to delete treeq")
+		filesystem.UpdateTreeqCnt(filesystemID, IncrementTreeqCount, 0)
+		return err
+	}
+
+	//5.Delete file system if all treeq are delete
+	if treeqCnt == 0 { // measn all tree are delete. then delete the complete filesystem with exportPath ,metadata..etc
+		err = filesystem.cs.api.DeleteFileSystemComplete(filesystemID)
+		if err != nil {
+			log.Errorf("fail to delete filesystem filesystemID %d error %v", filesystemID, err)
+			return
+		}
+	}
+	log.Debug("Treeq deleted successfully")
+	return
+}
+
+//UpdateTreeqCnt method
+func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqCnt int) (treeqCount int, err error) {
+	if treeqCnt == 0 {
+		treeqCnt, err = filesystem.cs.api.GetFilesytemTreeqCount(fileSystemID)
+		if err != nil {
+			return
+		}
+		log.Debugf("treeq count of fileSystemID: %d", fileSystemID)
+	}
+
+	switch action {
+	case IncrementTreeqCount:
+		treeqCnt++
+	case DecrementTreeqCount:
+		treeqCnt--
+	}
+	metadataParamter := make(map[string]interface{})
+	metadataParamter[TREEQCOUNT] = treeqCnt
+	_, err = filesystem.cs.api.AttachMetadataToObject(fileSystemID, metadataParamter)
+	if err != nil {
+		log.Errorf("Error occured updating treeq count to filesystemID : %d error %v", fileSystemID, err)
+		return
+	}
+	treeqCount = treeqCnt
+	log.Debugf("treeq count updated successfully of fileSystemID: %d", fileSystemID)
+	return
 }
