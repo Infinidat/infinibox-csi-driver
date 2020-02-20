@@ -7,7 +7,7 @@ GOMOD=$(GOCMD) mod
 BINARY_NAME=infinibox-csi-driver
 DOCKER_USER=infinidat
 DOCKER_IMAGE=infinidat-csi-driver
-DOCKER_IMAGE_TAG= 1.1.0.2
+DOCKER_IMAGE_TAG= 1.1.0.3
 
 all: build docker-build docker-push
 
