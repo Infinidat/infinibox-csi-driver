@@ -384,9 +384,8 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 		}
 	}()
 	log.Infof("Remove mapping of volume %d from host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	body := map[string]interface{}{"volume_id": volumeID}
-	_, err = c.getJSONResponse(http.MethodDelete, uri, body, nil)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
+	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
 	if err != nil {
 		log.Errorf("Error occured while unmapping volume from host %v", err)
 		return err
