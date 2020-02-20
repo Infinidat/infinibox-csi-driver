@@ -70,31 +70,31 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	req.GetParameters()["portals"] = portals
 
 	// We require the storagePool name for creation
-	sp, ok := req.GetParameters()["pool_name"]
+	poolName, ok := req.GetParameters()["pool_name"]
 	if !ok {
 		return &csi.CreateVolumeResponse{}, errors.New("pool_name is a required parameter")
 	}
 
-	// Volume content source support Snapshots only
+	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
-		log.Info("request is to create volume from snapshot")
-		return iscsi.createVolumeFromVolumeContent(req, name, sizeBytes, sp)
+		return iscsi.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
 
 	}
+
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
 		ProvisionType: volType,
 	}
-	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, sp)
+	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, poolName)
 	if err != nil {
-		log.Errorf("error creating volume: %s pool %s error: %s", name, sp, err.Error())
+		log.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal,
-			"error when creating volume %s storagepool %s: %s", name, sp, err.Error())
+			"error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
 
 	}
-	vi := iscsi.cs.getCSIVolume(volumeResp)
+	vi := iscsi.cs.getCSIVolume(volumeResp, req)
 
 	luninfo, err := iscsi.cs.mapVolumeTohost(volumeResp.ID)
 	if err != nil {
@@ -154,22 +154,27 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 			err = errors.New("Recovered from ISCSI createVolumeFromVolumeContent " + fmt.Sprint(res))
 		}
 	}()
+
 	volumecontent := req.GetVolumeContentSource()
 	volumeContentID := ""
 	var restoreType string
 	if volumecontent.GetSnapshot() != nil {
 		restoreType = "Snapshot"
 		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
-	} else if volumecontent.GetVolume() != nil {
-		volumeContentID = volumecontent.GetVolume().GetVolumeId()
-		restoreType = "Volume"
 	}
+
 	// Lookup the snapshot source volume.
-	snapshotID, err := strconv.Atoi(volumeContentID)
+	volproto, err := validateStorageType(volumeContentID)
+	if err != nil {
+		log.Errorf("Failed to validate storage type %v", err)
+		return nil, errors.New("error getting volume id")
+	}
+
+	ID, err := strconv.Atoi(volproto.VolumeID)
 	if err != nil {
 		return nil, errors.New("error getting volume id")
 	}
-	srcVol, err := iscsi.cs.api.GetVolume(snapshotID)
+	srcVol, err := iscsi.cs.api.GetVolume(ID)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
@@ -182,39 +187,33 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	}
 
 	// Validate the storagePool is the same.
-	snapStoragePool := iscsi.cs.getStoragePoolNameFromID(srcVol.PoolId)
-	if snapStoragePool != storagePool {
+	storagePoolID, err := iscsi.cs.api.GetStoragePoolIDByName(storagePool)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"error while getting storagepoolid with name %s ", storagePool)
+	}
+	if storagePoolID != srcVol.PoolId {
 		return nil, status.Errorf(codes.InvalidArgument,
-			restoreType+" storage pool %s is different than the requested storage pool %s", snapStoragePool, storagePool)
+			"volume storage pool is different than the requested storage pool %s", storagePool)
 	}
 
-	vol, err := iscsi.cs.api.GetVolumeByName(name)
-	if vol.PoolId == srcVol.PoolId {
-		log.Errorf("Requested volume %s already exists", name)
-		csiVolume := iscsi.cs.getCSIVolume(vol)
-		log.Errorf("Requested volume already exists %s (%s) storage pool %s",
-			csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext[StoragePoolKey])
-		return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
-	}
-
-	snapshotParam := &api.VolumeSnapshot{ParentID: snapshotID, SnapshotName: name, WriteProtected: false}
-
+	snapshotParam := &api.VolumeSnapshot{ParentID: ID, SnapshotName: name, WriteProtected: false}
 	// Create snapshot
 	snapResponse, err := iscsi.cs.api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create snapshot: %s", err.Error())
 	}
 
-	// Retrieve created destination volumevolume
+	// Retrieve created destination volume
 	volID := snapResponse.SnapShotID
 	dstVol, err := iscsi.cs.api.GetVolume(volID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not retrieve created volume: %d", volID)
 	}
-	// Create a volume response and return it
-	csiVolume := iscsi.cs.getCSIVolume(dstVol)
-	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 
+	// Create a volume response and return it
+	csiVolume := iscsi.cs.getCSIVolume(dstVol, req)
+	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 	log.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil

@@ -180,7 +180,7 @@ func (cs *commonservice) deleteVolume(volumeID int) (err error) {
 	return nil
 }
 
-func (cs *commonservice) getCSIVolume(vol *api.Volume) *csi.Volume {
+func (cs *commonservice) getCSIVolume(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
 	log.Infof("getCSIVolume called with vol %v", vol)
 	storagePoolName := vol.PoolName
 	log.Infof("getCSIVolume storagePoolName is %s", vol.PoolName)
@@ -200,6 +200,7 @@ func (cs *commonservice) getCSIVolume(vol *api.Volume) *csi.Volume {
 		VolumeId:      strconv.Itoa(vol.ID),
 		CapacityBytes: vol.Size,
 		VolumeContext: attributes,
+		ContentSource: req.GetVolumeContentSource(),
 	}
 	return vi
 }

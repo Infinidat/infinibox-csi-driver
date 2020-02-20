@@ -301,8 +301,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 			err = errors.New("CreateSnapshotVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Debug(" Call in Create snapshot")
-	log.Info("Create a volume from snapshot : ", snapshotParam.SnapshotName)
+	log.Info("Create a snapshot : ", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapResp)

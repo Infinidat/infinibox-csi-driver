@@ -94,12 +94,12 @@ type SnapshotVolumesParam struct {
 }
 
 type SnapshotVolumesResp struct {
-	SnapShotID int   `json:"id,omitempty"`
-	Size       int64 `json:"size,omitempty"`
-	SsdEnabled bool  `json:"ssd_enabled,omitempty"`
-	ParentID   int   `json:"parent_id,omitempty"`
-	PoolID     int   `json:"pool_id,omitempty"`
-	Name       int   `json:"name,omitempty"`
+	SnapShotID int    `json:"id,omitempty"`
+	Size       int64  `json:"size,omitempty"`
+	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
+	ParentID   int    `json:"parent_id,omitempty"`
+	PoolID     int    `json:"pool_id,omitempty"`
+	Name       string `json:"name,omitempty"`
 }
 
 type NetworkSpace struct {
