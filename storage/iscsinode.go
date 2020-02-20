@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -24,18 +25,119 @@ func (iscsi *iscsistorage) NodePublishVolume(
 	req *csi.NodePublishVolumeRequest) (
 	*csi.NodePublishVolumeResponse, error) {
 	log.Print("IN NodePublishVolume req.GetVolumeId()---------------------------->  : ", req.GetVolumeId())
+	volCap := req.GetVolumeCapability()
+	if volCap == nil {
+		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
+	}
+
 	iscsiInfo, err := iscsi.getISCSIInfo(req)
 	if err != nil {
-
 		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+	switch volCap.GetAccessType().(type) {
+	case *csi.VolumeCapability_Block:
+		iscsiInfo.isBlock = true
 	}
 	diskMounter := iscsi.getISCSIDiskMounter(iscsiInfo, req)
-
+	if iscsiInfo.isBlock {
+		diskMounter.bindMounter = mount.New("")
+	}
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
+		log.Errorf("Failed to mount volume with error %v", err)
 		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
+	// switch volCap.GetAccessType().(type) {
+	// case *csi.VolumeCapability_Block:
+	// 	ro := req.GetReadonly()
+	// 	if ro {
+	// 		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, "Read only is not supported for Block Volume")
+	// 	}
+	// 	err = iscsi.BlockMount(*diskMounter)
+	// 	if err != nil {
+	// 		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// 	}
+	// case *csi.VolumeCapability_Mount:
+	// 	_, err = iscsi.AttachDisk(*diskMounter)
+	// 	if err != nil {
+	// 		return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// 	}
+	// }
+
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (iscsi *iscsistorage) BlockMount(diskMounter iscsiDiskMounter) error {
+	target := diskMounter.targetPath
+	devicePath := diskMounter.sourcePath
+	exists, err := diskMounter.mounter.ExistsPath(devicePath)
+	if err != nil {
+		log.Errorf("error finding device path %s", devicePath)
+		return err
+	}
+	if !exists {
+		log.Errorf("device path %s not found", devicePath)
+		return err
+	}
+	// if !exists {
+	// 	for _, portal := range diskMounter.Portals {
+	// 		devicePath = strings.Join([]string{"/dev/disk/by-path/ip", portal, "iscsi", diskMounter.Iqn, "lun", fmt.Sprint(diskMounter.lun)}, "-")
+	// 		stat, err := os.Lstat(devicePath)
+	// 		if err != nil {
+	// 			if os.IsNotExist(err) {
+	// 				log.Infof("device path %q not found", devicePath)
+	// 				return err
+	// 			}
+	// 			return err
+	// 		}
+	// 		if stat.Mode()&os.ModeSymlink != os.ModeSymlink {
+	// 			log.Warningf("nvme file %q found, but was not a symlink", portal)
+	// 			return err
+	// 		}
+	// 		resolved, err := filepath.EvalSymlinks(portal)
+	// 		if err != nil {
+	// 			log.Errorf("error reading target of symlink %q: %v", portal, err)
+	// 			return err
+	// 		}
+
+	// 		if !strings.HasPrefix(resolved, "/dev") {
+	// 			log.Errorf("resolved symlink for %q was unexpected: %q", portal, resolved)
+	// 			return err
+	// 		}
+	// 		devicePath = resolved
+	// 		break
+	// 	}
+
+	// }
+	source := devicePath
+	mountDir := filepath.Dir(target)
+
+	if diskMounter.readOnly {
+		return status.Error(codes.Internal, "Read only is not supported for Block Volume")
+	}
+	exists, err = diskMounter.mounter.ExistsPath(mountDir)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Could not check if path exists %q: %v", mountDir, err)
+	}
+	if !exists {
+		if err := diskMounter.mounter.MakeDir(mountDir); err != nil {
+			return status.Errorf(codes.Internal, "Could not create dir %q: %v", mountDir, err)
+		}
+	}
+
+	err = diskMounter.mounter.MakeFile(target)
+	if err != nil {
+		if removeErr := os.Remove(target); removeErr != nil {
+			return status.Errorf(codes.Internal, "Could not remove mount target %q: %v", target, removeErr)
+		}
+		return status.Errorf(codes.Internal, "Could not create file %q: %v", target, err)
+	}
+
+	options := []string{"bind"}
+	if err := diskMounter.mounter.FormatAndMount(source, target, "", options); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (iscsi *iscsistorage) NodeUnpublishVolume(
@@ -51,18 +153,49 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (string, error) {
+func createFile(filePath string) (bool, error) {
+	st, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		file, err := os.Create(filePath)
+		defer file.Close()
+		if err != nil {
+			log.Errorf("error while creating file %s", filePath)
+			return false, err
+		}
+		log.Debugf("created file %s", filePath)
+		return true, nil
+	}
+	if st.IsDir() {
+		log.Error("provided path is directory not file")
+		return false, fmt.Errorf("provided path is directory not file")
+	}
+	return false, nil
+}
+func createDirectory(dirPath string) (bool, error) {
+	st, err := os.Stat(dirPath)
+	if os.IsNotExist(err) {
+		if err := os.Mkdir(dirPath, 0755); err != nil {
+			log.Errorf("error while creating dir %s", dirPath)
+			return false, err
+		}
+		log.Debugf("created directory %s", dirPath)
+		return true, nil
+	}
+	if !st.IsDir() {
+		return false, fmt.Errorf("not a directory")
+	}
+	return false, nil
+}
 
-	log.Print("IN AttachDisk iscsiDisk---------------------------->  : ", b.iscsiDisk)
-	log.Print("IN AttachDisk----------------------------> params : ", b.connector)
-	log.Print("IN AttachDisk portals---------------------------->  : ", b.iscsiDisk.Portals)
-	log.Print("IN AttachDisk iqn---------------------------->  : ", b.iscsiDisk.Iqn)
-	log.Print("IN AttachDisk lun---------------------------->  : ", b.iscsiDisk.lun)
-	log.Print("IN AttachDisk b.connector.DoDiscovery---------------------------->  : ", b.connector.DoDiscovery)
-	log.Print("IN AttachDisk b.connector.DoCHAPDiscovery---------------------------->  : ", b.connector.DoCHAPDiscovery)
+func (iscsi *iscsistorage) AttachDisk(d iscsiDiskMounter) (string, error) {
+	log.Info("In AttachDisk")
+	log.Infof("mouting volume at %s", d.targetPath)
+	log.WithFields(log.Fields{"iqn": d.iscsiDisk.Iqn, "lun": d.iscsiDisk.lun,
+		"DoCHAPDiscovery": d.connector.DoCHAPDiscovery}).Info("Mounting Volume")
 
-	devicePath, err := iscsi_lib.Connect(*b.connector)
+	devicePath, err := iscsi_lib.Connect(*d.connector)
 	if err != nil {
+		log.Errorf("Disk Connect failed with error %v", err)
 		return "", err
 	}
 	if devicePath == "" {
@@ -70,8 +203,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (string, error) {
 	}
 
 	// Mount device
-	mntPath := b.targetPath
-	notMnt, err := b.mounter.IsLikelyNotMountPoint(mntPath)
+	mntPath := d.targetPath
+	notMnt, err := d.mounter.IsLikelyNotMountPoint(mntPath)
 	if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("Heuristic determination of mount point failed:%v", err)
 	}
@@ -79,78 +212,151 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (string, error) {
 		log.Infof("iscsi: %s already mounted", mntPath)
 		return "", nil
 	}
-
-	if err := os.MkdirAll(mntPath, 0750); err != nil {
-		log.Errorf("iscsi: failed to mkdir %s, error", mntPath)
-		return "", err
-	}
-
 	var options []string
+	if d.isBlock {
+		if d.readOnly {
+			return "", status.Error(codes.Internal, "Read only is not supported for Block Volume")
+		}
 
-	if b.readOnly {
-		options = append(options, "ro")
-	} else {
+		err = d.bindMounter.MakeDir(filepath.Dir(d.targetPath))
+		// err := os.MkdirAll(filepath.Dir(d.targetPath), 0777)
+		// if err != nil {
+		// 	log.Errorf("failed to create target directory %q: %v", filepath.Dir(d.targetPath), err)
+		// 	return "", fmt.Errorf("failed to create target directory for raw block bind mount: %v", err)
+		// }
+
+		err = d.bindMounter.MakeFile(d.targetPath)
+		// file, err := os.OpenFile(d.targetPath, os.O_CREATE, 0777)
+		// if err != nil {
+		// 	log.Errorf("failed to create target file %q: %v", d.targetPath, err)
+		// 	return "", fmt.Errorf("failed to create target file for raw block bind mount: %v", err)
+		// }
+		// file.Close()
+
+		symLink, err := filepath.EvalSymlinks(devicePath)
+		if err != nil {
+			log.Errorf("could not resolve symlink %q: %v", devicePath, err)
+			return "", fmt.Errorf("could not resolve symlink %q: %v", devicePath, err)
+		}
+
+		if !strings.HasPrefix(symLink, "/dev") {
+			log.Errorf("resolved symlink %q for %q was unexpected", symLink, devicePath)
+			return "", fmt.Errorf("resolved symlink %q for %q was unexpected", symLink, devicePath)
+		}
+		options := []string{"bind"}
 		options = append(options, "rw")
+		if err := d.bindMounter.Mount(symLink, d.targetPath, "", options); err != nil {
+			log.Errorf("iscsi: failed to mount iscsi volume %s [%s] to %s, error %v", symLink, d.fsType, d.targetPath, err)
+			return "", err
+		}
+		err = d.bindMounter.MakeRShared(d.targetPath)
+		if err != nil {
+			log.Errorf("iscsi: MakeRShared failed for path %s and error %v", d.targetPath, err)
+		}
+		log.Info("Volume mounted successfully----------------------------------------> on ", d.targetPath)
+		return symLink, err
+	} else {
+		log.Infof("Volume will be mounted at %s", d.targetPath)
+		if err := os.MkdirAll(mntPath, 0750); err != nil {
+			log.Errorf("iscsi: failed to mkdir %s, error", mntPath)
+			return "", err
+		}
+		if d.readOnly {
+			options = append(options, "ro")
+		} else {
+			options = append(options, "rw")
+		}
+		options = append(options, d.mountOptions...)
+		log.Info("Trying to format and mount volume")
+		err = d.mounter.FormatAndMount(devicePath, mntPath, d.fsType, options)
+		if err != nil {
+			log.Errorf("iscsi: failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, d.fsType, mntPath, err)
+			return devicePath, err
+		}
+		log.Info("Volume mounted successfully")
+		// Persist iscsi disk config to json file for DetachDisk path
+		file := path.Join(mntPath, d.VolName+".json")
+		d.connector.SessionSecrets = iscsi_lib.Secrets{}
+		d.connector.DiscoverySecrets = iscsi_lib.Secrets{}
+		err = iscsi_lib.PersistConnector(d.connector, file)
+		if err != nil {
+			log.Errorf("failed to persist connection info: %v", err)
+			return "", fmt.Errorf("unable to create persistence file for connection")
+		}
+		log.Info("Volume mounted at %s", devicePath)
 	}
-	options = append(options, b.mountOptions...)
-
-	err = b.mounter.FormatAndMount(devicePath, mntPath, b.fsType, options)
-	if err != nil {
-		log.Errorf("iscsi: failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, mntPath, err)
-		return devicePath, err
-	}
-
-	// Persist iscsi disk config to json file for DetachDisk path
-	file := path.Join(mntPath, b.VolName+".json")
-	err = iscsi_lib.PersistConnector(b.connector, file)
-	if err != nil {
-		log.Errorf("failed to persist connection info: %v", err)
-		log.Errorf("disconnecting volume and failing the publish request because persistence files are required for reliable Unpublish")
-		return "", fmt.Errorf("unable to create persistence file for connection")
-	}
-
 	return devicePath, err
 }
 
 func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) error {
-	_, cnt, err := mount.GetDeviceNameFromMount(c.mounter, targetPath)
-	if err != nil {
-		log.Errorf("iscsi detach disk: failed to get device from mnt: %s\nError: %v", targetPath, err)
-		return err
-	}
-	if pathExists, pathErr := mount.PathExists(targetPath); pathErr != nil {
-		return fmt.Errorf("Error checking if path exists: %v", pathErr)
-	} else if !pathExists {
-		log.Warningf("Warning: Unmount skipped because path does not exist: %v", targetPath)
-		return nil
-	}
-	if err = c.mounter.Unmount(targetPath); err != nil {
-		log.Errorf("iscsi detach disk: failed to unmount: %s\nError: %v", targetPath, err)
-		return err
-	}
-	cnt--
-	if cnt != 0 {
-		return nil
-	}
+	// log.Println("DetachDisk------------------------->", targetPath)
+	// _, cnt, err := mount.GetDeviceNameFromMount(c.mounter, targetPath)
+	// log.Println("DetachDisk cnt------------------------->", cnt)
+	// log.Println("DetachDisk err------------------------->", err)
 
+	// if err != nil {
+	// 	log.Errorf("iscsi detach disk: failed to get device from mnt: %s\nError: %v", targetPath, err)
+	// 	return err
+	// }
+	// log.Println("DetachDisk pathExists------------------------->")
+	// if pathExists, pathErr := mount.PathExists(targetPath); pathErr != nil {
+	// 	return fmt.Errorf("Error checking if path exists: %v", pathErr)
+	// } else if !pathExists {
+	// 	log.Warningf("Warning: Unmount skipped because path does not exist: %v", targetPath)
+	// 	return nil
+	// }
+	// log.Println("DetachDisk Unmount------------------------->")
+	// if err = c.mounter.Unmount(targetPath); err != nil {
+	// 	log.Errorf("iscsi detach disk: failed to unmount: %s\nError: %v", targetPath, err)
+	// 	return err
+	// }
+	// log.Println("DetachDisk Unmount done------------------------->")
+	// cnt--
+	// if cnt != 0 {
+	// 	return nil
+	// }
+
+	log.Debug("NodeUnpublishVolume")
+	notMnt, err := c.mounter.IsLikelyNotMountPoint(targetPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Warnf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
+			return nil
+		}
+		return err
+	}
+	if notMnt {
+		if err := os.Remove(targetPath); err != nil {
+			log.Errorf("Remove target path error: %s", err.Error())
+		}
+		return nil
+	}
 	// load iscsi disk config from json file
 	file := path.Join(targetPath, c.iscsiDisk.VolName+".json")
-	connector, err := iscsi_lib.GetConnectorFromFile(file)
-	if err != nil {
-		log.Errorf("iscsi detach disk: failed to get iscsi config from path %s Error: %v", targetPath, err)
+	if _, err := os.Stat(file); err == nil {
+		connector, err := iscsi_lib.GetConnectorFromFile(file)
+		if err != nil {
+			log.Errorf("iscsi detach disk: failed to get iscsi config from path %s Error: %v", targetPath, err)
+			return err
+		}
+
+		iqn := ""
+		portals := []string{}
+		if len(connector.Targets) > 0 {
+			iqn = connector.Targets[0].Iqn
+			for _, t := range connector.Targets {
+				portals = append(portals, t.Portal)
+			}
+		}
+		iscsi_lib.Disconnect(iqn, portals)
+	}
+
+	if err := c.mounter.Unmount(targetPath); err != nil {
 		return err
 	}
-
-	iqn := ""
-	portals := []string{}
-	if len(connector.Targets) > 0 {
-		iqn = connector.Targets[0].Iqn
-		for _, t := range connector.Targets {
-			portals = append(portals, t.Portal)
-		}
-	}
-
-	iscsi_lib.Disconnect(iqn, portals)
+	// if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	// 	return err
+	// }
 
 	if err := os.RemoveAll(targetPath); err != nil {
 		log.Errorf("iscsi: failed to remove mount path Error: %v", err)
@@ -161,8 +367,8 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) e
 }
 
 func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
-	log.Info("getISCSIInfo req.GetVolumeContext()------------>", req.GetVolumeContext())
-	volName := req.GetVolumeContext()["Name"]
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0]
 	tp := req.GetVolumeContext()["targetPortal"]
 	iface := req.GetVolumeContext()["iscsiInterface"]
 	iqn := req.GetVolumeContext()["iqn"]
@@ -170,29 +376,28 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	lun := req.GetVolumeContext()["lun"]
 	portalsList := strings.Split(portals, ",")
 	secret := req.GetSecrets()
-	log.Info("getISCSIInfo ------------>", secret)
-
 	sessionSecret, err := parseSessionSecret(secret)
 	if err != nil {
 		return nil, err
 	}
 	discoverySecret, err := parseDiscoverySecret(secret)
-	if err != nil {
-		return nil, err
-	}
-
+	// if err != nil {
+	// 	return nil, err
+	// }
 	portal := iscsi.portalMounter(tp)
 	var bkportal []string
 	bkportal = append(bkportal, portal)
 	for _, p := range portalsList {
 		bkportal = append(bkportal, iscsi.portalMounter(p))
 	}
-
+	sourcePath := req.PublishContext["devicePath"]
+	log.Println("req.PublishContext--------------------->", req.PublishContext)
+	log.Println("getting devicePath---------------------------------->", sourcePath)
 	initiatorName := iscsi.cs.getIscsiInitiatorName()
 
-	doDiscovery := true
+	doDiscovery := false
 	chapDiscovery := false
-	if req.GetVolumeContext()["chapAuthDiscovery"] == "true" {
+	if req.GetVolumeContext()["chapAuthentication"] == "true" {
 		chapDiscovery = true
 	}
 
@@ -221,6 +426,7 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 		secret:          secret,
 		sessionSecret:   sessionSecret,
 		discoverySecret: discoverySecret,
+		sourcePath:      sourcePath,
 		InitiatorName:   initiatorName,
 		doDiscovery:     doDiscovery}, nil
 }
@@ -250,6 +456,9 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsi_lib.Connector {
 		DoCHAPDiscovery:  iscsiInfo.chapDiscovery,
 		DiscoverySecrets: iscsiInfo.discoverySecret,
 		Lun:              iscsiInfo.lun,
+		Interface:        iscsiInfo.Iface,
+		CheckInterval:    2,
+		RetryCount:       10,
 	}
 
 	if iscsiInfo.sessionSecret != (iscsi_lib.Secrets{}) {
@@ -351,7 +560,7 @@ func parseDiscoverySecret(secretParams map[string]string) (iscsi_lib.Secrets, er
 		return iscsi_lib.Secrets{}, fmt.Errorf("node.sendtargets.auth.password_in not found in secret")
 	}
 
-	secret.SecretsType = "chap"
+	//secret.SecretsType = "chap"
 	return secret, nil
 }
 
@@ -368,6 +577,8 @@ type iscsiDisk struct {
 	discoverySecret iscsi_lib.Secrets
 	InitiatorName   string
 	VolName         string
+	sourcePath      string
+	isBlock         bool
 }
 
 type iscsiDiskMounter struct {
@@ -376,6 +587,7 @@ type iscsiDiskMounter struct {
 	fsType       string
 	mountOptions []string
 	mounter      *mount.SafeFormatAndMount
+	bindMounter  mount.Interface
 	exec         mount.Exec
 	deviceUtil   util.DeviceUtil
 	targetPath   string

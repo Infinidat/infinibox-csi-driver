@@ -28,6 +28,7 @@ type service struct {
 	maxVolumesPerNode   int64
 	driverName          string
 	nodeIPAddress       string
+	blockMountDir       string
 }
 
 // Config defines service configuration options.
@@ -63,6 +64,7 @@ func New(configParam map[string]string) Service {
 		nodeID:              configParam["nodeid"],
 		driverName:          configParam["drivername"],
 		nodeIPAddress:       configParam["nodeIPAddress"],
+		blockMountDir:       configParam["blockMountDir"],
 		storagePoolIDToName: map[int64]string{},
 		apiclient:           &api.ClientService{},
 	}

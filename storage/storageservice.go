@@ -22,7 +22,8 @@ const (
 )
 
 var (
-	NodeName string = ""
+	NodeName      string = ""
+	BlockMountDir string = ""
 )
 
 type storageoperations interface {

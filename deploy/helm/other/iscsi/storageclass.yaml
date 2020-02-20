@@ -13,15 +13,14 @@ parameters:
   csi.storage.k8s.io/controller-publish-secret-namespace: infi
   csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
   csi.storage.k8s.io/node-stage-secret-namespace: infi
-  csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-publish-secret-name: iscsi-chap-creds
   csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
   targetPortal: 172.17.35.71
   iscsiInterface: "default"
   readOnly: "false"
-  chapAuthDiscovery: "true"
-  chapAuthSession: "false"
+  chapAuthentication: "true"
   csi.storage.k8s.io/fstype: ext4
   pool_name: "iscsipool"
   nfs_networkspace: "niscsi" 

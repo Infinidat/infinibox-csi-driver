@@ -28,6 +28,10 @@ func main() {
 		configParams["nodeIPAddress"] = nodeip
 		configParams["nodeid"] = nodeip
 	}
+	if blockmountdir, ok := csictx.LookupEnv(context.Background(), "BLOCK_MOUNT_DIR"); ok {
+		configParams["blockMountDir"] = blockmountdir
+		storage.BlockMountDir = blockmountdir
+	}
 
 	gocsi.Run(
 		context.Background(),

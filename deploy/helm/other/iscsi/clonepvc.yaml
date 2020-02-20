@@ -9,7 +9,7 @@ spec:
   storageClassName: ibox-iscsi-storageclass-demo
   resources:
     requests:
-      storage: 1Gi
+      #storage: 1Gi
   dataSource:
     kind: PersistentVolumeClaim
     name: ibox-pvc-demo

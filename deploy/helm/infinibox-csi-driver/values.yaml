@@ -41,10 +41,20 @@ username: admin
 password: "123456"
 
 Infinibox:
-  SecretName: infinibox-creds1
+  SecretName: infinibox-creds
   username: admin
   password: "123456"
   hosturl: 172.17.35.61
+
+Chap:
+  SessionAuthUsername: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
+  SessionAuthPassword: "0.003indiayu84q"
+  SessionAuthUsername_In: ""
+  SessionAuthPassword_In: ""
+  SendTargetsAuthUsername: 
+  SendTargetsAuthPassword: ""
+  SendTargetsAuthUsername_In: ""
+  SendTargetsAuthPassword_In: ""
 
 InfiniboxSecrets:
   host1:

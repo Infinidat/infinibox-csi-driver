@@ -1,0 +1,37 @@
+# kind: Pod
+# apiVersion: v1
+# metadata:
+#   name: app-block-vol-demo
+# spec:
+#   hostNetwork: true
+#   containers:
+#     - name: my-frontend
+#       image: busybox
+#       volumeDevices:
+#       - devicePath: "/data"
+#         name: my-do-volume
+#       command: [ "sleep", "1000000" ]
+#   volumes:
+#     - name: my-do-volume
+#       persistentVolumeClaim:
+#         claimName: ibox-pvc-raw-demo
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-block-volume
+spec:
+  containers:
+    - name: fc-container
+      securityContext:
+        privileged: true
+      image: fedora:26
+      command: ["/bin/sh", "-c"]
+      args: [ "tail -f /dev/null" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: block-pvc

@@ -96,6 +96,11 @@ spec:
       containers:
         - name: attacher
           image: {{ required "csi attacher sidercar image." .Values.images.attachersidecar }}
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true 
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"

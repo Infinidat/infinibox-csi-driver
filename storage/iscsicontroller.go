@@ -24,9 +24,14 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return &csi.CreateVolumeResponse{}, err
 	}
 	log.Infof(" requested size in bytes is %d ", sizeBytes)
+
 	params := req.GetParameters()
 	log.Infof(" csi request parameters %v", params)
 
+	volCaps := req.GetVolumeCapabilities()
+	if len(volCaps) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Volume capabilities not provided")
+	}
 	// Get Volume Provision Type
 	volType := "THIN"
 	if prosiontype, ok := params[KeyVolumeProvisionType]; ok {
@@ -55,9 +60,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return nil, fmt.Errorf("Error getting network space")
 	}
-	log.Info("create volume nspace --------------------------->", nspace)
-	log.Info("create volume  nspace Properties.IscsiIqn --------------------------->", nspace.Properties.IscsiIqn)
-	log.Info("create volume nspace Portals --------------------------->", nspace.Portals)
 
 	portals := ""
 	for _, p := range nspace.Portals {
@@ -100,7 +102,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	vi.VolumeContext["lun"] = strconv.Itoa(luninfo.Lun)
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
-	log.Info("create volume response vi-------------------->", vi)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
@@ -307,6 +308,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		log.Debug("Got snapshot so returning nil")
 
 		timestamp.Seconds = volumeSnapshot.CreatedAt
+		timestamp.Nanos = 0
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
 				SizeBytes:      volumeSnapshot.Size,

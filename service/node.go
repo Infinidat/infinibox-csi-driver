@@ -62,6 +62,13 @@ func (s *service) NodeGetCapabilities(
 					},
 				},
 			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+					},
+				},
+			},
 		},
 	}, nil
 }
@@ -73,12 +80,10 @@ func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) 
 	}, nil
 }
 func (s *service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	log.Infof("------------IN s.NodeStageVolume req %v ", req)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	log.Infof("------------IN s.NodeUnstageVolume req %v ", req)
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 func (s *service) NodeGetVolumeStats(

@@ -156,6 +156,9 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &metadata)
 	if err != nil {
+		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
+			err = nil
+		}
 		log.Errorf("Error occured while detaching metadata from object : %s ", err)
 		return nil, err
 	}

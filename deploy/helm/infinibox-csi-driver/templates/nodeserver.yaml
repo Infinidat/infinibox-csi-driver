@@ -73,10 +73,6 @@ spec:
           #image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
           image: nikhilbarge/infinidat-csi-driver:test1
           imagePullPolicy: Never
-          lifecycle:
-            preStop:
-              exec:
-                command: ["/bin/sh", "-c", "rm -rf /var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock"]
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
@@ -84,7 +80,7 @@ spec:
               value: node
             - name: X_CSI_DEBUG
               value: "true"
-            - name: X_CSI_PRIVATE_MOUNT_DIR
+            - name: BLOCK_MOUNT_DIR
               value: "/var/lib/kubelet/plugins/infinibox.infinidat.com/disks"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
@@ -99,7 +95,7 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             - name: ISCSI_INITIATOR_NAME
-              value: "iqn.2019-06.com.csi-driver-iscsi.infinidat:$(KUBE_NODE_NAME)"
+              value: "iqn.2020-06.com.csi-driver-iscsi.infinidat:$(KUBE_NODE_NAME)"
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
@@ -116,6 +112,10 @@ spec:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - --kubelet-registration-path=/var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock

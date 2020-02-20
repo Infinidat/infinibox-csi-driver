@@ -2,7 +2,7 @@
  if [ -n "${ISCSI_INITIATOR_NAME}" ]; then
 	echo "InitiatorName=${ISCSI_INITIATOR_NAME}" > /etc/iscsi/initiatorname.iscsi 
 	# Start iscsid
-	iscsid -f &
+	exec iscsid -f &
 	# Start rpcbind
 	rpcbind
  fi

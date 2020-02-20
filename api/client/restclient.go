@@ -40,7 +40,7 @@ func NewRestClient() (*restclient, error) {
 		rClient.SetHeader("Content-Type", "application/json")
 		rClient.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 		rClient.SetDisableWarn(true)
-		rClient.SetTimeout(15 * time.Second)
+		rClient.SetTimeout(60 * time.Second)
 	}
 	return &restclient{}, nil
 }
