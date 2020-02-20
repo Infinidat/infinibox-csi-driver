@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
+	"infinibox-csi-driver/api"
 	"path"
 	"strconv"
 	"strings"
@@ -106,4 +108,66 @@ func (treeq *treeqstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 func (treeq *treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return &csi.DeleteSnapshotResponse{}, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
 
+}
+
+func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from CSI ControllerExpandVolume " + fmt.Sprint(res))
+		}
+	}()
+
+	if req.GetVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
+	}
+
+	if req.GetCapacityRange() == nil {
+		return nil, status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+	}
+
+	volproto, err := validateStorageType(req.GetVolumeId())
+	if err != nil {
+		log.Errorf("fail to validate storage type %v", err)
+		return
+	}
+
+	filesystemID, treeqID, err := getVolumeIDs(volproto.VolumeID)
+	if err != nil {
+		log.Errorf("Invalid Volume ID %v", err)
+		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
+	}
+
+	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	if capacity < gib {
+		capacity = gib
+		log.Warn("Volume Minimum capacity should be greater 1 GB")
+	}
+
+	body := map[string]interface{}{"hard_capacity": capacity}
+	_, err = treeq.filesysService.cs.api.UpdateTreeq(filesystemID, treeqID, body)
+	if err != nil {
+		log.Errorf("Failed to update treeq size %v", err)
+		return
+	}
+
+	//Get Filesystem
+	fileSystemResponse, err := treeq.filesysService.cs.api.GetFileSystemByID(filesystemID)
+	if err != nil {
+		log.Errorf("Failed to get file system %v", err)
+		return
+	}
+	var fileSys api.FileSystem
+	fileSys.Size = fileSystemResponse.Size + capacity
+	// Expand file system size
+	_, err = treeq.filesysService.cs.api.UpdateFilesystem(filesystemID, fileSys)
+	if err != nil {
+		log.Errorf("Failed to update file system %v", err)
+		return
+	}
+
+	log.Infoln("Treeq updated successfully")
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         capacity,
+		NodeExpansionRequired: false,
+	}, nil
 }

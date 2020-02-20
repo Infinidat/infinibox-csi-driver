@@ -177,3 +177,26 @@ func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 	}
 	return &eResp, nil
 }
+
+// UpdateTreeq :
+func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Update Treeq Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
+	treeq := Treeq{}
+	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &treeq)
+	if err != nil {
+		log.Errorf("Error occured while updating file System : %s ", err)
+		return nil, err
+	}
+	if treeq == (Treeq{}) {
+		apiresp := resp.(client.ApiResponse)
+		treeq, _ = apiresp.Result.(Treeq)
+	}
+	log.Info("Treeq updated successfully: ", fileSystemID)
+	return &treeq, nil
+}
