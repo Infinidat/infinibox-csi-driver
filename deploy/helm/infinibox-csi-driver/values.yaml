@@ -32,7 +32,7 @@ images:
   resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
 
   # images.csidriver defines csidriver image used for external provisioning
-  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.2
+  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.3
 
 
 # Infinibox secrets temp: will create secret for testing purpose
