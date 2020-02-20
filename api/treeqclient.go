@@ -28,6 +28,7 @@ type Treeq struct {
 	Name         string `json:"name,omitempty"`
 	Path         string `json:"path,omitempty"`
 	HardCapacity int64  `json:"hard_capacity,omitempty"`
+	UsedCapacity int64  `json:"used_capacity,omitempty"`
 }
 
 //GetFileSystemsByPoolID get filesystem by poolID
@@ -145,7 +146,7 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &treeq)
 	if err != nil {
-		log.Errorf("Error occured while deleting file System : %s ", err)
+		log.Errorf("Error occured while deleting treeq : %s ", err)
 		return nil, err
 	}
 	if treeq == (Treeq{}) {
@@ -154,4 +155,25 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	}
 	log.Info("Treeq deleted successfully: ", fileSystemID)
 	return &treeq, nil
+}
+
+//GetTreeq
+func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Get Treeq Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
+	eResp := Treeq{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+	if err != nil {
+		return nil, err
+	}
+	if eResp == (Treeq{}) {
+		apiresp := resp.(client.ApiResponse)
+		eResp, _ = apiresp.Result.(Treeq)
+	}
+	return &eResp, nil
 }

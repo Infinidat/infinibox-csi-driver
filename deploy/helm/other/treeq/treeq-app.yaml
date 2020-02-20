@@ -9,7 +9,8 @@ spec:
       image: busybox
       volumeMounts:
       - mountPath: "/tmp/data"
-        name: ibox-csi-volume      
+        name: ibox-csi-volume
+      command: [ "sleep", "1000" ]    
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:

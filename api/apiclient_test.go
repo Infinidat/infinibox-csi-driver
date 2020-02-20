@@ -711,6 +711,33 @@ func (suite *ApiTestSuite) Test_DeleteVolume_Success() {
 	assert.Equal(suite.T(), nil, err, "Response not returned as expected")
 }
 
+func (suite *ApiTestSuite) Test_GetTreeq_Success() {
+	var FilesystemID int64 = 3111
+	var treeqID int64 = 20000
+	expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	resp, err := service.GetTreeq(FilesystemID, treeqID)
+	// Assert
+	assert.Nil(suite.T(), err, "err should  nil")
+	assert.Equal(suite.T(), FilesystemID, resp.FilesystemID, "file systemID should be equal")
+}
+
+func (suite *ApiTestSuite) Test_GetTreeq_fail() {
+	var FilesystemID int64 = 3111
+	var treeqID int64 = 20000
+	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	_, err := service.GetTreeq(FilesystemID, treeqID)
+	// Assert
+	assert.NotNil(suite.T(), err, "err should  nil")
+
+}
+
 func setSecret() map[string]string {
 	secretMap := make(map[string]string)
 	secretMap["username"] = "admin"

@@ -113,3 +113,19 @@ func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportRes
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }
+
+//GetTreeq mock
+func (m *MockApiService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
+	args := m.Called(fileSystemID, treeqID)
+	resp, _ := args.Get(0).(Treeq)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//DeleteTreeq
+func (m *MockApiService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
+	args := m.Called(fileSystemID, treeqID)
+	resp, _ := args.Get(0).(Treeq)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}

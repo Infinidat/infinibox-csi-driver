@@ -52,7 +52,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		log.Errorf("fail to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
-	log.Debug("pod successfully mounted to volumeID %s", req.GetVolumeId())
+	log.Debugf("pod successfully mounted to volumeID %s", req.GetVolumeId())
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -78,6 +78,6 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 	if err := treeq.osHelper.Remove(targetPath); err != nil && !treeq.osHelper.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
-	log.Debug("pod successfully unmounted from volumeID %s", req.GetVolumeId())
+	log.Debugf("pod successfully unmounted from volumeID %s", req.GetVolumeId())
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }

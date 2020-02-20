@@ -436,7 +436,7 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 	volID, err := strconv.ParseInt(volumeID, 10, 64)
 	if err != nil {
 		log.Errorf("Invalid Volume ID %v", err)
-		return &csi.DeleteVolumeResponse{}, nil
+		return nil, err
 	}
 
 	nfs.uniqueID = volID
