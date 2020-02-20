@@ -70,7 +70,7 @@ spec:
             capabilities:
               add: ["SYS_MODULE"]
             allowPrivilegeEscalation: true          
-          image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: Always
           env:
             - name: CSI_ENDPOINT

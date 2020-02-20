@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/helper"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -40,6 +42,13 @@ type fcstorage struct {
 type iscsistorage struct {
 	cs commonservice
 }
+type treeqstorage struct {
+	csi.ControllerServer
+	csi.NodeServer
+	filesysService *FilesystemService
+	osHelper       helper.OsHelper
+	mounter        mount.Interface
+}
 type nfsstorage struct {
 	uniqueID  int64
 	configmap map[string]string
@@ -67,12 +76,15 @@ type commonservice struct {
 func NewStorageController(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
+		storageProtocol = strings.TrimSpace(storageProtocol)
 		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
+		} else if storageProtocol == "nfs_treeq" {
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -83,12 +95,15 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 func NewStorageNode(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
 	comnserv, err := buildCommonService(nil, nil)
 	if err == nil {
+		storageProtocol = strings.TrimSpace(storageProtocol)
 		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
+		} else if storageProtocol == "nfs_treeq" {
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -114,7 +129,6 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		}
 		commonserv.nodeName = NodeName
 		commonserv.nodeIPAddress = config["nodeIPAddress"]
-
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
