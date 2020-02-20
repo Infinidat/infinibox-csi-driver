@@ -161,6 +161,9 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	if volumecontent.GetSnapshot() != nil {
 		restoreType = "Snapshot"
 		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
+	} else if volumecontent.GetVolume() != nil {
+		volumeContentID = volumecontent.GetVolume().GetVolumeId()
+		restoreType = "Volume"
 	}
 
 	// Lookup the snapshot source volume.
