@@ -614,12 +614,8 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 			err = errors.New("Recoved from CSI DeleteSnapshot  " + fmt.Sprint(res))
 		}
 	}()
-	volproto, err := validateStorageType(req.GetSnapshotId())
-	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
-		return
-	}
-	snapshotID, _ := strconv.ParseInt(volproto.VolumeID, 10, 64)
+
+	snapshotID, _ := strconv.ParseInt(req.GetSnapshotId(), 10, 64)
 	nfs.uniqueID = snapshotID
 	nfsSnapDeleteErr := nfs.DeleteNFSVolume()
 	if nfsSnapDeleteErr != nil {
@@ -643,21 +639,7 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		}
 	}()
 
-	if req.GetVolumeId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-
-	if req.GetCapacityRange() == nil {
-		return nil, status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
-	}
-
-	volproto, err := validateStorageType(req.GetVolumeId())
-	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
-		return
-	}
-
-	ID, err := strconv.ParseInt(volproto.VolumeID, 10, 64)
+	ID, err := strconv.ParseInt(req.GetVolumeId(), 10, 64)
 	if err != nil {
 		log.Errorf("Invalid Volume ID %v", err)
 		return
@@ -669,15 +651,15 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		log.Warn("Volume Minimum capacity should be greater 1 GB")
 	}
 
+	// Expand file system size
 	var fileSys api.FileSystem
 	fileSys.Size = capacity
-	// Expand file system size
 	_, err = nfs.cs.api.UpdateFilesystem(ID, fileSys)
 	if err != nil {
 		log.Errorf("Failed to update file system %v", err)
 		return
 	}
-	log.Infoln("Filesystem updated successfully")
+	log.Infoln("Filesystem size updated successfully")
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,

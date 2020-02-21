@@ -162,8 +162,25 @@ func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) 
 func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	return &csi.ListSnapshotsResponse{}, status.Error(codes.Unimplemented, "")
 }
-func (s *service) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	return &csi.GetCapacityResponse{}, status.Error(codes.Unimplemented, "")
+
+func (s *service) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (capacityResponse *csi.GetCapacityResponse, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
+		}
+	}()
+	poolName, ok := req.GetParameters()["pool_name"]
+	if !ok {
+		return &csi.GetCapacityResponse{}, errors.New("pool_name is a required parameter")
+	}
+	storagePool, err := s.apiclient.FindStoragePool(-1, poolName)
+	if err != nil {
+		log.Errorf("Error while getting storagepool %v", err)
+		return
+	}
+	return &csi.GetCapacityResponse{
+		AvailableCapacity: int64(storagePool.FreePhysicalSpace),
+	}, nil
 }
 
 func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
@@ -282,6 +299,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 		return
 	}
 	if storageController != nil {
+		req.SnapshotId = volproto.VolumeID
 		deleteSnapshot, err := storageController.DeleteSnapshot(ctx, req)
 		return deleteSnapshot, err
 	}
@@ -294,6 +312,11 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 			err = errors.New("Recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
 		}
 	}()
+
+	err = s.validateExpandVolumeRequest(req)
+	if err != nil {
+		return
+	}
 
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
@@ -310,6 +333,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		return
 	}
 	if storageController != nil {
+		req.VolumeId = volproto.VolumeID
 		expandVolume, err = storageController.ControllerExpandVolume(ctx, req)
 		return expandVolume, err
 	}

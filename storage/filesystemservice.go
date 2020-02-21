@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 //treeq constants
@@ -522,5 +524,53 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 	}
 	treeqCount = treeqCnt
 	log.Debugf("treeq count updated successfully of fileSystemID: %d", fileSystemID)
+	return
+}
+
+//UpdateTreeqVolume Upadate volume size method
+func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64) (err error) {
+	defer func() {
+		if res := recover(); res != nil {
+			err = errors.New("error while deleting treeq " + fmt.Sprint(res))
+			return
+		}
+	}()
+
+	//Get Maximum filesystem size
+	maxFileSystemSize, err := filesystem.maxFileSize()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	//Get Filesystem
+	fileSystemResponse, err := filesystem.cs.api.GetFileSystemByID(filesystemID)
+	if err != nil {
+		log.Errorf("Failed to get file system %v", err)
+		return
+	}
+
+	var fileSys api.FileSystem
+	fileSys.Size = fileSystemResponse.Size + capacity
+	if fileSys.Size > maxFileSystemSize {
+		return status.Error(codes.PermissionDenied, "Given capacity for expansion is not allowed")
+	}
+
+	// Expand file system size
+	_, err = filesystem.cs.api.UpdateFilesystem(filesystemID, fileSys)
+	if err != nil {
+		log.Errorf("Failed to update file system %v", err)
+		return
+	}
+
+	// Expand Treeq size
+	body := map[string]interface{}{"hard_capacity": capacity}
+	_, err = filesystem.cs.api.UpdateTreeq(filesystemID, treeqID, body)
+	if err != nil {
+		log.Errorf("Failed to update treeq size %v", err)
+		return
+	}
+
+	log.Infoln("Treeq size updated successfully")
 	return
 }

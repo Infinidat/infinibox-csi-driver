@@ -10,6 +10,8 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/prometheus/common/log"
 	"github.com/rexray/gocsi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -93,4 +95,18 @@ func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtoc
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil
+}
+
+// Controller expand volume request validation
+func (s *service) validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
+	if req.GetVolumeId() == "" {
+		return status.Error(codes.InvalidArgument, "Volume ID cannot be empty")
+	}
+
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+	}
+
+	return nil
 }

@@ -26,7 +26,7 @@ func TestServiceTestSuite(t *testing.T) {
 
 func (suite *ApiTestSuite) Test_CreateVolumeGetStoragePoolIDByName_Fail() {
 	// Configure
-	expectedError := errors.New("volume with given name not found")
+	expectedError := errors.New("fail to get pool ID from pool Name: test_storage_pool")
 
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -110,7 +110,7 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 }
 
 func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Fail() {
-	expectedError := errors.New("volume with given name not found")
+	expectedError := errors.New("fail to get pool ID from pool Name: test_storage_pool")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
