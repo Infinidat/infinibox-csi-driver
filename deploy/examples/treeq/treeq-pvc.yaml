@@ -1,14 +1,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ibox-tree-pvc-demo15
+  name: ibox-tree-pvc-demo
   namespace: infi
 spec:
   accessModes:
   - ReadWriteMany
   resources:
     requests:
-      storage: 20Gi
-  storageClassName: ibox-tree-storageclass-demo
- 
-
+      storage: 1Gi
+  storageClassName: ibox-tree-storageclass-demo 
