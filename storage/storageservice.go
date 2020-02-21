@@ -194,14 +194,13 @@ func (cs *commonservice) deleteVolume(volumeID int) (err error) {
 	return nil
 }
 
-func (cs *commonservice) getCSIVolume(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
-	log.Infof("getCSIVolume called with vol %v", vol)
+func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
+	log.Infof("getCSIResponse called with vol %v", vol)
 	storagePoolName := vol.PoolName
-	log.Infof("getCSIVolume storagePoolName is %s", vol.PoolName)
+	log.Infof("getCSIResponse storagePoolName is %s", vol.PoolName)
 	if storagePoolName == "" {
 		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolId)
 	}
-
 	// Make the additional volume attributes
 	attributes := map[string]string{
 		"ID":              strconv.Itoa(vol.ID),
@@ -277,22 +276,6 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 	return storagePoolName
 }
 
-func (cs *commonservice) getVolType(params map[string]string) string {
-	volType := thinProvisioned
-	if tp, ok := params[KeyThickProvisioning]; ok {
-		tpb, err := strconv.ParseBool(tp)
-		if err != nil {
-			log.Error("invalid boolean received provision received params")
-		} else if tpb {
-			volType = thickProvisioned
-		} else {
-			volType = thinProvisioned
-		}
-	}
-
-	return volType
-}
-
 //AddExportRule add export rule
 func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAdd string) (err error) {
 	if exportID == "" || exportBlock == "" || clientIPAdd == "" {
@@ -309,10 +292,6 @@ func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAd
 }
 
 func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
-
-	// var networkSpace string
-	//networkSpace = strings.Trim(strings.Split(config["nfs_networkspace"], ",")[0], " ")
-
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return "", err

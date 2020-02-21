@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/prometheus/common/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // OneTimeValidation :
@@ -134,6 +134,9 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &metadata)
 	if err != nil {
+		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
+			err = nil
+		}
 		log.Errorf("Error occured while detaching metadata from object : %s ", err)
 		return nil, err
 	}
@@ -716,7 +719,7 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("UpdateFilesystem Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("GetSnapshotByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Get snapshot : ", snapshotName)

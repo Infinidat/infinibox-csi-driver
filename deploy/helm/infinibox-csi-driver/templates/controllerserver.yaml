@@ -96,6 +96,11 @@ spec:
       containers:
         - name: attacher
           image: {{ required "csi attacher sidercar image." .Values.images.attachersidecar }}
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true 
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
@@ -109,7 +114,6 @@ spec:
           image: {{ required "csi provisioner sidecar container image." .Values.images.provisionersidecar }}
           args:
             - "--csi-address=$(ADDRESS)"
-            #- "--provisioner=infinibox-csi-driver" deprecated
             - "--volume-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
             - "--volume-name-uuid-length=10"
             - "--connection-timeout=300s"
@@ -125,7 +129,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"   
-            - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
+            - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created snapshot names" .Values.volumeNamePrefix }}"
             - "--snapshot-name-uuid-length=10"
           env:
             - name: ADDRESS
@@ -145,9 +149,9 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi      
-        - name: driver                 
+        - name: driver
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
+          imagePullPolicy: Always                 
           securityContext:
             privileged: true
             capabilities:

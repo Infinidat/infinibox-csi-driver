@@ -75,6 +75,19 @@ func getFilesystemService(serviceType string, c commonservice) *FilesystemServic
 }
 
 func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.FileSystem, err error) {
+
+	maxFileSystemSize, err := filesystem.maxFileSize()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	if filesystem.capacity > maxFileSystemSize {
+		log.Errorf("Can't allowed to create treeq of size %d", filesystem.capacity)
+		log.Errorf("Max allowed filesytem size %d", maxFileSystemSize)
+		err = errors.New("Request treeq size is greater than allowed max_filesystem_size")
+		return
+	}
+
 	poolID, err := filesystem.cs.api.GetStoragePoolIDByName(filesystem.configmap["pool_name"])
 	if err != nil {
 		log.Errorf("fail to get poolID from poolName %s", filesystem.configmap["pool_name"])
@@ -82,11 +95,6 @@ func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.Fil
 	}
 	filesystem.poolID = poolID
 	page := 1
-	maxFileSystemSize, err := filesystem.maxFileSize()
-	if err != nil {
-		log.Error(err)
-		return
-	}
 	for {
 		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(poolID, page)
 		if poolErr != nil {
@@ -137,7 +145,6 @@ func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
 
 	filesys, err := filesystem.getExpectedFileSystemID()
 	if err != nil {
-		log.Errorf("fail to get filesystem to add treeq %v", err)
 		return
 	}
 	var filesystemID int64
@@ -160,6 +167,12 @@ func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
 	treeqResponse, createTreeqerr := filesystem.cs.api.CreateTreeq(filesystemID, filesystem.getTreeParameters())
 	if createTreeqerr != nil {
 		log.Errorf("fail to create treeq  %s error %v", filesystem.pVName, err)
+		if filesys == nil { //if the file system created at the time of creating first treeq ,then delete the complete filesystem with export and metata
+			deleteFilesystemErr := filesystem.cs.api.DeleteFileSystemComplete(filesystemID)
+			if deleteFilesystemErr != nil {
+				log.Errorf("fail to delete filesystem ,filesystemID = %d", filesystemID)
+			}
+		}
 		err = errors.New("fail to Create Treeq")
 		return
 	}
@@ -382,7 +395,7 @@ func convertToByte(size string) (bytes int64, err error) {
 	sizeUnits["gib"] = gib
 	sizeUnits["tib"] = tib
 	for key, unit := range sizeUnits {
-		if strings.Contains(size, key) {
+		if strings.Contains(size, strings.ToLower(key)) || strings.Contains(size, strings.ToUpper(key)) {
 			arg := strings.Split(size, key)
 			sizeUnit, errConvert := strconv.ParseInt(arg[0], 10, 64)
 			if errConvert != nil {
@@ -400,7 +413,7 @@ func convertToByte(size string) (bytes int64, err error) {
 func (filesystem *FilesystemService) getTreeqPath() string {
 	prefix := path.Join("/", filesystem.pVName)
 	if prefix, ok := filesystem.configmap[TREEQPATHPREFIX]; ok {
-		prefix = path.Join("/", prefix, filesystem.pVName)
+		prefix = path.Join("/", prefix+filesystem.pVName)
 		return prefix
 	}
 	return prefix

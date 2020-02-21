@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/prometheus/common/log"
 	"github.com/rexray/gocsi"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -30,6 +30,7 @@ type service struct {
 	maxVolumesPerNode   int64
 	driverName          string
 	nodeIPAddress       string
+	blockMountDir       string
 }
 
 // Config defines service configuration options.
@@ -65,6 +66,7 @@ func New(configParam map[string]string) Service {
 		nodeID:              configParam["nodeid"],
 		driverName:          configParam["drivername"],
 		nodeIPAddress:       configParam["nodeIPAddress"],
+		blockMountDir:       configParam["blockMountDir"],
 		storagePoolIDToName: map[int64]string{},
 		apiclient:           &api.ClientService{},
 	}

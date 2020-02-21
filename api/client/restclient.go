@@ -40,7 +40,7 @@ func NewRestClient() (*restclient, error) {
 		rClient.SetHeader("Content-Type", "application/json")
 		rClient.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 		rClient.SetDisableWarn(true)
-		rClient.SetTimeout(15 * time.Second)
+		rClient.SetTimeout(60 * time.Second)
 	}
 	return &restclient{}, nil
 }
@@ -61,7 +61,7 @@ type restclient struct {
 
 // Get :
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called client.Get with url %s ", url)
+	log.Infof("called client.Get with url %s ", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -75,18 +75,18 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
 		SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
-	log.Debugf("client.Get returned err %v for url %s ", err, url)
+	log.Infof("client.Get returned err %v for url %s ", err, url)
 	resp, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
 		log.Errorf("error in validating response %v", err)
 		return nil, err
 	}
-	log.Debug("client.Get request completed.")
+	log.Info("client.Get request completed.")
 	return resp, err
 }
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
+	log.Infof("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -107,12 +107,12 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 		log.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Debug("GetWithQueryString request completed.")
+	log.Info("GetWithQueryString request completed.")
 	return res, err
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called Post with url %s", url)
+	log.Infof("called Post with url %s", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -128,18 +128,18 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 		SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().
 		SetBody(body).
 		Post(url)
-	log.Debugf("resty Post err %v  ", err)
+	log.Infof("resty Post err %v  ", err)
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
 		log.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Debug("Post request completed.")
+	log.Info("Post request completed.")
 	return res, err
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Debugf("called Put with url %s  ", url)
+	log.Infof("called Put with url %s  ", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -159,7 +159,7 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 		log.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Debug("client.Put request Completed")
+	log.Info("client.Put request Completed")
 	return res, err
 }
 
@@ -171,7 +171,7 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 			err = errors.New("error in Delete " + fmt.Sprint(res))
 		}
 	}()
-	log.Debugf("called client.Delete with url %s  ", url)
+	log.Infof("called client.Delete with url %s  ", url)
 	if err := checkHttpClient(); err != nil {
 		log.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -184,7 +184,7 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 		log.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Debug("client.Delete request Completed")
+	log.Info("client.Delete request Completed")
 	return res, err
 }
 
@@ -238,7 +238,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 		}
 		// end: bind to given struct
 	} else {
-		log.Debug("checkResponse resptpye nil case ", resptpye)
+		log.Info("checkResponse resptpye nil case ", resptpye)
 		var response interface{}
 		if er := json.Unmarshal(res.Body(), &response); er != nil {
 			log.Errorf("checkResponse expected type provided case. error %v", er)

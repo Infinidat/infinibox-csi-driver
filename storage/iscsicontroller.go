@@ -94,7 +94,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			"error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
 
 	}
-	vi := iscsi.cs.getCSIVolume(volumeResp, req)
+	vi := iscsi.cs.getCSIResponse(volumeResp, req)
 
 	luninfo, err := iscsi.cs.mapVolumeTohost(volumeResp.ID)
 	if err != nil {
@@ -215,38 +215,39 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	}
 
 	// Create a volume response and return it
-	csiVolume := iscsi.cs.getCSIVolume(dstVol, req)
+	csiVolume := iscsi.cs.getCSIResponse(dstVol, req)
 	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 	log.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
 
-func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	return nil, nil
+func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
+	log.Info("ControllerPublishVolume called with req nodeID", req.GetNodeId(), req.GetVolumeId())
+	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 
-func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	return nil, nil
+func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
+	log.Info("ControllerUnpublishVolume called with req with nodeID ", req.GetNodeId(), req.GetVolumeId())
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
-func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return nil, nil
-}
-
-func (iscsi *iscsistorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return nil, nil
+func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
+	return &csi.ValidateVolumeCapabilitiesResponse{}, nil
 }
 
-func (iscsi *iscsistorage) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	return nil, nil
-}
-func (iscsi *iscsistorage) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	return nil, nil
-}
-func (iscsi *iscsistorage) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	return nil, nil
+func (iscsi *iscsistorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (resp *csi.ListVolumesResponse, err error) {
+	return &csi.ListVolumesResponse{}, nil
 }
 
+func (iscsi *iscsistorage) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (resp *csi.ListSnapshotsResponse, err error) {
+	return &csi.ListSnapshotsResponse{}, nil
+}
+func (iscsi *iscsistorage) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (resp *csi.GetCapacityResponse, err error) {
+	return &csi.GetCapacityResponse{}, nil
+}
+func (iscsi *iscsistorage) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (resp *csi.ControllerGetCapabilitiesResponse, err error) {
+	return &csi.ControllerGetCapabilitiesResponse{}, nil
+}
 func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -256,7 +257,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	var snapshotID string
 	snapshotName := req.GetName()
 	log.Debugf("Create Snapshot of name %s", snapshotName)
-	log.Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
+	log.Debugf("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
 		log.Errorf("fail to validate storage type %v", err)
