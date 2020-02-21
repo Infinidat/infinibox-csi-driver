@@ -73,7 +73,7 @@ func (m *MockClient) NewClient() (*api.ClientService, error) {
 	return resp, err
 }
 
-func (m *MockClient) CreateSnapshotVolume(snapshotParam *api.SnapshotDef) (*api.SnapshotVolumesResp, error) {
+func (m *MockClient) CreateSnapshotVolume(snapshotParam *api.VolumeSnapshot) (*api.SnapshotVolumesResp, error) {
 	args := m.Called()
 	resp, _ := args.Get(0).(*api.SnapshotVolumesResp)
 	err, _ := args.Get(1).(error)

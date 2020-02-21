@@ -11,7 +11,7 @@ import (
 
 const (
 	//StoragePoolKey : pool to be used
-	StoragePoolKey = "storagepool"
+	StoragePoolKey = "pool_name"
 
 	//MinVolumeSize : volume will be created with this size if requested volume size is less than this values
 	MinVolumeSize = 1 * bytesofGiB
