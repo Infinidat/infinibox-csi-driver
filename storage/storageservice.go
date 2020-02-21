@@ -292,10 +292,6 @@ func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAd
 }
 
 func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
-
-	// var networkSpace string
-	//networkSpace = strings.Trim(strings.Split(config["nfs_networkspace"], ",")[0], " ")
-
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return "", err
