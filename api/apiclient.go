@@ -250,7 +250,7 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetStoragePool Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("GetVolumeByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Get a Volume by Name : ", volumename)
@@ -420,7 +420,7 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, 
 
 // **************************************************Util Methods*********************************************
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
-	log.Debugf("Request made for method: %s and apiuri %s", method, apiuri)
+	log.Infof("Request made for method: %s and apiuri %s", method, apiuri)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			log.Errorf("Error in getJSONResponse while makeing %s request on %s url error : %v ", method, apiuri, err)
@@ -453,7 +453,7 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 }
 
 func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (resp interface{}, err error) {
-	log.Debugf("Request made for apiuri %s", apiuri)
+	log.Infof("Request made for apiuri %s", apiuri)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			log.Errorf("Error in getResponseWithQueryString while making request on %s url error : %v ", apiuri, err)
@@ -494,7 +494,6 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 
 		hosturl, err := url.ParseRequestURI(c.SecretsMap["hosturl"])
 		if err != nil {
-			log.Warn("hosturl is not url, checking if it is valid IpAddress")
 			if net.ParseIP(c.SecretsMap["hosturl"]) != nil {
 				hostconfig.ApiHost = "https://" + c.SecretsMap["hosturl"] + "/"
 			} else {
