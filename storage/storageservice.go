@@ -45,7 +45,7 @@ type iscsistorage struct {
 type treeqstorage struct {
 	csi.ControllerServer
 	csi.NodeServer
-	filesysService *FilesystemService
+	filesysService FileSystemInterface
 	osHelper       helper.OsHelper
 	mounter        mount.Interface
 }

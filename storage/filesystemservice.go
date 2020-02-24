@@ -74,6 +74,14 @@ func getFilesystemService(serviceType string, c commonservice) *FilesystemServic
 	return nil
 }
 
+//FileSystemInterface interface
+type FileSystemInterface interface {
+	validateTreeqParameters(config map[string]string) (bool, map[string]string)
+	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
+	DeleteTreeqVolume(filesystemID, treeqID int64) error
+	UpdateTreeqVolume(filesystemID, treeqID, capacity int64) error
+}
+
 func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.FileSystem, err error) {
 
 	maxFileSystemSize, err := filesystem.maxFileSize()
@@ -135,13 +143,32 @@ func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.Fil
 	return
 }
 
+func (filesystem *FilesystemService) setParameter(config map[string]string, capacity int64, pvName string) {
+	filesystem.pVName = pvName
+	filesystem.configmap = config
+	filesystem.capacity = capacity
+	filesystem.exportpath = path.Join(dataRoot, pvName)
+}
+
 //CreateTreeqVolume create volumne method
-func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
+func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (treeqVolume map[string]string, err error) {
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while creating treeq method " + fmt.Sprint(res))
 		}
 	}()
+	treeqVolume = make(map[string]string)
+	treeqVolume["storage_protocol"] = config["storage_protocol"]
+	treeqVolume["nfs_mount_options"] = config["nfs_mount_options"]
+	filesystem.setParameter(config, capacity, pvName)
+
+	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["nfs_networkspace"], " "))
+	if err != nil {
+		log.Errorf("fail to get networkspace ipaddress %v", err)
+		return
+	}
+	filesystem.ipAddress = ipAddress
+	log.Debugf("getNetworkSpaceIP ipAddress %s", ipAddress)
 
 	filesys, err := filesystem.getExpectedFileSystemID()
 	if err != nil {
@@ -152,12 +179,12 @@ func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
 		err = filesystem.createFileSystem()
 		if err != nil {
 			log.Errorf("fail to create fileSystem %v", err)
-			return err
+			return
 		}
 		err = filesystem.createExportPathAndAddMetadata()
 		if err != nil {
 			log.Errorf("fail to create export and metadata %v", err)
-			return err
+			return
 		}
 		filesystemID = filesystem.fileSystemID
 	} else {
@@ -176,10 +203,10 @@ func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
 		err = errors.New("fail to Create Treeq")
 		return
 	}
-	filesystem.treeqVolume["ID"] = strconv.FormatInt(filesystemID, 10)
-	filesystem.treeqVolume["TREEQID"] = strconv.FormatInt(treeqResponse.ID, 10)
-	filesystem.treeqVolume["ipAddress"] = filesystem.ipAddress
-	filesystem.treeqVolume["volumePath"] = path.Join(filesystem.exportpath, treeqResponse.Path)
+	treeqVolume["ID"] = strconv.FormatInt(filesystemID, 10)
+	treeqVolume["TREEQID"] = strconv.FormatInt(treeqResponse.ID, 10)
+	treeqVolume["ipAddress"] = filesystem.ipAddress
+	treeqVolume["volumePath"] = path.Join(filesystem.exportpath, treeqResponse.Path)
 
 	//if AttachMetadataToObject - fail to add metadata then delete the created treeq
 	defer func() {
@@ -221,7 +248,6 @@ func (filesystem *FilesystemService) CreateTreeqVolume() (err error) {
 			return
 		}
 	}
-
 	return
 }
 
@@ -458,7 +484,7 @@ func isTreeQEmpty(treeq api.Treeq) bool {
 	return true
 }
 
-//DeleteNFSVolume delete volumne method
+//DeleteNFSVolume delete volume method
 func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
 
 	defer func() {
@@ -468,14 +494,15 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 		}
 	}()
 	//1.treeq exist or not checked
-	treeq, err := filesystem.cs.api.GetTreeq(filesystemID, treeqID)
+	var treeq *api.Treeq
+	treeq, err = filesystem.cs.api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
 			err = errors.New("Treeq does not exist on infinibox")
 			return nil
 		}
 		log.Errorf("Error occured while getting treeq: %s", err)
-		return err
+		return
 	}
 
 	//2.if treeq has usedcapacity >0 then..
@@ -497,7 +524,7 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 	if err != nil {
 		log.Error("fail to delete treeq")
 		filesystem.UpdateTreeqCnt(filesystemID, IncrementTreeqCount, 0)
-		return err
+		return
 	}
 
 	//5.Delete file system if all treeq are delete
