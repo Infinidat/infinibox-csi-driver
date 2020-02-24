@@ -166,7 +166,7 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 func (s *service) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (capacityResponse *csi.GetCapacityResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI  GetCapacity " + fmt.Sprint(res))
 		}
 	}()
 	poolName, ok := req.GetParameters()["pool_name"]

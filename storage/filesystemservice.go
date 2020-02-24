@@ -544,7 +544,7 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64) (err error) {
 	defer func() {
 		if res := recover(); res != nil {
-			err = errors.New("error while deleting treeq " + fmt.Sprint(res))
+			err = errors.New("Error while updating treeq " + fmt.Sprint(res))
 			return
 		}
 	}()
