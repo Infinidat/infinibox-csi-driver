@@ -312,12 +312,8 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			err = errors.New("Recovered from ISCSI DeleteSnapshot  " + fmt.Sprint(res))
 		}
 	}()
-	volproto, err := validateStorageType(req.GetSnapshotId())
-	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
-		return &csi.DeleteSnapshotResponse{}, err
-	}
-	snapshotID, _ := strconv.Atoi(volproto.VolumeID)
+
+	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	err = iscsi.ValidateDeleteVolume(snapshotID)
 	if err != nil {
 		log.Errorf("fail to delete snapshot %v", err)
@@ -387,21 +383,7 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		}
 	}()
 
-	if req.GetVolumeId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-
-	if req.GetCapacityRange() == nil {
-		return nil, status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
-	}
-
-	volproto, err := validateStorageType(req.GetVolumeId())
-	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
-		return
-	}
-
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	volumeID, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		log.Errorf("Invalid Volume ID %v", err)
 		return
@@ -413,15 +395,15 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		log.Warn("Volume Minimum capacity should be greater 1 GB")
 	}
 
+	// Expand volume size
 	var volume api.Volume
 	volume.Size = capacity
-	// Expand volume size
 	_, err = iscsi.cs.api.UpdateVolume(volumeID, volume)
 	if err != nil {
 		log.Errorf("Failed to update file system %v", err)
 		return
 	}
-	log.Infoln("Filesystem updated successfully")
+	log.Infoln("Volume size updated successfully")
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,

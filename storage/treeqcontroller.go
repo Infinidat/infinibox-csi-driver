@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -106,4 +107,34 @@ func (treeq *treeqstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 func (treeq *treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	return &csi.DeleteSnapshotResponse{}, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
 
+}
+
+func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from CSI ControllerExpandVolume " + fmt.Sprint(res))
+		}
+	}()
+
+	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
+	if err != nil {
+		log.Errorf("Invalid Volume ID %v", err)
+		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
+	}
+
+	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	if capacity < gib {
+		capacity = gib
+		log.Warn("Volume Minimum capacity should be greater 1 GB")
+	}
+
+	err = treeq.filesysService.UpdateTreeqVolume(filesystemID, treeqID, capacity)
+	if err != nil {
+		return
+	}
+
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         capacity,
+		NodeExpansionRequired: false,
+	}, nil
 }
