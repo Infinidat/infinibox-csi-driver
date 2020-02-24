@@ -129,3 +129,11 @@ func (m *MockApiService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }
+
+//GetNetworkSpaceByName
+func (m *MockApiService) GetNetworkSpaceByName(networkSpaceName string) (NetworkSpace, error) {
+	args := m.Called(networkSpaceName)
+	resp, _ := args.Get(0).(NetworkSpace)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}

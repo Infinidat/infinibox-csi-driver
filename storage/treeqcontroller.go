@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 )
 
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
+	var treeqVolumeMap map[string]string
 	config := req.GetParameters()
 	pvName := req.GetName()
 	log.Debugf("Creating fileystem %s of nfs_treeq protocol ", pvName)
@@ -25,33 +25,18 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		log.Errorf("Fail to validate parameter for nfs_treeq protocol %v ", validationStatusMap)
 		return nil, status.Error(codes.InvalidArgument, "Fail to validate parameter for nfs_treeq protocol")
 	}
-	treeq.filesysService.treeqVolume["storage_protocol"] = config["storage_protocol"]
-	treeq.filesysService.treeqVolume["nfs_mount_options"] = config["nfs_mount_options"]
-
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
-	treeq.filesysService.pVName = pvName
-	treeq.filesysService.configmap = config
-	treeq.filesysService.capacity = capacity                      //NO minimum size required for treeq so minimimum 1gb validation removed
-	treeq.filesysService.exportpath = path.Join(dataRoot, pvName) //TODO: export path prefix need to add here
 
-	ipAddress, err := treeq.filesysService.cs.getNetworkSpaceIP(strings.Trim(config["nfs_networkspace"], " "))
-	if err != nil {
-		log.Errorf("fail to get networkspace ipaddress %v", err)
-		return
-	}
-	treeq.filesysService.ipAddress = ipAddress
-	log.Debugf("getNetworkSpaceIP ipAddress %s", ipAddress)
-
-	err = treeq.filesysService.CreateTreeqVolume()
+	treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
 	if err != nil {
 		log.Errorf("fail to create volume %v", err)
 		return &csi.CreateVolumeResponse{}, err
 	}
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      treeq.filesysService.treeqVolume["ID"] + "#" + treeq.filesysService.treeqVolume["TREEQID"],
+			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"],
 			CapacityBytes: capacity,
-			VolumeContext: treeq.filesysService.treeqVolume,
+			VolumeContext: treeqVolumeMap,
 			ContentSource: req.GetVolumeContentSource(),
 		},
 	}, nil
@@ -132,7 +117,6 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	if err != nil {
 		return
 	}
-
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,
