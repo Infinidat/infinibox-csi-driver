@@ -27,10 +27,6 @@ const (
 	KeyVolumeProvisionType = "provision_type"
 )
 
-var (
-	NodeName string = ""
-)
-
 type storageoperations interface {
 	csi.ControllerServer
 	csi.NodeServer
@@ -68,7 +64,7 @@ type nfsstorage struct {
 type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
-	nodeName          string
+	hostName          string
 	nodeIPAddress     string
 }
 
@@ -127,7 +123,8 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			log.Error("API client not initialized.", err)
 			return commonserv, err
 		}
-		commonserv.nodeName = NodeName
+		log.Infof("set node name as %s ", config["nodeName"])
+		commonserv.hostName = config["nodeName"]
 		commonserv.nodeIPAddress = config["nodeIPAddress"]
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
@@ -163,7 +160,7 @@ func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 }
 
 func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err error) {
-	host, err := cs.api.GetHostByName(cs.nodeName)
+	host, err := cs.api.GetHostByName(cs.hostName)
 	if err != nil {
 		return luninfo, err
 	}
@@ -175,7 +172,7 @@ func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err
 }
 
 func (cs *commonservice) unMapVolumeFromhost(volumeID int) (err error) {
-	host, err := cs.api.GetHostByName(cs.nodeName)
+	host, err := cs.api.GetHostByName(cs.hostName)
 	if err != nil {
 		return err
 	}
