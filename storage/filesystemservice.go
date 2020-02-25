@@ -79,7 +79,7 @@ type FileSystemInterface interface {
 	validateTreeqParameters(config map[string]string) (bool, map[string]string)
 	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
 	DeleteTreeqVolume(filesystemID, treeqID int64) error
-	UpdateTreeqVolume(filesystemID, treeqID, capacity int64) error
+	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error
 }
 
 func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.FileSystem, err error) {
@@ -568,14 +568,16 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 }
 
 //UpdateTreeqVolume Upadate volume size method
-func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64) (err error) {
+func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) (err error) {
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("Error while updating treeq " + fmt.Sprint(res))
 			return
 		}
 	}()
-
+	configMap := make(map[string]string)
+	configMap[MAXFILESYSTEMSIZE] = maxSize
+	filesystem.configmap = configMap
 	//Get Maximum filesystem size
 	maxFileSystemSize, err := filesystem.maxFileSize()
 	if err != nil {
