@@ -26,6 +26,10 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "Fail to validate parameter for nfs_treeq protocol")
 	}
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	if capacity < gib {
+		capacity = gib
+		log.Warn("Volume Minimum capacity should be greater 1 GB")
+	}
 
 	treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
 	if err != nil {
