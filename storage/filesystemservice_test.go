@@ -93,10 +93,20 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	assert.Equal(suite.T(), fs.ID, fsID, "file system ID equal")
 }
 
+func getnetworkspace() api.NetworkSpace {
+	networkSpace := api.NetworkSpace{}
+	var p1 api.Portal
+	p1.IpAdress = "10.20.30.40"
+	networkSpace.Portals = append(networkSpace.Portals, p1)
+	return networkSpace
+
+}
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 	fsMetada := getfsMetadata2()
 	var poolID int64 = 10
 	var fsID int64 = 11
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(1, nil)
@@ -112,13 +122,13 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 
 	suite.api.On("UpdateFilesystem", fsID, mock.Anything).Return(nil, nil)
 	service := FilesystemService{cs: *suite.cs}
-	/** paramter values to filesystemService  */
-	service.capacity = 1000
-	service.pVName = "csi-TestTreeq"
-	service.exportpath = "/exportPath"
-	service.treeqVolume = make(map[string]string)
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["nfs_networkspace"] = "networkspace"
 
-	err := service.CreateTreeqVolume()
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.Nil(suite.T(), err, "empty object")
 
 }
@@ -285,7 +295,7 @@ func getTreeQResponse(fileSysID int64) *api.Treeq {
 	return &treeq
 }
 
-func getCreateVolumeRequest( /*tagetPath string, publishContexMap map[string]string*/ ) *csi.CreateVolumeRequest {
+func getCreateVolumeRequest() *csi.CreateVolumeRequest {
 	return &csi.CreateVolumeRequest{}
 }
 
