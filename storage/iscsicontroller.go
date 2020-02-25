@@ -229,7 +229,9 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 
 	// Create a volume response and return it
 	csiVolume := iscsi.cs.getCSIResponse(dstVol, req)
-	luninfo, err := iscsi.cs.mapVolumeTohost(volID)
+
+	log.Info("Mapping volume to host")
+	luninfo, err := iscsi.cs.mapVolumeTohost(dstVol.ID)
 	if err != nil {
 		return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
