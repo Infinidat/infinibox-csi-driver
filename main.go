@@ -4,7 +4,6 @@ import (
 	"context"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
-	"infinibox-csi-driver/storage"
 
 	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
@@ -15,7 +14,8 @@ import (
 func main() {
 	configParams := make(map[string]string)
 	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		storage.NodeName = nodeName
+		log.Infof("found node name in env %s ", nodeName)
+		configParams["nodeName"] = nodeName
 	}
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
 		configParams["drivername"] = drivername

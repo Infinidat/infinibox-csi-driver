@@ -69,6 +69,10 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	req.GetParameters()["iqn"] = nspace.Properties.IscsiIqn
 	req.GetParameters()["portals"] = portals
 
+	host, ok := req.GetParameters()["host_name"]
+	if ok {
+		iscsi.cs.hostName = host
+	}
 	// We require the storagePool name for creation
 	poolName, ok := req.GetParameters()["pool_name"]
 	if !ok {
@@ -119,6 +123,15 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			vol, err = iscsi.cs.api.GetVolume(volID)
 			counter = counter + 1
 		}
+	}
+	metadata := make(map[string]interface{})
+	metadata["host.k8s.pvname"] = vol.Name
+
+	_, err = iscsi.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
+	if err != nil {
+		log.Errorf("fail to attach metadata for volume : %s", vol.Name)
+		log.Errorf("error to attach metadata %v", err)
+		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
 	}
 	return csiResp, err
 }
@@ -216,6 +229,11 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 
 	// Create a volume response and return it
 	csiVolume := iscsi.cs.getCSIResponse(dstVol, req)
+	luninfo, err := iscsi.cs.mapVolumeTohost(volID)
+	if err != nil {
+		return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+	csiVolume.VolumeContext["lun"] = strconv.Itoa(luninfo.Lun)
 	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 	log.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])

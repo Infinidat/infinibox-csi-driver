@@ -14,6 +14,10 @@ logLevel: "info"
 #  note same name will be used for provisioner name
 csiDriverName : "infinibox-csi-driver"
 
+# Initiator name for iscsi
+# value will be set for InitiatorName in container ie. /etc/iscsi/initiatorname.iscsi
+iscsiInitiatorName: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
+
 # Image paths 
 images:
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar
@@ -37,8 +41,6 @@ images:
 
 # Infinibox secrets temp: will create secret for testing purpose
 # TODO : Remove following parameters
-username: admin
-password: "123456"
 
 Infinibox:
   SecretName: infinibox-creds
@@ -51,20 +53,3 @@ Chap:
   SessionAuthPassword: "0.003indiayu84q"
   SessionAuthUsername_In: ""
   SessionAuthPassword_In: ""
-
-InfiniboxSecrets:
-  host1:
-    SecretName: infinibox-creds1
-    username: admin
-    password: "123456"
-    hosturl: 172.17.35.61
-    namespace: "infi"
-    chap: false
-  host2:
-    SecretName: infinibox-creds2
-    username: admin
-    password: "123456"
-    hosturl: 172.17.35.61
-    namespace: "infi"
-    chap: false
-    

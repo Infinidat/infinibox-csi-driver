@@ -84,7 +84,7 @@ spec:
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
-              value: {{ .Values.csiDriverName }}
+              value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -94,7 +94,7 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             - name: ISCSI_INITIATOR_NAME
-              value: "iqn.2020-06.com.csi-driver-iscsi.infinidat:$(KUBE_NODE_NAME)"
+              value: {{ required "Provide the initiator name for iscsi" .Values.iscsiInitiatorName }}
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
@@ -107,7 +107,7 @@ spec:
             - name: dev
               mountPath: /dev
         - name: registrar
-          image: {{ required "Provide the csi node registrar  sidecar container image." .Values.images.registrarsidecar }}
+          image: {{ required "Provide the csi node registrar sidecar container image." .Values.images.registrarsidecar }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"

@@ -26,3 +26,4 @@ parameters:
   nfs_networkspace: "niscsi" 
   provision_type: "THIN"    
   storage_protocol: "iscsi"
+  host_name: "ubuntu"
