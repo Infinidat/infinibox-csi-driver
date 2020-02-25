@@ -25,6 +25,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		log.Errorf("Fail to validate parameter for nfs_treeq protocol %v ", validationStatusMap)
 		return nil, status.Error(codes.InvalidArgument, "Fail to validate parameter for nfs_treeq protocol")
 	}
+
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
@@ -38,7 +39,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"],
+			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"] + "#" + config[MAXFILESYSTEMSIZE],
 			CapacityBytes: capacity,
 			VolumeContext: treeqVolumeMap,
 			ContentSource: req.GetVolumeContentSource(),
@@ -46,14 +47,15 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}, nil
 }
 
-func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, err error) {
+func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, size string, err error) {
 	volproto := strings.Split(volumeID, "#")
-	if len(volproto) != 2 {
+	if len(volproto) != 3 {
 		err = errors.New("volume Id and other details not found")
 		return
 	}
 	filesystemID, err = strconv.ParseInt(volproto[0], 10, 64)
 	treeqID, err = strconv.ParseInt(volproto[1], 10, 64)
+	size = volproto[2]
 	return
 }
 
@@ -61,7 +63,8 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
-	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
+
+	filesystemID, treeqID, _, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
 		log.Errorf("Invalid Volume ID %v", err)
 		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
@@ -105,7 +108,7 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		}
 	}()
 
-	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
+	filesystemID, treeqID, maxSize, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
 		log.Errorf("Invalid Volume ID %v", err)
 		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
@@ -117,7 +120,7 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		log.Warn("Volume Minimum capacity should be greater 1 GB")
 	}
 
-	err = treeq.filesysService.UpdateTreeqVolume(filesystemID, treeqID, capacity)
+	err = treeq.filesysService.UpdateTreeqVolume(filesystemID, treeqID, capacity, maxSize)
 	if err != nil {
 		return
 	}
