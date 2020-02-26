@@ -117,21 +117,25 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 }
 
 //getTreeqSizeByFileSystemID method return the sum of size
-func (c *ClientService) getTreeqSizeByFileSystemID(filesystemID int64) int64 {
+func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error) {
 	var err error
+	var size int64
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("get treeq size Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
-	treeqArry := []Treeq{}
-	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &treeqArry)
+	treeqArray := []Treeq{}
+	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &treeqArray)
 	if err != nil {
 		log.Errorf("error occured while fetching treeq list : %s ", err)
-
+		return 0, err
 	}
-	return 0
+	for _, treeq := range treeqArray {
+		size = size + treeq.HardCapacity
+	}
+	return size, nil
 }
 
 // DeleteTreeq :
