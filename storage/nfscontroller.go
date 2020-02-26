@@ -82,7 +82,7 @@ const (
 )
 
 func validateParameter(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "nfs_networkspace", "nfs_export_permissions"} //TODO: add remaining paramters
+	compulsaryFields := []string{"pool_name", "network_space", "nfs_export_permissions"} //TODO: add remaining paramters
 	validationStatus := true
 	validationStatusMap := make(map[string]string)
 	for _, param := range compulsaryFields {
@@ -118,7 +118,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	nfs.configmap = config
 	nfs.capacity = capacity
 	nfs.exportpath = path.Join(dataRoot, pvName) //TODO: export path prefix need to add here
-	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["nfs_networkspace"], " "))
+	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
 		log.Errorf("fail to get networkspace ipaddress %v", err)
 		return nil, err
@@ -246,12 +246,12 @@ func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *c
 			err = errors.New("error while creating CreateNFSVolume method " + fmt.Sprint(res))
 		}
 	}()
-	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.configmap["pool_name"], nfs.configmap["nfs_networkspace"])
+	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.configmap["pool_name"], nfs.configmap["network_space"])
 	if err != nil {
 		log.Errorf(err.Error())
 		return nil, err
 	}
-	nfs.configmap["nfs_networkspace"] = validnwlist
+	nfs.configmap["network_space"] = validnwlist
 	log.Debug("networkspace validation success")
 
 	err = nfs.createFileSystem()
@@ -296,7 +296,6 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	}()
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = nfs.pVName
-	metadata["filesystem_type"] = ""
 
 	_, err = nfs.cs.api.AttachMetadataToObject(nfs.fileSystemID, metadata)
 	if err != nil {

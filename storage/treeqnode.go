@@ -31,7 +31,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 	mountOptions := []string{}
-	configMountOptions := req.GetVolumeContext()["nfs_mount_options"]
+	configMountOptions := req.GetVolumeContext()["treeq_mount_options"]
 	if configMountOptions == "" {
 		configMountOptions = MountOptions
 	}

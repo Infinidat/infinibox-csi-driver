@@ -126,7 +126,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := make(map[string]string)
-	configMap["nfs_networkspace"] = "networkspace"
+	configMap["network_space"] = "networkspace"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.Nil(suite.T(), err, "empty object")
