@@ -17,13 +17,12 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
-  targetPortal: 172.17.35.71
-  iscsiInterface: "default"
   readOnly: "false"
   chapAuthentication: "true"
-  csi.storage.k8s.io/fstype: ext4
+  fstype: ext4
   pool_name: "iscsipool"
-  nfs_networkspace: "niscsi" 
-  provision_type: "THIN"    
+  network_space: "niscsi"
+  provision_type: "THIN"
   storage_protocol: "iscsi"
+  ssd_enabled: "false"
   host_name: "ubuntu"

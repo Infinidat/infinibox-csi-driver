@@ -12,23 +12,7 @@ import (
 
 //starting method of CSI-Driver
 func main() {
-	configParams := make(map[string]string)
-	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		log.Infof("found node name in env %s ", nodeName)
-		configParams["nodeName"] = nodeName
-	}
-	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
-		configParams["drivername"] = drivername
-	}
-
-	if logLevel, ok := csictx.LookupEnv(context.Background(), "APP_LOG_LEVEL"); ok {
-		configureLog(logLevel)
-	}
-	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
-		configParams["nodeIPAddress"] = nodeip
-		configParams["nodeid"] = nodeip
-	}
-
+	configParams := getConfigParams()
 	gocsi.Run(
 		context.Background(),
 		service.ServiceName,
@@ -36,6 +20,27 @@ func main() {
 		usage,
 		provider.New(configParams))
 
+}
+
+func getConfigParams() map[string]string {
+	configParams := make(map[string]string)
+	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
+		configParams["nodeip"] = nodeip
+	}
+	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
+		configParams["nodeid"] = nodeName + "$$" + configParams["nodeip"]
+	}
+	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
+		configParams["drivername"] = drivername
+	}
+	if logLevel, ok := csictx.LookupEnv(context.Background(), "APP_LOG_LEVEL"); ok {
+		configureLog(logLevel)
+	}
+
+	if initiatorPrefix, ok := csictx.LookupEnv(context.Background(), "ISCSI_INITIATOR_PREFIX"); ok {
+		configParams["initiatorPrefix"] = initiatorPrefix
+	}
+	return configParams
 }
 
 // set global log level

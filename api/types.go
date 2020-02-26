@@ -44,6 +44,7 @@ type VolumeParam struct {
 	VolumeSize    int64  `json:"size,omitempty"`
 	Name          string `json:"name,omitempty"`
 	ProvisionType string `json:"provtype,omitempty"`
+	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
 }
 
 type VolumeResp struct {
@@ -153,7 +154,14 @@ type LunInfo struct {
 }
 
 type Host struct {
-	ID int `json:"id,omitempty"`
+	ID   int    `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+}
+
+type HostPort struct {
+	HostID      int    `json:"host_id,omitempty"`
+	PortType    string `json:"type,omitempty"`
+	PortAddress string `json:"address,omitempty"`
 }
 
 type ExportFileSys struct {
@@ -274,4 +282,5 @@ type VolumeSnapshot struct {
 	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
+	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
 }

@@ -22,11 +22,9 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	//TODO: validate the required parameter
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
-	configparams["nodeIPAddress"] = s.nodeIPAddress
-	configparams["nodeName"] = s.nodeName
 	storageprotocol := req.GetParameters()["storage_protocol"]
 
-	log.Infof("In CreateVolume method nodeid: %s, nodeIPAddress: %s, nodeName: %s, storageprotocols %s", s.nodeID, s.nodeIPAddress, s.nodeName, storageprotocol)
+	log.Infof("In CreateVolume method nodeid: %s, storageprotocols %s", s.nodeID, storageprotocol)
 	if storageprotocol == "" {
 		return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, "storage protocol is not found, 'storage_protocol' is required field")
 	}
@@ -93,7 +91,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 
 //ControllerPublishVolume method
 func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (controlePublishResponce *csi.ControllerPublishVolumeResponse, err error) {
-	log.Info("Main ControllerPublishVolume called with req", req.GetVolumeId(), req.GetNodeId())
+	log.Infof("Main ControllerPublishVolume called with req volumeID %s, nodeID %", req.GetVolumeId(), req.GetNodeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))
@@ -109,7 +107,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = req.GetNodeId()
-	config["nodeName"] = s.nodeName
+	config["initiatorPrefix"] = s.initiatorPrefix
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("fail to initialise storage controller while ControllerPublishVolume " + volproto.StorageType)
@@ -140,7 +138,6 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = req.GetNodeId()
-	config["nodeName"] = s.nodeName
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("fail to initialise storage controller while ControllerUnpublishVolume " + volproto.StorageType)
@@ -264,7 +261,6 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = s.nodeIPAddress
-	config["nodeName"] = s.nodeName
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		log.Error("Error Occured: ", err)
@@ -294,7 +290,6 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
 	config["nodeIPAddress"] = s.nodeIPAddress
-	config["nodeName"] = s.nodeName
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		log.Error("Error Occured: ", err)
@@ -322,8 +317,6 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
-	configparams["nodeIPAddress"] = s.nodeIPAddress
-	configparams["nodeName"] = s.nodeName
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
 		return

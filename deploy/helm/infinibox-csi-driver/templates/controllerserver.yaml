@@ -150,13 +150,10 @@ spec:
             - name: socket-dir
               mountPath: /var/run/csi      
         - name: driver
-          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always                 
-          securityContext:
-            privileged: true
-            capabilities:
-              add: ["SYS_ADMIN"]
-            allowPrivilegeEscalation: true        
+          #image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          #imagePullPolicy: Always                 
+          image : nikhilbarge/infinidat-csi-driver:test1
+          imagePullPolicy: Never    
           env:
             - name: CSI_ENDPOINT
               value: /var/run/csi/csi.sock
@@ -172,6 +169,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: ISCSI_INITIATOR_PREFIX
+              value: {{ required "Provide Prefix for Initiator"  .Values.initiatorNamePrefix }}
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi

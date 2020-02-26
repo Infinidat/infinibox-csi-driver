@@ -64,8 +64,7 @@ type nfsstorage struct {
 type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
-	hostName          string
-	nodeIPAddress     string
+	initiatorPrefix   string
 }
 
 //NewStorageController : To return specific implementation of storage
@@ -123,9 +122,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			log.Error("API client not initialized.", err)
 			return commonserv, err
 		}
-		log.Infof("set node name as %s ", config["nodeName"])
-		commonserv.hostName = config["nodeName"]
-		commonserv.nodeIPAddress = config["nodeIPAddress"]
+		commonserv.initiatorPrefix = config["initiatorPrefix"]
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
@@ -159,20 +156,21 @@ func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 	return vols, nil
 }
 
-func (cs *commonservice) mapVolumeTohost(volumeID int) (luninfo api.LunInfo, err error) {
-	host, err := cs.api.GetHostByName(cs.hostName)
+func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
+	luninfo, err = cs.api.MapVolumeToHost(hostID, volumeID)
 	if err != nil {
-		return luninfo, err
-	}
-	luninfo, err = cs.api.MapVolumeToHost(host.ID, volumeID)
-	if err != nil {
-		return luninfo, err
+		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
+			luninfo, err = cs.api.GetLunByHostVolume(hostID, volumeID)
+		}
+		if err != nil {
+			return luninfo, err
+		}
 	}
 	return luninfo, nil
 }
 
-func (cs *commonservice) unMapVolumeFromhost(volumeID int) (err error) {
-	host, err := cs.api.GetHostByName(cs.hostName)
+func (cs *commonservice) unMapVolumeFromhost(volumeID int, hostName string) (err error) {
+	host, err := cs.api.GetHostByName(hostName)
 	if err != nil {
 		return err
 	}
