@@ -64,6 +64,7 @@ type Client interface {
 	DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	GetTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
+	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
