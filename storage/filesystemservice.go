@@ -16,11 +16,10 @@ import (
 //treeq constants
 const (
 	PROVISIONTYPE          = "provision_type"
-	PVSIZE                 = "pv_size"
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
 	MAXFILESYSTEMS         = "max_filesystems"
 	MAXFILESYSTEMSIZE      = "max_filesystem_size"
-	UNIXPERMISSION         = "nfs_unix_permissions"
+	UNIXPERMISSION         = "treeq_unix_permissions"
 	TREEQPATHPREFIX        = "treeq_path_prefix"
 
 	//Treeq count
@@ -159,10 +158,10 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	}()
 	treeqVolume = make(map[string]string)
 	treeqVolume["storage_protocol"] = config["storage_protocol"]
-	treeqVolume["nfs_mount_options"] = config["nfs_mount_options"]
+	treeqVolume["treeq_mount_options"] = config["treeq_mount_options"]
 	filesystem.setParameter(config, capacity, pvName)
 
-	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["nfs_networkspace"], " "))
+	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
 		log.Errorf("fail to get networkspace ipaddress %v", err)
 		return
@@ -280,7 +279,6 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 	}()
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = filesystem.pVName
-	metadata["filesystem_type"] = ""
 
 	_, err = filesystem.cs.api.AttachMetadataToObject(filesystem.fileSystemID, metadata)
 	if err != nil {
@@ -327,7 +325,7 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 }
 
 func (filesystem *FilesystemService) createExportPath() (err error) {
-	permissionsMapArray, err := getPermission(filesystem.configmap["nfs_export_permissions"])
+	permissionsMapArray, err := getPermission(filesystem.configmap["treeq_export_permissions"])
 	if err != nil {
 		return
 	}
@@ -365,7 +363,7 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 }
 
 func (filesystem *FilesystemService) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "nfs_networkspace", "nfs_export_permissions"}
+	compulsaryFields := []string{"pool_name", "network_space", "treeq_export_permissions"}
 	validationStatus := true
 	validationStatusMap := make(map[string]string)
 	for _, param := range compulsaryFields {

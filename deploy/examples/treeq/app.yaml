@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: ibox-pod-tree1-demo
+  name: ibox-pod-treeq-demo
   namespace: infi
 spec:
   containers:
@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: ibox-tree-pvc-demo
+        claimName: ibox-treeq-pvc-demo
