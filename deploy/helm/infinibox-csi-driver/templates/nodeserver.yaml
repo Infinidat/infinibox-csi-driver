@@ -68,10 +68,10 @@ spec:
           securityContext:
             privileged: true
             capabilities:
-              add: ["SYS_MODULE"]
-            allowPrivilegeEscalation: true          
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true              
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always 
+          imagePullPolicy: Always
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
@@ -93,8 +93,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: ISCSI_INITIATOR_PREFIX
+              value: {{ required "Provide Prefix for Initiator"  .Values.initiatorNamePrefix }}
             - name: ISCSI_INITIATOR_NAME
-              value: {{ required "Provide the initiator name for iscsi" .Values.iscsiInitiatorName }}
+              value: {{ required "Provide Initiator name"  .Values.initiatorNamePrefix }}:$(KUBE_NODE_NAME)
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com

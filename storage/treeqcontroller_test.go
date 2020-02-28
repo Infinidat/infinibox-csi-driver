@@ -55,7 +55,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	assert.Nil(suite.T(), err, "empty error")
 	val := result.GetVolume()
 	fmt.Println("val", val.GetVolumeId())
-	assert.Equal(suite.T(), "100#200", val.GetVolumeId(), "ID shoulde be equal")
+	assert.Equal(suite.T(), "100#200#", val.GetVolumeId(), "ID shoulde be equal")
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
@@ -82,7 +82,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 	service := treeqstorage{filesysService: suite.filesystem}
-	volumeID := "100#200"
+	volumeID := "100#200#"
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND error")
 	var filesytemID, treeqID int64 = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
@@ -92,7 +92,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
 	service := treeqstorage{filesysService: suite.filesystem}
-	volumeID := "100#200"
+	volumeID := "100#200#"
 	var filesytemID, treeqID int64 = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(nil)
 	resp, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))

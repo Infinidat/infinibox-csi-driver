@@ -504,8 +504,13 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		log.Debug("fail to cast no_root_squash .set default =true")
 		noRootSquash = true
 	}
+	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	if len(nodeNameIP) != 2 {
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
+	}
+	nodeIP := nodeNameIP[1]
 	eportid, _ := strconv.Atoi(exportID)
-	_, err := nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nfs.cs.nodeIPAddress)
+	_, err := nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nodeIP)
 	if err != nil {
 		log.Errorf("fail to add export rule %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Errorf(codes.Internal, "fail to add export rule  %s", err)

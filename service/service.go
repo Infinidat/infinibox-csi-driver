@@ -32,6 +32,7 @@ type service struct {
 	nodeIPAddress       string
 	blockMountDir       string
 	nodeName            string
+	initiatorPrefix     string
 }
 
 // Config defines service configuration options.
@@ -68,6 +69,7 @@ func New(configParam map[string]string) Service {
 		driverName:          configParam["drivername"],
 		nodeIPAddress:       configParam["nodeIPAddress"],
 		nodeName:            configParam["nodeName"],
+		initiatorPrefix:     configParam["initiatorPrefix"],
 		storagePoolIDToName: map[int64]string{},
 		apiclient:           &api.ClientService{},
 	}
