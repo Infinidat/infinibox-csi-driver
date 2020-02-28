@@ -16,7 +16,6 @@ import (
 //treeq constants
 const (
 	PROVISIONTYPE          = "provision_type"
-	PVSIZE                 = "pv_size"
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
 	MAXFILESYSTEMS         = "max_filesystems"
 	MAXFILESYSTEMSIZE      = "max_filesystem_size"
@@ -162,7 +161,7 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	treeqVolume["nfs_mount_options"] = config["nfs_mount_options"]
 	filesystem.setParameter(config, capacity, pvName)
 
-	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["nfs_networkspace"], " "))
+	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
 		log.Errorf("fail to get networkspace ipaddress %v", err)
 		return
@@ -280,7 +279,6 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 	}()
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = filesystem.pVName
-	metadata["filesystem_type"] = ""
 
 	_, err = filesystem.cs.api.AttachMetadataToObject(filesystem.fileSystemID, metadata)
 	if err != nil {
@@ -365,7 +363,7 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 }
 
 func (filesystem *FilesystemService) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "nfs_networkspace", "nfs_export_permissions"}
+	compulsaryFields := []string{"pool_name", "network_space", "nfs_export_permissions"}
 	validationStatus := true
 	validationStatusMap := make(map[string]string)
 	for _, param := range compulsaryFields {
@@ -575,15 +573,6 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 			return
 		}
 	}()
-	configMap := make(map[string]string)
-	configMap[MAXFILESYSTEMSIZE] = maxSize
-	filesystem.configmap = configMap
-	//Get Maximum filesystem size
-	maxFileSystemSize, err := filesystem.maxFileSize()
-	if err != nil {
-		log.Error(err)
-		return
-	}
 
 	//Get Filesystem
 	fileSystemResponse, err := filesystem.cs.api.GetFileSystemByID(filesystemID)
@@ -592,17 +581,50 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 		return
 	}
 
-	var fileSys api.FileSystem
-	fileSys.Size = fileSystemResponse.Size + capacity
-	if fileSys.Size > maxFileSystemSize {
-		return status.Error(codes.PermissionDenied, "Given capacity for expansion is not allowed")
+	//Get a treeq
+	treeq, err := filesystem.cs.api.GetTreeq(filesystemID, treeqID)
+	if err != nil {
+		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
+			err = errors.New("Treeq does not exist on infinibox")
+			return nil
+		}
+		log.Errorf("Error occured while getting treeq: %s", err)
+		return
 	}
 
-	// Expand file system size
-	_, err = filesystem.cs.api.UpdateFilesystem(filesystemID, fileSys)
+	// Get sum of all the treeq size of filesystem
+	totalTreeqSize, err := filesystem.cs.api.GetTreeqSizeByFileSystemID(filesystemID)
 	if err != nil {
-		log.Errorf("Failed to update file system %v", err)
-		return
+		log.Error("Failed to get sum of all the treeq size of a filesystem")
+		return status.Error(codes.Internal, "Failed to get sum of all the treeq size of a filesystem")
+	}
+
+	needToIncreaseSize := capacity - treeq.HardCapacity
+	if totalTreeqSize+needToIncreaseSize > fileSystemResponse.Size {
+		configMap := make(map[string]string)
+		configMap[MAXFILESYSTEMSIZE] = maxSize
+		filesystem.configmap = configMap
+		//Get Maximum filesystem size
+		maxFileSystemSize, err := filesystem.maxFileSize()
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		var fileSys api.FileSystem
+		freeSpace := fileSystemResponse.Size - totalTreeqSize
+		increaseFileSizeBy := needToIncreaseSize - freeSpace
+		fileSys.Size = fileSystemResponse.Size + increaseFileSizeBy
+		if fileSys.Size > maxFileSystemSize {
+			return status.Error(codes.PermissionDenied, "Given capacity for expansion is not allowed")
+		}
+
+		// Expand file system size
+		_, err = filesystem.cs.api.UpdateFilesystem(filesystemID, fileSys)
+		if err != nil {
+			log.Errorf("Failed to update file system %v", err)
+			return err
+		}
 	}
 
 	// Expand Treeq size

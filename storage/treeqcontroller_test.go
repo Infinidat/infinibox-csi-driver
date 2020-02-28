@@ -143,7 +143,7 @@ func (m *FileSystemInterfaceMock) DeleteTreeqVolume(filesystemID, treeqID int64)
 	return st
 }
 
-func (m *FileSystemInterfaceMock) UpdateTreeqVolume(filesystemID, treeqID, capacity int64) error {
+func (m *FileSystemInterfaceMock) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error {
 	status := m.Called(filesystemID, treeqID, capacity)
 	err, _ := status.Get(0).(error)
 	return err
