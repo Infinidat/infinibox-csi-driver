@@ -55,41 +55,41 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return &csi.CreateVolumeResponse{}, nil
 	}
 
-	networkSpace := req.GetParameters()["nfs_networkspace"]
+	networkSpace := req.GetParameters()["network_space"]
 	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting network space")
 	}
-
 	portals := ""
 	for _, p := range nspace.Portals {
 		portals = portals + "," + p.IpAdress
 	}
-	portals = portals[0:]
+	portals = portals[1:]
 	req.GetParameters()["iqn"] = nspace.Properties.IscsiIqn
 	req.GetParameters()["portals"] = portals
 
-	host, ok := req.GetParameters()["host_name"]
-	if ok {
-		iscsi.cs.hostName = host
-	}
 	// We require the storagePool name for creation
 	poolName, ok := req.GetParameters()["pool_name"]
 	if !ok {
 		return &csi.CreateVolumeResponse{}, errors.New("pool_name is a required parameter")
 	}
-
+	fstype := req.GetParameters()["fstype"]
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
 		return iscsi.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
 
 	}
-
+	ssd := req.GetParameters()["ssd_enabled"]
+	if ssd == "" {
+		ssd = fmt.Sprint(false)
+	}
+	ssdEnabled, _ := strconv.ParseBool(ssd)
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
 		ProvisionType: volType,
+		SsdEnabled:    ssdEnabled,
 	}
 	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, poolName)
 	if err != nil {
@@ -100,11 +100,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	vi := iscsi.cs.getCSIResponse(volumeResp, req)
 
-	luninfo, err := iscsi.cs.mapVolumeTohost(volumeResp.ID)
-	if err != nil {
-		return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
-	}
-	vi.VolumeContext["lun"] = strconv.Itoa(luninfo.Lun)
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
@@ -126,7 +121,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = vol.Name
-
+	metadata["host.filesystem_type"] = fstype
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
 	if err != nil {
 		log.Errorf("fail to attach metadata for volume : %s", vol.Name)
@@ -212,8 +207,13 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 		return nil, status.Errorf(codes.InvalidArgument,
 			"volume storage pool is different than the requested storage pool %s", storagePool)
 	}
+	ssd := req.GetParameters()["ssd_enabled"]
+	if ssd == "" {
+		ssd = fmt.Sprint(false)
+	}
+	ssdEnabled, _ := strconv.ParseBool(ssd)
+	snapshotParam := &api.VolumeSnapshot{ParentID: ID, SnapshotName: name, WriteProtected: false, SsdEnabled: ssdEnabled}
 
-	snapshotParam := &api.VolumeSnapshot{ParentID: ID, SnapshotName: name, WriteProtected: false}
 	// Create snapshot
 	snapResponse, err := iscsi.cs.api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
@@ -229,26 +229,80 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 
 	// Create a volume response and return it
 	csiVolume := iscsi.cs.getCSIResponse(dstVol, req)
-
-	log.Info("Mapping volume to host")
-	luninfo, err := iscsi.cs.mapVolumeTohost(dstVol.ID)
-	if err != nil {
-		return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
-	}
-	csiVolume.VolumeContext["lun"] = strconv.Itoa(luninfo.Lun)
 	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
+
+	metadata := make(map[string]interface{})
+	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
+	_, err = iscsi.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
+	if err != nil {
+		log.Errorf("fail to attach metadata for volume : %s", dstVol.Name)
+		log.Errorf("error to attach metadata %v", err)
+		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
+	}
 	log.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
 
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	log.Info("ControllerPublishVolume called with req nodeID", req.GetNodeId(), req.GetVolumeId())
-	return &csi.ControllerPublishVolumeResponse{}, nil
+	log.Infof("ControllerPublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	volproto, err := validateStorageType(req.GetVolumeId())
+	if err != nil {
+		log.Errorf("Failed to validate storage type %v", err)
+		return nil, errors.New("error getting volume id")
+	}
+	volID, _ := strconv.Atoi(volproto.VolumeID)
+
+	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	if len(nodeNameIP) != 2 {
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
+	}
+	nodeName := nodeNameIP[0]
+	log.Info("Mapping volume to host")
+	host, err := iscsi.cs.api.GetHostByName(nodeName)
+	if err != nil {
+		log.Errorf("Failed to get host with error %v", err)
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+	if host.Name == "" {
+		log.Info("Creating host with name ", nodeName)
+		host, err = iscsi.cs.api.CreateHost(nodeName)
+		if err == nil {
+			_, err = iscsi.cs.api.AddHostPort("ISCSI", iscsi.cs.initiatorPrefix+":"+nodeName, host.ID)
+			if err != nil {
+				log.Errorf("Failed to add host port with error %v", err)
+			}
+		}
+		if err != nil {
+			log.Errorf("Failed to get host with error %v", err)
+			return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		}
+	}
+	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
+	if err != nil {
+		log.Errorf("Failed to map volume to host with error %v", err)
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+	volCtx := make(map[string]string)
+	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
+	return &csi.ControllerPublishVolumeResponse{
+		PublishContext: volCtx,
+	}, nil
 }
 
 func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	log.Info("ControllerUnpublishVolume called with req with nodeID ", req.GetNodeId(), req.GetVolumeId())
+	log.Infof("ControllerUnpublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	volproto, err := validateStorageType(req.GetVolumeId())
+	if err != nil {
+		log.Errorf("Failed to validate storage type %v", err)
+		return nil, errors.New("error getting volume id")
+	}
+	volID, _ := strconv.Atoi(volproto.VolumeID)
+	log.Info("UnMapping volume from host")
+	err = iscsi.cs.unMapVolumeFromhost(volID, req.GetNodeId())
+	if err != nil && !strings.Contains(err.Error(), "LUN_NOT_FOUND") {
+		return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
@@ -368,14 +422,6 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
 		}
 		return
-	}
-	if vol.Mapped {
-		// Volume is mapped
-		err = iscsi.cs.unMapVolumeFromhost(vol.ID)
-		if err != nil {
-			return status.Errorf(codes.FailedPrecondition,
-				"error while unmaping volume %s", err)
-		}
 	}
 	log.WithFields(log.Fields{"name": vol.Name, "id": vol.ID}).Info("Deleting volume")
 	err = iscsi.cs.api.DeleteVolume(vol.ID)

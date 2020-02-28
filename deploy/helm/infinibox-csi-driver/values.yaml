@@ -14,9 +14,7 @@ logLevel: "info"
 #  note same name will be used for provisioner name
 csiDriverName : "infinibox-csi-driver"
 
-# Initiator name for iscsi
-# value will be set for InitiatorName in container ie. /etc/iscsi/initiatorname.iscsi
-iscsiInitiatorName: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
+initiatorNamePrefix: iqn.2020-06.com.csi-driver-iscsi.infinidat
 
 # Image paths 
 images:
@@ -50,6 +48,6 @@ Infinibox:
 
 Chap:
   SessionAuthUsername: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
-  SessionAuthPassword: "0.003indiayu84q"
+  SessionAuthPassword: "0.0033ufhonrub"
   SessionAuthUsername_In: ""
   SessionAuthPassword_In: ""

@@ -32,9 +32,9 @@ type iscsiDisk struct {
 	secret          map[string]string
 	sessionSecret   iscsi_lib.Secrets
 	discoverySecret iscsi_lib.Secrets
-	InitiatorName   string
 	VolName         string
 	isBlock         bool
+	ssdEnabled      string
 }
 
 type iscsiDiskMounter struct {
@@ -268,11 +268,10 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	volproto := strings.Split(req.GetVolumeId(), "$$")
 	log.Debug("Called getISCSIInfo")
 	volName := volproto[0]
-	tp := req.GetVolumeContext()["targetPortal"]
 	iface := req.GetVolumeContext()["iscsiInterface"]
 	iqn := req.GetVolumeContext()["iqn"]
 	portals := req.GetVolumeContext()["portals"]
-	lun := req.GetVolumeContext()["lun"]
+	lun := req.GetPublishContext()["lun"]
 	portalsList := strings.Split(portals, ",")
 	secret := req.GetSecrets()
 	sessionSecret, err := parseSessionSecret(secret)
@@ -281,15 +280,12 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	}
 	discoverySecret, _ := parseDiscoverySecret(secret)
 
-	portal := iscsi.portalMounter(tp)
 	var bkportal []string
-	bkportal = append(bkportal, portal)
 	for _, p := range portalsList {
 		bkportal = append(bkportal, iscsi.portalMounter(p))
 	}
-	initiatorName := iscsi.cs.getIscsiInitiatorName()
 
-	doDiscovery := false
+	doDiscovery := true
 	chapDiscovery := false
 	if req.GetVolumeContext()["chapAuthentication"] == "true" {
 		chapDiscovery = true
@@ -320,7 +316,6 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 		secret:          secret,
 		sessionSecret:   sessionSecret,
 		discoverySecret: discoverySecret,
-		InitiatorName:   initiatorName,
 		doDiscovery:     doDiscovery}, nil
 }
 
@@ -329,19 +324,19 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsi_lib.Connector {
 	targets := []iscsi_lib.TargetInfo{}
 	target := iscsi_lib.TargetInfo{}
 	for _, p := range iscsiInfo.Portals {
-		target.Iqn = iscsiInfo.Iqn
-		if strings.Contains(p, ":") {
-			arr := strings.Split(p, ":")
-			target.Portal = arr[0]
-			target.Port = arr[1]
-		} else {
-			target.Portal = p
-			target.Port = "3260"
+		if p != "" {
+			target.Iqn = iscsiInfo.Iqn
+			if strings.Contains(p, ":") {
+				arr := strings.Split(p, ":")
+				target.Portal = arr[0]
+				target.Port = arr[1]
+			} else {
+				target.Portal = p
+				target.Port = "3260"
+			}
+			targets = append(targets, target)
 		}
 	}
-	targets = append(targets, target)
-	target.Iqn = iscsiInfo.Iqn
-	target.Portal = iscsiInfo.Portals[0]
 	c := iscsi_lib.Connector{
 		VolumeName:       iscsiInfo.VolName,
 		Targets:          targets,
@@ -351,8 +346,8 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsi_lib.Connector {
 		DiscoverySecrets: iscsiInfo.discoverySecret,
 		Lun:              iscsiInfo.lun,
 		Interface:        iscsiInfo.Iface,
-		CheckInterval:    2,
-		RetryCount:       10,
+		CheckInterval:    5,
+		RetryCount:       50,
 	}
 
 	if iscsiInfo.sessionSecret != (iscsi_lib.Secrets{}) {
@@ -368,7 +363,7 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsi_lib.Connector {
 func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter {
 	log.Debug("Called getISCSIDiskMounter")
 	readOnly := req.GetReadonly()
-	fsType := req.GetVolumeCapability().GetMount().GetFsType()
+	fsType := req.GetVolumeContext()["fstype"]
 	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
 	log.Debug("getISCSIDiskMounter: Parameter configuration complete")
 	return &iscsiDiskMounter{
