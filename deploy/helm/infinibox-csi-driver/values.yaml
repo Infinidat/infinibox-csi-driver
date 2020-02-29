@@ -34,7 +34,7 @@ images:
   resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
 
   # images.csidriver defines csidriver image used for external provisioning
-  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.3
+  csidriver: docker.io/nikhilbarge/infinidat-csi-driver:test1
 
 
 # Infinibox secrets temp: will create secret for testing purpose
@@ -48,6 +48,6 @@ Infinibox:
 
 Chap:
   SessionAuthUsername: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
-  SessionAuthPassword: "0.0033ufhonrub"
+  SessionAuthPassword: "0.000us07boftjo"
   SessionAuthUsername_In: ""
   SessionAuthPassword_In: ""

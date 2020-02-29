@@ -27,9 +27,11 @@ type Client interface {
 	CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
 	GetHostByName(hostName string) (host Host, err error)
+	GetAllHosts() (host []Host, err error)
 	CreateHost(hostName string) (host Host, err error)
-	MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error)
+	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
+	GetAllLunByHost(hostID int) (luninfo []LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
 	DeleteVolume(volumeID int) (err error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
@@ -138,7 +140,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 		hostPort, _ = apiresp.Result.(HostPort)
 	}
 
-	log.Info("Created Host: ", hostPort.PortAddress)
+	log.Info("Created Host Port: ", hostPort.PortAddress)
 	return hostPort, nil
 }
 
@@ -159,9 +161,14 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 		return nil, err
 	}
 	volume.PoolId = poolID
-
+	valumeParameter := make(map[string]interface{})
+	valumeParameter["pool_id"] = poolID
+	valumeParameter["size"] = volume.VolumeSize
+	valumeParameter["name"] = volume.Name
+	valumeParameter["provtype"] = volume.ProvisionType
+	valumeParameter["ssd_enabled"] = volume.SsdEnabled
 	vol := Volume{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, volume, &vol)
+	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &vol)
 	if err != nil {
 		return nil, err
 	}
@@ -402,6 +409,29 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 }
 
 //GetHostByName - get host details for given hostname
+func (c *ClientService) GetAllHosts() (host []Host, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("Get all hosts")
+	uri := "api/rest/hosts"
+	hosts := []Host{}
+	resp, err := c.getResponseWithQueryString(uri, nil, &hosts)
+	if err != nil {
+		log.Errorf("ubable to get host list")
+		return host, err
+	}
+	if len(hosts) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		hosts, _ = apiresp.Result.([]Host)
+	}
+	log.Info("found %d hosts ", len(hosts))
+	return hosts, nil
+}
+
+//GetHostByName - get host details for given hostname
 func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -414,7 +444,7 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	queryParam := map[string]interface{}{"name": hostName}
 	resp, err := c.getResponseWithQueryString(uri, queryParam, &hosts)
 	if err != nil {
-		log.Errorf("No such host : %s", hostName)
+		log.Errorf("host not found : %s", hostName)
 		return host, err
 	}
 	if len(hosts) == 0 {
@@ -448,18 +478,25 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 }
 
 // MapVolumeToHost - Map volume with given volumeID to Host with given hostID
-func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error) {
+func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Infof("Map volume of %d to host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	data := map[string]interface{}{"volume_id": volumeID}
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns?approved=true"
+	data := make(map[string]interface{})
+	data["volume_id"] = volumeID
+	if lun != -1 {
+		data["lun"] = lun
+	}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, data, &luninfo)
 	if err != nil {
-		log.Errorf("error occured while mapping volume to host %v", err)
+		// ignore loggin for following error code
+		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") || !strings.Contains(err.Error(), "LUN_EXISTS") {
+			log.Errorf("error occured while mapping volume to host %v", err)
+		}
 		return luninfo, err
 	}
 	if luninfo == (LunInfo{}) {
@@ -494,6 +531,29 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 		luninfo = luns[0]
 	}
 	log.Infof("Got Lun %d for volumeID %d and host %d", luninfo.Lun, volumeID, hostID)
+	return luninfo, nil
+}
+
+// GetAllLunByHost - Get all luns for host id provided
+func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	luns := []LunInfo{}
+	log.Infof("Get gll lun for host %d", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
+	resp, err := c.getResponseWithQueryString(uri, nil, &luns)
+	if err != nil {
+		log.Errorf("failed to get luns for host %d with error %v", hostID, err)
+		return luninfo, err
+	}
+	if len(luns) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		luns, _ = apiresp.Result.([]LunInfo)
+	}
+	log.Infof("Got %d Luns for host %d", len(luns), hostID)
 	return luninfo, nil
 }
 

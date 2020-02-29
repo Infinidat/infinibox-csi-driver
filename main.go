@@ -51,7 +51,8 @@ func configureLog(logLevel string) {
 		ll = log.InfoLevel // to be set to error level
 	}
 	log.SetLevel(ll)
-	log.Debug("Logging  level set to ", log.GetLevel().String())
+	log.Info("Logging  level set to ", log.GetLevel().String())
+
 }
 
 const usage = `   `

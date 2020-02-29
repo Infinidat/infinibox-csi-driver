@@ -157,7 +157,7 @@ func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 }
 
 func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
-	luninfo, err = cs.api.MapVolumeToHost(hostID, volumeID)
+	luninfo, err = cs.api.MapVolumeToHost(hostID, volumeID, -1)
 	if err != nil {
 		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
 			luninfo, err = cs.api.GetLunByHostVolume(hostID, volumeID)
@@ -169,14 +169,74 @@ func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.
 	return luninfo, nil
 }
 
-func (cs *commonservice) unMapVolumeFromhost(volumeID int, hostName string) (err error) {
-	host, err := cs.api.GetHostByName(hostName)
+func (cs *commonservice) getAllHosts() ([]api.Host, error) {
+	hosts, err := cs.api.GetAllHosts()
+	if err != nil {
+		log.Errorf("error get list of host with error: %v ", err)
+		return nil, err
+	}
+	return hosts, nil
+}
+
+func (cs *commonservice) mapVolumeToAllhost(currentHostID, volumeID int, lun int) (err error) {
+	hostList, err := cs.getAllHosts()
 	if err != nil {
 		return err
 	}
-	err = cs.api.UnMapVolumeFromHost(host.ID, volumeID)
+	for _, hst := range hostList {
+		if currentHostID != hst.ID {
+			_, err = cs.api.MapVolumeToHost(hst.ID, volumeID, lun)
+			if err != nil {
+				if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") || strings.Contains(err.Error(), "LUN_EXISTS") {
+					continue
+				}
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (cs *commonservice) unmapVolumeFromAllhost(volumeID int) (err error) {
+	hostList, err := cs.getAllHosts()
 	if err != nil {
 		return err
+	}
+	for _, hst := range hostList {
+		err = cs.api.UnMapVolumeFromHost(hst.ID, volumeID)
+		if err != nil {
+			// ignoring following error
+			if strings.Contains(err.Error(), "HOST_NOT_FOUND") || strings.Contains(err.Error(), "LUN_NOT_FOUND") {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (cs *commonservice) updateMappingForNewHost(hostID int) error {
+	hostList, err := cs.getAllHosts()
+	if err != nil {
+		return err
+	}
+	luns := []api.LunInfo{}
+	for _, hst := range hostList {
+		if hst.ID != hostID {
+			luns, err = cs.api.GetAllLunByHost(hst.ID)
+			if err != nil {
+				return err
+			}
+			break
+		}
+	}
+	for _, lun := range luns {
+		_, err = cs.api.MapVolumeToHost(hostID, lun.VolumeID, lun.Lun)
+		if err != nil {
+			if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
+				return err
+			}
+		}
 	}
 	return nil
 }

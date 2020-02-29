@@ -128,7 +128,6 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 		SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().
 		SetBody(body).
 		Post(url)
-	log.Infof("resty Post err %v  ", err)
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
 		log.Errorf("error in validating response %v ", err)

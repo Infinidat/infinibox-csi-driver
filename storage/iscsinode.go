@@ -115,6 +115,10 @@ func (iscsi *iscsistorage) AttachDisk(d iscsiDiskMounter) (mntPath string, err e
 	log.WithFields(log.Fields{"iqn": d.iscsiDisk.Iqn, "lun": d.iscsiDisk.lun,
 		"DoCHAPDiscovery": d.connector.DoCHAPDiscovery}).Info("Mounting Volume")
 
+	if "debug" == log.GetLevel().String() {
+		//iscsi_lib.EnableDebugLogging(log.New().Writer())
+	}
+
 	devicePath, err := iscsi_lib.Connect(*d.connector)
 	if err != nil {
 		log.Errorf("Disk Connect failed with error %v", err)
@@ -346,8 +350,8 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsi_lib.Connector {
 		DiscoverySecrets: iscsiInfo.discoverySecret,
 		Lun:              iscsiInfo.lun,
 		Interface:        iscsiInfo.Iface,
-		CheckInterval:    5,
-		RetryCount:       50,
+		CheckInterval:    1,
+		RetryCount:       10,
 	}
 
 	if iscsiInfo.sessionSecret != (iscsi_lib.Secrets{}) {

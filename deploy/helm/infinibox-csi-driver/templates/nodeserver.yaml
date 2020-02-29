@@ -96,7 +96,7 @@ spec:
             - name: ISCSI_INITIATOR_PREFIX
               value: {{ required "Provide Prefix for Initiator"  .Values.initiatorNamePrefix }}
             - name: ISCSI_INITIATOR_NAME
-              value: {{ required "Provide Initiator name"  .Values.initiatorNamePrefix }}:$(KUBE_NODE_NAME)
+              value: {{ required "Provide Initiator name"  .Values.initiatorNamePrefix }}:$(NODE_IP_ADDRESS)
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
