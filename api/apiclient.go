@@ -29,14 +29,19 @@ type Client interface {
 	GetHostByName(hostName string) (host Host, err error)
 	GetAllHosts() (host []Host, err error)
 	CreateHost(hostName string) (host Host, err error)
+	MapHostToCluster(hostID, clusterID int) (hostCluster HostCluster, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
+	MapVolumeToHostCluster(hostClusterID, volumeID int) (luninfo LunInfo, err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
 	GetAllLunByHost(hostID int) (luninfo []LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
+	UnMapVolumeFromHostCluster(hostClusterID, volumeID int) (err error)
 	DeleteVolume(volumeID int) (err error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
+	GetClusterByName(clusterName string) (HostCluster, error)
+	CreateCluster(clusterName string) (HostCluster, error)
 	// for nfs
 	OneTimeValidation(poolname string, networkspace string) (list string, err error)
 	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
@@ -384,14 +389,14 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	return nspace, nil
 }
 
-//CreateHost - create host with given details
+//CreateHost - create host  with given details
 func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("CreateHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get Host by name : ", hostName)
+	log.Info("create host with name  ", hostName)
 	uri := "api/rest/hosts"
 	body := map[string]interface{}{"name": hostName}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &host)
@@ -404,18 +409,18 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 		host, _ = apiresp.Result.(Host)
 	}
 
-	log.Info("Created Host: ", host.Name)
+	log.Info("created host with name ", host.Name)
 	return host, nil
 }
 
-//GetHostByName - get host details for given hostname
+//GetAllHosts - get all host details
 func (c *ClientService) GetAllHosts() (host []Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("GetAllHosts Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get all hosts")
+	log.Info("get all hosts")
 	uri := "api/rest/hosts"
 	hosts := []Host{}
 	resp, err := c.getResponseWithQueryString(uri, nil, &hosts)
@@ -438,13 +443,13 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get Host by name : ", hostName)
+	log.Info("get host by name ", hostName)
 	uri := "api/rest/hosts"
 	hosts := []Host{}
 	queryParam := map[string]interface{}{"name": hostName}
 	resp, err := c.getResponseWithQueryString(uri, queryParam, &hosts)
 	if err != nil {
-		log.Errorf("host not found : %s", hostName)
+		log.Errorf("host %s not found ", hostName)
 		return host, err
 	}
 	if len(hosts) == 0 {
@@ -455,11 +460,29 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	if len(hosts) > 0 {
 		host = hosts[0]
 	}
-	log.Info("Got Host: ", host.Name)
+	log.Info("fetched host with name ", host.Name)
 	return host, nil
 }
 
-// UnMapVolumeFromHost - Remove mapping of volume and host
+// UnMapVolumeFromHostCluster - Remove mapping of volume with host cluster
+func (c *ClientService) UnMapVolumeFromHostCluster(hostClusterID, volumeID int) (err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("UnMapVolumeFromHostCluster Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("Remove mapping of volume %d from host cluster %d", volumeID, hostClusterID)
+	uri := "api/rest/clusters/" + strconv.Itoa(hostClusterID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
+	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
+	if err != nil {
+		log.Errorf("failed to unmap volume %d from host cluster %d with error %v", volumeID, hostClusterID, err)
+		return err
+	}
+	log.Infof("successfully unmapped volume %d from host cluster %d", volumeID, hostClusterID)
+	return nil
+}
+
+// UnMapVolumeFromHost - Remove mapping of volume with host
 func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -470,11 +493,117 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
 	if err != nil {
-		log.Errorf("Error occured while unmapping volume from host %v", err)
+		log.Errorf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
 		return err
 	}
-	log.Infof("Successfully removed mapping of volume %d from host %d", volumeID, hostID)
+	log.Infof("successfully unmapped volume %d from host %d", volumeID, hostID)
 	return nil
+}
+
+//CreateCluster - create host cluster with given details
+func (c *ClientService) CreateCluster(clusterName string) (hostCluster HostCluster, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("CreateHost Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("create host cluster by name : ", clusterName)
+	uri := "api/rest/clusters"
+	body := map[string]interface{}{"name": clusterName}
+	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostCluster)
+	if err != nil {
+		log.Errorf("error creating host cluster: %s error : %v", clusterName, err)
+		return hostCluster, err
+	}
+	if reflect.DeepEqual(hostCluster, (Host{})) {
+		apiresp := resp.(client.ApiResponse)
+		hostCluster, _ = apiresp.Result.(HostCluster)
+	}
+
+	log.Info("created host cluster with name ", hostCluster.Name)
+	return hostCluster, nil
+}
+
+//GetClusterByName - get host details for given hostname
+func (c *ClientService) GetClusterByName(clusterName string) (hostCluster HostCluster, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetClusterByName Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("get host cluster by name  ", clusterName)
+	uri := "api/rest/clusters"
+	hostClusters := []HostCluster{}
+	queryParam := map[string]interface{}{"name": clusterName}
+	resp, err := c.getResponseWithQueryString(uri, queryParam, &hostClusters)
+	if err != nil {
+		log.Errorf("host cluster  %s not found ", clusterName)
+		return hostCluster, err
+	}
+	if len(hostClusters) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		hostClusters, _ = apiresp.Result.([]HostCluster)
+	}
+
+	if len(hostClusters) > 0 {
+		hostCluster = hostClusters[0]
+	}
+	log.Info("fetched host cluster with name ", hostCluster.Name)
+	return hostCluster, nil
+}
+
+// MapHostToCluster - Map host with given hostID to cluster with given clusterID
+func (c *ClientService) MapHostToCluster(hostID, clusterID int) (hostCluster HostCluster, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("MapHostToCluster Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("map host %d to host cluster %d", hostID, clusterID)
+	uri := "api/rest/clusters/" + strconv.Itoa(clusterID) + "/hosts?approved=true"
+	data := make(map[string]interface{})
+	data["id"] = hostID
+	resp, err := c.getJSONResponse(http.MethodPost, uri, data, &hostCluster)
+	if err != nil {
+		// ignore loggin for following error code
+		if !strings.Contains(err.Error(), "HOST_EXISTS") {
+			log.Errorf("error occured while mapping volume to host %v", err)
+		}
+		return hostCluster, err
+	}
+	if reflect.DeepEqual(hostCluster, HostCluster{}) {
+		apiresp := resp.(client.ApiResponse)
+		hostCluster, _ = apiresp.Result.(HostCluster)
+	}
+	log.Infof("Successfully mapped host %d to host cluster %d", hostID, clusterID)
+	return hostCluster, nil
+}
+
+// MapVolumeToHost - Map volume with given volumeID to Host with given hostID
+func (c *ClientService) MapVolumeToHostCluster(hostClusterID, volumeID int) (luninfo LunInfo, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("map volume %d to host cluster %d", volumeID, hostClusterID)
+	uri := "api/rest/clusters/" + strconv.Itoa(hostClusterID) + "/luns?approved=true"
+	data := make(map[string]interface{})
+	data["volume_id"] = volumeID
+	resp, err := c.getJSONResponse(http.MethodPost, uri, data, &luninfo)
+	if err != nil {
+		// ignore logging for following error code
+		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
+			log.Errorf("error occured while mapping volume to host %v", err)
+		}
+		return luninfo, err
+	}
+	if luninfo == (LunInfo{}) {
+		apiresp := resp.(client.ApiResponse)
+		luninfo, _ = apiresp.Result.(LunInfo)
+	}
+	log.Infof("Successfully mapped volume %d to host cluster %d", volumeID, hostClusterID)
+	return luninfo, nil
 }
 
 // MapVolumeToHost - Map volume with given volumeID to Host with given hostID
@@ -484,7 +613,7 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunI
 			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("Map volume of %d to host %d", volumeID, hostID)
+	log.Infof("map volume %d to host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns?approved=true"
 	data := make(map[string]interface{})
 	data["volume_id"] = volumeID
@@ -493,8 +622,8 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunI
 	}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, data, &luninfo)
 	if err != nil {
-		// ignore loggin for following error code
-		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") || !strings.Contains(err.Error(), "LUN_EXISTS") {
+		// ignore logging for following error code
+		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
 			log.Errorf("error occured while mapping volume to host %v", err)
 		}
 		return luninfo, err
@@ -503,7 +632,7 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunI
 		apiresp := resp.(client.ApiResponse)
 		luninfo, _ = apiresp.Result.(LunInfo)
 	}
-	log.Infof("Successfully mapped volume of %d to host %d", volumeID, hostID)
+	log.Infof("Successfully mapped volume %d to host %d", volumeID, hostID)
 	return luninfo, nil
 }
 
@@ -515,7 +644,7 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 		}
 	}()
 	luns := []LunInfo{}
-	log.Infof("Get lun for volume %d and host %d", volumeID, hostID)
+	log.Infof("get lun for volume %d and host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
 	data := map[string]interface{}{"volume_id": volumeID}
 	resp, err := c.getResponseWithQueryString(uri, data, &luns)
@@ -530,7 +659,7 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 	if len(luns) > 0 {
 		luninfo = luns[0]
 	}
-	log.Infof("Got Lun %d for volumeID %d and host %d", luninfo.Lun, volumeID, hostID)
+	log.Infof("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
 	return luninfo, nil
 }
 
@@ -553,7 +682,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 		apiresp := resp.(client.ApiResponse)
 		luns, _ = apiresp.Result.([]LunInfo)
 	}
-	log.Infof("Got %d Luns for host %d", len(luns), hostID)
+	log.Infof("got %d Luns for host %d", len(luns), hostID)
 	return luninfo, nil
 }
 

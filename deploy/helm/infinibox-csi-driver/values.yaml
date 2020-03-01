@@ -16,6 +16,7 @@ csiDriverName : "infinibox-csi-driver"
 
 initiatorNamePrefix: iqn.2020-06.com.csi-driver-iscsi.infinidat
 
+hostClusterName: cluster1
 # Image paths 
 images:
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar

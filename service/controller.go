@@ -105,8 +105,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 		return
 	}
 	config := make(map[string]string)
-	config["nodeid"] = s.nodeID
-	config["nodeIPAddress"] = req.GetNodeId()
+	config["hostclustername"] = s.hostclustername
 	config["initiatorPrefix"] = s.initiatorPrefix
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
@@ -136,8 +135,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 		return
 	}
 	config := make(map[string]string)
-	config["nodeid"] = s.nodeID
-	config["nodeIPAddress"] = req.GetNodeId()
+	config["hostclustername"] = s.hostclustername
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("fail to initialise storage controller while ControllerUnpublishVolume " + volproto.StorageType)

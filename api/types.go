@@ -144,6 +144,23 @@ type NetworkSpaceProperty struct {
 	IscsiSecurityMethod string      `json:"iscsi_default_security_method,omitempty"`
 }
 
+type HostCluster struct {
+	ID    int    `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Hosts []Host `json:"hosts,omitempty"`
+}
+
+type Host struct {
+	ID            int    `json:"id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	HostClusterID int    `json:"host_cluster_id,omitempty"`
+}
+
+type HostPort struct {
+	HostID      int    `json:"host_id,omitempty"`
+	PortType    string `json:"type,omitempty"`
+	PortAddress string `json:"address,omitempty"`
+}
 type LunInfo struct {
 	HostClusterID int  `json:"host_cluster_id,omitempty"`
 	VolumeID      int  `json:"volume_id,omitempty"`
@@ -152,18 +169,6 @@ type LunInfo struct {
 	ID            int  `json:"id,omitempty"`
 	Lun           int  `json:"lun,omitempty"`
 }
-
-type Host struct {
-	ID   int    `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
-
-type HostPort struct {
-	HostID      int    `json:"host_id,omitempty"`
-	PortType    string `json:"type,omitempty"`
-	PortAddress string `json:"address,omitempty"`
-}
-
 type ExportFileSys struct {
 	FilesystemID        int64                    `json:"filesystem_id,omitempty"`
 	Name                string                   `json:"name,omitempty"`

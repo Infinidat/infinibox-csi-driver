@@ -230,7 +230,12 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		}
 		return nil
 	}
-	// load iscsi disk config from json file
+
+	if err := c.mounter.Unmount(targetPath); err != nil {
+		return err
+	}
+
+	//load iscsi disk config from json file
 	file := path.Join(targetPath, c.iscsiDisk.VolName+".json")
 	if _, err := os.Stat(file); err == nil {
 		connector, err := iscsi_lib.GetConnectorFromFile(file)
@@ -248,10 +253,6 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 			}
 		}
 		iscsi_lib.Disconnect(iqn, portals)
-	}
-
-	if err := c.mounter.Unmount(targetPath); err != nil {
-		return err
 	}
 
 	if err := os.RemoveAll(targetPath); err != nil {

@@ -65,6 +65,7 @@ type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
 	initiatorPrefix   string
+	hostclustername   string
 }
 
 //NewStorageController : To return specific implementation of storage
@@ -123,6 +124,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			return commonserv, err
 		}
 		commonserv.initiatorPrefix = config["initiatorPrefix"]
+		commonserv.hostclustername = config["hostclustername"]
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
@@ -154,6 +156,19 @@ func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 		return nil, err
 	}
 	return vols, nil
+}
+
+func (cs *commonservice) mapVolumeToHostCluster(hostClusterID, hostID, volumeID int) (luninfo api.LunInfo, err error) {
+	luninfo, err = cs.api.MapVolumeToHostCluster(hostClusterID, volumeID)
+	if err != nil {
+		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
+			luninfo, err = cs.api.GetLunByHostVolume(hostID, volumeID)
+		}
+		if err != nil {
+			return luninfo, err
+		}
+	}
+	return luninfo, nil
 }
 
 func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
@@ -193,6 +208,28 @@ func (cs *commonservice) mapVolumeToAllhost(currentHostID, volumeID int, lun int
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (cs *commonservice) unmapVolumeFromCluster(clusterName string, volumeID int) (err error) {
+	hostCluster, err := cs.api.GetClusterByName(clusterName)
+	if err != nil && !strings.Contains(err.Error(), "HOST_CLUSTER_NOT_FOUND") {
+		log.Error("host cluster is not found error ", err.Error())
+		return nil
+	}
+	if err != nil {
+		log.Error("failed to get host cluster with error", err.Error())
+		return err
+	}
+
+	err = cs.api.UnMapVolumeFromHostCluster(hostCluster.ID, volumeID)
+	if err != nil {
+		// ignoring following error
+		if strings.Contains(err.Error(), "HOST_CLUSTER_NOT_FOUND") || strings.Contains(err.Error(), "LUN_NOT_FOUND") || strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
+			return nil
+		}
+		return err
 	}
 	return nil
 }
@@ -239,6 +276,70 @@ func (cs *commonservice) updateMappingForNewHost(hostID int) error {
 		}
 	}
 	return nil
+}
+
+func (cs *commonservice) validateHostCluster(clusterName string) (*api.HostCluster, error) {
+	hostCluster, err := cs.api.GetClusterByName(clusterName)
+	if err != nil && !strings.Contains(err.Error(), "HOST_CLUSTER_NOT_FOUND") {
+		log.Error("failed to get host cluster with error", err.Error())
+		return nil, err
+	}
+	if hostCluster.Name == "" {
+		hostCluster, err = cs.api.CreateCluster(clusterName)
+		if err != nil {
+			log.Error("failed to create host cluster with error", err.Error())
+			return nil, err
+		}
+	}
+	return &hostCluster, nil
+}
+
+func (cs *commonservice) validateHost(clusterName, hostName, portName string) (*api.HostCluster, *api.Host, error) {
+	log.Info("Mapping volume to host")
+	host, err := cs.api.GetHostByName(hostName)
+	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+		log.Errorf("Failed to get host with error %v", err)
+		return nil, nil, err
+	}
+	hostCluster, err := cs.validateHostCluster(clusterName)
+	if err != nil {
+		return nil, nil, err
+	}
+	if host.Name == "" {
+		log.Info("Creating host with name ", hostName)
+		host, err = cs.api.CreateHost(hostName)
+		if err != nil {
+			log.Errorf("Failed to create host with error %v", err)
+			return nil, nil, err
+		}
+		if portName != "" {
+			log.Info("Creating host port with name ", portName)
+			_, err = cs.api.AddHostPort("ISCSI", portName, host.ID)
+			if err != nil {
+				log.Error("Failed to add host port with error %v", err)
+				return nil, nil, err
+			}
+		}
+		// log.Info("Updating host with existing luns fro host:", host.Name)
+		// err = cs.updateMappingForNewHost(host.ID)
+		// if err != nil {
+		// 	log.Errorf("Failed to update lun mapping for new host %s with error %v", hostName, err)
+		// 	return nil, err
+		// }
+	}
+	if host.HostClusterID != hostCluster.ID {
+		if host.HostClusterID != 0 {
+			log.Error("cannot publish volume to host %s , host is already mapped to host cluster other than %s", host.Name, hostCluster.Name)
+			return nil, nil, errors.New("host is already mapped to different cluster")
+		}
+		cluster, err := cs.api.MapHostToCluster(host.ID, hostCluster.ID)
+		if err != nil && !strings.Contains(err.Error(), "HOST_EXISTS") {
+			log.Error("failed to map host %s to host cluster %s ", host.Name, hostCluster.Name)
+			return nil, nil, err
+		}
+		hostCluster = &cluster
+	}
+	return hostCluster, &host, nil
 }
 
 func (cs *commonservice) deleteVolume(volumeID int) (err error) {

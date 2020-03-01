@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
-  name: infinibox-csi-driver
+  name: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
 spec:
   attachRequired: true
   podInfoOnMount: true

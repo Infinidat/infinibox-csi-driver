@@ -94,7 +94,6 @@ func (s *service) NodeGetVolumeStats(
 
 func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	volID := req.GetVolumeId()
-	log.Info("----------------------> NodeExpandVolume called ", volID)
 	if len(volID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
 	}

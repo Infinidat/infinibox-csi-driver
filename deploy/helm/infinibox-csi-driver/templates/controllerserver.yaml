@@ -163,11 +163,13 @@ spec:
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
-              value: {{ .Values.csiDriverName }}
+              value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: X_CSI_MODE
               value: controller
             - name: X_CSI_DEBUG
               value: "true"
+            - name: HOST_CLUSTER_NAME
+              value: {{ required "Provide host cluster (on infinibox) name to use " .Values.hostClusterName }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:

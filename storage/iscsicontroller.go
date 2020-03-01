@@ -257,48 +257,36 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	if len(nodeNameIP) != 2 {
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
 	}
-	nodeName := nodeNameIP[1]
-	log.Info("Mapping volume to host")
-	host, err := iscsi.cs.api.GetHostByName(nodeName)
+	hostName := nodeNameIP[1]
+
+	clusterName := iscsi.cs.hostclustername
+	log.Info("host is part of host cluster ", clusterName)
+
+	hostCluster, host, err := iscsi.cs.validateHost(clusterName, hostName, iscsi.cs.initiatorPrefix+":"+hostName)
 	if err != nil {
-		log.Errorf("Failed to get host with error %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
-	if host.Name == "" {
-		log.Info("Creating host with name ", nodeName)
-		host, err = iscsi.cs.api.CreateHost(nodeName)
-		if err == nil {
-			log.Info("Creating host port with name ", iscsi.cs.initiatorPrefix+":"+nodeName)
-			_, err = iscsi.cs.api.AddHostPort("ISCSI", iscsi.cs.initiatorPrefix+":"+nodeName, host.ID)
-			if err != nil {
-				log.Error("Failed to add host port with error %v", err)
-				return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
-			}
-			log.Info("Updating host with existing luns fro host:", host.Name)
-			err = iscsi.cs.updateMappingForNewHost(host.ID)
-			if err != nil {
-				log.Errorf("Failed to update lun mapping for new host %s with error %v", nodeName, err)
-				return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
-			}
-		}
-		if err != nil {
-			log.Errorf("Failed to get host with error %v", err)
-			return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
-		}
-	}
-	log.Info("mapping volume %d to host %s", volID, host.Name)
-	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
+	luninfo, err := iscsi.cs.mapVolumeToHostCluster(hostCluster.ID, host.ID, volID)
 	if err != nil {
 		log.Errorf("Failed to map volume to host with error %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
-	// map volume to all hosts
-	log.Info("mapping volume %d to all existing hosts", volID)
-	err = iscsi.cs.mapVolumeToAllhost(host.ID, luninfo.VolumeID, luninfo.Lun)
-	if err != nil {
-		log.Errorf("Failed to map volume to all host with error %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
-	}
+
+	// log.Info("mapping volume %d to host %s", volID, host.Name)
+	// luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
+	// if err != nil {
+	// 	log.Errorf("Failed to map volume to host with error %v", err)
+	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// }
+	// // map volume to all hosts
+	// log.Info("mapping volume %d to all existing hosts", volID)
+	// err = iscsi.cs.mapVolumeToAllhost(host.ID, luninfo.VolumeID, luninfo.Lun)
+	// if err != nil {
+	// 	log.Errorf("Failed to map volume to all host with error %v", err)
+	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// }
+
+	// map volume to cluster
 
 	volCtx := make(map[string]string)
 	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
@@ -315,8 +303,9 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		return nil, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
+	clusterName := iscsi.cs.hostclustername
 	log.Info("UnMapping volume from host")
-	err = iscsi.cs.unmapVolumeFromAllhost(volID)
+	err = iscsi.cs.unmapVolumeFromCluster(clusterName, volID)
 	if err != nil {
 		log.Errorf("Failed to unmap volume from all host with error %v", err)
 		return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
