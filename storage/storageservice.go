@@ -294,7 +294,16 @@ func (cs *commonservice) validateHostCluster(clusterName string) (*api.HostClust
 	return &hostCluster, nil
 }
 
-func (cs *commonservice) validateHost(clusterName, hostName, portName string) (*api.HostCluster, *api.Host, error) {
+func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
+	_, err := cs.api.AddHostPort(portType, portName, hostID)
+	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
+		log.Error("Failed to add host port with error %v", err)
+		return err
+	}
+	return nil
+}
+
+func (cs *commonservice) validateHost(clusterName, hostName string) (*api.HostCluster, *api.Host, error) {
 	log.Info("Mapping volume to host")
 	host, err := cs.api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
@@ -312,14 +321,15 @@ func (cs *commonservice) validateHost(clusterName, hostName, portName string) (*
 			log.Errorf("Failed to create host with error %v", err)
 			return nil, nil, err
 		}
-		if portName != "" {
-			log.Info("Creating host port with name ", portName)
-			_, err = cs.api.AddHostPort("ISCSI", portName, host.ID)
-			if err != nil {
-				log.Error("Failed to add host port with error %v", err)
-				return nil, nil, err
-			}
-		}
+		// if portName != "" {
+		// 	log.Info("Creating host port with name ", portName)
+		// 	_, err = cs.api.AddHostPort("ISCSI", portName, host.ID)
+		// 	if err != nil {
+		// 		log.Error("Failed to add host port with error %v", err)
+		// 		return nil, nil, err
+		// 	}
+		// }
+
 		// log.Info("Updating host with existing luns fro host:", host.Name)
 		// err = cs.updateMappingForNewHost(host.ID)
 		// if err != nil {

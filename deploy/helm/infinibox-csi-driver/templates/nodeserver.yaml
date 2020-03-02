@@ -106,6 +106,9 @@ spec:
             - name: pods-path
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
+            - name: iscsi-path
+              mountPath: /etc/iscsi
+              mountPropagation: "Bidirectional"
             - name: dev
               mountPath: /dev
         - name: registrar
@@ -150,6 +153,10 @@ spec:
         - name: pods-path
           hostPath:
             path: /var/lib/kubelet/pods
+            type: Directory
+        - name: iscsi-path
+          hostPath:
+            path: /etc/iscsi
             type: Directory
         - name: dev
           hostPath:

@@ -249,7 +249,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	volproto, err := validateStorageType(req.GetVolumeId())
 	if err != nil {
 		log.Errorf("Failed to validate storage type %v", err)
-		return nil, errors.New("error getting volume id")
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
 
@@ -261,8 +261,8 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	clusterName := iscsi.cs.hostclustername
 	log.Info("host is part of host cluster ", clusterName)
-
-	hostCluster, host, err := iscsi.cs.validateHost(clusterName, hostName, iscsi.cs.initiatorPrefix+":"+hostName)
+	//portName:= iscsi.cs.initiatorPrefix+":"+hostName
+	hostCluster, host, err := iscsi.cs.validateHost(clusterName, hostName)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
@@ -290,6 +290,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	volCtx := make(map[string]string)
 	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
+	volCtx["hostID"] = strconv.Itoa(luninfo.HostID)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: volCtx,
 	}, nil
