@@ -94,9 +94,9 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             - name: ISCSI_INITIATOR_PREFIX
-              value: {{ required "Provide Prefix for Initiator"  .Values.initiatorNamePrefix }}
+              value: {{ .Values.initiatorNamePrefix }}
             - name: ISCSI_INITIATOR_NAME
-              value: {{ required "Provide Initiator name"  .Values.initiatorNamePrefix }}:$(NODE_IP_ADDRESS)
+              value: {{ .Values.initiatorNamePrefix }}:$(NODE_IP_ADDRESS)
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
@@ -105,6 +105,9 @@ spec:
               mountPropagation: "Bidirectional"
             - name: pods-path
               mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - name: iscsi-path
+              mountPath: /etc/iscsi
               mountPropagation: "Bidirectional"
             - name: dev
               mountPath: /dev
@@ -150,6 +153,10 @@ spec:
         - name: pods-path
           hostPath:
             path: /var/lib/kubelet/pods
+            type: Directory
+        - name: iscsi-path
+          hostPath:
+            path: /etc/iscsi
             type: Directory
         - name: dev
           hostPath:
