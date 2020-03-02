@@ -150,6 +150,11 @@ spec:
             - name: socket-dir
               mountPath: /var/run/csi      
         - name: driver
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: Always
           env:
@@ -158,17 +163,19 @@ spec:
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
-              value: {{ .Values.csiDriverName }}
+              value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: X_CSI_MODE
               value: controller
             - name: X_CSI_DEBUG
               value: "true"
+            - name: HOST_CLUSTER_NAME
+              value: {{ required "Provide host cluster (on infinibox) name to use " .Values.hostClusterName }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: ISCSI_INITIATOR_PREFIX
-              value: {{ required "Provide Prefix for Initiator"  .Values.initiatorNamePrefix }}
+              value: {{ .Values.initiatorNamePrefix }}
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi

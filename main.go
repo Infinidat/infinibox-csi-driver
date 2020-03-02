@@ -33,6 +33,9 @@ func getConfigParams() map[string]string {
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
 		configParams["drivername"] = drivername
 	}
+	if hostClusterName, ok := csictx.LookupEnv(context.Background(), "HOST_CLUSTER_NAME"); ok {
+		configParams["hostclustername"] = hostClusterName
+	}
 	if logLevel, ok := csictx.LookupEnv(context.Background(), "APP_LOG_LEVEL"); ok {
 		configureLog(logLevel)
 	}
@@ -51,7 +54,8 @@ func configureLog(logLevel string) {
 		ll = log.InfoLevel // to be set to error level
 	}
 	log.SetLevel(ll)
-	log.Debug("Logging  level set to ", log.GetLevel().String())
+	log.Info("Logging  level set to ", log.GetLevel().String())
+
 }
 
 const usage = `   `

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -114,6 +115,10 @@ func (iscsi *iscsistorage) AttachDisk(d iscsiDiskMounter) (mntPath string, err e
 	log.Info("Called AttachDisk")
 	log.WithFields(log.Fields{"iqn": d.iscsiDisk.Iqn, "lun": d.iscsiDisk.lun,
 		"DoCHAPDiscovery": d.connector.DoCHAPDiscovery}).Info("Mounting Volume")
+
+	if "debug" == log.GetLevel().String() {
+		//iscsi_lib.EnableDebugLogging(log.New().Writer())
+	}
 
 	devicePath, err := iscsi_lib.Connect(*d.connector)
 	if err != nil {
@@ -226,7 +231,12 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		}
 		return nil
 	}
-	// load iscsi disk config from json file
+
+	if err := c.mounter.Unmount(targetPath); err != nil {
+		return err
+	}
+
+	//load iscsi disk config from json file
 	file := path.Join(targetPath, c.iscsiDisk.VolName+".json")
 	if _, err := os.Stat(file); err == nil {
 		connector, err := iscsi_lib.GetConnectorFromFile(file)
@@ -244,10 +254,6 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 			}
 		}
 		iscsi_lib.Disconnect(iqn, portals)
-	}
-
-	if err := c.mounter.Unmount(targetPath); err != nil {
-		return err
 	}
 
 	if err := os.RemoveAll(targetPath); err != nil {
@@ -346,8 +352,8 @@ func buildISCSIConnector(iscsiInfo *iscsiDisk) *iscsi_lib.Connector {
 		DiscoverySecrets: iscsiInfo.discoverySecret,
 		Lun:              iscsiInfo.lun,
 		Interface:        iscsiInfo.Iface,
-		CheckInterval:    5,
-		RetryCount:       50,
+		CheckInterval:    1,
+		RetryCount:       10,
 	}
 
 	if iscsiInfo.sessionSecret != (iscsi_lib.Secrets{}) {
@@ -457,10 +463,37 @@ func parseDiscoverySecret(secretParams map[string]string) (iscsi_lib.Secrets, er
 }
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return &csi.NodeStageVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeStageVolume not implemented")
+	hostID := req.GetPublishContext()["hostID"]
+	hstID, _ := strconv.Atoi(hostID)
+	//validate host exists
+	if hstID < 1 {
+		log.Error("hostID %d is not valid host ID")
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
+	}
+	initiatorName := getInitiatorName()
+	if initiatorName != "" {
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "Inititator name not found")
+	}
+	err := iscsi.cs.AddPortForHost(hstID, "ISCSI", initiatorName)
+	if err != nil {
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeUnstageVolume not implemented")
+}
+
+func getInitiatorName() string {
+	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
+	out, err := exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		fmt.Sprintf("Failed to execute command: %s", cmd)
+	}
+	initiatorName := string(out)
+
+	arr := strings.Split(initiatorName, "=")
+	return arr[1]
 }
 
 func (iscsi *iscsistorage) NodeGetCapabilities(

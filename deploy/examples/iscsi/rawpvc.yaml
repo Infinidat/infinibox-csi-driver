@@ -5,7 +5,7 @@ metadata:
   namespace: infi
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   volumeMode: Block
   resources:
     requests:

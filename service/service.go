@@ -21,36 +21,16 @@ const (
 type service struct {
 	//service
 	apiclient api.Client
-
 	// parameters
-	config              ServiceConfig
 	mode                string
 	storagePoolIDToName map[int64]string
 	nodeID              string
 	maxVolumesPerNode   int64
 	driverName          string
 	nodeIPAddress       string
-	blockMountDir       string
 	nodeName            string
 	initiatorPrefix     string
-}
-
-// Config defines service configuration options.
-type ServiceConfig struct {
-	EndPoint                   string
-	UserName                   string
-	Password                   string
-	max_fs                     string
-	PoolName                   string
-	Thick                      bool
-	ssd_enabled                string
-	provision_type             string
-	Insecure                   bool
-	DisableCerts               bool   // used for unit testing only
-	Lsmod                      string // used for unit testing only
-	EnableSnapshotCGDelete     bool   // when snapshot deleted, enable deleting of all snaps in the CG of the snapshot
-	EnableListVolumesSnapshots bool   // when listing volumes, include snapshots and volumes
-
+	hostclustername     string
 }
 
 // Service is the CSI Mock service provider.
@@ -70,6 +50,7 @@ func New(configParam map[string]string) Service {
 		nodeIPAddress:       configParam["nodeIPAddress"],
 		nodeName:            configParam["nodeName"],
 		initiatorPrefix:     configParam["initiatorPrefix"],
+		hostclustername:     configParam["hostclustername"],
 		storagePoolIDToName: map[int64]string{},
 		apiclient:           &api.ClientService{},
 	}
