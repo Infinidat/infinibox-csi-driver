@@ -79,8 +79,20 @@ func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) 
 		NodeId: s.nodeID,
 	}, nil
 }
-func (s *service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return &csi.NodeStageVolumeResponse{}, nil
+
+func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	voltype := req.GetVolumeId()
+	log.Infof("NodeStageVolume called with volume name", voltype)
+	storagePorotcol := req.GetVolumeContext()["storage_protocol"]
+	config := make(map[string]string)
+	config["nodeIPAddress"] = s.nodeIPAddress
+	// get operator
+	storageNode, err := storage.NewStorageNode(storagePorotcol, config, req.GetSecrets())
+	if storageNode != nil {
+		return storageNode.NodeStageVolume(ctx, req)
+	}
+	log.Error("Error Occured: ", err)
+	return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 }
 
 func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {

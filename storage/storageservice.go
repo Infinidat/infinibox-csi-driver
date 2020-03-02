@@ -89,7 +89,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 
 //NewStorageNode : To return specific implementation of storage
 func NewStorageNode(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
-	comnserv, err := buildCommonService(nil, nil)
+	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.TrimSpace(storageProtocol)
 		if storageProtocol == "fc" {
