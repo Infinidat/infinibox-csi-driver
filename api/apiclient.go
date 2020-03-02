@@ -353,7 +353,12 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 	log.Info("Create a snapshot : ", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapResp)
+	valumeParameter := make(map[string]interface{})
+	valumeParameter["parent_id"] = snapshotParam.ParentID
+	valumeParameter["name"] = snapshotParam.SnapshotName
+	valumeParameter["write_protected"] = snapshotParam.WriteProtected
+	valumeParameter["ssd_enabled"] = snapshotParam.SsdEnabled
+	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
 	if err != nil {
 		return nil, err
 	}
