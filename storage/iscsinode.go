@@ -463,28 +463,39 @@ func parseDiscoverySecret(secretParams map[string]string) (iscsi_lib.Secrets, er
 }
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	log.Info("NodeStageVolume called with ", req.GetPublishContext())
 	hostID := req.GetPublishContext()["hostID"]
 	hstID, _ := strconv.Atoi(hostID)
+	log.Infof("publishig volume to host id is %s", hostID)
 	//validate host exists
 	if hstID < 1 {
 		log.Error("hostID %d is not valid host ID")
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
 	}
 	initiatorName := getInitiatorName()
-	if initiatorName != "" {
+	if initiatorName == "" {
+		log.Errorf("initiator name not found")
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "Inititator name not found")
 	}
+	log.Info("try to create port for host")
 	err := iscsi.cs.AddPortForHost(hstID, "ISCSI", initiatorName)
 	if err != nil {
+		log.Errorf("error creating host port ", err)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeUnstageVolume not implemented")
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func getInitiatorName() string {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI getInitiatorName " + fmt.Sprint(res))
+		}
+	}()
 	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {

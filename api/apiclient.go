@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
-	"net"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -353,7 +352,12 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 	log.Info("Create a snapshot : ", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapResp)
+	valumeParameter := make(map[string]interface{})
+	valumeParameter["parent_id"] = snapshotParam.ParentID
+	valumeParameter["name"] = snapshotParam.SnapshotName
+	valumeParameter["write_protected"] = snapshotParam.WriteProtected
+	valumeParameter["ssd_enabled"] = snapshotParam.SsdEnabled
+	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
 	if err != nil {
 		return nil, err
 	}
@@ -689,6 +693,59 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 	return luninfo, nil
 }
 
+//GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
+func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetVolumeSnapshotByParentID Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	voluri := "/api/rest/volumes/"
+	volumes := []Volume{}
+	queryParam := make(map[string]interface{})
+	queryParam["parent_id"] = volumeID
+	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
+	if err != nil {
+		log.Errorf("fail to check GetVolumeSnapshotByParentID %v", err)
+		return &volumes, err
+	}
+	if len(volumes) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		volumes, _ = apiresp.Result.([]Volume)
+	}
+	return &volumes, err
+}
+
+//UpdateVolume : update volume
+func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("UpdateVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("Update volume : ", volumeID)
+	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
+	volumeResp := Volume{}
+
+	resp, err := c.getJSONResponse(http.MethodPut, uri, volume, &volumeResp)
+	if err != nil {
+		log.Errorf("Error occured while updating volume : %s", err)
+		return nil, err
+	}
+
+	if volumeResp == (Volume{}) {
+		apiresp := resp.(client.ApiResponse)
+		volumeResp, _ = apiresp.Result.(Volume)
+	}
+	log.Info("Updated volume : ", volumeID)
+	return &volumeResp, nil
+}
+
+// **************************************************Util Methods*********************************************
+//                                   generic methods to do reset called
+//                                   consume by other method intent to do rese calls
 // **************************************************Util Methods*********************************************
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
 	log.Infof("Request made for method: %s and apiuri %s", method, apiuri)
@@ -761,72 +818,17 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 	if c.SecretsMap == nil {
 		return hostconfig, errors.New("Secret not found")
 	}
-	if c.SecretsMap["hosturl"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
-
-		hosturl, err := url.ParseRequestURI(c.SecretsMap["hosturl"])
+	if c.SecretsMap["hostname"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
+		hosturl, err := url.ParseRequestURI(c.SecretsMap["hostname"])
 		if err != nil {
-			if net.ParseIP(c.SecretsMap["hosturl"]) != nil {
-				hostconfig.ApiHost = "https://" + c.SecretsMap["hosturl"] + "/"
-			} else {
-				return hostconfig, err
-			}
-			log.Info("setting url as ", hostconfig.ApiHost)
+			hostconfig.ApiHost = "https://" + c.SecretsMap["hostname"] + "/"
 		} else {
 			hostconfig.ApiHost = hosturl.String()
 		}
+		log.Info("setting url as ", hostconfig.ApiHost)
 		hostconfig.UserName = c.SecretsMap["username"]
 		hostconfig.Password = c.SecretsMap["password"]
 		return hostconfig, nil
 	}
 	return hostconfig, errors.New("host configuration is not valid")
-}
-
-//GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
-func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetVolumeSnapshotByParentID Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
-	voluri := "/api/rest/volumes/"
-	volumes := []Volume{}
-	queryParam := make(map[string]interface{})
-	queryParam["parent_id"] = volumeID
-	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
-	if err != nil {
-		log.Errorf("fail to check GetVolumeSnapshotByParentID %v", err)
-		return &volumes, err
-	}
-	if len(volumes) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		volumes, _ = apiresp.Result.([]Volume)
-	}
-	return &volumes, err
-}
-
-//UpdateVolume : update volume
-func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("UpdateVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
-	log.Info("Update volume : ", volumeID)
-	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
-	volumeResp := Volume{}
-
-	resp, err := c.getJSONResponse(http.MethodPut, uri, volume, &volumeResp)
-	if err != nil {
-		log.Errorf("Error occured while updating volume : %s", err)
-		return nil, err
-	}
-
-	if volumeResp == (Volume{}) {
-		apiresp := resp.(client.ApiResponse)
-		volumeResp, _ = apiresp.Result.(Volume)
-	}
-	log.Info("Updated volume : ", volumeID)
-	return &volumeResp, nil
 }
