@@ -486,7 +486,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeUnstageVolume not implemented")
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func getInitiatorName() string {
