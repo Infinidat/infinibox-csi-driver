@@ -502,7 +502,8 @@ func getInitiatorName() string {
 		fmt.Sprintf("Failed to execute command: %s", cmd)
 	}
 	initiatorName := string(out)
-
+	initiatorName = strings.TrimSuffix(initiatorName, "\n")
+	log.Info("host initiator name %s ", initiatorName)
 	arr := strings.Split(initiatorName, "=")
 	return arr[1]
 }
