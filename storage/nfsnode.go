@@ -14,10 +14,11 @@ import (
 )
 
 func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeStageVolume not implemented")
+
+	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodeUnstageVolume not implemented")
+	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
