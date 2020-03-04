@@ -81,3 +81,11 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 	log.Debugf("pod successfully unmounted from volumeID %s", req.GetVolumeId())
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
+
+func (treeq *treeqstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+
+	return &csi.NodeStageVolumeResponse{}, nil
+}
+func (treeq *treeqstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	return &csi.NodeUnstageVolumeResponse{}, nil
+}
