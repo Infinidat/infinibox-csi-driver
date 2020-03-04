@@ -146,7 +146,7 @@ func (filesystem *FilesystemService) setParameter(config map[string]string, capa
 	filesystem.pVName = pvName
 	filesystem.configmap = config
 	filesystem.capacity = capacity
-	filesystem.exportpath = path.Join(dataRoot, pvName)
+	filesystem.exportpath = "/" + pvName
 }
 
 //CreateTreeqVolume create volumne method

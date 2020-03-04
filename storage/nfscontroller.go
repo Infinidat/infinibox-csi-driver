@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
-	"path"
 	"strconv"
 	"strings"
 
@@ -61,7 +60,6 @@ type MetaData struct {
 type accessType int
 
 const (
-	dataRoot               = "/fs"
 	mountAccess accessType = iota
 	blockAccess
 
@@ -117,7 +115,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	nfs.pVName = pvName
 	nfs.configmap = config
 	nfs.capacity = capacity
-	nfs.exportpath = path.Join(dataRoot, pvName) //TODO: export path prefix need to add here
+	nfs.exportpath = "/" + pvName
 	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
 		log.Errorf("fail to get networkspace ipaddress %v", err)
