@@ -490,10 +490,16 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 }
 
 func getInitiatorName() string {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI getInitiatorName " + fmt.Sprint(res))
+		}
+	}()
 	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		log.Errorf("Failed to execute command: %s", cmd)
+		fmt.Sprintf("Failed to execute command: %s", cmd)
 	}
 	initiatorName := string(out)
 	initiatorName = strings.TrimSuffix(initiatorName, "\n")

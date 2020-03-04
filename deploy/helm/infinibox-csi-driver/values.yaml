@@ -42,13 +42,13 @@ images:
 # TODO : Remove following parameters
 
 Infinibox:
-  SecretName: infinibox-creds
-  username: admin
+  SecretName: "infinibox-creds"
+  username: "admin"
   password: "123456"
-  hosturl: 172.17.35.61
+  hostname: "172.17.35.61"
 
 Chap:
-  SessionAuthUsername: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
+  SessionAuthUsername: "iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu"
   SessionAuthPassword: "0.000us07boftjo"
   SessionAuthUsername_In: ""
   SessionAuthPassword_In: ""

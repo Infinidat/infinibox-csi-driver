@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"infinibox-csi-driver/storage"
 	"time"
 
@@ -12,6 +14,12 @@ import (
 )
 
 func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodePublishVolume " + fmt.Sprint(res))
+		}
+	}()
 	voltype := req.GetVolumeId()
 	log.Infof("NodePublishVolume called with volume name", voltype)
 	storagePorotcol := req.GetVolumeContext()["storage_protocol"]
@@ -29,6 +37,12 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 }
 
 func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodeUnpublishVolume " + fmt.Sprint(res))
+		}
+	}()
 	log.Infof("NodeUnpublishVolume called with volume name", req.GetVolumeId())
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
@@ -81,6 +95,12 @@ func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) 
 }
 
 func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodeStageVolume " + fmt.Sprint(res))
+		}
+	}()
 	voltype := req.GetVolumeId()
 	log.Infof("NodeStageVolume called with volume name", voltype)
 	storagePorotcol := req.GetVolumeContext()["storage_protocol"]
@@ -105,6 +125,12 @@ func (s *service) NodeGetVolumeStats(
 }
 
 func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodePublishVolume " + fmt.Sprint(res))
+		}
+	}()
 	volID := req.GetVolumeId()
 	if len(volID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID not provided")
