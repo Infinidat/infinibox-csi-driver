@@ -98,6 +98,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	//Adding the the request parameter into Map config
 	config := req.GetParameters()
 	pvName := req.GetName()
+
 	log.Debugf("Creating fileystem %s of nfs protocol ", pvName)
 	validationStatus, validationStatusMap := validateParameter(config)
 	if !validationStatus {
@@ -294,6 +295,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	}()
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = nfs.pVName
+	metadata["host.created_by"] = nfs.cs.GetCreatedBy()
 
 	_, err = nfs.cs.api.AttachMetadataToObject(nfs.fileSystemID, metadata)
 	if err != nil {
@@ -406,12 +408,12 @@ func (nfs *nfsstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.Crea
 	}
 
 	nfs.configmap["ipAddress"] = (*infinidatVol).IpAddress
-	nfs.configmap["volID"] = (*infinidatVol).VolID
-	nfs.configmap["volSize"] = strconv.Itoa(int((*infinidatVol).VolSize))
+	////nfs.configmap["volID"] = (*infinidatVol).VolID
+	////nfs.configmap["volSize"] = strconv.Itoa(int((*infinidatVol).VolSize))
 	nfs.configmap["exportID"] = strconv.Itoa(int((*infinidatVol).ExportID))
-	nfs.configmap["fileSystemID"] = strconv.Itoa(int((*infinidatVol).FileSystemID))
+	////nfs.configmap["fileSystemID"] = strconv.Itoa(int((*infinidatVol).FileSystemID))
 	nfs.configmap["volPathd"] = (*infinidatVol).VolPath
-	nfs.configmap["exportBlock"] = (*infinidatVol).ExportBlock
+	////nfs.configmap["exportBlock"] = (*infinidatVol).ExportBlock
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{

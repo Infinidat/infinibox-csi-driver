@@ -22,6 +22,9 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	//TODO: validate the required parameter
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
+	configparams["driverversion"] = s.driverVersion
+
+	log.Errorf("----------------->>>> %v", configparams)
 	storageprotocol := req.GetParameters()["storage_protocol"]
 
 	log.Infof("In CreateVolume method nodeid: %s, storageprotocols %s", s.nodeID, storageprotocol)
@@ -107,6 +110,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	config := make(map[string]string)
 	config["hostclustername"] = s.hostclustername
 	config["initiatorPrefix"] = s.initiatorPrefix
+
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("fail to initialise storage controller while ControllerPublishVolume " + volproto.StorageType)

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"infinibox-csi-driver/api/clientgo"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
 	csictx "github.com/rexray/gocsi/context"
@@ -66,6 +68,7 @@ type commonservice struct {
 	storagePoolIdName map[int64]string
 	initiatorPrefix   string
 	hostclustername   string
+	driverversion     string
 }
 
 //NewStorageController : To return specific implementation of storage
@@ -125,6 +128,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		}
 		commonserv.initiatorPrefix = config["initiatorPrefix"]
 		commonserv.hostclustername = config["hostclustername"]
+		commonserv.driverversion = config["driverversion"]
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil
@@ -474,4 +478,20 @@ func getRandomIndex(max int) int {
 	min := 0
 	index := rand.Intn(max-min) + min
 	return index
+}
+
+func (cs *commonservice) GetCreatedBy() string {
+	var createdBy string
+	createdBy = "CSI/" + cs.driverversion
+	k8version := getClusterVersion()
+	if k8version != "" {
+		createdBy = "CSI/" + k8version + "/" + cs.driverversion
+	}
+	return createdBy
+}
+
+func getClusterVersion() string {
+	cl := clientgo.BuildClient()
+	version, _ := cl.GetClusterVerion()
+	return version
 }
