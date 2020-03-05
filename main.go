@@ -33,6 +33,9 @@ func getConfigParams() map[string]string {
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
 		configParams["drivername"] = drivername
 	}
+	if driverversion, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_VERSION"); ok {
+		configParams["driverversion"] = driverversion
+	}
 	if hostClusterName, ok := csictx.LookupEnv(context.Background(), "HOST_CLUSTER_NAME"); ok {
 		configParams["hostclustername"] = hostClusterName
 	}

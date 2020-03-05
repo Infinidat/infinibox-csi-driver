@@ -27,6 +27,7 @@ type service struct {
 	nodeID              string
 	maxVolumesPerNode   int64
 	driverName          string
+	driverVersion       string
 	nodeIPAddress       string
 	nodeName            string
 	initiatorPrefix     string
@@ -51,6 +52,7 @@ func New(configParam map[string]string) Service {
 		nodeName:            configParam["nodeName"],
 		initiatorPrefix:     configParam["initiatorPrefix"],
 		hostclustername:     configParam["hostclustername"],
+		driverVersion:       configParam["driverversion"],
 		storagePoolIDToName: map[int64]string{},
 		apiclient:           &api.ClientService{},
 	}
@@ -88,11 +90,9 @@ func (s *service) validateExpandVolumeRequest(req *csi.ControllerExpandVolumeReq
 	if req.GetVolumeId() == "" {
 		return status.Error(codes.InvalidArgument, "Volume ID cannot be empty")
 	}
-
 	capRange := req.GetCapacityRange()
 	if capRange == nil {
 		return status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
 	}
-
 	return nil
 }

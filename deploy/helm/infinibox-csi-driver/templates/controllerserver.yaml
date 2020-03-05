@@ -164,6 +164,8 @@ spec:
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
               value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
+            - name: CSI_DRIVER_VERSION
+              value: {{ required "Provide CSI Driver version"  .Values.csiDriverVersion }}
             - name: X_CSI_MODE
               value: controller
             - name: X_CSI_DEBUG

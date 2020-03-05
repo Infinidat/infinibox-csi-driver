@@ -279,6 +279,7 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 	}()
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = filesystem.pVName
+	metadata["host.created_by"] = filesystem.cs.GetCreatedBy()
 
 	_, err = filesystem.cs.api.AttachMetadataToObject(filesystem.fileSystemID, metadata)
 	if err != nil {
