@@ -79,8 +79,6 @@ spec:
               value: node
             - name: X_CSI_DEBUG
               value: "true"
-            - name: BLOCK_MOUNT_DIR
-              value: "/var/lib/kubelet/plugins/infinibox.infinidat.com/disks"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
@@ -93,10 +91,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: ISCSI_INITIATOR_PREFIX
-              value: {{ .Values.initiatorNamePrefix }}
-            - name: ISCSI_INITIATOR_NAME
-              value: {{ .Values.initiatorNamePrefix }}:$(NODE_IP_ADDRESS)
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
@@ -106,8 +100,8 @@ spec:
             - name: pods-path
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
-            - name: iscsi-path
-              mountPath: /etc/iscsi
+            - name: host-dir
+              mountPath: /host
               mountPropagation: "Bidirectional"
             - name: dev
               mountPath: /dev
@@ -154,11 +148,11 @@ spec:
           hostPath:
             path: /var/lib/kubelet/pods
             type: Directory
-        - name: iscsi-path
-          hostPath:
-            path: /etc/iscsi
-            type: Directory
         - name: dev
           hostPath:
             path: /dev
+            type: Directory
+        - name: host-dir
+          hostPath:
+            path: /
             type: Directory
