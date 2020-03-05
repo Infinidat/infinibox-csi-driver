@@ -20,7 +20,7 @@ const (
 	MAXFILESYSTEMS         = "max_filesystems"
 	MAXFILESYSTEMSIZE      = "max_filesystem_size"
 	UNIXPERMISSION         = "nfs_unix_permissions"
-	TREEQPATHPREFIX        = "treeq_path_prefix"
+	FSPREFIX               = "fs_prefix"
 
 	//Treeq count
 	TREEQCOUNT = "host.k8s.treeqs"
@@ -146,7 +146,7 @@ func (filesystem *FilesystemService) setParameter(config map[string]string, capa
 	filesystem.pVName = pvName
 	filesystem.configmap = config
 	filesystem.capacity = capacity
-	filesystem.exportpath = "/" + pvName
+	filesystem.exportpath = "/" + filesystem.pVName
 }
 
 //CreateTreeqVolume create volumne method
@@ -311,7 +311,17 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 	ssd, _ := strconv.ParseBool(ssdEnabled)
 	mapRequest := make(map[string]interface{})
 	mapRequest["pool_id"] = filesystem.poolID
-	mapRequest["name"] = filesystem.pVName
+
+	var treeqFileSystemName string
+	if prefix, ok := filesystem.configmap[FSPREFIX]; ok {
+		pvSplit := strings.Split(filesystem.pVName, "-")
+		if len(pvSplit) == 2 {
+			treeqFileSystemName = prefix + pvSplit[1]
+			filesystem.exportpath = "/" + treeqFileSystemName
+		}
+	}
+
+	mapRequest["name"] = treeqFileSystemName
 	mapRequest["ssd_enabled"] = ssd
 	mapRequest["provtype"] = strings.ToUpper(filesystem.configmap["provision_type"])
 	mapRequest["size"] = filesystem.capacity
@@ -435,18 +445,9 @@ func convertToByte(size string) (bytes int64, err error) {
 	return
 }
 
-func (filesystem *FilesystemService) getTreeqPath() string {
-	prefix := path.Join("/", filesystem.pVName)
-	if prefix, ok := filesystem.configmap[TREEQPATHPREFIX]; ok {
-		prefix = path.Join("/", prefix+filesystem.pVName)
-		return prefix
-	}
-	return prefix
-}
-
 func (filesystem *FilesystemService) getTreeParameters() map[string]interface{} {
 	treeqParameter := make(map[string]interface{})
-	treeqParameter["path"] = filesystem.getTreeqPath()
+	treeqParameter["path"] = path.Join("/", filesystem.pVName)
 	treeqParameter["name"] = filesystem.pVName
 	treeqParameter["hard_capacity"] = filesystem.capacity
 	treeqParameter["mode"] = filesystem.getTreeModePermission()
