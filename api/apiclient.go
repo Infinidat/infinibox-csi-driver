@@ -137,9 +137,8 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
 	if err != nil {
 		if !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-
+			log.Errorf("error adding host port : %s error : %v", portAddress, err)
 		}
-		log.Errorf("error adding host port : %s error : %v", portAddress, err)
 		return hostPort, err
 	}
 	if reflect.DeepEqual(hostPort, (HostPort{})) {

@@ -290,7 +290,11 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	volCtx := make(map[string]string)
 	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
+<<<<<<< HEAD
+	volCtx["hostID"] = strconv.Itoa(luninfo.HostID)
+=======
 	volCtx["hostID"] = strconv.Itoa(host.ID)
+>>>>>>> 239b5e4af5f398c88b769c826e4651faf38f3c1e
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: volCtx,
 	}, nil
