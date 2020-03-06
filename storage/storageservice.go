@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/helper"
 	"math/rand"
 	"strconv"
 	"strings"
 	"time"
-
-	"infinibox-csi-driver/api/clientgo"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
@@ -301,7 +300,7 @@ func (cs *commonservice) validateHostCluster(clusterName string) (*api.HostClust
 func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
 	_, err := cs.api.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-		log.Error("Failed to add host port with error %v", err)
+		log.Errorf("Failed to add host port with error %v", err)
 		return err
 	}
 	return nil
@@ -343,12 +342,12 @@ func (cs *commonservice) validateHost(clusterName, hostName string) (*api.HostCl
 	}
 	if host.HostClusterID != hostCluster.ID {
 		if host.HostClusterID != 0 {
-			log.Error("cannot publish volume to host %s , host is already mapped to host cluster other than %s", host.Name, hostCluster.Name)
+			log.Errorf("cannot publish volume to host %s , host is already mapped to host cluster other than %s", host.Name, hostCluster.Name)
 			return nil, nil, errors.New("host is already mapped to different cluster")
 		}
 		cluster, err := cs.api.MapHostToCluster(host.ID, hostCluster.ID)
 		if err != nil && !strings.Contains(err.Error(), "HOST_EXISTS") {
-			log.Error("failed to map host %s to host cluster %s ", host.Name, hostCluster.Name)
+			log.Errorf("failed to map host %s to host cluster %s ", host.Name, hostCluster.Name)
 			return nil, nil, err
 		}
 		hostCluster = &cluster

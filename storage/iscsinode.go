@@ -469,7 +469,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	log.Infof("publishig volume to host id is %s", hostID)
 	//validate host exists
 	if hstID < 1 {
-		log.Error("hostID %d is not valid host ID")
+		log.Errorf("hostID %d is not valid host ID", hstID)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
 	}
 	initiatorName := getInitiatorName()
@@ -480,7 +480,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	log.Info("try to create port for host")
 	err := iscsi.cs.AddPortForHost(hstID, "ISCSI", initiatorName)
 	if err != nil {
-		log.Errorf("error creating host port ", err)
+		log.Error("error creating host port ", err)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	return &csi.NodeStageVolumeResponse{}, nil
@@ -503,7 +503,7 @@ func getInitiatorName() string {
 	}
 	initiatorName := string(out)
 	initiatorName = strings.TrimSuffix(initiatorName, "\n")
-	log.Info("host initiator name %s ", initiatorName)
+	log.Infof("host initiator name %s ", initiatorName)
 	arr := strings.Split(initiatorName, "=")
 	return arr[1]
 }

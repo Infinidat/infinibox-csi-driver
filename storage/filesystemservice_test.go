@@ -271,6 +271,83 @@ func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_errorToD
 	assert.NotNil(suite.T(), err, "empty object")
 }
 
+func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetFileSystemByID_error() {
+	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var maxSize = ""
+	expectedErr := errors.New("FILESYSTEM_ID_DOES_NOT_EXIST")
+	suite.api.On("GetFileSystemByID", filesytemID).Return(nil, expectedErr)
+	service := FilesystemService{cs: *suite.cs}
+	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
+	//assert.Nil(suite.T(), err, "empty object")
+	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+}
+
+func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeqSizeByFileSystemID_error() {
+	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var maxSize = "3gib"
+	expectedFileSystemResponse := api.FileSystem{}
+	expectedResponse := getTreeQResponse(filesytemID)
+	expectedResponse.UsedCapacity = 0
+	expectedErr := errors.New("FIALED_TO_GET_TREEQ_SIZE")
+	suite.api.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
+	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
+	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(0, expectedErr)
+	service := FilesystemService{cs: *suite.cs}
+	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
+	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+}
+
+func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() {
+	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
+	var maxSize = "3gib"
+	expectedFileSystemResponse := api.FileSystem{}
+	expectedResponse := getTreeQResponse(filesytemID)
+	expectedResponse.UsedCapacity = 0
+	expectedErr := errors.New("FIALED_TO_UPDATE_FILE")
+	suite.api.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
+	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
+	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(treeqSize, nil)
+	suite.api.On("UpdateFilesystem", filesytemID, mock.Anything).Return(nil, expectedErr)
+	service := FilesystemService{cs: *suite.cs}
+	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
+	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+}
+
+func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() {
+	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
+	var maxSize = "3gib"
+	expectedFileSystemResponse := api.FileSystem{}
+	expectedResponse := getTreeQResponse(filesytemID)
+	expectedResponse.UsedCapacity = 0
+	body := map[string]interface{}{"hard_capacity": capacity}
+	expectedErr := errors.New("FIALED_TO_UPDATE_TREEQ_SIZE")
+	suite.api.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
+	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
+	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(treeqSize, nil)
+	suite.api.On("UpdateFilesystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
+	suite.api.On("UpdateTreeq", filesytemID, treeqID, body).Return(nil, expectedErr)
+	service := FilesystemService{cs: *suite.cs}
+	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
+	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+}
+
+func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_Success() {
+	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
+	var maxSize = "3gib"
+	expectedFileSystemResponse := api.FileSystem{}
+	expectedResponse := getTreeQResponse(filesytemID)
+	expectedResponse.UsedCapacity = 0
+	body := map[string]interface{}{"hard_capacity": capacity}
+	suite.api.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
+	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
+	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(treeqSize, nil)
+	suite.api.On("UpdateFilesystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
+	suite.api.On("UpdateTreeq", filesytemID, treeqID, body).Return(expectedResponse, nil)
+	service := FilesystemService{cs: *suite.cs}
+	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
+	assert.Nil(suite.T(), err, "empty object")
+}
+
 //*****Test case Data Generation
 
 func getExportResponse() *[]api.ExportResponse {
