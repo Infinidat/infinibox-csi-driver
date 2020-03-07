@@ -26,9 +26,10 @@ func getConfigParams() map[string]string {
 	configParams := make(map[string]string)
 	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
 		configParams["nodeip"] = nodeip
+		configParams["nodeid"] = nodeip
 	}
 	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		configParams["nodeid"] = nodeName + "$$" + configParams["nodeip"]
+		configParams["nodename"] = nodeName
 	}
 	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
 		configParams["drivername"] = drivername

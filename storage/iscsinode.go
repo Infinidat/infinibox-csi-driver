@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -56,11 +55,180 @@ type iscsiDiskUnmounter struct {
 	exec    mount.Exec
 }
 
-func (iscsi *iscsistorage) NodePublishVolume(
-	ctx context.Context,
-	req *csi.NodePublishVolumeRequest) (
-	*csi.NodePublishVolumeResponse, error) {
+type iscsiDiskUnmounter2 struct {
+	*iscsiDisk2
+	mounter mount.Interface
+	exec    mount.Exec
+}
+type iscsiDiskMounter2 struct {
+	*iscsiDisk2
+	readOnly     bool
+	fsType       string
+	mountOptions []string
+	mounter      *mount.SafeFormatAndMount
+	exec         mount.Exec
+	deviceUtil   util.DeviceUtil
+	targetPath   string
+}
+type iscsiDisk2 struct {
+	Portals        []string
+	Iqn            string
+	lun            string
+	Iface          string
+	chap_discovery bool
+	chap_session   bool
+	secret         map[string]string
+	InitiatorName  string
+	VolName        string
+	isBlock        bool
+}
+
+func portalMounter(portal string) string {
+	if !strings.Contains(portal, ":") {
+		portal = portal + ":3260"
+	}
+	return portal
+}
+func (iscsi *iscsistorage) getISCSIInfo2(req *csi.NodePublishVolumeRequest) (*iscsiDisk2, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI getISCSIInfo  " + fmt.Sprint(res))
+		}
+	}()
+	log.Debug("Called getISCSIInfo")
+	chapDiscovery := false
+	if req.GetVolumeContext()["discoveryCHAPAuth"] == "true" {
+		chapDiscovery = true
+	}
+
+	chapSession := false
+	if req.GetVolumeContext()["sessionCHAPAuth"] == "true" {
+		chapSession = true
+	}
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0]
+	//tp := req.GetVolumeContext()["targetPortal"]
+	iqn := req.GetVolumeContext()["iqn"]
+	lun := req.GetPublishContext()["lun"]
+	portals := req.GetVolumeContext()["portals"]
+	portalList := strings.Split(portals, ",")
+	if len(portalList) == 0 || iqn == "" || lun == "" {
+		return nil, fmt.Errorf("iSCSI target information is missing")
+	}
+	secret := req.GetSecrets()
+	if chapSession {
+		secret, err = parseSessionSecret2(secret)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	bkportal := []string{}
+	for _, portal := range portalList {
+		bkportal = append(bkportal, portalMounter(string(portal)))
+	}
+	initiatorName := getInitiatorName()
+
+	return &iscsiDisk2{
+		VolName:        volName,
+		Portals:        bkportal,
+		Iqn:            iqn,
+		lun:            lun,
+		Iface:          "default",
+		chap_discovery: chapDiscovery,
+		chap_session:   chapSession,
+		secret:         secret,
+		InitiatorName:  initiatorName}, nil
+}
+
+func parseSessionSecret2(secretParams map[string]string) (map[string]string, error) {
+	var ok bool
+	secret := make(map[string]string)
+
+	if len(secretParams) == 0 {
+		return secret, nil
+	}
+
+	if secret["node.session.auth.username"], ok = secretParams["node.session.auth.username"]; !ok {
+		return secret, fmt.Errorf("node.session.auth.username not found in secret")
+	}
+	if secret["node.session.auth.password"], ok = secretParams["node.session.auth.password"]; !ok {
+		return secret, fmt.Errorf("node.session.auth.password not found in secret")
+	}
+	if secret["node.session.auth.username_in"], ok = secretParams["node.session.auth.username_in"]; !ok {
+		return secret, fmt.Errorf("node.session.auth.username_in not found in secret")
+	}
+	if secret["node.session.auth.password_in"], ok = secretParams["node.session.auth.password_in"]; !ok {
+		return secret, fmt.Errorf("node.session.auth.password_in not found in secret")
+	}
+
+	secret["SecretsType"] = "chap"
+	return secret, nil
+}
+
+func (iscsi *iscsistorage) getISCSIDiskMounter2(iscsiInfo *iscsiDisk2, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter2 {
+	readOnly := req.GetReadonly()
+	fsType := req.GetVolumeCapability().GetMount().GetFsType()
+	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
+
+	return &iscsiDiskMounter2{
+		iscsiDisk2:   iscsiInfo,
+		fsType:       fsType,
+		readOnly:     readOnly,
+		mountOptions: mountOptions,
+		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: mount.NewOsExec()},
+		exec:         mount.NewOsExec(),
+		targetPath:   req.GetTargetPath(),
+		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
+	}
+}
+
+func (iscsi *iscsistorage) getISCSIDiskUnmounter2(req *csi.NodeUnpublishVolumeRequest) *iscsiDiskUnmounter2 {
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0]
+	return &iscsiDiskUnmounter2{
+		iscsiDisk2: &iscsiDisk2{
+			VolName: volName,
+		},
+		mounter: mount.New(""),
+		exec:    mount.NewOsExec(),
+	}
+}
+
+func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	iscsiInfo, err := iscsi.getISCSIInfo2(req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	volCap := req.GetVolumeCapability()
+	if volCap == nil {
+		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
+	}
+	switch volCap.GetAccessType().(type) {
+	case *csi.VolumeCapability_Block:
+		iscsiInfo.isBlock = true
+	}
+	diskMounter := iscsi.getISCSIDiskMounter2(iscsiInfo, req)
+
+	util := &ISCSIUtil{}
+	_, err = util.AttachDisk2(*diskMounter)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (iscsi *iscsistorage) NodePublishVolume_old(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodePublishVolume  " + fmt.Sprint(res))
+		}
+	}()
 	log.Debugf("Called NodePublishVolume with volume ID %s", req.GetVolumeId())
+
 	volCap := req.GetVolumeCapability()
 	if volCap == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
@@ -86,10 +254,26 @@ func (iscsi *iscsistorage) NodePublishVolume(
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (iscsi *iscsistorage) NodeUnpublishVolume(
-	ctx context.Context,
-	req *csi.NodeUnpublishVolumeRequest) (
-	csiResp *csi.NodeUnpublishVolumeResponse, err error) {
+func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodeUnpublishVolume  " + fmt.Sprint(res))
+		}
+	}()
+	diskUnmounter := iscsi.getISCSIDiskUnmounter2(req)
+	targetPath := req.GetTargetPath()
+
+	iscsiutil := &ISCSIUtil{}
+	err = iscsiutil.DetachDisk2(*diskUnmounter, targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
+func (iscsi *iscsistorage) NodeUnpublishVolume_old(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (csiResp *csi.NodeUnpublishVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from ISCSI NodeUnpublishVolume  " + fmt.Sprint(res))
@@ -189,7 +373,8 @@ func (iscsi *iscsistorage) AttachDisk(d iscsiDiskMounter) (mntPath string, err e
 			options = append(options, "rw")
 		}
 		options = append(options, d.mountOptions...)
-		log.Debug("Trying to format and mount volume")
+		log.Debug("Trying to format and mount volume with :")
+		log.Info(devicePath, mntPath, d.fsType, options)
 		err = d.mounter.FormatAndMount(devicePath, mntPath, d.fsType, options)
 		if err != nil {
 			log.Errorf("iscsi: failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, d.fsType, mntPath, err)
@@ -274,10 +459,10 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	volproto := strings.Split(req.GetVolumeId(), "$$")
 	log.Debug("Called getISCSIInfo")
 	volName := volproto[0]
-	iface := req.GetVolumeContext()["iscsiInterface"]
+
 	iqn := req.GetVolumeContext()["iqn"]
-	portals := req.GetVolumeContext()["portals"]
 	lun := req.GetPublishContext()["lun"]
+	portals := req.GetVolumeContext()["portals"]
 	portalsList := strings.Split(portals, ",")
 	secret := req.GetSecrets()
 	sessionSecret, err := parseSessionSecret(secret)
@@ -316,7 +501,7 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 		Portals:         bkportal,
 		Iqn:             iqn,
 		lun:             lunVal,
-		Iface:           iface,
+		Iface:           "",
 		chapDiscovery:   chapDiscovery,
 		chapSession:     chapSession,
 		secret:          secret,
@@ -405,14 +590,6 @@ func (iscsi *iscsistorage) portalMounter(portal string) string {
 	return portal
 }
 
-func parseSecret(secretParams string) map[string]string {
-	var secret map[string]string
-	if err := json.Unmarshal([]byte(secretParams), &secret); err != nil {
-		return nil
-	}
-	return secret
-}
-
 func parseSessionSecret(secretParams map[string]string) (iscsi_lib.Secrets, error) {
 	var ok bool
 	secret := iscsi_lib.Secrets{}
@@ -463,26 +640,36 @@ func parseDiscoverySecret(secretParams map[string]string) (iscsi_lib.Secrets, er
 }
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from ISCSI NodeStageVolume  " + fmt.Sprint(res))
+		}
+	}()
 	log.Info("NodeStageVolume called with ", req.GetPublishContext())
 	hostID := req.GetPublishContext()["hostID"]
+	ports := req.GetPublishContext()["hostPorts"]
 	hstID, _ := strconv.Atoi(hostID)
-	log.Infof("publishig volume to host id is %s", hostID)
+	log.Debugf("publishig volume to host id is %s", hostID)
 	//validate host exists
 	if hstID < 1 {
-		log.Error("hostID %d is not valid host ID")
+		log.Errorf("hostID %d is not valid host ID")
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
 	}
 	initiatorName := getInitiatorName()
 	if initiatorName == "" {
-		log.Errorf("initiator name not found")
+		log.Error("initiator name not found")
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "Inititator name not found")
 	}
-	log.Info("try to create port for host")
-	err := iscsi.cs.AddPortForHost(hstID, "ISCSI", initiatorName)
-	if err != nil {
-		log.Errorf("error creating host port ", err)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	if !strings.Contains(ports, initiatorName) {
+		log.Debug("host port is not created, creating one")
+		err = iscsi.cs.AddPortForHost(hstID, "ISCSI", initiatorName)
+		if err != nil {
+			log.Error("error creating host port ", err)
+			return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		}
 	}
+
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
@@ -493,17 +680,18 @@ func getInitiatorName() string {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from ISCSI getInitiatorName " + fmt.Sprint(res))
+			err = errors.New("Recovered from ISCSI getInitiatorName  " + fmt.Sprint(res))
 		}
 	}()
 	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		fmt.Sprintf("Failed to execute command: %s", cmd)
+		log.Errorf("Failed to get initiator name with error %v", err)
+		return ""
 	}
 	initiatorName := string(out)
 	initiatorName = strings.TrimSuffix(initiatorName, "\n")
-	log.Info("host initiator name %s ", initiatorName)
+	log.Debugf("host initiator name %s ", initiatorName)
 	arr := strings.Split(initiatorName, "=")
 	return arr[1]
 }
