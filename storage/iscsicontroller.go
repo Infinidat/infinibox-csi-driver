@@ -296,12 +296,31 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		log.Errorf("Failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
-	volID, _ := strconv.Atoi(volproto.VolumeID)
-	log.Info("UnMapping volume from host")
-	err = iscsi.cs.unmapVolumeFromAllhost(volID)
-	if err != nil {
-		log.Errorf("Failed to unmap volume from all host with error %v", err)
-		return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	if len(nodeNameIP) != 2 {
+		return &csi.ControllerUnpublishVolumeResponse{}, errors.New("Node ID not found")
+	}
+	hostName := nodeNameIP[0]
+	host, err := iscsi.cs.api.GetHostByName(hostName)
+	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+		log.Errorf("Failed to get host with error %v", err)
+		return nil, err
+	}
+	if len(host.Luns) > 0 {
+		volID, _ := strconv.Atoi(volproto.VolumeID)
+		log.Info("UnMapping volume from host")
+		err = iscsi.cs.api.UnMapVolumeFromHost(host.ID, volID)
+		if err != nil {
+			log.Errorf("Failed to unmap volume from host with error %v", err)
+			return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if len(host.Luns) < 2 {
+		err = iscsi.cs.api.DeleteHost(host.ID)
+		if err != nil {
+			log.Errorf("Failed to delete host with error %v", err)
+			return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		}
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

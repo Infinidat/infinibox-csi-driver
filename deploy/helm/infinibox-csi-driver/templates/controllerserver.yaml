@@ -170,8 +170,6 @@ spec:
               value: controller
             - name: X_CSI_DEBUG
               value: "true"
-            - name: HOST_CLUSTER_NAME
-              value: {{ required "Provide host cluster (on infinibox) name to use " .Values.hostClusterName }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
