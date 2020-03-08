@@ -257,7 +257,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	if len(nodeNameIP) != 2 {
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
 	}
-	hostName := nodeNameIP[1]
+	hostName := nodeNameIP[0]
 
 	host, err := iscsi.cs.validateHost(hostName)
 	if err != nil {
@@ -271,13 +271,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		log.Errorf("Failed to map volume to host with error %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
-	// map volume to all hosts
-	// log.Info("mapping volume %d to all existing hosts", volID)
-	// err = iscsi.cs.mapVolumeToAllhost(host.ID, luninfo.VolumeID, luninfo.Lun)
-	// if err != nil {
-	// 	log.Errorf("Failed to map volume to all host with error %v", err)
-	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
-	// }
+
 	ports := ""
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
