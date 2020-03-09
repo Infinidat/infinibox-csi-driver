@@ -15,7 +15,7 @@ DOCKER_IMAGE_TAG=test1
 ifeq ($(env),prod)
 	# Do not change following values unless change in production repo
 	DOCKER_USER=infinidat
-	DOCKER_IMAGE_TAG=1.1.0.3
+	DOCKER_IMAGE_TAG=1.1.0.4
 endif
 
 clean:
