@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"net"
+	"os/exec"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -72,6 +74,28 @@ func (s *service) verifyController() error {
 		s.apiclient = c
 	}
 	return nil
+}
+
+func (s *service) getNodeFQDN() string {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from getNodeFQDN  " + fmt.Sprint(res))
+		}
+	}()
+	cmd := "hostname -f"
+	out, err := exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		log.Errorf("Failed to execute command: %s", cmd)
+		return s.nodeName
+	}
+	nodeFQDN := string(out)
+	if nodeFQDN == "" {
+		log.Warning("node fqnd not found, setting node name as node fqdn instead")
+		nodeFQDN = s.nodeName
+	}
+	nodeFQDN = strings.TrimSuffix(nodeFQDN, "\n")
+	return nodeFQDN
 }
 
 func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {

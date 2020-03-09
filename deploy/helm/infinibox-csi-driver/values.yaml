@@ -16,9 +16,6 @@ csiDriverName : "infinibox-csi-driver"
 
 csiDriverVersion : "1.1.0.3"
 
-# cluster name on infinibox
-hostClusterName: cluster1
-
 # Image paths 
 images:
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar

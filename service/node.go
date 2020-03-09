@@ -89,8 +89,9 @@ func (s *service) NodeGetCapabilities(
 
 func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	log.Infof("Setting NodeId %s", s.nodeID)
+	nodeFQDN := s.getNodeFQDN()
 	return &csi.NodeGetInfoResponse{
-		NodeId: s.nodeID,
+		NodeId: nodeFQDN + "$$" + s.nodeID,
 	}, nil
 }
 
