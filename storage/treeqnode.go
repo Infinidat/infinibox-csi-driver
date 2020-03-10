@@ -16,8 +16,12 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	targetPath := req.GetTargetPath()
 	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
-		if treeq.osHelper.IsNotExist(err) {
-			if err := treeq.osHelper.MkdirAll(targetPath, 0750); err != nil {
+		if treeq.osHelper.IsNotExist(err) {			
+			mode, err :=GetUnixPermission(req.GetVolumeContext()["nfs_unix_permissions"],TreeqUnixPermissions)
+			if err != nil {
+				return nil, err
+			}
+			if err := treeq.osHelper.MkdirAll(targetPath, mode); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}

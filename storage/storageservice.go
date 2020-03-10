@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 
 	"infinibox-csi-driver/api/clientgo"
 
@@ -413,20 +414,6 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 	return storagePoolName
 }
 
-//AddExportRule add export rule
-func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAdd string) (err error) {
-	if exportID == "" || exportBlock == "" || clientIPAdd == "" {
-		log.Errorf("invalid parameters")
-		return errors.New("fail to add export rule")
-	}
-	expID, _ := strconv.Atoi(exportID)
-	_, err = cs.api.AddNodeInExport(expID, access, false, clientIPAdd)
-	if err != nil {
-		log.Errorf("fail to add export rule %v", err)
-		return
-	}
-	return nil
-}
 
 func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
@@ -461,4 +448,21 @@ func getClusterVersion() string {
 	cl := clientgo.BuildClient()
 	version, _ := cl.GetClusterVerion()
 	return version
+}
+
+
+
+func GetUnixPermission(unixPermission ,defaultPermission string) (os.FileMode, error) {
+	var mode os.FileMode
+	if unixPermission == "" {
+		unixPermission = defaultPermission
+	}
+	i, err := strconv.ParseUint(unixPermission, 8, 32)
+	if err != nil {
+		log.Errorf("fail to cast unixPermission %v", err)
+		return mode, err
+	}
+	mode = os.FileMode(i)
+	log.Debugf("unix_permissions %s",mode.String())
+	return mode, nil
 }
