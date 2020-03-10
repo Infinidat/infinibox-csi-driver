@@ -97,9 +97,6 @@ spec:
             - name: volumedevices-path
               mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
               mountPropagation: "Bidirectional"
-            - name: pods-path
-              mountPath: /var/lib/kubelet/pods
-              mountPropagation: "Bidirectional"
             - name: host-dir
               mountPath: /host
               mountPropagation: "Bidirectional"
@@ -144,10 +141,6 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
             type: DirectoryOrCreate
-        - name: pods-path
-          hostPath:
-            path: /var/lib/kubelet/pods
-            type: Directory
         - name: dev
           hostPath:
             path: /dev

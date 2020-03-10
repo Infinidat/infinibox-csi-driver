@@ -17,8 +17,9 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
-  readOnly: "false"
-  chapAuthentication: "false"
+  readOnly: "false" 
+  discoveryCHAPAuth: "false"
+  sessionCHAPAuth: "false"
   fstype: ext4
   pool_name: "iscsipool"
   network_space: "niscsi"

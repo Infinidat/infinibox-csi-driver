@@ -151,9 +151,11 @@ type HostCluster struct {
 }
 
 type Host struct {
-	ID            int    `json:"id,omitempty"`
-	Name          string `json:"name,omitempty"`
-	HostClusterID int    `json:"host_cluster_id,omitempty"`
+	ID            int        `json:"id,omitempty"`
+	Name          string     `json:"name,omitempty"`
+	HostClusterID int        `json:"host_cluster_id,omitempty"`
+	Ports         []HostPort `json:"ports,omitempty"`
+	Luns          []LunInfo  `json:"luns,omitempty"`
 }
 
 type HostPort struct {

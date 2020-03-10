@@ -28,6 +28,7 @@ type Client interface {
 	GetHostByName(hostName string) (host Host, err error)
 	GetAllHosts() (host []Host, err error)
 	CreateHost(hostName string) (host Host, err error)
+	DeleteHost(hostID int) (err error)
 	MapHostToCluster(hostID, clusterID int) (hostCluster HostCluster, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	MapVolumeToHostCluster(hostClusterID, volumeID int) (luninfo LunInfo, err error)
@@ -393,6 +394,24 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	}
 	log.Info("Got network space : ", networkSpaceName)
 	return nspace, nil
+}
+
+//DeleteHost - delete host by given host ID
+func (c *ClientService) DeleteHost(hostID int) (err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("DeleteHost Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("delete host with host ID", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID)
+	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
+	if err != nil {
+		log.Errorf("failed to delete host with id %d with error %v", hostID, err)
+		return err
+	}
+	log.Info("delete host with id ", hostID)
+	return nil
 }
 
 //CreateHost - create host  with given details
