@@ -127,7 +127,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	log.Debugf("publishig volume to host id is %s", hostID)
 	//validate host exists
 	if hstID < 1 {
-		log.Errorf("hostID %d is not valid host ID")
+		log.Errorf("hostID %d is not valid host ID", hstID)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
 	}
 	initiatorName := getInitiatorName()
@@ -139,7 +139,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		log.Debug("host port is not created, creating one")
 		err = iscsi.cs.AddPortForHost(hstID, "ISCSI", initiatorName)
 		if err != nil {
-			log.Error("error creating host port ", err)
+			log.Errorf("error creating host port %v", err)
 			return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -398,7 +398,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", err
 		}
 	}
-	log.Debug("mounted volume successfully at %s", mntPath)
+	log.Debugf("mounted volume successfully at %s", mntPath)
 	return devicePath, err
 
 }
@@ -725,16 +725,16 @@ func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRet
 
 func (iscsi *iscsistorage) createISCSIConfigFile(conf iscsiDisk, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
-	log.Debug("persistISCSI: creating persist file at path %s ", file)
+	log.Debugf("persistISCSI: creating persist file at path %s ", file)
 	fp, err := os.Create(file)
 	if err != nil {
-		log.Error("persistISCSI: failed creating persist file with error %v", err)
+		log.Errorf("persistISCSI: failed creating persist file with error %v", err)
 		return fmt.Errorf("iscsi: create %s err %s", file, err)
 	}
 	defer fp.Close()
 	encoder := json.NewEncoder(fp)
 	if err = encoder.Encode(conf); err != nil {
-		log.Error("persistISCSI: failed creating persist file with error %v", err)
+		log.Errorf("persistISCSI: failed creating persist file with error %v", err)
 		return fmt.Errorf("iscsi: encode err: %v.", err)
 	}
 	return nil

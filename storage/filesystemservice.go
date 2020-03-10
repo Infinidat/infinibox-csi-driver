@@ -599,7 +599,7 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 	totalTreeqSize, err := filesystem.cs.api.GetTreeqSizeByFileSystemID(filesystemID)
 	if err != nil {
 		log.Error("Failed to get sum of all the treeq size of a filesystem")
-		return status.Error(codes.Internal, "Failed to get sum of all the treeq size of a filesystem")
+		return
 	}
 
 	needToIncreaseSize := capacity - treeq.HardCapacity
