@@ -137,3 +137,27 @@ func (m *MockApiService) GetNetworkSpaceByName(networkSpaceName string) (Network
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+
+//UpdateTreeq
+func (m *MockApiService) UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error) {
+	args := m.Called(fileSystemID, treeqID, body)
+	resp, _ := args.Get(0).(Treeq)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//GetFileSystemByID
+func (m *MockApiService) GetFileSystemByID(fileSystemID int64) (*FileSystem, error) {
+	args := m.Called(fileSystemID)
+	resp, _ := args.Get(0).(FileSystem)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//GetTreeqSizeByFileSystemID
+func (m *MockApiService) GetTreeqSizeByFileSystemID(fileSystemID int64) (int64, error) {
+	args := m.Called(fileSystemID)
+	resp, _ := args.Get(0).(int64)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}

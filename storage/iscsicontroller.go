@@ -277,7 +277,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 
 	// map volume to host
-	log.Info("mapping volume %d to host %s", volID, host.Name)
+	log.Infof("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
 	if err != nil {
 		log.Errorf("Failed to map volume to host with error %v", err)

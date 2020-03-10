@@ -299,7 +299,7 @@ func (cs *commonservice) validateHostCluster(clusterName string) (*api.HostClust
 func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
 	_, err := cs.api.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-		log.Error("failed to add host port with error %v", err)
+		log.Errorf("failed to add host port with error %v", err)
 		return err
 	}
 	return nil
