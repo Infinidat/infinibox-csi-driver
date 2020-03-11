@@ -7,10 +7,10 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-	"os"
 
 	"infinibox-csi-driver/api/clientgo"
 
@@ -249,6 +249,9 @@ func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 		} else if strings.Contains(err.Error(), "LUN_NOT_FOUND") {
 			log.Debugf("cannot unmap volume with id %d from host id %d , lun not found", volumeID, hostID)
 			return nil
+		} else if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
+			log.Debugf("volume with ID %d is already deleted , volume not found", volumeID)
+			return nil
 		}
 		return err
 	}
@@ -306,14 +309,23 @@ func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) e
 	return nil
 }
 
+func (cs *commonservice) AddChapSecurityForHost(hostID int, credentials map[string]string) error {
+	_, err := cs.api.AddHostSecurity(credentials, hostID)
+	if err != nil {
+		log.Errorf("failed to add authentication for host %d with error %v", hostID, err)
+		return err
+	}
+	return nil
+}
+
 func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
-	log.Info("Mapping volume to host")
+	log.Info("Check if host available, create if not available")
 	host, err := cs.api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 		log.Errorf("failed to get host with error %v", err)
 		return nil, err
 	}
-	if host.Name == "" {
+	if host.ID == 0 {
 		log.Info("Creating host with name ", hostName)
 		host, err = cs.api.CreateHost(hostName)
 		if err != nil {
@@ -346,37 +358,13 @@ func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 		"StoragePoolID":   strconv.FormatInt(vol.PoolId, 10),
 		"StoragePoolName": storagePoolName,
 		"CreationTime":    time.Unix(int64(vol.CreatedAt), 0).String(),
+		"useCHAP":         req.GetParameters()["useCHAP"],
 	}
 	vi := &csi.Volume{
 		VolumeId:      strconv.Itoa(vol.ID),
 		CapacityBytes: vol.Size,
 		VolumeContext: attributes,
 		ContentSource: req.GetVolumeContentSource(),
-	}
-	return vi
-}
-
-func (cs *commonservice) getCSIFsVolume(fsys *api.FileSystem) *csi.Volume {
-	log.Infof("getCSIFsVolume called with fsys %v", fsys)
-	storagePoolName := fsys.PoolName
-	log.Infof("getCSIFsVolume storagePoolName is %s", fsys.PoolName)
-	if storagePoolName == "" {
-		storagePoolName = cs.getStoragePoolNameFromID(fsys.PoolID)
-	}
-
-	// Make the additional volume attributes
-	attributes := map[string]string{
-		"ID":              strconv.FormatInt(fsys.ID, 10),
-		"Name":            fsys.Name,
-		"StoragePoolID":   strconv.FormatInt(fsys.PoolID, 10),
-		"StoragePoolName": storagePoolName,
-		"CreationTime":    time.Unix(int64(fsys.CreatedAt), 0).String(),
-	}
-
-	vi := &csi.Volume{
-		VolumeId:      strconv.FormatInt(fsys.ID, 10),
-		CapacityBytes: fsys.Size,
-		VolumeContext: attributes,
 	}
 	return vi
 }
@@ -414,7 +402,6 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 	return storagePoolName
 }
 
-
 func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
@@ -450,9 +437,7 @@ func getClusterVersion() string {
 	return version
 }
 
-
-
-func GetUnixPermission(unixPermission ,defaultPermission string) (os.FileMode, error) {
+func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, error) {
 	var mode os.FileMode
 	if unixPermission == "" {
 		unixPermission = defaultPermission
@@ -463,6 +448,6 @@ func GetUnixPermission(unixPermission ,defaultPermission string) (os.FileMode, e
 		return mode, err
 	}
 	mode = os.FileMode(i)
-	log.Debugf("unix_permissions %s",mode.String())
+	log.Debugf("unix_permissions %s", mode.String())
 	return mode, nil
 }

@@ -31,7 +31,10 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	log.Infof("requested size in bytes is %d ", sizeBytes)
 	params := req.GetParameters()
 	log.Infof(" csi request parameters %v", params)
-
+	err = validateParameters(params)
+	if err != nil {
+		return &csi.CreateVolumeResponse{}, status.Error(codes.InvalidArgument, err.Error())
+	}
 	// Get Volume Provision Type
 	volType := "THIN"
 	if prosiontype, ok := params[KeyVolumeProvisionType]; ok {
@@ -277,7 +280,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 
 	// map volume to host
-	log.Infof("mapping volume %d to host %s", volID, host.Name)
+	log.Debugf("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
 	if err != nil {
 		log.Errorf("Failed to map volume to host with error %v", err)
@@ -296,6 +299,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
 	volCtx["hostID"] = strconv.Itoa(host.ID)
 	volCtx["hostPorts"] = ports
+	volCtx["securityMethod"] = host.SecurityMethod
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: volCtx,
 	}, nil
@@ -315,6 +319,9 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 	hostName := nodeNameIP[0]
 	host, err := iscsi.cs.api.GetHostByName(hostName)
 	if err != nil {
+		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+			return &csi.ControllerUnpublishVolumeResponse{}, nil
+		}
 		log.Errorf("failed to get host details with error %v", err)
 		return nil, err
 	}
@@ -334,7 +341,7 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		}
 		if len(luns) == 0 {
 			err = iscsi.cs.api.DeleteHost(host.ID)
-			if err != nil {
+			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 				log.Errorf("failed to delete host with error %v", err)
 				return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 			}

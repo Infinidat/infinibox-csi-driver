@@ -94,14 +94,9 @@ spec:
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
-            - name: volumedevices-path
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
-              mountPropagation: "Bidirectional"
             - name: host-dir
               mountPath: /host
               mountPropagation: "Bidirectional"
-            - name: dev
-              mountPath: /dev
         - name: registrar
           image: {{ required "Provide the csi node registrar sidecar container image." .Values.images.registrarsidecar }}
           args:
@@ -137,14 +132,6 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/infinibox.infinidat.com
             type: DirectoryOrCreate
-        - name: volumedevices-path
-          hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
-            type: DirectoryOrCreate
-        - name: dev
-          hostPath:
-            path: /dev
-            type: Directory
         - name: host-dir
           hostPath:
             path: /
