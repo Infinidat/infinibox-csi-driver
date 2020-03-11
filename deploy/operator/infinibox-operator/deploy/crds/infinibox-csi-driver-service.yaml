@@ -5,43 +5,26 @@ metadata:
 spec:
   # Default values copied from <project_dir>/helm-charts/infinibox-csi-driver/values.yaml
   
-  Chap:
-    SessionAuthPassword: 0.003indiayu84q
-    SessionAuthPassword_In: ""
-    SessionAuthUsername: iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu
-    SessionAuthUsername_In: ""
-  Infinibox:
+  Infinibox_Cred:
     SecretName: infinibox-creds
-    hosturl: 172.17.35.61
+    hostname: 172.17.35.61
+    inbound_secret: 0.000us07boftjo
+    inbound_user: iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin
+    outbound_secret: 0.00268rzvmp0r7
+    outbound_user: iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout
     password: "123456"
     username: admin
-  InfiniboxSecrets:
-    host1:
-      SecretName: infinibox-creds1
-      chap: false
-      hosturl: 172.17.35.61
-      namespace: infi
-      password: "123456"
-      username: admin
-    host2:
-      SecretName: infinibox-creds2
-      chap: false
-      hosturl: 172.17.35.61
-      namespace: infi
-      password: "123456"
-      username: admin
   csiDriverName: infinibox-csi-driver
+  csiDriverVersion: 1.1.0.4
   images:
     attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
-    csidriver: docker.io/nikhilbarge/infinidat-csi-driver:test1
+    csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.4
     provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.4.0
     registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
     resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
     snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v1.2.2
   instanceCount: 1
   logLevel: info
-  password: "123456"
   replicaCount: 1
-  username: admin
   volumeNamePrefix: csi
   
