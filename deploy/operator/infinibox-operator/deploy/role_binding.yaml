@@ -5,7 +5,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: infinibox-operator
-  # Replace this with the namespace the operator is deployed in.
+  # Replace this with the namespace the operator to be deployed in.
   namespace: infi
 roleRef:
   kind: ClusterRole

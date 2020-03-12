@@ -47,5 +47,5 @@ Infinibox_Cred:
   hostname: "172.17.35.61"
   inbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin"
   inbound_secret: "0.000us07boftjo"
-  outbound_user: ""iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout""
+  outbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout"
   outbound_secret: "0.00268rzvmp0r7"
