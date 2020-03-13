@@ -639,14 +639,12 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 }
 
 func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter {
-	readOnly := req.GetReadonly()
-	fsType := req.GetVolumeCapability().GetMount().GetFsType()
+	fstype := req.GetVolumeContext()["fstype"]
 	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
-
 	return &iscsiDiskMounter{
 		iscsiDisk:    iscsiInfo,
-		fsType:       fsType,
-		readOnly:     readOnly,
+		fsType:       fstype,
+		readOnly:     false,
 		mountOptions: mountOptions,
 		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: mount.NewOsExec()},
 		exec:         mount.NewOsExec(),
