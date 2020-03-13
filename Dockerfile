@@ -18,14 +18,14 @@ RUN    ln -s /ibox/host-chroot.sh /ibox/blkid \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.xfs \
     && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/mount \
-    # && ln -s /ibox/host-chroot.sh /ibox/multipath \
-    # && ln -s /ibox/host-chroot.sh /ibox/multipathd \
-    # && ln -s /ibox/host-chroot.sh /ibox/stat \ 
+    && ln -s /ibox/host-chroot.sh /ibox/multipath \
+    && ln -s /ibox/host-chroot.sh /ibox/multipathd \
     && ln -s /ibox/host-chroot.sh /ibox/cat \
     && ln -s /ibox/host-chroot.sh /ibox/mkdir \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \
     && ln -s /ibox/host-chroot.sh /ibox/umount
-    
+COPY multipath.conf /etc/multipath.conf
+
 ENV PATH="/ibox:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 
