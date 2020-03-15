@@ -58,7 +58,6 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 
 func validateParameters(storageClassParams map[string]string) error {
 	reqParams := []string{
-		"readOnly",
 		"useCHAP",
 		"fstype",
 		"pool_name",

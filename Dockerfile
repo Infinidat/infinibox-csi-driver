@@ -24,7 +24,6 @@ RUN    ln -s /ibox/host-chroot.sh /ibox/blkid \
     && ln -s /ibox/host-chroot.sh /ibox/mkdir \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \
     && ln -s /ibox/host-chroot.sh /ibox/umount
-COPY multipath.conf /etc/multipath.conf
 
 ENV PATH="/ibox:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
