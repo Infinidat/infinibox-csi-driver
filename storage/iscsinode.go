@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -406,7 +407,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				continue
 			}
 			// check if the dev is using mpio and if so mount it via the dm-XX device
-			if mappedDevicePath := b.deviceUtil.FindMultipathDeviceForDevice(path); mappedDevicePath != "" {
+			if mappedDevicePath := iscsi.findMultipathDeviceForDevice(path); mappedDevicePath != "" {
 				devicePath = mappedDevicePath
 				break
 			}
@@ -420,6 +421,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			options = append(options, "rw")
 		}
 		options = append(options, b.mountOptions...)
+
+		log.Debug("devicePath is ", devicePath)
 		log.Debug("format (if needed) and mount volume")
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 		err = b.mounter.FormatAndMount(devicePath, mntPath, b.fsType, options)
@@ -921,4 +924,39 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 		}
 	}
 	return lastErr
+}
+
+// FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent
+func (iscsi *iscsistorage) findMultipathDeviceForDevice(device string) string {
+	disk, err := findDeviceForPath(device)
+	if err != nil {
+		return ""
+	}
+	sysPath := "/sys/block/"
+	if dirs, err := ioutil.ReadDir(sysPath); err == nil {
+		for _, f := range dirs {
+			name := f.Name()
+			if strings.HasPrefix(name, "dm-") {
+				if _, err1 := os.Lstat(sysPath + name + "/slaves/" + disk); err1 == nil {
+					return "/dev/" + name
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func findDeviceForPath(path string) (string, error) {
+	devicePath, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", err
+	}
+	// if path /dev/hdX split into "", "dev", "hdX" then we will
+	// return just the last part
+	devicePath = strings.Replace(devicePath, "/host", "", 1)
+	parts := strings.Split(devicePath, "/")
+	if len(parts) == 3 && strings.HasPrefix(parts[1], "dev") {
+		return parts[2], nil
+	}
+	return "", errors.New("Illegal path for device " + devicePath)
 }
