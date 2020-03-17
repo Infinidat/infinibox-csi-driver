@@ -16,9 +16,6 @@ csiDriverName : "infinibox-csi-driver"
 
 csiDriverVersion : "1.1.0.3"
 
-# cluster name on infinibox
-hostClusterName: cluster1
-
 # Image paths 
 images:
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar
@@ -37,20 +34,18 @@ images:
   resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
 
   # images.csidriver defines csidriver image used for external provisioning
-  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.3
+  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.4
 
 
 # Infinibox secrets temp: will create secret for testing purpose
 # TODO : Remove following parameters
 
-Infinibox:
+Infinibox_Cred:
   SecretName: "infinibox-creds"
   username: "admin"
   password: "123456"
   hostname: "172.17.35.61"
-
-Chap:
-  SessionAuthUsername: "iqn.2020-06.com.csi-driver-iscsi.infinidat:ubuntu"
-  SessionAuthPassword: "0.000us07boftjo"
-  SessionAuthUsername_In: ""
-  SessionAuthPassword_In: ""
+  inbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin"
+  inbound_secret: "0.000us07boftjo"
+  outbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout"
+  outbound_secret: "0.00268rzvmp0r7"

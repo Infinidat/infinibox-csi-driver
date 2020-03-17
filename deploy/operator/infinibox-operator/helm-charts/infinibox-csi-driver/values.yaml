@@ -1,0 +1,22 @@
+Infinibox_Cred:
+  SecretName: infinibox-creds
+  hostname: 172.17.35.61
+  inbound_secret: 0.000us07boftjo
+  inbound_user: iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin
+  outbound_secret: 0.00268rzvmp0r7
+  outbound_user: iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout
+  password: "123456"
+  username: admin
+csiDriverName: infinibox-csi-driver
+csiDriverVersion: 1.1.0.3
+images:
+  attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
+  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.4
+  provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.4.0
+  registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+  resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
+  snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v1.2.2
+instanceCount: 1
+logLevel: info
+replicaCount: 1
+volumeNamePrefix: csi

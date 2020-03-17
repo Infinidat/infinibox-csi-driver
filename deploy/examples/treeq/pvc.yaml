@@ -10,3 +10,4 @@ spec:
     requests:
       storage: 1Gi
   storageClassName: ibox-treeq-storageclass-demo 
+  #volumeName: <<pv name>> #need to uncomment if want to existing pv

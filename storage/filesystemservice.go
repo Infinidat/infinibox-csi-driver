@@ -30,6 +30,7 @@ const (
 const (
 	NFSTREEQ = "nfs_treeq"
 	NFS      = "nfs"
+	TreeqUnixPermissions   = "750"
 )
 
 //Operation declare for treeq count operation

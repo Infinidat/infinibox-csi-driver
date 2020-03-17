@@ -69,6 +69,7 @@ const (
 	MountOptions         = "hard,rsize=1024,wsize=1024"
 	NfsExportPermissions = "RW"
 	NoRootSquash         = true
+	NfsUnixPermissions   = "777"
 
 	// for size conversion
 	kib    int64 = 1024

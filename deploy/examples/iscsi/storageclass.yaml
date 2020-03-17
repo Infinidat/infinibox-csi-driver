@@ -13,12 +13,11 @@ parameters:
   csi.storage.k8s.io/controller-publish-secret-namespace: infi
   csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
   csi.storage.k8s.io/node-stage-secret-namespace: infi
-  csi.storage.k8s.io/node-publish-secret-name: iscsi-chap-creds
+  csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
   csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
-  readOnly: "false"
-  chapAuthentication: "false"
+  useCHAP: "none" # none / chap / mutual_chap
   fstype: ext4
   pool_name: "iscsipool"
   network_space: "niscsi"

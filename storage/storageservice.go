@@ -8,6 +8,7 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/helper"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -237,20 +238,21 @@ func (cs *commonservice) unmapVolumeFromCluster(clusterName string, volumeID int
 	return nil
 }
 
-func (cs *commonservice) unmapVolumeFromAllhost(volumeID int) (err error) {
-	hostList, err := cs.getAllHosts()
+func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
+	err = cs.api.UnMapVolumeFromHost(hostID, volumeID)
 	if err != nil {
-		return err
-	}
-	for _, hst := range hostList {
-		err = cs.api.UnMapVolumeFromHost(hst.ID, volumeID)
-		if err != nil {
-			// ignoring following error
-			if strings.Contains(err.Error(), "HOST_NOT_FOUND") || strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-				continue
-			}
-			return err
+		// ignoring following error
+		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+			log.Debugf("cannot unmap volume from host with id %d, host not found", hostID)
+			return nil
+		} else if strings.Contains(err.Error(), "LUN_NOT_FOUND") {
+			log.Debugf("cannot unmap volume with id %d from host id %d , lun not found", volumeID, hostID)
+			return nil
+		} else if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
+			log.Debugf("volume with ID %d is already deleted , volume not found", volumeID)
+			return nil
 		}
+		return err
 	}
 	return nil
 }
@@ -300,59 +302,37 @@ func (cs *commonservice) validateHostCluster(clusterName string) (*api.HostClust
 func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
 	_, err := cs.api.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-		log.Errorf("Failed to add host port with error %v", err)
+		log.Errorf("failed to add host port with error %v", err)
 		return err
 	}
 	return nil
 }
 
-func (cs *commonservice) validateHost(clusterName, hostName string) (*api.HostCluster, *api.Host, error) {
-	log.Info("Mapping volume to host")
+func (cs *commonservice) AddChapSecurityForHost(hostID int, credentials map[string]string) error {
+	_, err := cs.api.AddHostSecurity(credentials, hostID)
+	if err != nil {
+		log.Errorf("failed to add authentication for host %d with error %v", hostID, err)
+		return err
+	}
+	return nil
+}
+
+func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
+	log.Info("Check if host available, create if not available")
 	host, err := cs.api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-		log.Errorf("Failed to get host with error %v", err)
-		return nil, nil, err
+		log.Errorf("failed to get host with error %v", err)
+		return nil, err
 	}
-	hostCluster, err := cs.validateHostCluster(clusterName)
-	if err != nil {
-		return nil, nil, err
-	}
-	if host.Name == "" {
+	if host.ID == 0 {
 		log.Info("Creating host with name ", hostName)
 		host, err = cs.api.CreateHost(hostName)
 		if err != nil {
-			log.Errorf("Failed to create host with error %v", err)
-			return nil, nil, err
+			log.Errorf("failed to create host with error %v", err)
+			return nil, err
 		}
-		// if portName != "" {
-		// 	log.Info("Creating host port with name ", portName)
-		// 	_, err = cs.api.AddHostPort("ISCSI", portName, host.ID)
-		// 	if err != nil {
-		// 		log.Error("Failed to add host port with error %v", err)
-		// 		return nil, nil, err
-		// 	}
-		// }
-
-		// log.Info("Updating host with existing luns fro host:", host.Name)
-		// err = cs.updateMappingForNewHost(host.ID)
-		// if err != nil {
-		// 	log.Errorf("Failed to update lun mapping for new host %s with error %v", hostName, err)
-		// 	return nil, err
-		// }
 	}
-	if host.HostClusterID != hostCluster.ID {
-		if host.HostClusterID != 0 {
-			log.Errorf("cannot publish volume to host %s , host is already mapped to host cluster other than %s", host.Name, hostCluster.Name)
-			return nil, nil, errors.New("host is already mapped to different cluster")
-		}
-		cluster, err := cs.api.MapHostToCluster(host.ID, hostCluster.ID)
-		if err != nil && !strings.Contains(err.Error(), "HOST_EXISTS") {
-			log.Errorf("failed to map host %s to host cluster %s ", host.Name, hostCluster.Name)
-			return nil, nil, err
-		}
-		hostCluster = &cluster
-	}
-	return hostCluster, &host, nil
+	return &host, nil
 }
 
 func (cs *commonservice) deleteVolume(volumeID int) (err error) {
@@ -377,37 +357,13 @@ func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 		"StoragePoolID":   strconv.FormatInt(vol.PoolId, 10),
 		"StoragePoolName": storagePoolName,
 		"CreationTime":    time.Unix(int64(vol.CreatedAt), 0).String(),
+		"useCHAP":         req.GetParameters()["useCHAP"],
 	}
 	vi := &csi.Volume{
 		VolumeId:      strconv.Itoa(vol.ID),
 		CapacityBytes: vol.Size,
 		VolumeContext: attributes,
 		ContentSource: req.GetVolumeContentSource(),
-	}
-	return vi
-}
-
-func (cs *commonservice) getCSIFsVolume(fsys *api.FileSystem) *csi.Volume {
-	log.Infof("getCSIFsVolume called with fsys %v", fsys)
-	storagePoolName := fsys.PoolName
-	log.Infof("getCSIFsVolume storagePoolName is %s", fsys.PoolName)
-	if storagePoolName == "" {
-		storagePoolName = cs.getStoragePoolNameFromID(fsys.PoolID)
-	}
-
-	// Make the additional volume attributes
-	attributes := map[string]string{
-		"ID":              strconv.FormatInt(fsys.ID, 10),
-		"Name":            fsys.Name,
-		"StoragePoolID":   strconv.FormatInt(fsys.PoolID, 10),
-		"StoragePoolName": storagePoolName,
-		"CreationTime":    time.Unix(int64(fsys.CreatedAt), 0).String(),
-	}
-
-	vi := &csi.Volume{
-		VolumeId:      strconv.FormatInt(fsys.ID, 10),
-		CapacityBytes: fsys.Size,
-		VolumeContext: attributes,
 	}
 	return vi
 }
@@ -445,21 +401,6 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 	return storagePoolName
 }
 
-//AddExportRule add export rule
-func (cs *commonservice) AddExportRule(exportID, exportBlock, access, clientIPAdd string) (err error) {
-	if exportID == "" || exportBlock == "" || clientIPAdd == "" {
-		log.Errorf("invalid parameters")
-		return errors.New("fail to add export rule")
-	}
-	expID, _ := strconv.Atoi(exportID)
-	_, err = cs.api.AddNodeInExport(expID, access, false, clientIPAdd)
-	if err != nil {
-		log.Errorf("fail to add export rule %v", err)
-		return
-	}
-	return nil
-}
-
 func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
 	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
@@ -493,4 +434,19 @@ func getClusterVersion() string {
 	cl := clientgo.BuildClient()
 	version, _ := cl.GetClusterVerion()
 	return version
+}
+
+func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, error) {
+	var mode os.FileMode
+	if unixPermission == "" {
+		unixPermission = defaultPermission
+	}
+	i, err := strconv.ParseUint(unixPermission, 8, 32)
+	if err != nil {
+		log.Errorf("fail to cast unixPermission %v", err)
+		return mode, err
+	}
+	mode = os.FileMode(i)
+	log.Debugf("unix_permissions %s", mode.String())
+	return mode, nil
 }

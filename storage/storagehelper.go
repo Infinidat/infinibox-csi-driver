@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"strings"
 
@@ -53,6 +54,29 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 	}
 
 	return sizeinByte, nil
+}
+
+func validateParameters(storageClassParams map[string]string) error {
+	reqParams := []string{
+		"useCHAP",
+		"fstype",
+		"pool_name",
+		"network_space",
+		"provision_type",
+		"storage_protocol",
+		"ssd_enabled",
+	}
+	if len(reqParams) != len(storageClassParams) {
+		log.Error("Mismatch in provided parameters and required params")
+		return errors.New("Mismatch in provided parameters and required params")
+	}
+	for _, param := range reqParams {
+		if storageClassParams[param] == "" {
+			log.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
+			return fmt.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
+		}
+	}
+	return nil
 }
 
 func mergeStringMaps(base map[string]string, additional map[string]string) map[string]string {

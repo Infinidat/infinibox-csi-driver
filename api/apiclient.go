@@ -28,6 +28,7 @@ type Client interface {
 	GetHostByName(hostName string) (host Host, err error)
 	GetAllHosts() (host []Host, err error)
 	CreateHost(hostName string) (host Host, err error)
+	DeleteHost(hostID int) (err error)
 	MapHostToCluster(hostID, clusterID int) (hostCluster HostCluster, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	MapVolumeToHostCluster(hostClusterID, volumeID int) (luninfo LunInfo, err error)
@@ -39,6 +40,7 @@ type Client interface {
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
+	AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error)
 	GetClusterByName(clusterName string) (HostCluster, error)
 	CreateCluster(clusterName string) (HostCluster, error)
 	// for nfs
@@ -124,6 +126,28 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	return
 }
 
+//AddHostSecurity - add chap security for host with given details
+func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("AddHostPort Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("add chap atuhentication for hostID % : ", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
+	resp, err := c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
+	if err != nil {
+		log.Errorf("failed to add chap security to host %d with error %v", hostID, err)
+		return host, err
+	}
+	if reflect.DeepEqual(host, (Host{})) {
+		apiresp := resp.(client.ApiResponse)
+		host, _ = apiresp.Result.(Host)
+	}
+	log.Info("created chap authentication for host : ", host.Name)
+	return host, nil
+}
+
 //AddHostPort - add port for host with given details
 func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error) {
 	defer func() {
@@ -131,7 +155,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 			err = errors.New("AddHostPort Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("Add port % for hostID % : ", portAddress, hostID)
+	log.Infof("add port % for hostID % : ", portAddress, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports"
 	body := map[string]interface{}{"address": portAddress, "type": portType}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
@@ -146,7 +170,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 		hostPort, _ = apiresp.Result.(HostPort)
 	}
 
-	log.Info("Created Host Port: ", hostPort.PortAddress)
+	log.Info("created host port: ", hostPort.PortAddress)
 	return hostPort, nil
 }
 
@@ -395,6 +419,26 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	return nspace, nil
 }
 
+//DeleteHost - delete host by given host ID
+func (c *ClientService) DeleteHost(hostID int) (err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("DeleteHost Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("delete host with host ID", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID)
+	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
+	if err != nil {
+		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+			log.Errorf("failed to delete host with id %d with error %v", hostID, err)
+		}
+		return err
+	}
+	log.Info("delete host with id ", hostID)
+	return nil
+}
+
 //CreateHost - create host  with given details
 func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	defer func() {
@@ -466,6 +510,9 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	if len(hosts) > 0 {
 		host = hosts[0]
 	}
+	if host.ID == 0 && host.Name == "" {
+		return host, errors.New("HOST_NOT_FOUND")
+	}
 	log.Info("fetched host with name ", host.Name)
 	return host, nil
 }
@@ -499,7 +546,9 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
 	if err != nil {
-		log.Errorf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
+		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") && !strings.Contains(err.Error(), "VOLUME_NOT_FOUND") && !strings.Contains(err.Error(), "LUN_NOT_FOUND") {
+			log.Errorf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
+		}
 		return err
 	}
 	log.Infof("successfully unmapped volume %d from host %d", volumeID, hostID)
@@ -677,7 +726,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 		}
 	}()
 	luns := []LunInfo{}
-	log.Infof("Get gll lun for host %d", hostID)
+	log.Infof("Get all lun for host %d", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
 	resp, err := c.getResponseWithQueryString(uri, nil, &luns)
 	if err != nil {

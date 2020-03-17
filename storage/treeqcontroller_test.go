@@ -150,6 +150,12 @@ func TestTreeqControllerSuite(t *testing.T) {
 
 //test data
 
+func getExpandVolumeRequest(vID string) *csi.ControllerExpandVolumeRequest {
+	return &csi.ControllerExpandVolumeRequest{
+		VolumeId: vID,
+	}
+}
+
 func getCreateVolumeResponse() map[string]string {
 	result := make(map[string]string)
 	result["ID"] = "100"

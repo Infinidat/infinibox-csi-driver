@@ -20,14 +20,17 @@ func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVo
 func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
-
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Debug("NodePublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			if err := os.MkdirAll(targetPath, 0750); err != nil {
+		if os.IsNotExist(err) {			
+			mode, err := GetUnixPermission(req.GetVolumeContext()["nfs_unix_permissions"],NfsUnixPermissions)
+			if err != nil {
+				return nil, err
+			}
+			if err := os.MkdirAll(targetPath, mode); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
