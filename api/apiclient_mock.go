@@ -160,3 +160,77 @@ func (m *MockApiService) GetNetworkSpaceByName(networkSpaceName string) (Network
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+
+//GetVolume
+func (m *MockApiService) GetVolume(volumeid int) (*Volume, error) {
+	args := m.Called(volumeid)
+	resp, _ := args.Get(0).(Volume)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//GetVolumeSnapshotByParentID
+func (m *MockApiService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
+	args := m.Called(volumeID)
+	resp, _ := args.Get(0).([]Volume)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//DeleteVolume
+func (m *MockApiService) DeleteVolume(volumeID int) (err error) {
+	args := m.Called(volumeID)
+	err, _ = args.Get(0).(error)
+	return err
+}
+
+//GetMetadataStatus
+func (m *MockApiService) GetMetadataStatus(fileSystemID int64) bool {
+	args := m.Called(fileSystemID)
+	err, _ := args.Get(0).(bool)
+	return err
+}
+
+//GetSnapshotByName
+func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+	args := m.Called(snapshotName)
+	resp, _ := args.Get(0).([]FileSystemSnapshotResponce)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//CreateFileSystemSnapshot
+func (m *MockApiService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+	args := m.Called(snapshotParam)
+	resp, _ := args.Get(0).(FileSystemSnapshotResponce)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//FileSystemHasChild
+func (m *MockApiService) FileSystemHasChild(fileSystemID int64) bool {
+	args := m.Called(fileSystemID)
+	err, _ := args.Get(0).(bool)
+	return err
+}
+
+//GetParentID
+func (m *MockApiService) GetParentID(fileSystemID int64) int64 {
+	args := m.Called(fileSystemID)
+	resp, _ := args.Get(0).(int64)
+	return resp
+}
+
+//DeleteFileSystemComplete
+func (m *MockApiService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
+	args := m.Called(fileSystemID)
+	err, _ = args.Get(0).(error)
+	return err
+}
+
+//DeleteParentFileSystem
+func (m *MockApiService) DeleteParentFileSystem(fileSystemID int64) (err error) {
+	args := m.Called(fileSystemID)
+	err, _ = args.Get(0).(error)
+	return err
+}

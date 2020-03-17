@@ -415,13 +415,17 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 	if err != nil {
 		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
 			log.WithFields(log.Fields{"id": volumeID}).Debug("volume is already deleted", volumeID)
-			return nil
+			return err
 		}
 		return status.Errorf(codes.Internal,
 			"error while validating volume status : %s",
 			err.Error())
 	}
 	childVolumes, err := iscsi.cs.api.GetVolumeSnapshotByParentID(vol.ID)
+	if err != nil {
+		log.Error("Failed to get child volume : ", err)
+		return err
+	}
 	if len(*childVolumes) > 0 {
 		metadata := make(map[string]interface{})
 		metadata[TOBEDELETED] = true
