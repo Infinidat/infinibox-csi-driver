@@ -466,7 +466,7 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	_, fileSystemErr := nfs.cs.api.GetFileSystemByID(nfs.uniqueID)
 	if fileSystemErr != nil {
 		log.Errorf("fail to check file system exist or not")
-		return
+		return fileSystemErr
 	}
 	hasChild := nfs.cs.api.FileSystemHasChild(nfs.uniqueID)
 	if hasChild {
@@ -477,14 +477,14 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 			log.Errorf("fail to update host.k8s.to_be_deleted for filesystem %s error: %v", nfs.pVName, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
 		}
-		return
 	}
 
 	parentID := nfs.cs.api.GetParentID(nfs.uniqueID)
 	err = nfs.cs.api.DeleteFileSystemComplete(nfs.uniqueID)
 	if err != nil {
 		log.Errorf("fail to delete filesystem %s error: %v", nfs.pVName, err)
-		err = errors.New("error while delete file system")
+		err = errors.New("Failed to delete complete fileSystem")
+		return
 	}
 	if parentID != 0 {
 		err = nfs.cs.api.DeleteParentFileSystem(parentID)
@@ -627,7 +627,7 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 		if strings.Contains(nfsSnapDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
 			log.Error("snapshot already delete from infinibox")
 			deleteSnapshot = &csi.DeleteSnapshotResponse{}
-			return
+			return deleteSnapshot, nfsSnapDeleteErr
 		}
 		log.Errorf("fail to delete snapshot %v", nfsSnapDeleteErr)
 		err = nfsSnapDeleteErr
