@@ -171,12 +171,6 @@ func getTreeCreateVolumeRequest() *csi.CreateVolumeRequest {
 	return &csi.CreateVolumeRequest{}
 }
 
-func getExpandVolumeRequest(vID string) *csi.ControllerExpandVolumeRequest {
-	return &csi.ControllerExpandVolumeRequest{
-		VolumeId: vID,
-	}
-}
-
 //mock method
 type FileSystemInterfaceMock struct {
 	mock.Mock

@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/helper"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"infinibox-csi-driver/api/clientgo"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
@@ -303,7 +304,6 @@ func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) e
 	_, err := cs.api.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
 		log.Errorf("failed to add host port with error %v", err)
-<<<<<<< HEAD
 		return err
 	}
 	return nil
@@ -313,8 +313,6 @@ func (cs *commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 	_, err := cs.api.AddHostSecurity(credentials, hostID)
 	if err != nil {
 		log.Errorf("failed to add authentication for host %d with error %v", hostID, err)
-=======
->>>>>>> bbb66fbae9e95280a6ecc865997fe38618936060
 		return err
 	}
 	return nil
