@@ -8,6 +8,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
@@ -56,7 +57,7 @@ func New(configParam map[string]string) Service {
 		hostclustername:     configParam["hostclustername"],
 		driverVersion:       configParam["driverversion"],
 		storagePoolIDToName: map[int64]string{},
-		apiclient:           &api.ClientService{},
+		apiclient:           &api.ClientService{},		
 	}
 }
 

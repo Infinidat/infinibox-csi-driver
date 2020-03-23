@@ -13,6 +13,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+
+
+
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	var treeqVolumeMap map[string]string
 	config := req.GetParameters()
@@ -31,8 +34,10 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		capacity = gib
 		log.Warn("Volume Minimum capacity should be greater 1 GB")
 	}
-
-	treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
+	treeqVolumeMap, err=treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"],strings.Trim(config["network_space"],""),pvName)
+	if 	len(treeqVolumeMap)==0 && err==nil {		
+		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)	
+	}	
 	if err != nil {
 		log.Errorf("fail to create volume %v", err)
 		return &csi.CreateVolumeResponse{}, err
