@@ -736,3 +736,29 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 	log.Info("Got snapshot : ", snapshotName)
 	return &snapshot, nil
 }
+
+
+// GetFileSystemCountByPoolID :
+func (c *ClientService) GetFileSystemCountByPoolID(poolID int64)(fileSysCnt int, err error){
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetFileSystemCount Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("Get FileSystem Count")
+	uri := "api/rest/filesystems?pool_id=" +  strconv.FormatInt(poolID, 10)
+	filesystems := []FileSystem{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
+	if err != nil {
+		log.Errorf("error occured while fetching filesystems : %s ", err)
+		return 
+	}
+	apiresp := resp.(client.ApiResponse)
+	metadata := apiresp.MetaData
+	if len(filesystems) == 0 {
+		filesystems, _ = apiresp.Result.([]FileSystem)
+	}	
+	log.Info("Total number of filesystem : ", metadata.NoOfObject)
+	fileSysCnt = metadata.NoOfObject
+	return 
+}

@@ -38,7 +38,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		return
 	}
 	csiResp, err = storageController.CreateVolume(ctx, req)
-	log.Infof("CreateVolume return  %v", err)
 	if err != nil {
 		err = errors.New("fail to create volume of storage protocol " + storageprotocol)
 		return
