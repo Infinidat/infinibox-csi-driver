@@ -8,7 +8,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
-	"sync"
+	//"sync"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
