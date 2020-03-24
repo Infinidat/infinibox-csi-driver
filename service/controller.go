@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/storage"
-
+	
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -24,7 +24,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	configparams["nodeid"] = s.nodeID
 	configparams["driverversion"] = s.driverVersion
 
-	log.Errorf("----------------->>>> %v", configparams)
 	storageprotocol := req.GetParameters()["storage_protocol"]
 
 	log.Infof("In CreateVolume method nodeid: %s, storageprotocols %s", s.nodeID, storageprotocol)
@@ -37,8 +36,8 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		err = errors.New("fail to initialise storage controller while create volume " + storageprotocol)
 		return
 	}
+		
 	csiResp, err = storageController.CreateVolume(ctx, req)
-	log.Infof("CreateVolume return  %v", err)
 	if err != nil {
 		err = errors.New("fail to create volume of storage protocol " + storageprotocol)
 		return
@@ -82,6 +81,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 		return
 	}
 	req.VolumeId = volproto.VolumeID
+	
 	deleteResponce, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
 		log.Errorf("fail to delete volume %v", err)

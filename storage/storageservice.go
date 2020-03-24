@@ -73,7 +73,7 @@ type commonservice struct {
 }
 
 //NewStorageController : To return specific implementation of storage
-func NewStorageController(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
+func NewStorageController(storageProtocol string,configparams ...map[string]string) (storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.TrimSpace(storageProtocol)

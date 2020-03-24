@@ -7,7 +7,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
-
+	"sync"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -60,8 +60,9 @@ type FilesystemService struct {
 	cs       commonservice
 	poolID   int64
 	treeqCnt int
-
+	
 	treeqVolume map[string]string
+	
 }
 
 func getFilesystemService(serviceType string, c commonservice) *FilesystemService {
@@ -80,10 +81,66 @@ type FileSystemInterface interface {
 	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
 	DeleteTreeqVolume(filesystemID, treeqID int64) error
 	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error
+	IsTreeqAlreadyExist(pool_name,network_space,pVName string)(treeqVolume map[string]string, err error)
 }
 
-func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.FileSystem, err error) {
 
+func  (filesystem *FilesystemService)IsTreeqAlreadyExist(pool_name,network_space,pVName string)(treeqVolume map[string]string, err error){
+
+	treeqVolume = make(map[string]string)
+	ipAddress, err := filesystem.cs.getNetworkSpaceIP(network_space)
+	if err != nil {
+		log.Errorf("fail to get networkspace ipaddress %v", err)
+		return
+	}
+	filesystem.ipAddress = ipAddress
+	poolID, err := filesystem.cs.api.GetStoragePoolIDByName(pool_name)
+	if err != nil {
+		log.Errorf("fail to get poolID from poolName %s", pool_name)
+		return
+	}
+	filesystem.poolID = poolID
+	page := 1
+	for {
+		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(poolID, page)
+		if poolErr != nil {
+			log.Errorf("fail to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
+			err = errors.New("fail to get filesystems from poolName " + pool_name)
+			return
+		}
+		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {			
+			return
+		}
+		for _, fs := range fsMetaData.FileSystemArry {				
+			exTreeq, trqErr :=filesystem.cs.api.GetTreeqByName(fs.ID,pVName)
+			if trqErr != nil && !strings.EqualFold(trqErr.Error(), "treeq with given name not found") {					
+				err = trqErr
+				log.Errorf("fail to get GetTreeqByName %v", trqErr)
+				return 
+			}		
+			if exTreeq!=nil {
+				exportErr := filesystem.getExportPath(fs.ID) //fetch export path and set to filesystem exportPath
+				if exportErr != nil {
+					err = exportErr
+				}	
+				treeqVolume["ID"] = strconv.FormatInt(fs.ID, 10)
+				treeqVolume["TREEQID"] = strconv.FormatInt(exTreeq.ID, 10)
+				treeqVolume["ipAddress"] = filesystem.ipAddress
+				treeqVolume["volumePath"] = path.Join(filesystem.exportpath, exTreeq.Path)		
+				return
+			}
+		}	
+		//inner for loop closed
+		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
+			break
+		}
+		page++ //check the file system on next page
+	} //outer for loop closed
+	return
+}
+
+
+func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.FileSystem, err error) {
 	maxFileSystemSize, err := filesystem.maxFileSize()
 	if err != nil {
 		log.Error(err)
@@ -115,8 +172,8 @@ func (filesystem *FilesystemService) getExpectedFileSystemID() (filesys *api.Fil
 			return
 		}
 		for _, fs := range fsMetaData.FileSystemArry {
-			if fs.Size+filesystem.capacity < maxFileSystemSize {
-				treeqCnt, treeqCnterr := filesystem.cs.api.GetFilesytemTreeqCount(fs.ID)
+			if fs.Size+filesystem.capacity < maxFileSystemSize {				
+				treeqCnt, treeqCnterr := filesystem.cs.api.GetFilesytemTreeqCount(fs.ID)				
 				if treeqCnterr != nil {
 					log.Errorf("fail to get treeq count of filesystemID %d error %v", fs.ID, err)
 					err = errors.New("fail to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
@@ -150,8 +207,11 @@ func (filesystem *FilesystemService) setParameter(config map[string]string, capa
 	filesystem.exportpath = "/" + filesystem.pVName
 }
 
+
+var createMutex sync.Mutex
 //CreateTreeqVolume create volumne method
 func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (treeqVolume map[string]string, err error) {
+	
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while creating treeq method " + fmt.Sprint(res))
@@ -168,10 +228,15 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 		return
 	}
 	filesystem.ipAddress = ipAddress
-	log.Debugf("getNetworkSpaceIP ipAddress %s", ipAddress)
 
-	filesys, err := filesystem.getExpectedFileSystemID()
+	createMutex.Lock()
+	defer createMutex.Unlock()
+
+	var filesys *api.FileSystem	
+	filesys, err = filesystem.getExpectedFileSystemID()		
+	
 	if err != nil {
+		log.Errorf("fail to getExpectedFileSystemID  %v", err)
 		return
 	}
 	var filesystemID int64
@@ -189,7 +254,8 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 		filesystemID = filesystem.fileSystemID
 	} else {
 		filesystemID = filesys.ID
-	}
+	}	
+
 	//create treeq
 	treeqResponse, createTreeqerr := filesystem.cs.api.CreateTreeq(filesystemID, filesystem.getTreeParameters())
 	if createTreeqerr != nil {
@@ -293,14 +359,14 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 }
 
 func (filesystem *FilesystemService) createFileSystem() (err error) {
-	fileSystemCnt, err := filesystem.cs.api.GetFileSystemCount()
+	fileSystemCnt, err := filesystem.cs.api.GetFileSystemCountByPoolID(filesystem.poolID)
 	if err != nil {
 		log.Errorf("fail to get the filesystem count from Ibox %v", err)
 		return
 	}
 	if fileSystemCnt >= filesystem.getAllowedCount(MAXFILESYSTEMS) {
-		log.Debugf("Max filesystem allowed on Ibox %v", filesystem.getAllowedCount(MAXFILESYSTEMS))
-		log.Debugf("Current filesystem count on Ibox %v", fileSystemCnt)
+		log.Debugf("Max filesystem allowed on Pool %v", filesystem.getAllowedCount(MAXFILESYSTEMS))
+		log.Debugf("Current filesystem count on Pool %v", fileSystemCnt)
 		log.Errorf("Ibox not allowed to create new file system")
 		err = errors.New("Ibox not allowed to create new file system")
 		return
@@ -476,14 +542,14 @@ func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 	return nil
 }
 
-//treeq delete
-
 func isTreeQEmpty(treeq api.Treeq) bool {
 	if treeq.UsedCapacity > 0 {
 		return false
 	}
 	return true
 }
+
+var deleteMutex sync.Mutex
 
 //DeleteNFSVolume delete volume method
 func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
@@ -512,14 +578,17 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 		err = errors.New("Can't delete NFS-treeq PV with data")
 		return
 	}
+	
 	//3 first decremnt the treeq count to recover
 	// In case of 1 - we are deleting the file system,
+	deleteMutex.Lock()
+	defer deleteMutex.Unlock()
+
 	treeqCnt, err := filesystem.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
 	if err != nil {
 		log.Error("fail to update treeq count")
 		return
 	}
-
 	//4.delete the treeq
 	_, err = filesystem.cs.api.DeleteTreeq(filesystemID, treeqID)
 	if err != nil {
@@ -555,7 +624,7 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 		treeqCnt++
 	case DecrementTreeqCount:
 		treeqCnt--
-	}
+	}	
 	metadataParamter := make(map[string]interface{})
 	metadataParamter[TREEQCOUNT] = treeqCnt
 	_, err = filesystem.cs.api.AttachMetadataToObject(fileSystemID, metadataParamter)
@@ -563,6 +632,7 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 		log.Errorf("Error occured updating treeq count to filesystemID : %d error %v", fileSystemID, err)
 		return
 	}
+		
 	treeqCount = treeqCnt
 	log.Debugf("treeq count updated successfully of fileSystemID: %d", fileSystemID)
 	return

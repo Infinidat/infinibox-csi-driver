@@ -75,6 +75,8 @@ type Client interface {
 	GetTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
 	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
+	GetFileSystemCountByPoolID(poolID int64)(int, error)
+	GetTreeqByName(fileSystemID int64,treeqName string) (*Treeq, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -133,7 +135,7 @@ func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int)
 			err = errors.New("AddHostPort Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("add chap atuhentication for hostID % : ", hostID)
+	log.Infof("add chap atuhentication for hostID %d : ", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
 	resp, err := c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
 	if err != nil {
@@ -155,7 +157,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 			err = errors.New("AddHostPort Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("add port % for hostID % : ", portAddress, hostID)
+	log.Infof("add port %s for hostID %d : ", portAddress, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports"
 	body := map[string]interface{}{"address": portAddress, "type": portType}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
@@ -482,7 +484,7 @@ func (c *ClientService) GetAllHosts() (host []Host, err error) {
 		apiresp := resp.(client.ApiResponse)
 		hosts, _ = apiresp.Result.([]Host)
 	}
-	log.Info("found %d hosts ", len(hosts))
+	log.Infof("found %d hosts ", len(hosts))
 	return hosts, nil
 }
 

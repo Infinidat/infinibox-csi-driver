@@ -282,7 +282,7 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Fail() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	_, err := service.MapVolumeToHost(1, 2)
+	_, err := service.MapVolumeToHost(1, 2,2)
 
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -296,7 +296,7 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	response, _ := service.MapVolumeToHost(1001, 2)
+	response, _ := service.MapVolumeToHost(1001, 2,2)
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
@@ -411,7 +411,7 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_error() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
-	expectedResponse := client.ApiResponse{Result: Metadata{ID: 1, ObjectId: 10, Key: "host.k8s.treeqs", Value: "10", ObjectType: "filesystem"}}
+	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject:10}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
@@ -423,8 +423,7 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_panic() {
-	expectedResponse := client.ApiResponse{}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	suite.clientMock.On("Get").Return(nil, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
 	_, err := service.GetFilesytemTreeqCount(1001)
@@ -768,11 +767,45 @@ func (suite *ApiTestSuite) Test_UpdateTreeq_fail() {
 
 }
 
+
+func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_success() {
+	expectedResponse := client.ApiResponse{Result: getFilesystemArry(), MetaData: client.Resultmetadata{NoOfObject:100}}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var poolID int64 = 1
+	response, err := service.GetFileSystemCountByPoolID(poolID)
+	// Assert
+	assert.Nil(suite.T(), err, "Response should not be nil")
+	assert.Equal(suite.T(), 100, response, "response should be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil,expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var poolID int64 = 1
+	_, err := service.GetFileSystemCountByPoolID(poolID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Response should not be nil")	
+}
+func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Panic() {
+	suite.clientMock.On("Get").Return(nil, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var poolID int64 = 1
+	_, err := service.GetFileSystemCountByPoolID(poolID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Response should not be nil")	
+}
+
+
 func setSecret() map[string]string {
 	secretMap := make(map[string]string)
 	secretMap["username"] = "admin"
 	secretMap["password"] = "123456"
-	secretMap["hosturl"] = "https://172.17.35.61/"
+	secretMap["hostname"] = "https://172.17.35.61/"
 	return secretMap
 }
 
