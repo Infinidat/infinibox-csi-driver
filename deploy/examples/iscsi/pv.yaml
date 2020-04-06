@@ -30,6 +30,7 @@ spec:
       storage.kubernetes.io/csiProvisionerIdentity: 1583914762466-8081-infinibox-csi-driver
       storage_protocol: iscsi
       useCHAP: none
+      max_vols_per_host: 100
     volumeHandle: 20797$$iscsi
   persistentVolumeReclaimPolicy: Delete
   storageClassName: ibox-iscsi-storageclass-demo
