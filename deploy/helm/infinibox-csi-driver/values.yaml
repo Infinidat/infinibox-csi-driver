@@ -14,7 +14,7 @@ logLevel: "info"
 #  note same name will be used for provisioner name
 csiDriverName : "infinibox-csi-driver"
 
-csiDriverVersion : "1.1.0.5"
+csiDriverVersion : "1.1.0.6"
 
 # Image paths 
 images:
