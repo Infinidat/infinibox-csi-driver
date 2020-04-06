@@ -8,7 +8,7 @@ Infinibox_Cred:
   password: "123456"
   username: admin
 csiDriverName: infinibox-csi-driver
-csiDriverVersion: 1.1.0.5
+csiDriverVersion: 1.1.0.6
 images:
   attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
   csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.6
