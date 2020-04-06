@@ -6,7 +6,6 @@ GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 BINARY_NAME=infinibox-csi-driver
 DOCKER_IMAGE=infinidat-csi-driver
-DOCKER_IMAGE_TAG= 1.1.0.5
 
 # For Development: change docker username and tag
 DOCKER_USER=nikhilbarge
@@ -15,7 +14,7 @@ DOCKER_IMAGE_TAG=test1
 ifeq ($(env),prod)
 	# Do not change following values unless change in production repo
 	DOCKER_USER=infinidat
-	DOCKER_IMAGE_TAG=1.1.0.5
+	DOCKER_IMAGE_TAG=1.1.0.6
 endif
 
 clean:
