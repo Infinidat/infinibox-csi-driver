@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
@@ -31,7 +41,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	log.Infof("requested size in bytes is %d ", sizeBytes)
 	params := req.GetParameters()
 	log.Infof(" csi request parameters %v", params)
-	err = validateParameters(params)
+	err = validateParametersiSCSI(params)
 	if err != nil {
 		return &csi.CreateVolumeResponse{}, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -247,6 +257,7 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 
 	metadata := make(map[string]interface{})
+	metadata["host.k8s.pvname"] = dstVol.Name
 	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
@@ -279,6 +290,18 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 
+	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
+	if err != nil {
+		log.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
+		return &csi.ControllerPublishVolumeResponse{}, err
+	}
+	lunList, err := iscsi.cs.api.GetAllLunByHost(host.ID)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, err
+	}
+	if len(lunList) >= maxAllowedVol {
+		log.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+	}
 	// map volume to host
 	log.Debugf("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
@@ -295,6 +318,10 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 			}
 		}
 	}
+	if ports != "" {
+		ports = ports[1:]
+	}
+
 	volCtx := make(map[string]string)
 	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
 	volCtx["hostID"] = strconv.Itoa(host.ID)
@@ -517,6 +544,6 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	log.Infoln("Volume size updated successfully")
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: false,
 	}, nil
 }

@@ -15,10 +15,10 @@ spec:
     password: "123456"
     username: admin
   csiDriverName: infinibox-csi-driver
-  csiDriverVersion: 1.1.0.4
+  csiDriverVersion: 1.1.0.5
   images:
     attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
-    csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.4
+    csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.5
     provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.4.0
     registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
     resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0

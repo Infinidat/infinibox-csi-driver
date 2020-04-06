@@ -6,7 +6,7 @@ GOTEST=$(GOCMD) test
 GOMOD=$(GOCMD) mod
 BINARY_NAME=infinibox-csi-driver
 DOCKER_IMAGE=infinidat-csi-driver
-DOCKER_IMAGE_TAG= 1.1.0.3
+DOCKER_IMAGE_TAG= 1.1.0.5
 
 # For Development: change docker username and tag
 DOCKER_USER=nikhilbarge
@@ -15,7 +15,7 @@ DOCKER_IMAGE_TAG=test1
 ifeq ($(env),prod)
 	# Do not change following values unless change in production repo
 	DOCKER_USER=infinidat
-	DOCKER_IMAGE_TAG=1.1.0.4
+	DOCKER_IMAGE_TAG=1.1.0.5
 endif
 
 clean:
@@ -46,8 +46,8 @@ build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_NAME) -v
 
 docker-build:
-	docker build -t $(DOCKER_USER)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) .
-	
+	docker build -t $(DOCKER_USER)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -f Dockerfile .
+	#docker build -t $(DOCKER_USER)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG) -f Dockerfile-ubi .
 docker-push:
 	docker push $(DOCKER_USER)/$(DOCKER_IMAGE):$(DOCKER_IMAGE_TAG)
 
