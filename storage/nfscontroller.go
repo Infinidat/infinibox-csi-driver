@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
@@ -144,6 +154,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		}
 		for _, export := range *exportArray {
 			nfs.exportBlock = export.ExportPath
+			nfs.exportID = export.ID
 			break
 		}
 		return nfs.getNfsCsiResponse(req), nil
@@ -171,7 +182,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	} else {
 		csiResp, err = nfs.CreateNFSVolume(req)
 		if err != nil {
-			log.Errorf("failt to create volume %v", err)
+			log.Errorf("fail to create volume %v", err)
 			return &csi.CreateVolumeResponse{}, err
 		}
 	}
@@ -196,7 +207,6 @@ func (nfs *nfsstorage) createVolumeFrmPVCSource(req *csi.CreateVolumeRequest, si
 	if err != nil {
 		return nil, errors.New("invalid volume id " + volproto.VolumeID)
 	}
-
 	// Lookup the VolumeSource source.
 	srcfsys, err := nfs.cs.api.GetFileSystemByID(sourceVolumeID)
 	if err != nil {
@@ -407,14 +417,9 @@ func (nfs *nfsstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.Crea
 		ExportBlock:  nfs.exportBlock,
 		FileSystemID: nfs.fileSystemID,
 	}
-
 	nfs.configmap["ipAddress"] = (*infinidatVol).IpAddress
-	////nfs.configmap["volID"] = (*infinidatVol).VolID
-	////nfs.configmap["volSize"] = strconv.Itoa(int((*infinidatVol).VolSize))
 	nfs.configmap["exportID"] = strconv.Itoa(int((*infinidatVol).ExportID))
-	////nfs.configmap["fileSystemID"] = strconv.Itoa(int((*infinidatVol).FileSystemID))
 	nfs.configmap["volPathd"] = (*infinidatVol).VolPath
-	////nfs.configmap["exportBlock"] = (*infinidatVol).ExportBlock
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
@@ -466,6 +471,7 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	_, fileSystemErr := nfs.cs.api.GetFileSystemByID(nfs.uniqueID)
 	if fileSystemErr != nil {
 		log.Errorf("fail to check file system exist or not")
+		err = fileSystemErr
 		return
 	}
 	hasChild := nfs.cs.api.FileSystemHasChild(nfs.uniqueID)
@@ -536,20 +542,16 @@ func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.
 }
 
 func (nfs *nfsstorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	log.Debugf("ListVolumes %v", req)
 	return &csi.ListVolumesResponse{}, nil
 }
 
 func (nfs *nfsstorage) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	log.Debugf("ListSnapshots context :%v  request: %v", ctx, req)
 	return &csi.ListSnapshotsResponse{}, nil
 }
 func (nfs *nfsstorage) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	log.Debugf("GetCapacity context :%v  request: %v", ctx, req)
 	return &csi.GetCapacityResponse{}, nil
 }
 func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	log.Debugf("ControllerGetCapabilities context :%v  request: %v", ctx, req)
 	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
 

@@ -174,8 +174,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: ISCSI_INITIATOR_PREFIX
-              value: {{ .Values.initiatorNamePrefix }}
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi

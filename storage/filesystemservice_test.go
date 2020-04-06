@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
@@ -27,13 +37,21 @@ func TestFileSystemServiceSuite(t *testing.T) {
 	suite.Run(t, new(FileSystemServiceSuite))
 }
 
+func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_maxfilesystem() {
+	expectedErr := errors.New("some error")
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
+	service := getFilesystemService(NFSTREEQ, *suite.cs)
+	service.capacity = 209951162777600
+	_, err := service.getExpectedFileSystemID()
+	assert.NotNil(suite.T(), err, "empty object")
+}
+
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_GetPoolIDByPoolName_error() {
 	expectedErr := errors.New("some error")
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID()
 	assert.NotNil(suite.T(), err, "empty object")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() {
@@ -84,7 +102,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	fsMetada2 := getfsMetadata2()
 	suite.api.On("GetFileSystemsByPoolID", poolID, 2).Return(*fsMetada2, nil)
 	service := FilesystemService{cs: *suite.cs}
-	/** paramter values to filesystemService  */
+
 	service.capacity = 1000
 	service.exportpath = "/exportPath"
 
@@ -101,6 +119,7 @@ func getnetworkspace() api.NetworkSpace {
 	return networkSpace
 
 }
+
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 	fsMetada := getfsMetadata2()
 	var poolID int64 = 10
@@ -131,6 +150,148 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.Nil(suite.T(), err, "empty object")
 
+}
+
+func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Error() {
+	var fsMetada api.FSMetadata
+	var poolID int64 = 10
+	//	var fsID int64 = 11
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(0, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["network_space"] = "networkspace"
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
+	assert.NotNil(suite.T(), err, "fail to get filecount")
+}
+
+func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowed() {
+	var fsMetada api.FSMetadata
+	var poolID int64 = 10
+	//expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(20000, nil)
+
+	service := FilesystemService{cs: *suite.cs}
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["network_space"] = "networkspace"
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
+	assert.NotNil(suite.T(), err, "fail to get filecount")
+}
+
+func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Error() {
+	var fsMetada api.FSMetadata
+	var poolID int64 = 10
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
+	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["network_space"] = "networkspace"
+	configMap["fs_prefix"] = "csit_"
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
+	assert.NotNil(suite.T(), err, "fail to get filecount")
+}
+
+func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Error() {
+	var fsMetada api.FSMetadata
+	var poolID int64 = 10
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
+	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["network_space"] = "networkspace"
+	configMap["fs_prefix"] = "csit_"
+	configMap["nfs_export_permissions"] = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"
+
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
+	assert.NotNil(suite.T(), err, "fail to get filecount")
+}
+
+func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
+	var fsMetada api.FSMetadata
+	var poolID int64 = 10
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
+	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponse(), nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["network_space"] = "networkspace"
+	configMap["fs_prefix"] = "csit_"
+	configMap["nfs_export_permissions"] = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"
+
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
+	assert.NotNil(suite.T(), err, "fail to get filecount")
+}
+
+func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() {
+	var fsMetada api.FSMetadata
+	var poolID int64 = 10
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
+	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponse(), nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.api.On("CreateTreeq", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.api.On("DeleteFileSystemComplete", mock.Anything, mock.Anything).Return(expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	// paramter values to filesystemService
+	var capacity int64 = 1000
+	pVName := "csi-TestTreeq"
+	configMap := make(map[string]string)
+	configMap["network_space"] = "networkspace"
+	configMap["fs_prefix"] = "csit_"
+	configMap["nfs_export_permissions"] = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"
+
+	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
+	assert.NotNil(suite.T(), err, "fail to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqCnt_Success1() {
@@ -254,6 +415,23 @@ func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_success(
 	assert.Nil(suite.T(), err, "empty object")
 }
 
+func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_Error() {
+	var fsID int64 = 11
+	var treeqID int64 = 10
+	expectedResponse := getTreeQResponse(fsID)
+	expectedErr := errors.New("some other error")
+	expectedResponse.UsedCapacity = 0
+	suite.api.On("GetTreeq", fsID, treeqID).Return(*expectedResponse, nil)
+	suite.api.On("GetFilesytemTreeqCount", fsID).Return(10, nil)
+	suite.api.On("AttachMetadataToObject", fsID, mock.Anything).Return(nil, nil)
+	suite.api.On("DeleteTreeq", fsID, treeqID).Return(nil, expectedErr)
+	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(nil, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	err := service.DeleteTreeqVolume(fsID, treeqID)
+	assert.NotNil(suite.T(), err, "empty object")
+}
+
 func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_errorToDeletefile() {
 	var fsID int64 = 11
 	var treeqID int64 = 10
@@ -295,6 +473,20 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeqSizeByFileSy
 	service := FilesystemService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+}
+
+func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error() {
+	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var maxSize = "3gib"
+	expectedFileSystemResponse := api.FileSystem{}
+	expectedResponse := getTreeQResponse(filesytemID)
+	expectedResponse.UsedCapacity = 0
+	expectedErr := errors.New("TREEQ_ID_DOES_NOT_EXIST")
+	suite.api.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
+	suite.api.On("GetTreeq", filesytemID, treeqID).Return(nil, expectedErr)
+	service := FilesystemService{cs: *suite.cs}
+	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
+	assert.Nil(suite.T(), err, "Response not returned as expected")
 }
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() {
@@ -346,6 +538,99 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_Success() {
 	service := FilesystemService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Nil(suite.T(), err, "empty object")
+}
+
+func (suite *FileSystemServiceSuite) Test_validateTreeqParameters() {
+	expectedErr := errors.New("some error")
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
+	service := getFilesystemService(NFSTREEQ, *suite.cs)
+	configMap := map[string]string{"pool_name": "poolName", "network_space": "nws", "nfs_export_permissions": ""}
+
+	result, msgMap := service.validateTreeqParameters(configMap)
+	assert.False(suite.T(), result, "empty object")
+	assert.Equal(suite.T(), 1, len(msgMap))
+}
+
+func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_Error() {
+	//var poolID int64 = 10
+	//var fsID int64 = 11
+
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, expectedErr)
+	//suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+
+	service := FilesystemService{cs: *suite.cs}
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	assert.NotNil(suite.T(), err, "err should not be nil")
+
+}
+
+func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_StoragePoolIDByName_Error() {
+	//var poolID int64 = 10
+	//var fsID int64 = 11
+
+	expectedErr := errors.New("some error")
+
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	assert.NotNil(suite.T(), err, "err should not be nil")
+
+}
+
+func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolID_Error() {
+	var poolID int64 = 10
+	//var fsID int64 = 11
+
+	expectedErr := errors.New("some error")
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(nil, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	assert.NotNil(suite.T(), err, "err should not be nil")
+
+}
+
+func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetTreeqByName_Error() {
+	var poolID int64 = 10
+	var fsID int64 = 11
+	fsMetada := getfsMetadata2()
+
+	expectedErr := errors.New("some error")
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
+	suite.api.On("GetTreeqByName", fsID, mock.Anything).Return(nil, expectedErr)
+
+	service := FilesystemService{cs: *suite.cs}
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	assert.NotNil(suite.T(), err, "err should not be nil")
+
+}
+
+func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_Error() {
+	var poolID int64 = 10
+	var fsID int64 = 11
+	fsMetada := getfsMetadata2()
+
+	//expectedErr := errors.New("some error")
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
+	suite.api.On("GetTreeqByName", fsID, mock.Anything).Return(getTreeQResponse(fsID), nil)
+
+	exportResp := getExportResponse()
+	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
+
+	service := FilesystemService{cs: *suite.cs}
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	assert.Nil(suite.T(), err, "err should not be nil")
+
 }
 
 //*****Test case Data Generation

@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
@@ -129,7 +139,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	hostSecurity := req.GetPublishContext()["securityMethod"]
 	useChap := req.GetVolumeContext()["useCHAP"]
 	hstID, _ := strconv.Atoi(hostID)
-	log.Debugf("publishig volume to host id is %s", hostID)
+	log.Debugf("publishing volume to host id is %s", hostID)
 	//validate host exists
 	if hstID < 1 {
 		log.Errorf("hostID %d is not valid host ID", hstID)
@@ -365,6 +375,17 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		return "", nil
 	}
 
+	for _, path := range devicePaths {
+		if path == "" {
+			continue
+		}
+		// check if the dev is using mpio and if so mount it via the dm-XX device
+		if mappedDevicePath := iscsi.findMultipathDeviceForDevice(path); mappedDevicePath != "" {
+			devicePath = mappedDevicePath
+			break
+		}
+	}
+
 	if b.isBlock {
 		log.Debugf("Block volume will be mount at file %s", b.targetPath)
 		if b.readOnly {
@@ -400,17 +421,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		if err := os.MkdirAll(mntPath, 0750); err != nil {
 			log.Errorf("iscsi: failed to mkdir %s, error", mntPath)
 			return "", err
-		}
-
-		for _, path := range devicePaths {
-			if path == "" {
-				continue
-			}
-			// check if the dev is using mpio and if so mount it via the dm-XX device
-			if mappedDevicePath := iscsi.findMultipathDeviceForDevice(path); mappedDevicePath != "" {
-				devicePath = mappedDevicePath
-				break
-			}
 		}
 
 		var options []string
@@ -478,7 +488,37 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	if c.isBlock {
 		cnt--
 	}
-	log.Debugf("deveice %s is mounted on %d pods", device, cnt)
+	log.Debugf("device %s is mounted on %d pods", device, cnt)
+	var devices []string
+	dstPath, err := filepath.EvalSymlinks("/host" + device)
+	if err != nil {
+		log.Warningf("iscsi detach disk unable to get multipath for device: %s\nError: %v", device, err)
+	} else {
+		if strings.HasPrefix(dstPath, "/host") {
+			dstPath = strings.Replace(dstPath, "/host", "", 1)
+		}
+
+		log.Debug("remove multipaths", dstPath)
+		if strings.HasPrefix(dstPath, "/dev/dm-") {
+			devices = findSlaveDevicesOnMultipath(dstPath)
+		} else {
+			// Add single targetPath to devices
+			devices = append(devices, dstPath)
+		}
+		log.Infof("iscsi: DetachDisk targetPath: %v, dstPath: %v, devices: %v", targetPath, dstPath, devices)
+		var lastErr error
+		for _, device := range devices {
+			err := detachDisk(device)
+			if err != nil {
+				log.Errorf("iscsi: detachFCDisk failed. device: %v err: %v", device, err)
+				lastErr = fmt.Errorf("iscsi: detachFCDisk failed. device: %v err: %v", device, err)
+			}
+		}
+		if lastErr != nil {
+			log.Errorf("iscsi: last error occurred during detach disk:\n%v", lastErr)
+			return lastErr
+		}
+	}
 	if pathExist, pathErr := iscsi.pathExists(targetPath); pathErr != nil {
 		return fmt.Errorf("Error checking if path exists: %v", pathErr)
 	} else if !pathExist {
@@ -502,9 +542,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		return err
 	}
 	log.Debug("unmout success")
-
 	cnt--
-
 	if cnt > 0 {
 		log.Debug("not disconnecting session volume is refered by other pods")
 		return nil
@@ -557,6 +595,16 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		return err
 	}
 	log.Debug("Detach Disk Successfully!")
+
+	// rescan disks
+	for _, portal := range portals {
+		log.Debug("rescan sessions to discover newly mapped LUNs")
+		out, err := c.exec.Run("iscsiadm", "-m", "node", "-p", portal, "-T", iqn, "-R")
+		if err != nil {
+			log.Errorf("iscsi: failed to rescan session with error: %s (%v)", string(out), err)
+		}
+	}
+	log.Debug("Rescan Disk Successfully!")
 	return nil
 }
 
@@ -942,6 +990,8 @@ func (iscsi *iscsistorage) findMultipathDeviceForDevice(device string) string {
 				}
 			}
 		}
+	} else {
+		log.Errorf("failed to find multipath device with error %v", err)
 	}
 	return ""
 }

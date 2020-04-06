@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package api
 
 import (
@@ -737,28 +747,27 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 	return &snapshot, nil
 }
 
-
 // GetFileSystemCountByPoolID :
-func (c *ClientService) GetFileSystemCountByPoolID(poolID int64)(fileSysCnt int, err error){
+func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("GetFileSystemCount Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Get FileSystem Count")
-	uri := "api/rest/filesystems?pool_id=" +  strconv.FormatInt(poolID, 10)
+	uri := "api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10)
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {
 		log.Errorf("error occured while fetching filesystems : %s ", err)
-		return 
+		return
 	}
 	apiresp := resp.(client.ApiResponse)
 	metadata := apiresp.MetaData
 	if len(filesystems) == 0 {
 		filesystems, _ = apiresp.Result.([]FileSystem)
-	}	
+	}
 	log.Info("Total number of filesystem : ", metadata.NoOfObject)
 	fileSysCnt = metadata.NoOfObject
-	return 
+	return
 }

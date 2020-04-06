@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
@@ -39,6 +49,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	volumeRespoance := make(map[string]string)
 	expectedErr := errors.New("some error")
 
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, expectedErr)
 	service := treeqstorage{filesysService: suite.filesystem}
 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
@@ -49,6 +60,8 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	mapParameter := make(map[string]string)
 	suite.filesystem.On("validateTreeqParameters", mock.Anything).Return(true, mapParameter)
 	volumeResponse := getCreateVolumeResponse()
+	volumeRespoance := make(map[string]string)
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	service := treeqstorage{filesysService: suite.filesystem}
 	result, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
@@ -167,9 +180,6 @@ func getDeleteVolumeRequest(vID string) *csi.DeleteVolumeRequest {
 		VolumeId: vID,
 	}
 }
-func getTreeCreateVolumeRequest() *csi.CreateVolumeRequest {
-	return &csi.CreateVolumeRequest{}
-}
 
 //mock method
 type FileSystemInterfaceMock struct {
@@ -198,4 +208,11 @@ func (m *FileSystemInterfaceMock) UpdateTreeqVolume(filesystemID, treeqID, capac
 	status := m.Called(filesystemID, treeqID, capacity, maxSize)
 	err, _ := status.Get(0).(error)
 	return err
+}
+
+func (m *FileSystemInterfaceMock) IsTreeqAlreadyExist(pool_name, network_space, pVName string) (map[string]string, error) {
+	status := m.Called(pool_name, network_space, pVName)
+	st, _ := status.Get(0).(map[string]string)
+	err, _ := status.Get(1).(error)
+	return st, err
 }

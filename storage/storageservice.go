@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
@@ -6,8 +16,10 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
+	"io/ioutil"
 	"math/rand"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +27,6 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
 	csictx "github.com/rexray/gocsi/context"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/kubernetes/pkg/util/mount"
@@ -30,7 +41,7 @@ const (
 	KeyVolumeProvisionType = "provision_type"
 )
 
-type storageoperations interface {
+type Storageoperations interface {
 	csi.ControllerServer
 	csi.NodeServer
 }
@@ -62,18 +73,17 @@ type nfsstorage struct {
 	ipAddress    string
 	cs           commonservice
 	mounter      mount.Interface
+	osHelper     helper.OsHelper
 }
 
 type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
-	initiatorPrefix   string
-	hostclustername   string
 	driverversion     string
 }
 
 //NewStorageController : To return specific implementation of storage
-func NewStorageController(storageProtocol string,configparams ...map[string]string) (storageoperations, error) {
+func NewStorageController(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.TrimSpace(storageProtocol)
@@ -82,7 +92,7 @@ func NewStorageController(storageProtocol string,configparams ...map[string]stri
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
 		} else if storageProtocol == "nfs" {
-			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
 			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), osHelper: helper.Service{}}, nil
 		}
@@ -92,7 +102,7 @@ func NewStorageController(storageProtocol string,configparams ...map[string]stri
 }
 
 //NewStorageNode : To return specific implementation of storage
-func NewStorageNode(storageProtocol string, configparams ...map[string]string) (storageoperations, error) {
+func NewStorageNode(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.TrimSpace(storageProtocol)
@@ -101,7 +111,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv}, nil
 		} else if storageProtocol == "nfs" {
-			return &nfsstorage{cs: comnserv, mounter: mount.New("")}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
 			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		}
@@ -127,8 +137,6 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			log.Error("API client not initialized.", err)
 			return commonserv, err
 		}
-		commonserv.initiatorPrefix = config["initiatorPrefix"]
-		commonserv.hostclustername = config["hostclustername"]
 		commonserv.driverversion = config["driverversion"]
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
@@ -163,19 +171,6 @@ func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 	return vols, nil
 }
 
-func (cs *commonservice) mapVolumeToHostCluster(hostClusterID, hostID, volumeID int) (luninfo api.LunInfo, err error) {
-	luninfo, err = cs.api.MapVolumeToHostCluster(hostClusterID, volumeID)
-	if err != nil {
-		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-			luninfo, err = cs.api.GetLunByHostVolume(hostID, volumeID)
-		}
-		if err != nil {
-			return luninfo, err
-		}
-	}
-	return luninfo, nil
-}
-
 func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
 	luninfo, err = cs.api.MapVolumeToHost(hostID, volumeID, -1)
 	if err != nil {
@@ -187,56 +182,6 @@ func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.
 		}
 	}
 	return luninfo, nil
-}
-
-func (cs *commonservice) getAllHosts() ([]api.Host, error) {
-	hosts, err := cs.api.GetAllHosts()
-	if err != nil {
-		log.Errorf("error get list of host with error: %v ", err)
-		return nil, err
-	}
-	return hosts, nil
-}
-
-func (cs *commonservice) mapVolumeToAllhost(currentHostID, volumeID int, lun int) (err error) {
-	hostList, err := cs.getAllHosts()
-	if err != nil {
-		return err
-	}
-	for _, hst := range hostList {
-		if currentHostID != hst.ID {
-			_, err = cs.api.MapVolumeToHost(hst.ID, volumeID, lun)
-			if err != nil {
-				if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") || strings.Contains(err.Error(), "LUN_EXISTS") {
-					continue
-				}
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (cs *commonservice) unmapVolumeFromCluster(clusterName string, volumeID int) (err error) {
-	hostCluster, err := cs.api.GetClusterByName(clusterName)
-	if err != nil && !strings.Contains(err.Error(), "HOST_CLUSTER_NOT_FOUND") {
-		log.Error("host cluster is not found error ", err.Error())
-		return nil
-	}
-	if err != nil {
-		log.Error("failed to get host cluster with error", err.Error())
-		return err
-	}
-
-	err = cs.api.UnMapVolumeFromHostCluster(hostCluster.ID, volumeID)
-	if err != nil {
-		// ignoring following error
-		if strings.Contains(err.Error(), "HOST_CLUSTER_NOT_FOUND") || strings.Contains(err.Error(), "LUN_NOT_FOUND") || strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			return nil
-		}
-		return err
-	}
-	return nil
 }
 
 func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
@@ -256,48 +201,6 @@ func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 		return err
 	}
 	return nil
-}
-
-func (cs *commonservice) updateMappingForNewHost(hostID int) error {
-	hostList, err := cs.getAllHosts()
-	if err != nil {
-		return err
-	}
-	luns := []api.LunInfo{}
-	for _, hst := range hostList {
-		if hst.ID != hostID {
-			luns, err = cs.api.GetAllLunByHost(hst.ID)
-			if err != nil {
-				return err
-			}
-			break
-		}
-	}
-	for _, lun := range luns {
-		_, err = cs.api.MapVolumeToHost(hostID, lun.VolumeID, lun.Lun)
-		if err != nil {
-			if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (cs *commonservice) validateHostCluster(clusterName string) (*api.HostCluster, error) {
-	hostCluster, err := cs.api.GetClusterByName(clusterName)
-	if err != nil && !strings.Contains(err.Error(), "HOST_CLUSTER_NOT_FOUND") {
-		log.Error("failed to get host cluster with error", err.Error())
-		return nil, err
-	}
-	if hostCluster.Name == "" {
-		hostCluster, err = cs.api.CreateCluster(clusterName)
-		if err != nil {
-			log.Error("failed to create host cluster with error", err.Error())
-			return nil, err
-		}
-	}
-	return &hostCluster, nil
 }
 
 func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
@@ -358,7 +261,7 @@ func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 		"StoragePoolID":   strconv.FormatInt(vol.PoolId, 10),
 		"StoragePoolName": storagePoolName,
 		"CreationTime":    time.Unix(int64(vol.CreatedAt), 0).String(),
-		"useCHAP":         req.GetParameters()["useCHAP"],
+		"targetWWNs":      req.GetParameters()["targetWWNs"],
 	}
 	vi := &csi.Volume{
 		VolumeId:      strconv.Itoa(vol.ID),
@@ -367,24 +270,6 @@ func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 		ContentSource: req.GetVolumeContentSource(),
 	}
 	return vi
-}
-
-// Convert an SIO Volume into a CSI Snapshot object suitable for return.
-func (cs *commonservice) getCSISnapshot(vol *api.Volume) *csi.Snapshot {
-	snapshot := &csi.Snapshot{
-		SizeBytes:      int64(vol.Size) * bytesInKiB,
-		SnapshotId:     strconv.Itoa(vol.ID),
-		SourceVolumeId: strconv.Itoa(vol.ParentId),
-	}
-	// Convert array timestamp to CSI timestamp and add
-	csiTimestamp, err := ptypes.TimestampProto(time.Unix(int64(vol.CreatedAt), 0))
-	if err != nil {
-		fmt.Printf("Could not convert time %v to ptypes.Timestamp %v\n", vol.CreatedAt, csiTimestamp)
-	}
-	if csiTimestamp != nil {
-		snapshot.CreationTime = csiTimestamp
-	}
-	return snapshot
 }
 
 func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
@@ -432,7 +317,10 @@ func (cs *commonservice) GetCreatedBy() string {
 }
 
 func getClusterVersion() string {
-	cl := clientgo.BuildClient()
+	cl, err := clientgo.BuildClient()
+	if err != nil {
+		return ""
+	}
 	version, _ := cl.GetClusterVerion()
 	return version
 }
@@ -448,6 +336,43 @@ func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, e
 		return mode, err
 	}
 	mode = os.FileMode(i)
-	log.Debugf("unix_permissions %s", mode.String())
 	return mode, nil
+}
+
+// detachFCDisk removes scsi device file such as /dev/sdX from the node.
+func detachDisk(devicePath string) error {
+	// Remove scsi device from the node.
+	if !strings.HasPrefix(devicePath, "/dev/") {
+		return fmt.Errorf("detach disk: invalid device name: %s", devicePath)
+	}
+	arr := strings.Split(devicePath, "/")
+	dev := arr[len(arr)-1]
+	removeFromScsiSubsystem(dev)
+	return nil
+}
+
+// Removes a scsi device based upon /dev/sdX name
+func removeFromScsiSubsystem(deviceName string) {
+	fileName := "/sys/block/" + deviceName + "/device/delete"
+	log.Infof("remove device from scsi-subsystem: path: %s", fileName)
+	data := []byte("1")
+	ioutil.WriteFile(fileName, data, 0666)
+}
+
+//FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
+func findSlaveDevicesOnMultipath(dm string) []string {
+	var devices []string
+	// Split path /dev/dm-1 into "", "dev", "dm-1"
+	parts := strings.Split(dm, "/")
+	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
+		return devices
+	}
+	disk := parts[2]
+	slavesPath := path.Join("/sys/block/", disk, "/slaves/")
+	if files, err := ioutil.ReadDir(slavesPath); err == nil {
+		for _, f := range files {
+			devices = append(devices, path.Join("/dev/", f.Name()))
+		}
+	}
+	return devices
 }

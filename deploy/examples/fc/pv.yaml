@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: csi-543408c007
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  csi:
+    controllerExpandSecretRef:
+      name: infinibox-creds
+      namespace: infi
+    controllerPublishSecretRef:
+      name: infinibox-creds
+      namespace: infi
+    driver: infinibox-csi-driver
+    fsType: ext4
+    nodePublishSecretRef:
+      name: infinibox-creds
+      namespace: infi
+    nodeStageSecretRef:
+      name: infinibox-creds
+      namespace: infi
+    volumeAttributes:
+      fstype: ext4
+      max_vols_per_host: 100
+      storage.kubernetes.io/csiProvisionerIdentity: 1585396938065-8081-infinibox-csi-driver
+      storage_protocol: fc
+    volumeHandle: 3723$$fc
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: ibox-fc-storageclass-demo
+  volumeMode: Filesystem

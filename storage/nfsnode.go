@@ -1,9 +1,18 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package storage
 
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -23,14 +32,14 @@ func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnsta
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Debug("NodePublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
+	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
-		if os.IsNotExist(err) {			
+		if nfs.osHelper.IsNotExist(err) {			
 			mode, err := GetUnixPermission(req.GetVolumeContext()["nfs_unix_permissions"],NfsUnixPermissions)
 			if err != nil {
 				return nil, err
 			}
-			if err := os.MkdirAll(targetPath, mode); err != nil {
+			if err := nfs.osHelper.MkdirAll(targetPath, mode); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
@@ -72,24 +81,20 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Debug("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
+	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if nfs.osHelper.IsNotExist(err) {
 			log.Warnf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		return nil, err
 	}
 	if notMnt {
-		if err := os.Remove(targetPath); err != nil {
-			log.Errorf("Remove target path error: %s", err.Error())
+		if err := nfs.mounter.Unmount(targetPath); err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
 		}
-		return &csi.NodeUnpublishVolumeResponse{}, nil
-	}
-	if err := nfs.mounter.Unmount(targetPath); err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
-	}
-	if err := os.Remove(targetPath); err != nil && !os.IsNotExist(err) {
+	}	
+	if err := nfs.osHelper.Remove(targetPath); err != nil && !nfs.osHelper.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil

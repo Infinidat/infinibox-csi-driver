@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package api
 
 import (
@@ -71,22 +81,23 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 			err = errors.New("GetFilesytemTreeqCount Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	path := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
-	treeqArry := []Treeq{}
-	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &treeqArry)
+	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TREEQCOUNT
+	metadata := Metadata{}
+	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
 	if err != nil {
-		log.Debugf("Error occured while getting treeq count value: %s", err)
-		return 
+		log.Debugf("Error occured while getting host.k8s.treeqs value: %s", err)
+		return 0, err
 	}
-	apiresp := resp.(client.ApiResponse)
-	mdata := apiresp.MetaData
-	treeqCnt = mdata.NoOfObject
-
-	if len(treeqArry) == 0 {
-		treeqArry, _ = apiresp.Result.([]Treeq)
+	if metadata == (Metadata{}) {
+		apiresp := resp.(client.ApiResponse)
+		metadata = apiresp.Result.(Metadata)
 	}
-	
-	log.Info("Total number of Treeq : ", treeqCnt)	
+	treeqCnt, err = strconv.Atoi(metadata.Value)
+	if err != nil {
+		log.Debugf("Error occured while converting metadata key : %s ,value: %v", TREEQCOUNT, err)
+		return
+	}
+	log.Info("Got metadata status of filesystem : ", fileSystemID)
 	return
 
 }
@@ -204,9 +215,8 @@ func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string
 	return &treeq, nil
 }
 
-
 //GetFileSystemByName :
-func (c *ClientService) GetTreeqByName(fileSystemID int64,treeqName string) (*Treeq, error) {
+func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -217,7 +227,7 @@ func (c *ClientService) GetTreeqByName(fileSystemID int64,treeqName string) (*Tr
 	treeq := []Treeq{}
 	queryParam := make(map[string]interface{})
 	queryParam["name"] = treeqName
-	resp, err := c.getResponseWithQueryString(uri,queryParam, &treeq)
+	resp, err := c.getResponseWithQueryString(uri, queryParam, &treeq)
 	if err != nil {
 		return nil, err
 	}

@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package api
 
 import (
@@ -101,9 +111,16 @@ func (m *MockApiService) AttachMetadataToObject(objectID int64, body map[string]
 //UpdateFilesystem
 func (m *MockApiService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
 	args := m.Called(fileSystemID, fileSystem)
-	resp, _ := args.Get(0).(FileSystem)
-	err, _ := args.Get(1).(error)
-	return &resp, err
+	var filessy FileSystem
+	if args.Get(0) != nil {
+		filessy, _ = args.Get(0).(FileSystem)
+	}
+
+	var err error
+	if args.Get(1) != nil {
+		err, _ = args.Get(1).(error)
+	}
+	return &filessy, err
 }
 
 //GetExportByFileSystem
@@ -160,4 +177,156 @@ func (m *MockApiService) GetTreeqSizeByFileSystemID(fileSystemID int64) (int64, 
 	resp, _ := args.Get(0).(int64)
 	err, _ := args.Get(1).(error)
 	return resp, err
+}
+
+func (m *MockApiService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
+	args := m.Called(fileSystemName)
+	resp, _ := args.Get(0).(FileSystem)
+	if args.Get(0) == nil {
+		return nil, nil
+	}
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) GetFileSystemCount() (int, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).(int)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+func (m *MockApiService) OneTimeValidation(poolname string, networkspace string) (string, error) {
+	args := m.Called(poolname, networkspace)
+	resp, _ := args.Get(0).(string)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
+	args := m.Called(fileSysparameter)
+	var resp FileSystem
+	if args.Get(0) != nil {
+		resp, _ = args.Get(0).(FileSystem)
+	}
+	var err error
+	if args.Get(1) != nil {
+		err, _ = args.Get(1).(error)
+	}
+	return &resp, err
+}
+
+func (m *MockApiService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
+	argsArray := m.Called(export)
+	args := argsArray[0]
+	var resp ExportResponse
+	if argsArray.Get(0) != nil {
+		resp, _ = args.(ExportResponse)
+	}
+	var err error
+	if argsArray.Get(1) != nil {
+		err, _ = argsArray.Get(1).(error)
+	}
+	return &resp, err
+}
+func (m *MockApiService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+	args := m.Called(snapshotParam)
+	resp, _ := args.Get(0).(FileSystemSnapshotResponce)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) FileSystemHasChild(fileSystemID int64) bool {
+	args := m.Called(fileSystemID)
+	err, _ := args.Get(0).(bool)
+	return err
+}
+
+func (m *MockApiService) GetParentID(fileSystemID int64) int64 {
+	args := m.Called(fileSystemID)
+	resp, _ := args.Get(0).(int64)
+	return resp
+}
+
+//DeleteFileSystemComplete
+func (m *MockApiService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
+	args := m.Called(fileSystemID)
+	err, _ = args.Get(0).(error)
+	return err
+}
+
+//DeleteParentFileSystem
+func (m *MockApiService) DeleteParentFileSystem(fileSystemID int64) (err error) {
+	args := m.Called(fileSystemID)
+	err, _ = args.Get(0).(error)
+	return err
+}
+func (m *MockApiService) GetVolume(volumeid int) (*Volume, error) {
+	args := m.Called(volumeid)
+	resp, _ := args.Get(0).(Volume)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//GetVolumeSnapshotByParentID
+func (m *MockApiService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
+	args := m.Called(volumeID)
+	resp, _ := args.Get(0).([]Volume)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+//DeleteVolume
+func (m *MockApiService) DeleteVolume(volumeID int) (err error) {
+	args := m.Called(volumeID)
+	err, _ = args.Get(0).(error)
+	return err
+}
+
+//GetMetadataStatus
+func (m *MockApiService) GetMetadataStatus(fileSystemID int64) bool {
+	args := m.Called(fileSystemID)
+	err, _ := args.Get(0).(bool)
+	return err
+}
+
+//GetSnapshotByName
+func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+	args := m.Called(snapshotName)
+	resp, _ := args.Get(0).([]FileSystemSnapshotResponce)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
+	argsArray := m.Called(exportID, access, noRootSquash, ip)
+	args := argsArray[0]
+	var resp ExportResponse
+	if argsArray.Get(0) != nil {
+		resp, _ = args.(ExportResponse)
+	}
+	var err error
+	if argsArray.Get(1) != nil {
+		err, _ = argsArray.Get(1).(error)
+	}
+	return &resp, err
+}
+
+func (m *MockApiService) DeleteExportRule(fileSystemID int64, ipAddress string) error {
+	args := m.Called(fileSystemID, ipAddress)
+	err, _ := args.Get(0).(error)
+	return err
+}
+
+func (m *MockApiService) GetFileSystemCountByPoolID(poolID int64) (int, error) {
+	args := m.Called(poolID)
+	cnt, _ := args.Get(0).(int)
+	err, _ := args.Get(1).(error)
+	return cnt, err
+}
+
+func (m *MockApiService) GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error) {
+	args := m.Called(fileSystemID, treeqName)
+	trq, _ := args.Get(0).(Treeq)
+	err, _ := args.Get(1).(error)
+	return &trq, err
 }

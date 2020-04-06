@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ibox-iscsi-storageclass-demo
+  name: ibox-fc-storageclass-demo
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
@@ -17,11 +17,9 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
-  useCHAP: "none" # none / chap / mutual_chap
   fstype: ext4
-  pool_name: "iscsipool"
-  network_space: "niscsi"
+  pool_name: "FC-pool"
   provision_type: "THIN"
-  storage_protocol: "iscsi"
+  storage_protocol: "fc"
   ssd_enabled: "false"
   max_vols_per_host: 100

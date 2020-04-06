@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package api
 
 import (
@@ -282,7 +292,7 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Fail() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	_, err := service.MapVolumeToHost(1, 2,2)
+	_, err := service.MapVolumeToHost(1, 2, 2)
 
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -296,7 +306,7 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	response, _ := service.MapVolumeToHost(1001, 2,2)
+	response, _ := service.MapVolumeToHost(1001, 2, 2)
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
@@ -411,7 +421,7 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_error() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
-	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject:10}}
+	expectedResponse := client.ApiResponse{Result: Metadata{ID: 1, ObjectId: 10, Key: "host.k8s.treeqs", Value: "10", ObjectType: "filesystem"}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
@@ -423,7 +433,8 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_panic() {
-	suite.clientMock.On("Get").Return(nil, nil)
+	expectedResponse := client.ApiResponse{}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
 	_, err := service.GetFilesytemTreeqCount(1001)
@@ -766,10 +777,622 @@ func (suite *ApiTestSuite) Test_UpdateTreeq_fail() {
 	assert.Equal(suite.T(), expectedErr, err, "Error not returned as expected")
 
 }
+func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_fail() {
+	var FilesystemID int64 = 3111
+	//	var treeqID int64 = 20000
+	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	//body := map[string]interface{}{"hard_capacity": 1000000}
+	err := service.DeleteFileSystemComplete(FilesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
 
+func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_export_delete_fail() {
+	var FilesystemID int64 = 3111
+	//	var treeqID int64 = 20000
+	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(getExportResponse(), nil)
+	suite.clientMock.On("Delete").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	//body := map[string]interface{}{"hard_capacity": 1000000}
+	err := service.DeleteFileSystemComplete(FilesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_metadata_delete_fail() {
+	var FilesystemID int64 = 3111
+	//	var treeqID int64 = 20000
+	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	expectedErr := errors.New("EXPORT_NOT_FOUND")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	//suite.clientMock.On("Delete").Return(nil, nil)
+	suite.clientMock.On("Delete").Return([]Metadata{}, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	//body := map[string]interface{}{"hard_capacity": 1000000}
+	err := service.DeleteFileSystemComplete(FilesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_delete_fail1() {
+	var FilesystemID int64 = 3111
+	//	var treeqID int64 = 20000
+	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	exportNotFoundErr := errors.New("EXPORT_NOT_FOUND")
+	suite.clientMock.On("Get").Return(nil, exportNotFoundErr)
+	//suite.clientMock.On("Delete").Return(nil, nil)
+	metaDataErr := errors.New("METADATA_IS_NOT_SUPPORTED_FOR_ENTITY")
+	suite.clientMock.On("Delete").Return([]Metadata{}, metaDataErr)
+	expectedErr := errors.New("some Error")
+	suite.clientMock.On("Delete").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	//body := map[string]interface{}{"hard_capacity": 1000000}
+	err := service.DeleteFileSystemComplete(FilesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_delete_success() {
+	var FilesystemID int64 = 3111
+	exportNotFoundErr := errors.New("EXPORT_NOT_FOUND")
+	suite.clientMock.On("Get").Return(nil, exportNotFoundErr)
+	suite.clientMock.On("Delete").Return(nil, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	err := service.DeleteFileSystemComplete(FilesystemID)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_deletes() {
+	var FilesystemID int64 = 3111
+	//	var treeqID int64 = 20000
+	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	//expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(getExportResponse(), nil)
+	suite.clientMock.On("Delete").Return(nil, nil)
+	suite.clientMock.On("Delete").Return(nil, nil)
+	suite.clientMock.On("Delete").Return(nil, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	//body := map[string]interface{}{"hard_capacity": 1000000}
+	err := service.DeleteFileSystemComplete(FilesystemID)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteParentFileSystem_haschild_false() {
+	var FilesystemID int64 = 3111
+	suite.clientMock.On("Get").Return(false)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	err := service.DeleteParentFileSystem(FilesystemID)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteParentFileSystem() {
+	var FilesystemID int64 = 3111
+	suite.clientMock.On("Get").Return(false)
+	suite.clientMock.On("Get").Return(true)
+	suite.clientMock.On("Get").Return(0)
+	suite.clientMock.On("Delete").Return(nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	err := service.DeleteParentFileSystem(FilesystemID)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetParentID() {
+	var FilesystemID int64 = 3111
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(0, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	parentID := service.GetParentID(FilesystemID)
+	// Assert
+	assert.Equal(suite.T(), int64(0), parentID)
+}
+
+func (suite *ApiTestSuite) Test_GetParentID_success() {
+	var FilesystemID int64 = 3111
+	//expectedErr := errors.New("some error")
+	expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	parentID := service.GetParentID(FilesystemID)
+	// Assert
+	assert.Equal(suite.T(), int64(100), parentID)
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemByID_success() {
+	var FilesystemID int64 = 3111
+	var parentID int64 = 100
+
+	expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	filesys, err := service.GetFileSystemByID(FilesystemID)
+	// Assert
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), filesys.ParentID, parentID)
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemByID_Error() {
+	var FilesystemID int64 = 3111
+	expectedErr := errors.New("some error")
+
+	//expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.GetFileSystemByID(FilesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *ApiTestSuite) Test_GetMetadataStatus_success() {
+	var FilesystemID int64 = 3111
+
+	expectedResponse := client.ApiResponse{Result: Metadata{Value: "true"}}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	status := service.GetMetadataStatus(FilesystemID)
+	// Assert
+	assert.True(suite.T(), status)
+}
+
+func (suite *ApiTestSuite) Test_GetMetadataStatus_Error() {
+	var FilesystemID int64 = 3111
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	err := service.GetMetadataStatus(FilesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_FileSystemHasChild_success() {
+	var FilesystemID int64 = 3111
+	var fileSysArry []FileSystem
+	fileSys := FileSystem{ID: 3111}
+	fileSysArry = append(fileSysArry, fileSys)
+	expectedResponse := client.ApiResponse{Result: fileSysArry}
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	status := service.FileSystemHasChild(FilesystemID)
+	// Assert
+	assert.True(suite.T(), status)
+}
+
+func (suite *ApiTestSuite) Test_FileSystemHasChild_Error() {
+	var FilesystemID int64 = 3111
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	status := service.FileSystemHasChild(FilesystemID)
+	// Assert
+	assert.False(suite.T(), status)
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemCount_success() {
+	//var FilesystemID int64 = 3111
+	metadata := client.Resultmetadata{NoOfObject: 10}
+	expectedResponse := client.ApiResponse{MetaData: metadata}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	cnt, err := service.GetFileSystemCount()
+	// Assert
+	assert.Equal(suite.T(), 10, cnt)
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemCount_Error() {
+	//var FilesystemID int64 = 3111
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	cnt, err := service.GetFileSystemCount()
+	// Assert
+	assert.Equal(suite.T(), 0, cnt)
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_CreateFilesystem_success() {
+	//var FilesystemID int64 = 3111
+	fileSys := FileSystem{ID: 3111}
+	expectedResponse := client.ApiResponse{Result: fileSys}
+	suite.clientMock.On("Post").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	fileSysparameter := make(map[string]interface{})
+	fileSysparameter["ID"] = "100"
+	_, err := service.CreateFilesystem(fileSysparameter)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_CreateFilesystem_Error() {
+	//var FilesystemID int64 = 3111
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Post").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	fileSysparameter := make(map[string]interface{})
+	fileSysparameter["ID"] = "100"
+	_, err := service.CreateFilesystem(fileSysparameter)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_AttachMetadataToObject_success() {
+	var ObjectID int64 = 3111
+	var metaArry []Metadata
+	var meta Metadata
+	meta.ID = 100
+	meta.Key = "keay"
+	meta.Value = "value"
+	metaArry = append(metaArry, meta)
+
+	expectedResponse := client.ApiResponse{Result: metaArry}
+	suite.clientMock.On("Put").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	fileSysparameter := make(map[string]interface{})
+	fileSysparameter["ID"] = "100"
+	_, err := service.AttachMetadataToObject(ObjectID, fileSysparameter)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_AttachMetadataToObject_Error() {
+	var ObjectID int64 = 3111
+
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Put").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	fileSysparameter := make(map[string]interface{})
+	fileSysparameter["ID"] = "100"
+	_, err := service.AttachMetadataToObject(ObjectID, fileSysparameter)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteExportPath_Error() {
+	var exportID int64 = 3111
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Delete").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	_, err := service.DeleteExportPath(exportID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteExportPath_Success() {
+	var exportID int64 = 3111
+	var exportReps ExportResponse
+	exportReps.ID = 100
+	expectedResponse := client.ApiResponse{Result: exportReps}
+	suite.clientMock.On("Delete").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.DeleteExportPath(exportID)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should  be nil")
+}
+
+func (suite *ApiTestSuite) Test_OneTimeValidation_PoolIDByName_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.OneTimeValidation("poolName", "newtworkSpace")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return("networkSpace", nil)
+	suite.clientMock.On("Get").Return("networkSpace", expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.OneTimeValidation("poolName", "newtworkSpace")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_notmatch() {
+
+	var poolArry []StoragePool
+	var pool StoragePool
+	pool.ID = 123
+	poolArry = append(poolArry, pool)
+	poolIDResponse := client.ApiResponse{Result: poolArry}
+
+	suite.clientMock.On("GetWithQueryString").Return(poolIDResponse, nil)
+
+	var netArry []NetworkSpace
+	var network NetworkSpace
+	network.Name = "networkSpace"
+	netArry = append(netArry, network)
+	expectedResponse := client.ApiResponse{Result: netArry}
+
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.OneTimeValidation("poolName", "newtworkSpace")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+func (suite *ApiTestSuite) Test_GetFileSystemByName_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.GetFileSystemByName("fs_name")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemByName_Success() {
+	fsystems := []FileSystem{}
+	var fs FileSystem
+	fs.ID = 100
+	fs.Name = "fs_1"
+	fsystems = append(fsystems, fs)
+	expectedResponse := client.ApiResponse{Result: fsystems}
+
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.GetFileSystemByName("fs_1")
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetFileSystemByName_file_not_found() {
+	fsystems := []FileSystem{}
+	var fs FileSystem
+	fs.ID = 100
+	fs.Name = "fs_new"
+	fsystems = append(fsystems, fs)
+	expectedResponse := client.ApiResponse{Result: fsystems}
+
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.GetFileSystemByName("fs_1")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_ExportFileSystem_Error() {
+	expectedErr := errors.New("some error")
+	var export ExportFileSys
+	export.FilesystemID = 100
+	export.Export_path = "/exportPath"
+	export.Name = "exportName"
+	suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.ExportFileSystem(export)
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_ExportFileSystem_Success() {
+	var export ExportFileSys
+	export.FilesystemID = 100
+	export.Export_path = "/exportPath"
+	export.Name = "exportName"
+
+	var exportResp ExportResponse
+	exportResp.ID = 100
+	exportResp.ExportPath = "/exportPath"
+	exportResp.FilesystemId = 100
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+
+	suite.clientMock.On("Post").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.ExportFileSystem(export)
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_AddNodeInExport_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.AddNodeInExport(100, "", false, "10.20.30.40")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_AddNodeInExport_IPAddress_exist_success() {
+	//expectedErr := errors.New("some error")
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.40"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.AddNodeInExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_AddNodeInExport_IP_not_exist_success() {
+	//expectedErr := errors.New("some error")
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.30-10.20.30.41"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+
+	var putresp ExportResponse
+	exportResp.ID = 123
+	updateResponse := client.ApiResponse{Result: putresp}
+
+	suite.clientMock.On("Put").Return(updateResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.AddNodeInExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_AddNodeInExport_update_error() {
+	//expectedErr := errors.New("some error")
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.41"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Put").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.AddNodeInExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteExportRule_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	var fsID int64 = 100
+	err := service.DeleteExportRule(fsID, "10.20.30.40")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteExportRule_success() {
+	var exportRespArry []ExportResponse
+
+	var expoResp ExportResponse
+	expoResp.ID = 100
+	exportRespArry = append(exportRespArry, expoResp)
+	expectedResponse := client.ApiResponse{Result: exportRespArry}
+
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	var fsID int64 = 100
+	err := service.DeleteExportRule(fsID, "10.20.30.40")
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteNodeFromExport_Error() {
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Get").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteNodeFromExport_already_deleted() {
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.41"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteNodeFromExport_updateError() {
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.40"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	expectedErr := errors.New("some error")
+	suite.clientMock.On("Put").Return(nil, expectedErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.NotNil(suite.T(), err, "Error should not be nil")
+}
+
+func (suite *ApiTestSuite) Test_DeleteNodeFromExport_update_success() {
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.40"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+
+	response := client.ApiResponse{Result: ExportResponse{}}
+	suite.clientMock.On("Put").Return(response, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
+	// Assert
+	assert.Nil(suite.T(), err, "Error should not be nil")
+}
 
 func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_success() {
-	expectedResponse := client.ApiResponse{Result: getFilesystemArry(), MetaData: client.Resultmetadata{NoOfObject:100}}
+	expectedResponse := client.ApiResponse{Result: getFilesystemArry(), MetaData: client.Resultmetadata{NoOfObject: 100}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
@@ -782,13 +1405,13 @@ func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_success() {
 
 func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Error() {
 	expectedErr := errors.New("some error")
-	suite.clientMock.On("Get").Return(nil,expectedErr)
+	suite.clientMock.On("Get").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
 	var poolID int64 = 1
 	_, err := service.GetFileSystemCountByPoolID(poolID)
 	// Assert
-	assert.NotNil(suite.T(), err, "Response should not be nil")	
+	assert.NotNil(suite.T(), err, "Response should not be nil")
 }
 func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Panic() {
 	suite.clientMock.On("Get").Return(nil, nil)
@@ -797,9 +1420,86 @@ func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Panic() {
 	var poolID int64 = 1
 	_, err := service.GetFileSystemCountByPoolID(poolID)
 	// Assert
-	assert.NotNil(suite.T(), err, "Response should not be nil")	
+	assert.NotNil(suite.T(), err, "Response should not be nil")
 }
 
+func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_success() {
+	treeqArr := []Treeq{}
+	tq := Treeq{}
+	tq.ID = 111
+	tq.Name = "treeqName"
+	tq.HardCapacity = 100
+	treeqArr = append(treeqArr, tq)
+
+	expectedResponse := client.ApiResponse{Result: treeqArr}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var filesystemID int64 = 100
+	_, err := service.GetTreeqSizeByFileSystemID(filesystemID)
+	// Assert
+	assert.Nil(suite.T(), err, "Response should not be nil")
+	//assert.Equal(suite.T(), 100, response, "response should be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_Error() {
+
+	//expectedResponse := client.ApiResponse{Result: treeqArr}
+	expecteErr := errors.New("some Error")
+	suite.clientMock.On("Get").Return(nil, expecteErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var filesystemID int64 = 100
+	_, err := service.GetTreeqSizeByFileSystemID(filesystemID)
+	// Assert
+	assert.NotNil(suite.T(), err, "Response should not be nil")
+	//assert.Equal(suite.T(), 100, response, "response should be nil")
+}
+
+func (suite *ApiTestSuite) Test_GetTreeqByName_Error() {
+	expecteErr := errors.New("some Error")
+	suite.clientMock.On("GetWithQueryString").Return(nil, expecteErr)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var filesystemID int64 = 100
+	_, err := service.GetTreeqByName(filesystemID, "treeqName")
+	// Assert
+	assert.NotNil(suite.T(), err, "Response should not be nil")
+
+}
+
+func (suite *ApiTestSuite) Test_GetTreeqByName_success() {
+	treeqArr := []Treeq{}
+	tq := Treeq{}
+	tq.ID = 111
+	tq.Name = "treeqName"
+	tq.HardCapacity = 100
+	treeqArr = append(treeqArr, tq)
+
+	expectedResponse := client.ApiResponse{Result: treeqArr}
+	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+	// Act
+	var filesystemID int64 = 100
+	_, err := service.GetTreeqByName(filesystemID, "treeqName")
+	// Assert
+	assert.Nil(suite.T(), err, "Response should not be nil")
+	//assert.Equal(suite.T(), 100, response, "response should be nil")
+}
+
+//=============
+
+func getFilesystem() *FileSystem {
+	return &FileSystem{ParentID: 100}
+}
+func getExportResponse() *[]ExportResponse {
+	exportRespArry := []ExportResponse{}
+
+	exportResp := ExportResponse{}
+	exportResp.ID = 100
+	exportResp.ExportPath = "/exportPath"
+	return &exportRespArry
+}
 
 func setSecret() map[string]string {
 	secretMap := make(map[string]string)
