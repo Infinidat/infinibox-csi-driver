@@ -421,7 +421,7 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_error() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
-	expectedResponse := client.ApiResponse{Result: Metadata{ID: 1, ObjectId: 10, Key: "host.k8s.treeqs", Value: "10", ObjectType: "filesystem"}}
+	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject:10}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act

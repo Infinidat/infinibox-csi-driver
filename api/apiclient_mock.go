@@ -330,3 +330,20 @@ func (m *MockApiService) GetTreeqByName(fileSystemID int64, treeqName string) (*
 	err, _ := args.Get(1).(error)
 	return &trq, err
 }
+
+func (m *MockApiService) GetVolumeByName(volumename string) (*Volume, error) {
+	args := m.Called(volumename)
+	vol, _ := args.Get(0).(Volume)
+	if args.Get(0) == nil {
+		return nil, nil
+	}
+	err, _ := args.Get(1).(error)
+	return &vol, err
+}
+
+func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
+	args := m.Called(volume, storagePoolName)
+	vol, _ := args.Get(0).(Volume)
+	err, _ := args.Get(1).(error)
+	return &vol, err
+}
