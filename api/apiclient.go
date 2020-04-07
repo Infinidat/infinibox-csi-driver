@@ -646,19 +646,18 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	luns := []LunInfo{}
 	log.Infof("Get all lun for host %d", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	resp, err := c.getResponseWithQueryString(uri, nil, &luns)
+	resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
 	if err != nil {
 		log.Errorf("failed to get luns for host %d with error %v", hostID, err)
 		return luninfo, err
 	}
-	if len(luns) == 0 {
+	if len(luninfo) == 0 {
 		apiresp := resp.(client.ApiResponse)
-		luns, _ = apiresp.Result.([]LunInfo)
+		luninfo, _ = apiresp.Result.([]LunInfo)
 	}
-	log.Infof("got %d Luns for host %d", len(luns), hostID)
+	log.Infof("got %d Luns for host %d", len(luninfo), hostID)
 	return luninfo, nil
 }
 

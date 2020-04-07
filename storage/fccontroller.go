@@ -79,26 +79,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return &csi.CreateVolumeResponse{}, nil
 	}
 
-	targetWWNs := ""
-	fcNodes, err := fc.cs.api.GetFCPorts()
-	if err != nil {
-		return nil, fmt.Errorf("Error getting fiber channel details")
-	}
-
-	for _, fcnode := range fcNodes {
-		for _, fcport := range fcnode.Ports {
-			//if fcport.Enabled && fcport.State == "OK" {
-
-			targetWWNs = targetWWNs + "," + strings.Replace(fcport.WWPn, ":", "", -1)
-			//}
-		}
-	}
-	if targetWWNs == "" {
-		return nil, fmt.Errorf("No valid fc port available")
-	}
-	targetWWNs = targetWWNs[1:]
-	log.Debugf("target wwwns for FC is %s", targetWWNs)
-	req.GetParameters()["targetWWNs"] = targetWWNs
 	// We require the storagePool name for creation
 	poolName, ok := req.GetParameters()["pool_name"]
 	if !ok {
@@ -291,12 +271,15 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		log.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
+	log.Debugf("host can have maximum %d volume mapped", maxAllowedVol)
 	lunList, err := fc.cs.api.GetAllLunByHost(host.ID)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
+	log.Debugf("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		log.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	// map volume to host
 	log.Debugf("mapping volume %d to host %s", volID, host.Name)

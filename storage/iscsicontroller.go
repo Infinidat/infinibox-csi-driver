@@ -295,12 +295,15 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		log.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
+	log.Debugf("host can have maximum %d volume mapped", maxAllowedVol)
 	lunList, err := iscsi.cs.api.GetAllLunByHost(host.ID)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
+	log.Debugf("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		log.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 	// map volume to host
 	log.Debugf("mapping volume %d to host %s", volID, host.Name)
