@@ -34,12 +34,8 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
-		if nfs.osHelper.IsNotExist(err) {			
-			mode, err := GetUnixPermission(req.GetVolumeContext()["nfs_unix_permissions"],NfsUnixPermissions)
-			if err != nil {
-				return nil, err
-			}
-			if err := nfs.osHelper.MkdirAll(targetPath, mode); err != nil {
+		if nfs.osHelper.IsNotExist(err) {
+			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
@@ -93,7 +89,7 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 		if err := nfs.mounter.Unmount(targetPath); err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
 		}
-	}	
+	}
 	if err := nfs.osHelper.Remove(targetPath); err != nil && !nfs.osHelper.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
