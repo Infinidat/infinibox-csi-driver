@@ -18,8 +18,7 @@ import (
 	"infinibox-csi-driver/helper"
 	"io/ioutil"
 	"math/rand"
-	"os"
-	"os/exec"
+  "os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -326,6 +325,7 @@ func getClusterVersion() string {
 	return version
 }
 
+/*
 func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, error) {
 	var mode os.FileMode
 	if unixPermission == "" {
@@ -338,7 +338,7 @@ func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, e
 	}
 	mode = os.FileMode(i)
 	return mode, nil
-}
+}*/
 
 // detachFCDisk removes scsi device file such as /dev/sdX from the node.
 func detachDisk(devicePath string) error {

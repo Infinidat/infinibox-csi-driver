@@ -81,23 +81,22 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 			err = errors.New("GetFilesytemTreeqCount Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TREEQCOUNT
-	metadata := Metadata{}
-	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
+	path := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
+	treeqArry := []Treeq{}
+	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &treeqArry)
 	if err != nil {
-		log.Debugf("Error occured while getting host.k8s.treeqs value: %s", err)
-		return 0, err
-	}
-	if metadata == (Metadata{}) {
-		apiresp := resp.(client.ApiResponse)
-		metadata = apiresp.Result.(Metadata)
-	}
-	treeqCnt, err = strconv.Atoi(metadata.Value)
-	if err != nil {
-		log.Debugf("Error occured while converting metadata key : %s ,value: %v", TREEQCOUNT, err)
+		log.Debugf("Error occured while getting treeq count value: %s", err)
 		return
 	}
-	log.Info("Got metadata status of filesystem : ", fileSystemID)
+	apiresp := resp.(client.ApiResponse)
+	mdata := apiresp.MetaData
+	treeqCnt = mdata.NoOfObject
+
+	if len(treeqArry) == 0 {
+		treeqArry, _ = apiresp.Result.([]Treeq)
+	}
+
+	log.Info("Total number of Treeq : ", treeqCnt)
 	return
 
 }
