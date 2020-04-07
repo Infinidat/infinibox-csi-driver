@@ -506,11 +506,12 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	exportID := req.GetVolumeContext()["exportID"]
 	access := NfsExportPermissions
-	noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
+	/*noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
 	if castErr != nil {
 		log.Debug("fail to cast no_root_squash .set default =true")
 		noRootSquash = true
-	}
+	}*/
+	noRootSquash := true //defautl value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")

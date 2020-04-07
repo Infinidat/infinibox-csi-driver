@@ -30,8 +30,8 @@ const (
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
 	MAXFILESYSTEMS         = "max_filesystems"
 	MAXFILESYSTEMSIZE      = "max_filesystem_size"
-	UNIXPERMISSION         = "nfs_unix_permissions"
-	FSPREFIX               = "fs_prefix"
+	//	UNIXPERMISSION         = "nfs_unix_permissions"
+	FSPREFIX = "fs_prefix"
 
 	//Treeq count
 	TREEQCOUNT = "host.k8s.treeqs"
@@ -468,7 +468,7 @@ func getDefaultValues() map[string]string {
 	defaultConfigMap[MAXTREEQSPERFILESYSTEM] = "1000"
 	defaultConfigMap[MAXFILESYSTEMS] = "1000"
 	defaultConfigMap[MAXFILESYSTEMSIZE] = "100tib"
-	defaultConfigMap[UNIXPERMISSION] = "750"
+	//defaultConfigMap[UNIXPERMISSION] = "750"
 	return defaultConfigMap
 }
 
@@ -525,10 +525,10 @@ func (filesystem *FilesystemService) getTreeParameters() map[string]interface{} 
 	treeqParameter["path"] = path.Join("/", filesystem.pVName)
 	treeqParameter["name"] = filesystem.pVName
 	treeqParameter["hard_capacity"] = filesystem.capacity
-	treeqParameter["mode"] = filesystem.getTreeModePermission()
 	return treeqParameter
 }
 
+/*
 func (filesystem *FilesystemService) getTreeModePermission() string {
 	if unixPermission, ok := filesystem.configmap[UNIXPERMISSION]; ok {
 		return unixPermission
@@ -536,6 +536,7 @@ func (filesystem *FilesystemService) getTreeModePermission() string {
 	values := getDefaultValues()
 	return values[UNIXPERMISSION]
 }
+*/
 
 func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 	exportResponse, exportErr := filesystem.cs.api.GetExportByFileSystem(filesystemID)

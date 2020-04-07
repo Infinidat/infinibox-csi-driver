@@ -26,18 +26,14 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	targetPath := req.GetTargetPath()
 	notMnt, err := treeq.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
-		if treeq.osHelper.IsNotExist(err) {			
-			mode, err :=GetUnixPermission(req.GetVolumeContext()["nfs_unix_permissions"],TreeqUnixPermissions)
-			if err != nil {
-				return nil, err
-			}
-			if err := treeq.osHelper.MkdirAll(targetPath, mode); err != nil {
+		if treeq.osHelper.IsNotExist(err) {
+			if err := treeq.osHelper.MkdirAll(targetPath, 0750); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
 			notMnt = true
 		} else {
-			log.Errorf("IsLikelyNotMountPint method error  %v", err)
+			log.Errorf("IsNotMountPoint method error  %v", err)
 			return nil, err
 		}
 	}
@@ -84,7 +80,7 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 		if err := treeq.mounter.Unmount(targetPath); err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
 		}
-	}	
+	}
 	if err := treeq.osHelper.Remove(targetPath); err != nil && !treeq.osHelper.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
