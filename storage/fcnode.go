@@ -522,41 +522,8 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) error {
 	if err != nil {
 		return err
 	}
-	cnt--
-	if cnt < 1 {
-		var devices []string
-		dstPath, err := io.EvalSymlinks("/host" + device)
-		log.Debug("unmount volume from ", dstPath)
-		if err != nil {
-			return err
-		}
-		if strings.HasPrefix(dstPath, "/host") {
-			dstPath = strings.Replace(dstPath, "/host", "", 1)
-		}
 
-		if strings.HasPrefix(dstPath, "/dev/dm-") {
-			devices = findSlaveDevicesOnMultipath(dstPath)
-		} else {
-			// Add single targetPath to devices
-			devices = append(devices, dstPath)
-		}
-		log.Infof("fc: DetachDisk targetPath: %v, dstPath: %v, devices: %v", targetPath, dstPath, devices)
-		var lastErr error
-		for _, device := range devices {
-			err := detachDisk(device)
-			if err != nil {
-				log.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
-				lastErr = fmt.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
-			}
-		}
-		if lastErr != nil {
-			log.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
-			return lastErr
-		}
-	} else {
-		log.Debugf("disk will not be removed as volume is used by other %d pods ", cnt)
-	}
-
+	// unmount volume
 	if pathExist, pathErr := fc.pathExists(targetPath); pathErr != nil {
 		return fmt.Errorf("Error checking if path exists: %v", pathErr)
 	} else if !pathExist {
@@ -582,7 +549,56 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) error {
 		log.Errorf("fc: failed to remove mount path Error: %v", err)
 		return err
 	}
-	log.Debug("unmout success")
+	log.Debug("Unmouted volume successfully!")
+	cnt--
+	if cnt < 1 {
+		log.Debugf("disk will not be removed as volume is used by other %d pods ", cnt)
+		return nil
+	}
+
+	// remove multipaths
+	var devices []string
+	multiPath := false
+	dstPath, err := io.EvalSymlinks("/host" + device)
+	if err != nil {
+		return err
+	}
+	if strings.HasPrefix(dstPath, "/host") {
+		dstPath = strings.Replace(dstPath, "/host", "", 1)
+	}
+
+	if strings.HasPrefix(dstPath, "/dev/dm-") {
+		multiPath = true
+		devices = findSlaveDevicesOnMultipath(dstPath)
+	} else {
+		// Add single targetPath to devices
+		devices = append(devices, dstPath)
+	}
+	log.Infof("fc: DetachDisk targetPath: %v, dstPath: %v, devices: %v", targetPath, dstPath, devices)
+	var lastErr error
+	for _, device := range devices {
+		err := detachDisk(device)
+		if err != nil {
+			log.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
+			lastErr = fmt.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
+		}
+	}
+	if lastErr != nil {
+		log.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
+		return lastErr
+	}
+	if multiPath {
+		log.Debug("flush multipath device using multipath -f ", device)
+		_, err := fc.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", device})
+		if err != nil {
+			if _, e := os.Stat("/host" + device); os.IsNotExist(e) {
+				log.Debugf("multipath device %s deleted", device)
+			} else {
+				log.Errorf("multipath -f %s failed to device with error %v", device, err.Error())
+				return err
+			}
+		}
+	}
 	return nil
 }
 func (fc *fcstorage) pathExists(path string) (bool, error) {
