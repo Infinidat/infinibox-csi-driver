@@ -1,5 +1,3 @@
-# Base image
-# FROM registry.access.redhat.com/rhel7/rhel-atomic:latest
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 COPY setenv.sh /setenv.sh
 RUN chmod +x /setenv.sh
@@ -10,12 +8,10 @@ MAINTAINER infinibox@infinidat.com
 
 LABEL name="infinibox-csi-driver" \
       vendor="Infinidat" \
-      version="1.0.0" \
-      release="1" \ 
-      summary="Example Corp's Starter app" \
-      description="Starter app will build a webserver"  
+      summary="Infinidat CSI-Plugin" \
+      description="Install a CSI-Plugin for infinibox"  
 
-COPY LICENSE /licenses
+COPY licenses /licenses
 
 RUN mkdir /ibox
 ADD host-chroot.sh /ibox
