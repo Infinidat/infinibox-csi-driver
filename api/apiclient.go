@@ -744,7 +744,6 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 	if expectedResp == nil {
 		expectedResp = resp
 	}
-	log.Debugf("getJSONResponse response: method %s and apiuri %s and err %v", method, apiuri, err)
 	return
 }
 
@@ -769,10 +768,7 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 		}
 		queryString = key + "=" + fmt.Sprintf("%v", val)
 	}
-	log.Debugf("getResponseWithQueryString queryString is %s ", queryString)
 	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
-	log.Debugf("getResponseWithQueryString return err %v ", err)
-
 	return resp, err
 }
 
