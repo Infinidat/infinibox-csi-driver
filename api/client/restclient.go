@@ -84,8 +84,7 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
-		SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
-	log.Infof("client.Get returned err %v for url %s ", err, url)
+	SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
 	resp, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
 		log.Errorf("error in validating response %v", err)
