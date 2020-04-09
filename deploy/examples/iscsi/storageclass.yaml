@@ -24,4 +24,4 @@ parameters:
   provision_type: "THIN"
   storage_protocol: "iscsi"
   ssd_enabled: "false"
-  max_vols_per_host: 100
+  max_vols_per_host: "100"
