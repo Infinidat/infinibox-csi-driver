@@ -290,16 +290,39 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 
+	ports := ""
+	if len(host.Ports) > 0 {
+		for _, port := range host.Ports {
+			if port.PortType == "ISCSI" {
+				ports = ports + "," + port.PortAddress
+			}
+		}
+	}
+	if ports != "" {
+		ports = ports[1:]
+	}
+
+	lunList, err := iscsi.cs.api.GetAllLunByHost(host.ID)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, err
+	}
+	for _, lun := range lunList {
+		if lun.VolumeID == volID {
+			volCtx := make(map[string]string)
+			volCtx["lun"] = strconv.Itoa(lun.Lun)
+			volCtx["hostID"] = strconv.Itoa(host.ID)
+			volCtx["hostPorts"] = ports
+			return &csi.ControllerPublishVolumeResponse{
+				PublishContext: volCtx,
+			}, nil
+		}
+	}
 	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
 	if err != nil {
 		log.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
 	log.Debugf("host can have maximum %d volume mapped", maxAllowedVol)
-	lunList, err := iscsi.cs.api.GetAllLunByHost(host.ID)
-	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, err
-	}
 	log.Debugf("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		log.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
@@ -311,18 +334,6 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	if err != nil {
 		log.Errorf("Failed to map volume to host with error %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
-	}
-
-	ports := ""
-	if len(host.Ports) > 0 {
-		for _, port := range host.Ports {
-			if port.PortType == "ISCSI" {
-				ports = ports + "," + port.PortAddress
-			}
-		}
-	}
-	if ports != "" {
-		ports = ports[1:]
 	}
 
 	volCtx := make(map[string]string)
