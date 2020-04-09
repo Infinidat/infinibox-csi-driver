@@ -1,15 +1,29 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package service
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"net"
+	"os/exec"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/prometheus/common/log"
 	"github.com/rexray/gocsi"
+	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -19,33 +33,15 @@ const (
 type service struct {
 	//service
 	apiclient api.Client
-
 	// parameters
-	config              ServiceConfig
 	mode                string
 	storagePoolIDToName map[int64]string
 	nodeID              string
 	maxVolumesPerNode   int64
 	driverName          string
+	driverVersion       string
 	nodeIPAddress       string
-}
-
-// Config defines service configuration options.
-type ServiceConfig struct {
-	EndPoint                   string
-	UserName                   string
-	Password                   string
-	max_fs                     string
-	PoolName                   string
-	Thick                      bool
-	ssd_enabled                string
-	provision_type             string
-	Insecure                   bool
-	DisableCerts               bool   // used for unit testing only
-	Lsmod                      string // used for unit testing only
-	EnableSnapshotCGDelete     bool   // when snapshot deleted, enable deleting of all snaps in the CG of the snapshot
-	EnableListVolumesSnapshots bool   // when listing volumes, include snapshots and volumes
-
+	nodeName            string
 }
 
 // Service is the CSI Mock service provider.
@@ -63,6 +59,8 @@ func New(configParam map[string]string) Service {
 		nodeID:              configParam["nodeid"],
 		driverName:          configParam["drivername"],
 		nodeIPAddress:       configParam["nodeIPAddress"],
+		nodeName:            configParam["nodeName"],
+		driverVersion:       configParam["driverversion"],
 		storagePoolIDToName: map[int64]string{},
 		apiclient:           &api.ClientService{},
 	}
@@ -84,6 +82,33 @@ func (s *service) verifyController() error {
 	return nil
 }
 
+func (s *service) getNodeFQDN() string {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from getNodeFQDN  " + fmt.Sprint(res))
+		}
+	}()
+	cmd := "hostname -f"
+	out, err := exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		log.Warning("could not get fqdn with cmd : 'hostname -f', get hostname with 'echo $HOSTNAME'")
+		cmd = "echo $HOSTNAME"
+		out, err = exec.Command("bash", "-c", cmd).Output()
+		if err != nil {
+			log.Errorf("Failed to execute command: %s", cmd)
+			return s.nodeName
+		}
+	}
+	nodeFQDN := string(out)
+	if nodeFQDN == "" {
+		log.Warning("node fqnd not found, setting node name as node fqdn instead")
+		nodeFQDN = s.nodeName
+	}
+	nodeFQDN = strings.TrimSuffix(nodeFQDN, "\n")
+	return nodeFQDN
+}
+
 func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
@@ -93,4 +118,16 @@ func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtoc
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil
+}
+
+// Controller expand volume request validation
+func (s *service) validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
+	if req.GetVolumeId() == "" {
+		return status.Error(codes.InvalidArgument, "Volume ID cannot be empty")
+	}
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+	}
+	return nil
 }

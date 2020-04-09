@@ -1,6 +1,14 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package api
-
-import "github.com/golang/protobuf/ptypes/timestamp"
 
 type EndpointConfig struct {
 	Endpoint string
@@ -31,7 +39,7 @@ type Volume struct {
 	RmrSnapshotGuid       string `json:"rmr_snapshot_guid,omitempty"`
 	CapacitySavings       int    `json:"capacity_savings,omitempty"`
 	Name                  string `json:"name,omitempty"`
-	CreatedAt             int    `json:"created_at,omitempty"`
+	CreatedAt             int64  `json:"created_at,omitempty"`
 	PoolId                int64  `json:"pool_id,omitempty"`
 	PoolName              string `json:"pool_name,omitempty"`
 	CompressionEnabled    bool   `json:"compression_enabled,omitempty"`
@@ -46,6 +54,7 @@ type VolumeParam struct {
 	VolumeSize    int64  `json:"size,omitempty"`
 	Name          string `json:"name,omitempty"`
 	ProvisionType string `json:"provtype,omitempty"`
+	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
 }
 
 type VolumeResp struct {
@@ -87,21 +96,13 @@ type StoragePool struct {
 	FreePhysicalSpace        int      `json:"free_physical_space"`
 }
 
-type SnapshotDef struct {
-	ParentID     int    `json:"parent_id,omitempty"`
-	SnapshotName string `json:"name,omitempty"`
-}
-type SnapshotVolumesParam struct {
-	SnapshotDefs []*SnapshotDef `json:"snapshotDefs"`
-}
-
 type SnapshotVolumesResp struct {
-	SnapShotID int  `json:"id,omitempty"`
-	Size       int  `json:"size,omitempty"`
-	SsdEnabled bool `json:"ssd_enabled,omitempty"`
-	ParentID   int  `json:"parent_id,omitempty"`
-	PoolID     int  `json:"pool_id,omitempty"`
-	Name       int  `json:"name,omitempty"`
+	SnapShotID int    `json:"id,omitempty"`
+	Size       int64  `json:"size,omitempty"`
+	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
+	ParentID   int    `json:"parent_id,omitempty"`
+	PoolID     int    `json:"pool_id,omitempty"`
+	Name       string `json:"name,omitempty"`
 }
 
 type NetworkSpace struct {
@@ -153,6 +154,26 @@ type NetworkSpaceProperty struct {
 	IscsiSecurityMethod string      `json:"iscsi_default_security_method,omitempty"`
 }
 
+type HostCluster struct {
+	ID    int    `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Hosts []Host `json:"hosts,omitempty"`
+}
+
+type Host struct {
+	ID             int        `json:"id,omitempty"`
+	Name           string     `json:"name,omitempty"`
+	HostClusterID  int        `json:"host_cluster_id,omitempty"`
+	Ports          []HostPort `json:"ports,omitempty"`
+	Luns           []LunInfo  `json:"luns,omitempty"`
+	SecurityMethod string     `json:"security_method,omitempty"`
+}
+
+type HostPort struct {
+	HostID      int    `json:"host_id,omitempty"`
+	PortType    string `json:"type,omitempty"`
+	PortAddress string `json:"address,omitempty"`
+}
 type LunInfo struct {
 	HostClusterID int  `json:"host_cluster_id,omitempty"`
 	VolumeID      int  `json:"volume_id,omitempty"`
@@ -161,11 +182,6 @@ type LunInfo struct {
 	ID            int  `json:"id,omitempty"`
 	Lun           int  `json:"lun,omitempty"`
 }
-
-type Host struct {
-	ID int `json:"id,omitempty"`
-}
-
 type ExportFileSys struct {
 	FilesystemID        int64                    `json:"filesystem_id,omitempty"`
 	Name                string                   `json:"name,omitempty"`
@@ -227,11 +243,11 @@ type FileSystem struct {
 
 //FileSystemMetaData
 type FileSystemMetaData struct {
-	Ready           bool   `json:"ready,omitempty"`
-	NumberOfObjects int64  `json:"number_of_objects,omitempty"`
-	PageSize        string `json:"page_size,omitempty"`
-	PagesTotal      bool   `json:"pages_total,omitempty"`
-	Page            string `json:"provtype,omitempty"`
+	Ready           bool `json:"ready,omitempty"`
+	NumberOfObjects int  `json:"number_of_objects,omitempty"`
+	PageSize        int  `json:"page_size,omitempty"`
+	PagesTotal      int  `json:"pages_total,omitempty"`
+	Page            int  `json:"provtype,omitempty"`
 }
 
 type ExportPathRef struct {
@@ -265,15 +281,40 @@ type FileSystemSnapshot struct {
 
 //FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
-	SnapshotID  int64                `json:"id"`
-	Name        string               `json:"name,omitempty"`
-	DatasetType string               `json:"dataset_type,omitempty"`
-	ParentId    int64                `json:"parent_id,omitempty"`
-	Size        int64                `json:"size,omitempty"`
-	CreatedAt   *timestamp.Timestamp `json:"created_at,omitempty"`
+	SnapshotID  int64  `json:"id"`
+	Name        string `json:"name,omitempty"`
+	DatasetType string `json:"dataset_type,omitempty"`
+	ParentId    int64  `json:"parent_id,omitempty"`
+	Size        int64  `json:"size,omitempty"`
+	CreatedAt   int64  `json:"created_at,omitempty"`
 }
 
 type VolumeProtocolConfig struct {
-	VolumeID    string
-	StorageType string
+	VolumeID      string
+	StorageType   string
+	ChildVolumeID string
+}
+
+//VolumeSnapshot volume snapshot request parameter
+type VolumeSnapshot struct {
+	ParentID       int    `json:"parent_id"`
+	SnapshotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
+	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
+}
+
+// FC
+type FCNode struct {
+	Ports []FCPort `json:"fc_ports,omitempty"`
+}
+
+type FCPort struct {
+	PortID       int    `json:"id"`
+	State        string `json:"state,omitempty"`
+	Enabled      bool   `json:"enabled,omitempty"`
+	WWNn         string `json:"wwnn,omitempty"`
+	WWPn         string `json:"wwpn,omitempty"`
+	SwitchWWNn   string `json:"switch_wwnn,omitempty"`
+	Vendor       string `json:"vendor,omitempty"`
+	SwitchVendor string `json:"switch_vendor,omitempty"`
 }

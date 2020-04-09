@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ibox-treeq-pvc-demo
+  namespace: infi
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-treeq-storageclass-demo 
+  #volumeName: <<pv name>> #need to uncomment if want to existing pv

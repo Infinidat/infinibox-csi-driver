@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ibox-pvc-demo
+  namespace: infi
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-iscsi-storageclass-demo
+  #volumeName: <<pv name>> #need to uncomment if want to existing pv

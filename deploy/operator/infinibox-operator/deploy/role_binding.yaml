@@ -1,0 +1,13 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: infinibox-operator
+subjects:
+- kind: ServiceAccount
+  name: infinibox-operator
+  # Replace this with the namespace the operator to be deployed in.
+  namespace: infi
+roleRef:
+  kind: ClusterRole
+  name: infinibox-operator
+  apiGroup: rbac.authorization.k8s.io

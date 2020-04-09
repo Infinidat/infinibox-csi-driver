@@ -1,3 +1,13 @@
+/*Copyright 2020 Infinidat
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.*/
 package api
 
 import (
@@ -5,11 +15,11 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
-	"net"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -22,13 +32,24 @@ type Client interface {
 	FindStoragePool(id int64, name string) (StoragePool, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	GetVolumeByName(volumename string) (*Volume, error)
-	GetVolume(volumeid int) ([]Volume, error)
-	CreateSnapshotVolume(snapshotParam *SnapshotDef) (*SnapshotVolumesResp, error)
+	GetVolume(volumeid int) (*Volume, error)
+	CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
-	GetHostByName(hostName string) (host Host, err error)
-	MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error)
-	UnMapVolumeFromHost(hostID, volumeID int) (err error)
 	DeleteVolume(volumeID int) (err error)
+	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
+	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
+
+	GetHostByName(hostName string) (host Host, err error)
+	CreateHost(hostName string) (host Host, err error)
+	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
+	AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error)
+	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
+	DeleteHost(hostID int) (err error)
+	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
+	GetAllLunByHost(hostID int) (luninfo []LunInfo, err error)
+	UnMapVolumeFromHost(hostID, volumeID int) (err error)
+	GetFCPorts() (fcNodes []FCNode, err error)
+	GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error)
 
 	// for nfs
 	OneTimeValidation(poolname string, networkspace string) (list string, err error)
@@ -54,6 +75,16 @@ type Client interface {
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
+
+	GetFileSystemsByPoolID(poolID int64, page int) (*FSMetadata, error)
+	GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int, err error)
+	CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error)
+	DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
+	GetTreeq(fileSystemID, treeqID int64) (*Treeq, error)
+	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
+	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
+	GetFileSystemCountByPoolID(poolID int64) (int, error)
+	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 }
 
 //ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -86,13 +117,71 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 			err = errors.New("DeleteVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	path := "/api/rest/volumes/" + strconv.Itoa(volumeID)
+	_, err = c.DetachMetadataFromObject(int64(volumeID))
+	if err != nil {
+		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
+			err = nil
+		} else {
+			log.Errorf("fail to delete metadata %v", err)
+			return
+		}
+	}
+
+	path := "/api/rest/volumes/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
 	if err != nil {
 		return err
 	}
 	log.Info("Deleted Volume : ", volumeID)
-	return nil
+	return
+}
+
+//AddHostSecurity - add chap security for host with given details
+func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("AddHostSecurity Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("add chap atuhentication for hostID %d : ", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
+	resp, err := c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
+	if err != nil {
+		log.Errorf("failed to add chap security to host %d with error %v", hostID, err)
+		return host, err
+	}
+	if reflect.DeepEqual(host, (Host{})) {
+		apiresp := resp.(client.ApiResponse)
+		host, _ = apiresp.Result.(Host)
+	}
+	log.Info("created chap authentication for host : ", host.Name)
+	return host, nil
+}
+
+//AddHostPort - add port for host with given details
+func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("AddHostPort Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("add port for hostID %s %d : ", portAddress, hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports?approved=true"
+	body := map[string]interface{}{"address": portAddress, "type": portType}
+	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
+	if err != nil {
+		if !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
+			log.Errorf("error adding host port : %s error : %v", portAddress, err)
+		}
+		return hostPort, err
+	}
+	if reflect.DeepEqual(hostPort, (HostPort{})) {
+		apiresp := resp.(client.ApiResponse)
+		hostPort, _ = apiresp.Result.(HostPort)
+	}
+
+	log.Info("created host port: ", hostPort.PortAddress)
+	return hostPort, nil
 }
 
 //CreateVolume : create volume with volume details provided in storage pool provided
@@ -112,9 +201,14 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 		return nil, err
 	}
 	volume.PoolId = poolID
-
+	valumeParameter := make(map[string]interface{})
+	valumeParameter["pool_id"] = poolID
+	valumeParameter["size"] = volume.VolumeSize
+	valumeParameter["name"] = volume.Name
+	valumeParameter["provtype"] = volume.ProvisionType
+	valumeParameter["ssd_enabled"] = volume.SsdEnabled
 	vol := Volume{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, volume, &vol)
+	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &vol)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +295,7 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 			err = errors.New("error while Get Pool ID  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get ID of a storage pool by Name : ", name)
+	log.Infof("Get ID of a storage pool by Name : %s", name)
 	storagePools := []StoragePool{}
 	//To get the pool_id for corresponding poolname
 	var poolID int64 = -1
@@ -210,7 +304,7 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 	queryParam["name"] = name
 	resp, err := c.getResponseWithQueryString(urlpool, queryParam, &storagePools)
 	if err != nil {
-		return -1, fmt.Errorf("volume with given name not found")
+		return -1, fmt.Errorf("fail to get pool ID from pool Name: %s", name)
 	}
 	if len(storagePools) == 0 {
 		apiresp := resp.(client.ApiResponse)
@@ -231,7 +325,7 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetStoragePool Panic occured -  " + fmt.Sprint(res))
+			err = errors.New("GetVolumeByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
 	log.Info("Get a Volume by Name : ", volumename)
@@ -259,7 +353,7 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 }
 
 //GetVolume : get volume by id
-func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
+func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -267,61 +361,36 @@ func (c *ClientService) GetVolume(volumeid int) ([]Volume, error) {
 		}
 	}()
 	log.Info("Get a Volume of ID : ", volumeid)
-	var (
-		path    string
-		volume  = Volume{}
-		volumes = []Volume{}
-	)
-	if volumeid != -1 {
-		path = "/api/rest/volumes/" + strconv.Itoa(volumeid)
-	} else {
-		path = "/api/rest/volumes"
+	volume := Volume{}
+	path := "/api/rest/volumes/" + strconv.Itoa(volumeid)
+	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
+	if err != nil {
+		return nil, err
 	}
-
-	if volumeid == -1 {
-		resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volumes)
-		if err != nil {
-			return nil, err
-		}
-		if len(volumes) == 0 {
-			apiresp := resp.(client.ApiResponse)
-			volumes, _ = apiresp.Result.([]Volume)
-		}
-	} else {
-		resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
-		if err != nil {
-			return nil, err
-		}
-		if volume == (Volume{}) {
-			apiresp := resp.(client.ApiResponse)
-			volume, _ = apiresp.Result.(Volume)
-		}
+	if volume == (Volume{}) {
+		apiresp := resp.(client.ApiResponse)
+		volume, _ = apiresp.Result.(Volume)
 	}
-
-	if volumeid == -1 {
-		var volumesNew []Volume
-		for _, volume := range volumes {
-			volumesNew = append(volumesNew, volume)
-		}
-		volumes = volumesNew
-	} else {
-		volumes = append(volumes, volume)
-	}
-	return volumes, nil
+	return &volume, nil
 }
 
 //CreateSnapshotVolume : Create volume from snapshot
-func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*SnapshotVolumesResp, error) {
+func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("CreateSnapshotVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Create a volume from snapshot : ", snapshotParam.SnapshotName)
+	log.Info("Create a snapshot : ", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapResp)
+	valumeParameter := make(map[string]interface{})
+	valumeParameter["parent_id"] = snapshotParam.ParentID
+	valumeParameter["name"] = snapshotParam.SnapshotName
+	valumeParameter["write_protected"] = snapshotParam.WriteProtected
+	valumeParameter["ssd_enabled"] = snapshotParam.SsdEnabled
+	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +398,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *SnapshotDef) (*Snaps
 		apiresp := resp.(client.ApiResponse)
 		snapResp, _ = apiresp.Result.(SnapshotVolumesResp)
 	}
-	log.Info("Created a volume : ", snapResp.Name)
+	log.Info("Created snapshot : ", snapResp.Name)
 	return &snapResp, nil
 }
 
@@ -360,6 +429,82 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	return nspace, nil
 }
 
+//DeleteHost - delete host by given host ID
+func (c *ClientService) DeleteHost(hostID int) (err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("DeleteHost Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("delete host with host ID", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID)
+	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
+	if err != nil {
+		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+			log.Errorf("failed to delete host with id %d with error %v", hostID, err)
+		}
+		return err
+	}
+	log.Info("delete host with id ", hostID)
+	return nil
+}
+
+//CreateHost - create host  with given details
+func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("CreateHost Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("create host with name  ", hostName)
+	uri := "api/rest/hosts"
+	body := map[string]interface{}{"name": hostName}
+	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &host)
+	if err != nil {
+		log.Errorf("error creating host : %s error : %v", hostName, err)
+		return host, err
+	}
+	if reflect.DeepEqual(host, (Host{})) {
+		apiresp := resp.(client.ApiResponse)
+		host, _ = apiresp.Result.(Host)
+	}
+
+	log.Info("created host with name ", host.Name)
+	return host, nil
+}
+
+//GetHostPort - get host port details
+func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetHostPort Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("get host port by port address ", portAddress)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports"
+	hostPorts := []HostPort{}
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &hostPorts)
+	if err != nil {
+		log.Errorf("unable to get host port %s with error ", portAddress)
+		return hostPort, err
+	}
+	if len(hostPorts) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		hostPorts, _ = apiresp.Result.([]HostPort)
+	}
+
+	for _, port := range hostPorts {
+		if port.PortAddress == portAddress {
+			hostPort = port
+		}
+	}
+	if hostPort.HostID == 0 && hostPort.PortAddress == "" {
+		return hostPort, errors.New("HOST_PORT_NOT_FOUND")
+	}
+	log.Info("fetched hostPort with address ", hostPort.PortAddress)
+	return hostPort, nil
+}
+
 //GetHostByName - get host details for given hostname
 func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	defer func() {
@@ -367,13 +512,13 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get Host by name : ", hostName)
+	log.Info("get host by name ", hostName)
 	uri := "api/rest/hosts"
 	hosts := []Host{}
 	queryParam := map[string]interface{}{"name": hostName}
 	resp, err := c.getResponseWithQueryString(uri, queryParam, &hosts)
 	if err != nil {
-		log.Errorf("No such host : %s", hostName)
+		log.Errorf("host %s not found ", hostName)
 		return host, err
 	}
 	if len(hosts) == 0 {
@@ -384,11 +529,40 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	if len(hosts) > 0 {
 		host = hosts[0]
 	}
-	log.Info("Got Host: ", hostName)
+	if host.ID == 0 && host.Name == "" {
+		return host, errors.New("HOST_NOT_FOUND")
+	}
+	log.Info("fetched host with name ", host.Name)
 	return host, nil
 }
 
-// UnMapVolumeFromHost - Remove mapping of volume and host
+//GetFCPorts - get fc ports details
+func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("get fc ports")
+	uri := "api/rest/components/nodes?fields=fc_ports"
+	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &fcNodes)
+	if err != nil {
+		log.Errorf("error occured while fetching fc_ports ")
+		return fcNodes, err
+	}
+	if len(fcNodes) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		fcNodes, _ = apiresp.Result.([]FCNode)
+	}
+
+	if len(fcNodes) == 0 {
+		return fcNodes, errors.New("fc port not found")
+	}
+	log.Info("fetched fc ports successfully ")
+	return fcNodes, nil
+}
+
+// UnMapVolumeFromHost - Remove mapping of volume with host
 func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -396,43 +570,153 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 		}
 	}()
 	log.Infof("Remove mapping of volume %d from host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	body := map[string]interface{}{"volume_id": volumeID}
-	_, err = c.getJSONResponse(http.MethodDelete, uri, body, nil)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
+	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
 	if err != nil {
-		log.Errorf("Error occured while unmapping volume from host %v", err)
+		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") && !strings.Contains(err.Error(), "VOLUME_NOT_FOUND") && !strings.Contains(err.Error(), "LUN_NOT_FOUND") {
+			log.Errorf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
+		}
 		return err
 	}
-	log.Infof("Successfully removed mapping of volume %d from host %d", volumeID, hostID)
+	log.Infof("successfully unmapped volume %d from host %d", volumeID, hostID)
 	return nil
 }
 
 // MapVolumeToHost - Map volume with given volumeID to Host with given hostID
-func (c *ClientService) MapVolumeToHost(hostID, volumeID int) (luninfo LunInfo, err error) {
+func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("Map volume of %d to host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	body := map[string]interface{}{"volume_id": volumeID}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &luninfo)
+	log.Infof("map volume %d to host %d", volumeID, hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns?approved=true"
+	data := make(map[string]interface{})
+	data["volume_id"] = volumeID
+	if lun != -1 {
+		data["lun"] = lun
+	}
+	resp, err := c.getJSONResponse(http.MethodPost, uri, data, &luninfo)
 	if err != nil {
-		log.Errorf("error occured while mapping volume to host %v", err)
+		// ignore logging for following error code
+		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
+			log.Errorf("error occured while mapping volume to host %v", err)
+		}
 		return luninfo, err
 	}
 	if luninfo == (LunInfo{}) {
 		apiresp := resp.(client.ApiResponse)
 		luninfo, _ = apiresp.Result.(LunInfo)
 	}
-	log.Infof("Successfully mapped volume of %d to host %d", volumeID, hostID)
+	log.Infof("Successfully mapped volume %d to host %d", volumeID, hostID)
 	return luninfo, nil
 }
 
+// GetLunByHostVolume - Get Lun details for volume and host provided
+func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	luns := []LunInfo{}
+	log.Infof("get lun for volume %d and host %d", volumeID, hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
+	data := map[string]interface{}{"volume_id": volumeID}
+	resp, err := c.getResponseWithQueryString(uri, data, &luns)
+	if err != nil {
+		log.Errorf("error occured while get luns for volumeID %d and host %d err %v", volumeID, hostID, err)
+		return luninfo, err
+	}
+	if len(luns) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		luns, _ = apiresp.Result.([]LunInfo)
+	}
+	if len(luns) > 0 {
+		luninfo = luns[0]
+	}
+	log.Infof("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
+	return luninfo, nil
+}
+
+// GetAllLunByHost - Get all luns for host id provided
+func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err error) {
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Infof("Get all lun for host %d", hostID)
+	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
+	resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
+	if err != nil {
+		log.Errorf("failed to get luns for host %d with error %v", hostID, err)
+		return luninfo, err
+	}
+	if len(luninfo) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		luninfo, _ = apiresp.Result.([]LunInfo)
+	}
+	log.Infof("got %d Luns for host %d", len(luninfo), hostID)
+	return luninfo, nil
+}
+
+//GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
+func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("GetVolumeSnapshotByParentID Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	voluri := "/api/rest/volumes/"
+	volumes := []Volume{}
+	queryParam := make(map[string]interface{})
+	queryParam["parent_id"] = volumeID
+	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
+	if err != nil {
+		log.Errorf("fail to check GetVolumeSnapshotByParentID %v", err)
+		return &volumes, err
+	}
+	if len(volumes) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		volumes, _ = apiresp.Result.([]Volume)
+	}
+	return &volumes, err
+}
+
+//UpdateVolume : update volume
+func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("UpdateVolume Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	log.Info("Update volume : ", volumeID)
+	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
+	volumeResp := Volume{}
+
+	resp, err := c.getJSONResponse(http.MethodPut, uri, volume, &volumeResp)
+	if err != nil {
+		log.Errorf("Error occured while updating volume : %s", err)
+		return nil, err
+	}
+
+	if volumeResp == (Volume{}) {
+		apiresp := resp.(client.ApiResponse)
+		volumeResp, _ = apiresp.Result.(Volume)
+	}
+	log.Info("Updated volume : ", volumeID)
+	return &volumeResp, nil
+}
+
+// **************************************************Util Methods*********************************************
+//                                   generic methods to do reset called
+//                                   consume by other method intent to do rese calls
 // **************************************************Util Methods*********************************************
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
-	log.Debugf("Request made for method: %s and apiuri %s", method, apiuri)
+	log.Infof("Request made for method: %s and apiuri %s", method, apiuri)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			log.Errorf("Error in getJSONResponse while makeing %s request on %s url error : %v ", method, apiuri, err)
@@ -460,12 +744,11 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 	if expectedResp == nil {
 		expectedResp = resp
 	}
-	log.Debugf("getJSONResponse response: method %s and apiuri %s and err %v", method, apiuri, err)
 	return
 }
 
 func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (resp interface{}, err error) {
-	log.Debugf("Request made for apiuri %s", apiuri)
+	log.Infof("Request made for apiuri %s", apiuri)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			log.Errorf("Error in getResponseWithQueryString while making request on %s url error : %v ", apiuri, err)
@@ -485,10 +768,7 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 		}
 		queryString = key + "=" + fmt.Sprintf("%v", val)
 	}
-	log.Debugf("getResponseWithQueryString queryString is %s ", queryString)
 	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
-	log.Debugf("getResponseWithQueryString return err %v ", err)
-
 	return resp, err
 }
 
@@ -502,20 +782,14 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 	if c.SecretsMap == nil {
 		return hostconfig, errors.New("Secret not found")
 	}
-	if c.SecretsMap["hosturl"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
-
-		hosturl, err := url.ParseRequestURI(c.SecretsMap["hosturl"])
+	if c.SecretsMap["hostname"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
+		hosturl, err := url.ParseRequestURI(c.SecretsMap["hostname"])
 		if err != nil {
-			log.Warn("hosturl is not url, checking if it is valid IpAddress")
-			if net.ParseIP(c.SecretsMap["hosturl"]) != nil {
-				hostconfig.ApiHost = "https://" + c.SecretsMap["hosturl"] + "/"
-			} else {
-				return hostconfig, err
-			}
-			log.Info("setting url as ", hostconfig.ApiHost)
+			hostconfig.ApiHost = "https://" + c.SecretsMap["hostname"] + "/"
 		} else {
 			hostconfig.ApiHost = hosturl.String()
 		}
+		log.Info("setting url as ", hostconfig.ApiHost)
 		hostconfig.UserName = c.SecretsMap["username"]
 		hostconfig.Password = c.SecretsMap["password"]
 		return hostconfig, nil

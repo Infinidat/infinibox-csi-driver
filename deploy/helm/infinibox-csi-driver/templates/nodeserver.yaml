@@ -68,9 +68,9 @@ spec:
           securityContext:
             privileged: true
             capabilities:
-              add: ["SYS_MODULE"]
-            allowPrivilegeEscalation: true          
-          image: {{ required "Provide the infinibox csi driver container image." .Values.images.csidriver }}
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true              
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: Always
           env:
             - name: CSI_ENDPOINT
@@ -79,12 +79,10 @@ spec:
               value: node
             - name: X_CSI_DEBUG
               value: "true"
-            - name: X_CSI_PRIVATE_MOUNT_DIR
-              value: "/var/lib/kubelet/plugins/infinibox.infinidat.com/disks"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
-              value: {{ .Values.csiDriverName }}
+              value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: KUBE_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -93,28 +91,24 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-            - name: ISCSI_INITIATOR_NAME
-              value: "iqn.2019-06.com.csi-driver-iscsi.infinidat:$(KUBE_NODE_NAME)"
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com
-            - name: volumedevices-path
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
-            - name: pods-path
-              mountPath: /var/lib/kubelet/pods
+            - name: host-dir
+              mountPath: /host
               mountPropagation: "Bidirectional"
-            - name: dev
-              mountPath: /dev
         - name: registrar
-          image: {{ required "Provide the csi node registrar  sidecar container image." .Values.images.registrarsidecar }}
+          image: {{ required "Provide the csi node registrar sidecar container image." .Values.images.registrarsidecar }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - --kubelet-registration-path=/var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
+          securityContext:
+            privileged: true          
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock"]
+                command: ["/bin/sh", "-c", "rm -rf /var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock /registration/infinibox-csi-driver /registration/infinibox-csi-driver-reg.sock"]
           env:
             - name: ADDRESS
               value: /csi/csi.sock
@@ -140,15 +134,7 @@ spec:
           hostPath:
             path: /var/lib/kubelet/plugins/infinibox.infinidat.com
             type: DirectoryOrCreate
-        - name: volumedevices-path
+        - name: host-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
-            type: DirectoryOrCreate
-        - name: pods-path
-          hostPath:
-            path: /var/lib/kubelet/pods
-            type: Directory
-        - name: dev
-          hostPath:
-            path: /dev
+            path: /
             type: Directory

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ibox-snapshot-pvc-restore-demo-2
+  namespace: infi
+spec:
+  storageClassName: ibox-nfs-storageclass-demo
+  dataSource:
+    name: ibox-pvc-snapshot-demo
+    kind: VolumeSnapshot
+    apiGroup: "snapshot.storage.k8s.io"
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
