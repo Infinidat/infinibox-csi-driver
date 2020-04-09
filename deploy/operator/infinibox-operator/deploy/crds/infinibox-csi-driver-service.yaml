@@ -20,7 +20,7 @@ spec:
     attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
     csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0.6
     provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.4.0
-    registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+    registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
     resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
     snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v1.2.2
   instanceCount: 1
