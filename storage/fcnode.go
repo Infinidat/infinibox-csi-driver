@@ -229,7 +229,7 @@ func getPortName() []string {
 		}
 	}()
 	ports := []string{}
-	cmd := "cat /sys/class/fc_host/host?/port_name"
+	cmd := "cat /sys/class/fc_host/host*/port_name"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
 		log.Errorf("Failed to port name with error %v", err)
