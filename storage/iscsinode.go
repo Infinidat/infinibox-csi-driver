@@ -61,6 +61,7 @@ type iscsiDisk struct {
 	InitiatorName  string
 	VolName        string
 	isBlock        bool
+	MpathDevice    string
 }
 
 var (
@@ -115,7 +116,7 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 			err = errors.New("Recovered from ISCSI NodeUnpublishVolume  " + fmt.Sprint(res))
 		}
 	}()
-	diskUnmounter := iscsi.getISCSIDiskUnmounter(req)
+	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	targetPath := req.GetTargetPath()
 
 	err = iscsi.DetachDisk(*diskUnmounter, targetPath)
@@ -200,28 +201,144 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	log.Debug("NodeStageVolume completed")
 	return &csi.NodeStageVolumeResponse{}, nil
 }
-func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (res *csi.NodeUnstageVolumeResponse, err error) {
 	log.Debug("Called ISCSI NodeUnstageVolume")
-	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from ISCSI NodeUnstageVolume  " + fmt.Sprint(res))
 		}
 	}()
+	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
-	volproto := strings.Split(req.GetVolumeId(), "$$")
-	volName := volproto[0]
-	iscsiDisk := &iscsiDisk{
-		VolName: volName,
-	}
-	err = iscsi.loadDiskInfoFromFile(iscsiDisk, stagePath)
+	var bkpPortal []string
+	var volName, iqn, iface, initiatorName, mpathDevice string
+	diskConfigFound := true
+	found := true
+	configFilePath := stagePath
+
+	fi, err := os.Stat("/host/" + stagePath)
 	if err != nil {
-		log.Errorf("iscsi detach disk: failed to get iscsi config from path %s with error: %v", stagePath, err)
+		log.Error("error checking file with error ", err)
+		return
 	}
-	iscsiDiskConf := path.Join("/host", stagePath, iscsiDisk.VolName+".json")
-	log.Debug("removing iscsi config file from stage path: ", iscsiDiskConf)
-	if err := os.Remove(iscsiDiskConf); err != nil {
-		log.Errorf("iscsi: failed to remove iscsi config file %s with error: %v", iscsiDiskConf, err)
+	if !fi.IsDir() {
+		diskUnmounter.isBlock = true
+		pubPath := filepath.Dir(stagePath)
+		configFilePath = pubPath
+	}
+
+	// load iscsi disk config from json file
+	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, configFilePath); err == nil {
+		bkpPortal, iqn, iface, volName, initiatorName, mpathDevice = diskUnmounter.iscsiDisk.Portals, diskUnmounter.iscsiDisk.Iqn, diskUnmounter.iscsiDisk.Iface,
+			diskUnmounter.iscsiDisk.VolName, diskUnmounter.iscsiDisk.InitiatorName, diskUnmounter.iscsiDisk.MpathDevice
+	} else {
+		log.Errorf("iscsi detach disk: failed to get iscsi config from path %s Error: %v", stagePath, err)
+		diskConfigFound = false
+	}
+
+	if diskConfigFound {
+		// disconnecting iscsi session
+		log.Debugf("logout session for initiatorName %s, iqn %s, volume id %s", initiatorName, iqn, volName)
+		portals := iscsi.removeDuplicate(bkpPortal)
+		if len(portals) == 0 {
+			return res, fmt.Errorf("iscsi detach disk: failed to detach iscsi disk, Couldn't get connected portals from configurations")
+		}
+
+		for _, portal := range portals {
+			logoutArgs := []string{"-m", "node", "-p", portal, "-T", iqn, "--logout"}
+			deleteArgs := []string{"-m", "node", "-p", portal, "-T", iqn, "-o", "delete"}
+			if found {
+				logoutArgs = append(logoutArgs, []string{"-I", iface}...)
+				deleteArgs = append(deleteArgs, []string{"-I", iface}...)
+			}
+			out, err := diskUnmounter.exec.Run("iscsiadm", logoutArgs...)
+			if err != nil {
+				log.Errorf("iscsi: failed to detach disk Error: %s", string(out))
+			}
+			// Delete the node record
+			out, err = diskUnmounter.exec.Run("iscsiadm", deleteArgs...)
+			if err != nil {
+				log.Errorf("iscsi: failed to delete node record Error: %s", string(out))
+			}
+		}
+
+		// Delete the iface after all sessions have logged out
+		// If the iface is not created via iscsi plugin, skip to delete
+		for _, portal := range portals {
+			if initiatorName != "" && found && iface == (portal+":"+volName) {
+				log.Debugf("Delete the iface %s", iface)
+				deleteArgs := []string{"-m", "iface", "-I", iface, "-o", "delete"}
+				out, err := diskUnmounter.exec.Run("iscsiadm", deleteArgs...)
+				if err != nil {
+					log.Errorf("iscsi: failed to delete iface Error: %s", string(out))
+				}
+				break
+			}
+		}
+		log.Debug("Detach Disk Successfully!")
+
+		// rescan disks
+		for _, portal := range portals {
+			log.Debug("rescan sessions to discover newly mapped LUNs")
+			out, err := diskUnmounter.exec.Run("iscsiadm", "-m", "node", "-p", portal, "-T", iqn, "-R")
+			if err != nil {
+				log.Errorf("iscsi: failed to rescan session with error: %s (%v)", string(out), err)
+			}
+		}
+		log.Debug("Rescan Disk Successfully!")
+	}
+	// remove multipath
+	var devices []string
+	multiPath := false
+	dstPath := mpathDevice
+	if dstPath == "" {
+		return
+	} else {
+		if strings.HasPrefix(dstPath, "/host") {
+			dstPath = strings.Replace(dstPath, "/host", "", 1)
+		}
+
+		log.Debugf("remove multipath device %s", dstPath)
+		if strings.HasPrefix(dstPath, "/dev/dm-") {
+			multiPath = true
+			devices = findSlaveDevicesOnMultipath(dstPath)
+		} else {
+			// Add single targetPath to devices
+			devices = append(devices, dstPath)
+		}
+		var lastErr error
+		for _, device := range devices {
+			err := detachDisk(device)
+			if err != nil {
+				log.Errorf("iscsi: detachFCDisk failed. device: %v err: %v", device, err)
+				lastErr = fmt.Errorf("iscsi: detachFCDisk failed. device: %v err: %v", device, err)
+			}
+		}
+		if lastErr != nil {
+			log.Errorf("iscsi: last error occurred during detach disk:\n%v", lastErr)
+			return res, lastErr
+		}
+		if multiPath {
+			log.Debug("flush multipath device using multipath -f ", dstPath)
+			_, err := iscsi.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
+			if err != nil {
+				if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
+					log.Debugf("multipath device %s deleted", dstPath)
+				} else {
+					log.Errorf("multipath -f %s failed to device with error %v", dstPath, err.Error())
+					return res, err
+				}
+			}
+		}
+		log.Debug("Removed multipath sucessfully!")
+	}
+	iscsiDiskConf := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
+	_, err = os.Stat(iscsiDiskConf)
+	if err == nil {
+		log.Debug("removing iscsi config file from stage path: ", iscsiDiskConf)
+		if err := os.Remove(iscsiDiskConf); err != nil {
+			log.Errorf("iscsi: failed to remove iscsi config file %s with error: %v", iscsiDiskConf, err)
+		}
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -409,6 +526,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// check if the dev is using mpio and if so mount it via the dm-XX device
 		if mappedDevicePath := iscsi.findMultipathDeviceForDevice(path); mappedDevicePath != "" {
 			devicePath = mappedDevicePath
+			b.iscsiDisk.MpathDevice = mappedDevicePath
 			break
 		}
 	}
@@ -437,11 +555,11 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", err
 		}
 		// Persist iscsi disk config to json file for DetachDisk path
-		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), filepath.Dir(b.targetPath)); err != nil {
-			log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
-			return "", err
-		}
-		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), filepath.Dir(b.stagePath)); err != nil {
+		// if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), filepath.Dir(b.targetPath)); err != nil {
+		// 	log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
+		// 	return "", err
+		// }
+		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
 			log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
 			return "", err
 		}
@@ -473,10 +591,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 		log.Debug("Persist iscsi disk config to json file for DetachDisk path")
 		// Persist iscsi disk config to json file for DetachDisk path
-		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), mntPath); err != nil {
-			log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
-			return "", err
-		}
+		// if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), mntPath); err != nil {
+		// 	log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
+		// 	return "", err
+		// }
 		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
 			log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
 			return "", err
@@ -494,31 +612,6 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 			err = errors.New("Recovered from ISCSI DetachDisk  " + fmt.Sprint(res))
 		}
 	}()
-	var bkpPortal []string
-	var volName, iqn, iface, initiatorName string
-	diskConfigFound := true
-	found := true
-	configFilePath := targetPath
-
-	fi, err := os.Stat("/host/" + targetPath)
-	if err != nil {
-		log.Error("error checking file with error ", err)
-		return
-	}
-	if !fi.IsDir() {
-		c.isBlock = true
-		pubPath := filepath.Dir(targetPath)
-		configFilePath = pubPath
-	}
-
-	// load iscsi disk config from json file
-	if err := iscsi.loadDiskInfoFromFile(c.iscsiDisk, configFilePath); err == nil {
-		bkpPortal, iqn, iface, volName = c.iscsiDisk.Portals, c.iscsiDisk.Iqn, c.iscsiDisk.Iface, c.iscsiDisk.VolName
-		initiatorName = c.iscsiDisk.InitiatorName
-	} else {
-		log.Errorf("iscsi detach disk: failed to get iscsi config from path %s Error: %v", targetPath, err)
-		diskConfigFound = false
-	}
 	mntPath := path.Join("/host", targetPath)
 	device, cnt, err := mount.GetDeviceNameFromMount(c.mounter, mntPath)
 	if err != nil {
@@ -529,6 +622,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		cnt--
 	}
 	log.Debugf("device %s is mounted on %d pods", device, cnt)
+
 	if pathExist, pathErr := iscsi.pathExists(targetPath); pathErr != nil {
 		return fmt.Errorf("Error checking if path exists: %v", pathErr)
 	} else if !pathExist {
@@ -556,113 +650,6 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		return err
 	}
 	log.Debug("Unmout volume successfully!")
-
-	cnt--
-	if cnt > 0 {
-		log.Debug("not disconnecting session volume is refered by other pods")
-		return nil
-	}
-	if !diskConfigFound {
-		log.Debug("cannont disconnect session as disk configuration not found")
-		return nil
-	}
-
-	// disconnecting iscsi session
-	log.Debugf("logout session for initiatorName %s, iqn %s, volume id %s", initiatorName, iqn, volName)
-	portals := iscsi.removeDuplicate(bkpPortal)
-	if len(portals) == 0 {
-		return fmt.Errorf("iscsi detach disk: failed to detach iscsi disk, Couldn't get connected portals from configurations")
-	}
-
-	for _, portal := range portals {
-		logoutArgs := []string{"-m", "node", "-p", portal, "-T", iqn, "--logout"}
-		deleteArgs := []string{"-m", "node", "-p", portal, "-T", iqn, "-o", "delete"}
-		if found {
-			logoutArgs = append(logoutArgs, []string{"-I", iface}...)
-			deleteArgs = append(deleteArgs, []string{"-I", iface}...)
-		}
-		out, err := c.exec.Run("iscsiadm", logoutArgs...)
-		if err != nil {
-			log.Errorf("iscsi: failed to detach disk Error: %s", string(out))
-		}
-		// Delete the node record
-		out, err = c.exec.Run("iscsiadm", deleteArgs...)
-		if err != nil {
-			log.Errorf("iscsi: failed to delete node record Error: %s", string(out))
-		}
-	}
-
-	// Delete the iface after all sessions have logged out
-	// If the iface is not created via iscsi plugin, skip to delete
-	for _, portal := range portals {
-		if initiatorName != "" && found && iface == (portal+":"+volName) {
-			log.Debugf("Delete the iface %s", iface)
-			deleteArgs := []string{"-m", "iface", "-I", iface, "-o", "delete"}
-			out, err := c.exec.Run("iscsiadm", deleteArgs...)
-			if err != nil {
-				log.Errorf("iscsi: failed to delete iface Error: %s", string(out))
-			}
-			break
-		}
-	}
-	log.Debug("Detach Disk Successfully!")
-
-	// rescan disks
-	for _, portal := range portals {
-		log.Debug("rescan sessions to discover newly mapped LUNs")
-		out, err := c.exec.Run("iscsiadm", "-m", "node", "-p", portal, "-T", iqn, "-R")
-		if err != nil {
-			log.Errorf("iscsi: failed to rescan session with error: %s (%v)", string(out), err)
-		}
-	}
-	log.Debug("Rescan Disk Successfully!")
-
-	// remove multipath
-	var devices []string
-	multiPath := false
-	dstPath, err := filepath.EvalSymlinks("/host" + device)
-	if err != nil {
-		return nil
-	} else {
-		if strings.HasPrefix(dstPath, "/host") {
-			dstPath = strings.Replace(dstPath, "/host", "", 1)
-		}
-
-		log.Debugf("remove multipath device %s", dstPath)
-		if strings.HasPrefix(dstPath, "/dev/dm-") {
-			multiPath = true
-			devices = findSlaveDevicesOnMultipath(dstPath)
-		} else {
-			// Add single targetPath to devices
-			devices = append(devices, dstPath)
-		}
-		log.Infof("iscsi: DetachDisk targetPath: %v, dstPath: %v, devices: %v", targetPath, dstPath, devices)
-		var lastErr error
-		for _, device := range devices {
-			err := detachDisk(device)
-			if err != nil {
-				log.Errorf("iscsi: detachFCDisk failed. device: %v err: %v", device, err)
-				lastErr = fmt.Errorf("iscsi: detachFCDisk failed. device: %v err: %v", device, err)
-			}
-		}
-		if lastErr != nil {
-			log.Errorf("iscsi: last error occurred during detach disk:\n%v", lastErr)
-			return lastErr
-		}
-		if multiPath {
-			log.Debug("flush multipath device using multipath -f ", device)
-			_, err := iscsi.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", device})
-			if err != nil {
-				if _, e := os.Stat("/host" + device); os.IsNotExist(e) {
-					log.Debugf("multipath device %s deleted", device)
-				} else {
-					log.Errorf("multipath -f %s failed to device with error %v", device, err.Error())
-					return err
-				}
-			}
-		}
-	}
-	log.Debug("Removed Multipath Successfully!")
 	return nil
 }
 
@@ -763,8 +750,8 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.No
 	}
 }
 
-func (iscsi *iscsistorage) getISCSIDiskUnmounter(req *csi.NodeUnpublishVolumeRequest) *iscsiDiskUnmounter {
-	volproto := strings.Split(req.GetVolumeId(), "$$")
+func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmounter {
+	volproto := strings.Split(volumeID, "$$")
 	volName := volproto[0]
 	return &iscsiDiskUnmounter{
 		iscsiDisk: &iscsiDisk{
