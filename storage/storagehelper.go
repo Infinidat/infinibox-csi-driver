@@ -111,21 +111,6 @@ func validateParametersiSCSI(storageClassParams map[string]string) error {
 	}
 	return nil
 }
-func mergeStringMaps(base map[string]string, additional map[string]string) map[string]string {
-	result := make(map[string]string)
-	if base != nil {
-		for k, v := range base {
-			result[k] = v
-		}
-	}
-	if additional != nil {
-		for k, v := range additional {
-			result[k] = v
-		}
-	}
-	return result
-
-}
 
 func copyRequestParameters(parameters, out map[string]string) {
 	for key, val := range parameters {
