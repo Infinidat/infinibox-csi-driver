@@ -343,6 +343,77 @@ func (m *MockApiService) GetVolumeByName(volumename string) (*Volume, error) {
 
 func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
 	args := m.Called(volume, storagePoolName)
+	var vol Volume
+	if args.Get(0)!=nil {
+		vol, _ = args.Get(0).(Volume)
+	}	
+	err, _ := args.Get(1).(error)
+	return &vol, err
+}
+
+
+func (m *MockApiService)FindStoragePool(id int64, name string) (StoragePool, error){
+	args := m.Called(id, name)
+	var storage StoragePool
+	if args.Get(0)!=nil {
+		storage, _ = args.Get(0).(StoragePool)
+	}	
+	err, _ := args.Get(1).(error)
+	return storage, err
+}
+func (m *MockApiService)GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error){
+	args := m.Called(poolID, storagepoolname)
+	storageArry, _ := args.Get(0).([]StoragePool)
+	err, _ := args.Get(1).(error)
+	return storageArry, err
+}
+
+
+func (m *MockApiService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error){
+	args := m.Called(snapshotParam)
+	snapshotVolumesResp, _ := args.Get(0).(SnapshotVolumesResp)
+	err, _ := args.Get(1).(error)
+	return &snapshotVolumesResp, err
+}
+
+func (m *MockApiService) GetHostByName(hostName string) ( Host,  error){
+	args := m.Called(hostName)
+	host, _ := args.Get(0).(Host)
+	err, _ := args.Get(1).(error)
+	return host, err
+}
+
+func (m *MockApiService) GetAllLunByHost(hostID int) ( []LunInfo,  error){
+	args := m.Called(hostID)
+	lunInfo, _ := args.Get(0).([]LunInfo)
+	err, _ := args.Get(1).(error)
+	return lunInfo, err
+}
+func (m *MockApiService)MapVolumeToHost(hostID, volumeID, lun int) ( LunInfo, error){
+	args := m.Called(hostID)
+	lunInfo, _ := args.Get(0).(LunInfo)
+	err, _ := args.Get(1).(error)
+	return lunInfo, err
+}
+
+func (m *MockApiService)GetLunByHostVolume(hostID, volumeID int) ( LunInfo,  error){
+	args := m.Called(hostID)
+	lunInfo, _ := args.Get(0).(LunInfo)
+	err, _ := args.Get(1).(error)
+	return lunInfo, err
+}
+func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) (error){
+	args := m.Called(hostID, volumeID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+func (m *MockApiService)DeleteHost(hostID int) (error) {
+	args := m.Called(hostID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+func (m *MockApiService)UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+	args := m.Called(volumeID,volume)
 	vol, _ := args.Get(0).(Volume)
 	err, _ := args.Get(1).(error)
 	return &vol, err
