@@ -2,7 +2,7 @@
 
 if [ -z "$CSI_ENDPOINT" ]
 then 
-    echo "Warning: CSI_ENDPOINT is not set" 
+    echo "Required: CSI_ENDPOINT is need to be set" 
 else 
     socket_file=$CSI_ENDPOINT 
     if [[ $CSI_ENDPOINT == "unix://"* ]]
