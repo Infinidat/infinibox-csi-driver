@@ -94,13 +94,11 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 }
 
 func (treeq *treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Debugf("ControllerPublishVolume %v", req)
 	return &csi.ControllerPublishVolumeResponse{}, nil
 
 }
 
 func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Debugf("ControllerUnpublishVolume %v", req)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
