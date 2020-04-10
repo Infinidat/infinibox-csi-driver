@@ -388,14 +388,14 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 	mapRequest["pool_id"] = filesystem.poolID
 
 	var treeqFileSystemName string
-	if prefix, ok := filesystem.configmap[FSPREFIX]; ok {
-		pvSplit := strings.Split(filesystem.pVName, "-")
-		if len(pvSplit) == 2 {
-			treeqFileSystemName = prefix + pvSplit[1]
-			filesystem.exportpath = "/" + treeqFileSystemName
-		}
-	}
+	
+	pvSplit := strings.Split(filesystem.pVName, "-")
+	treeqFileSystemName = "csit_" + pvSplit[1]	
 
+	if prefix, ok := filesystem.configmap[FSPREFIX]; ok {		
+		treeqFileSystemName = prefix + pvSplit[1]
+	}
+	filesystem.exportpath = "/" + treeqFileSystemName
 	mapRequest["name"] = treeqFileSystemName
 	mapRequest["ssd_enabled"] = ssd
 	mapRequest["provtype"] = strings.ToUpper(filesystem.configmap["provision_type"])
