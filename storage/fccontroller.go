@@ -288,7 +288,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 			volCtx["lun"] = strconv.Itoa(lun.Lun)
 			volCtx["hostID"] = strconv.Itoa(host.ID)
 			volCtx["hostPorts"] = ports
-			log.Debug("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
+			log.Debugf("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: volCtx,
 			}, nil
