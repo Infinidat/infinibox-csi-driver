@@ -10,7 +10,7 @@ if [ $? -ne 0 ];
   then echo "creating namespace"; oc create ns $opnmspace
 fi
 
-sed -i 's/namespace=.*/namespace=${opnmspace}/' infinibox-operator/deploy/role_binding.yaml
+sed -i "s/namespace: .*/namespace: ${opnmspace}/" infinibox-operator/deploy/role_binding.yaml
 
 oc create -f scc/iboxcsiaccess_scc.yaml --as $opnusr
 oc adm policy add-scc-to-user iboxcsiaccess -z infinibox-csi-driver-node -n $opnmspace
