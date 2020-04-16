@@ -44,7 +44,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	treeqVolumeMap, err = treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), pvName)
 	if len(treeqVolumeMap) == 0 && err == nil {
 		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
-	}
+	} 
 	if err != nil {
 		log.Errorf("fail to create volume %v", err)
 		return &csi.CreateVolumeResponse{}, err

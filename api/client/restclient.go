@@ -31,9 +31,9 @@ type HostConfig struct {
 }
 type Resultmetadata struct {
 	NoOfObject int `json:"number_of_objects,omitempty"`
-	TotalPages int `json"pages_total,omitempty"`
-	Page       int `json"page,omitempty"`
-	PageSize   int `json"page_size,omitempty"`
+	TotalPages int `json:"pages_total,omitempty"`
+	Page       int `json:"page,omitempty"`
+	PageSize   int `json:"page_size,omitempty"`
 }
 type ApiResponse struct {
 	Result   interface{}    `json:"result,omitempty"`
