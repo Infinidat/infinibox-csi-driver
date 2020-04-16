@@ -26,7 +26,7 @@ ifeq ($(env),prod)
 	# Do not change following values unless change in production version or username
 	#For docker.io  
 	DOCKER_USER=infinidat
-	DOCKER_IMAGE_TAG=1.1.0.6
+	DOCKER_IMAGE_TAG=1.1.0.7
 
 	# For scan.connect.redhat.com
 	REDHAT_DOCKER_USER=ospid-b731bd28-18bf-4a91-ad3f-8a90853cf5ab

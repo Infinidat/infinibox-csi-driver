@@ -1,6 +1,6 @@
 apiVersion: v2
 name: infinibox-csi-driver
-description: A Helm chart for Deploy CSI plugin
+description: A Helm chart for Deploy Infinidat CSI plugin
 
 # A chart can be either an 'application' or a 'library' chart.
 #
