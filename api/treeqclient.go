@@ -48,7 +48,7 @@ func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetada
 			err = errors.New("GetFileSystemsByPoolID Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	uri := "/api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10) + "&sort=id&page=" + strconv.Itoa(page) + "&fields=id,size,name"
+	uri := "/api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10) + "&sort=size&page=" + strconv.Itoa(page) + "&page_size=1000&fields=id,size,name"
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {
