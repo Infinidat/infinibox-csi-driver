@@ -1,0 +1,206 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: |-
+      [
+        {
+          "apiVersion": "charts.helm.k8s.io/v1alpha1",
+          "kind": "InfiniboxCsiDriver",
+          "metadata": {
+            "name": "infinibox-csi-driver"
+          },
+          "spec": {
+            "Infinibox_Cred": {
+              "SecretName": "infinibox-creds",
+              "hostname": "172.17.35.61",
+              "inbound_secret": "0.000us07boftjo",
+              "inbound_user": "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin",
+              "outbound_secret": "0.00268rzvmp0r7",
+              "outbound_user": "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout",
+              "password": "123456",
+              "username": "admin"
+            },
+            "csiDriverName": "infinibox-csi-driver",
+            "csiDriverVersion": "1.1.0.7",
+            "images": {
+              "attachersidecar": "quay.io/k8scsi/csi-attacher:v2.0.0",
+              "csidriver": "docker.io/infinidat/infinidat-csi-driver:1.1.0.7",
+              "provisionersidecar": "quay.io/k8scsi/csi-provisioner:v1.4.0",
+              "registrarsidecar": "quay.io/k8scsi/csi-node-driver-registrar:v1.3.0",
+              "resizersidecar": "quay.io/k8scsi/csi-resizer:v0.3.0",
+              "snapshottersidecar": "quay.io/k8scsi/csi-snapshotter:v1.2.2"
+            },
+            "instanceCount": 1,
+            "logLevel": "info",
+            "replicaCount": 1,
+            "volumeNamePrefix": "csi"
+          }
+        }
+      ]
+    capabilities: Basic Install
+  name: infinibox-operator.v0.0.1
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions: {}
+  description: Placeholder description
+  displayName: Infinibox Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - secrets
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          - clusterroles
+          verbs:
+          - '*'
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - csidrivers
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          - serviceaccounts
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - get
+          - create
+        - apiGroups:
+          - apps
+          resourceNames:
+          - infinibox-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - replicasets
+          - deployments
+          verbs:
+          - get
+        - apiGroups:
+          - charts.helm.k8s.io
+          resources:
+          - '*'
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apiextensions.k8s.io
+          resources:
+          - customresourcedefinitions
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        serviceAccountName: infinibox-operator
+      deployments:
+      - name: infinibox-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: infinibox-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: infinibox-operator
+            spec:
+              containers:
+              - env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: infinibox-operator
+                image: docker.io/infinidat/infinidat-csi-operator:1.1.0.1
+                imagePullPolicy: Always
+                name: infinibox-operator
+                resources: {}
+              serviceAccountName: infinibox-operator
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - csi,operator,infinibox,infinidat
+  maintainers:
+  - {}
+  maturity: alpha
+  provider:
+    name: Infinidat
+    url: www.infinidat.com
+  replaces: infinibox-operator.v0.0.0
+  version: 0.0.1
