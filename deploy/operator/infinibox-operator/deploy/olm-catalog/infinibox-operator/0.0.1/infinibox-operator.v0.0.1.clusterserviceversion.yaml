@@ -44,7 +44,7 @@ metadata:
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions: {}
-  description: Placeholder description
+  description: Operator will install csi-driver for infinidat infinibox
   displayName: Infinibox Operator
   icon:
   - base64data: ""
