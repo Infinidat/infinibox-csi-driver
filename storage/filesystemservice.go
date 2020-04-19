@@ -20,7 +20,8 @@ import (
 	"strings"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	log "infinibox-csi-driver/helper/logger"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

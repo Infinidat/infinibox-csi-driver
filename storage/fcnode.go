@@ -12,6 +12,7 @@ package storage
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -21,11 +22,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/util/mount"
@@ -38,6 +39,12 @@ type fcDevice struct {
 	isBlock   bool
 }
 
+type diskInfo struct {
+	MpathDevice string
+	IsBlock     bool
+	VolName     string
+}
+
 type FCMounter struct {
 	ReadOnly     bool
 	FsType       string
@@ -46,6 +53,7 @@ type FCMounter struct {
 	Exec         mount.Exec
 	DeviceUtil   util.DeviceUtil
 	TargetPath   string
+	StagePath    string
 	fcDisk       fcDevice
 }
 
@@ -132,6 +140,94 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	log.Info("Called FC NodeUnstageVolume")
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from FC NodeUnstageVolume  " + fmt.Sprint(res))
+		}
+	}()
+	var mpathDevice string
+	stagePath := req.GetStagingTargetPath()
+
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0]
+
+	dskInfo := diskInfo{}
+	dskInfo.VolName = volName
+
+	// load iscsi disk config from json file
+	log.Debug("read fc config from staging path")
+	if err := fc.loadFcDiskInfoFromFile(&dskInfo, stagePath); err == nil {
+		mpathDevice = dskInfo.MpathDevice
+		log.Debugf("fc config: mpathDevice %s", mpathDevice)
+	} else {
+		log.Debug("fc config not existing at staging path")
+		confFile := path.Join("/host", stagePath, volName+".json")
+		log.Debug("check if fc config file exists")
+		pathExist, pathErr := fc.cs.pathExists(confFile)
+		if pathErr == nil {
+			if !pathExist {
+				log.Debug("fc config file is not exists")
+				if err := os.RemoveAll(stagePath); err != nil {
+					log.Errorf("fc: failed to remove mount path Error: %v", err)
+					return nil, err
+				}
+				log.Debug("removed stage path: ", stagePath)
+				return &csi.NodeUnstageVolumeResponse{}, nil
+			}
+		}
+		log.Warnf("fc detach disk: failed to get fc config from path %s Error: %v", stagePath, err)
+	}
+
+	// remove multipath
+	var devices []string
+	multiPath := false
+	dstPath := mpathDevice
+
+	log.Debug("removing mpath")
+	if strings.HasPrefix(dstPath, "/host") {
+		dstPath = strings.Replace(dstPath, "/host", "", 1)
+	}
+
+	log.Debugf("remove multipath device %s", dstPath)
+	if strings.HasPrefix(dstPath, "/dev/dm-") {
+		multiPath = true
+		devices = findSlaveDevicesOnMultipath(dstPath)
+	} else {
+		// Add single targetPath to devices
+		devices = append(devices, dstPath)
+	}
+	var lastErr error
+	for _, device := range devices {
+		err := detachDisk(device)
+		if err != nil {
+			log.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
+			lastErr = fmt.Errorf("fc: detach disk failed. device: %v err: %v", device, err)
+		}
+	}
+	if lastErr != nil {
+		log.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
+		return nil, lastErr
+	}
+	if multiPath {
+		log.Debug("flush multipath device using multipath -f ", dstPath)
+		_, err := fc.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
+		if err != nil {
+			if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
+				log.Debugf("multipath device %s deleted", dstPath)
+			} else {
+				log.Errorf("multipath -f %s failed to device with error %v", dstPath, err.Error())
+				return nil, err
+			}
+		}
+	}
+	log.Debug("Removed multipath sucessfully!")
+
+	if err := os.RemoveAll("/host" + stagePath); err != nil {
+		log.Errorf("fc: failed to remove mount path Error: %v", err)
+		return nil, err
+	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -177,7 +273,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		fmt.Printf("fc: %s already mounted", fm.TargetPath)
 	}
 	if fm.fcDisk.isBlock {
-		log.Debugf("Block volume will be mount at file %s", fm.TargetPath)
+		log.Infof("Block volume will be mount at file %s", fm.TargetPath)
 		if fm.ReadOnly {
 			return status.Error(codes.Internal, "Read only is not supported for Block Volume")
 		}
@@ -200,7 +296,6 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 		log.Debug("Block volume mounted successfully")
-		return err
 	} else {
 		log.Debugf("mount volume to given path %s", fm.TargetPath)
 		if err := os.MkdirAll(fm.TargetPath, 0750); err != nil {
@@ -217,6 +312,16 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		options = append(options, fm.MountOptions...)
 		if err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options); err != nil {
 			return fmt.Errorf("fc: failed to mount fc volume %s [%s] to %s, error %v", devicePath, fm.FsType, fm.TargetPath, err)
+		}
+	}
+	dskinfo := diskInfo{}
+	if strings.HasPrefix(devicePath, "/dev/dm-") {
+		dskinfo.MpathDevice = devicePath
+		dskinfo.IsBlock = fm.fcDisk.isBlock
+		dskinfo.VolName = fm.fcDisk.connector.VolumeName
+		if err := fc.createFcConfigFile(dskinfo, fm.StagePath); err != nil {
+			log.Errorf("fc: failed to save fc config with error: %v", err)
+			return err
 		}
 	}
 	return nil
@@ -252,7 +357,8 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 			err = errors.New("Recovered from FC getFCDiskDetails " + fmt.Sprint(res))
 		}
 	}()
-	volName := req.GetVolumeId()
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0]
 	lun := req.GetPublishContext()["lun"]
 	wwids := req.GetVolumeContext()["WWIDs"]
 	wwidList := strings.Split(wwids, ",")
@@ -278,7 +384,6 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 		WWIDs:      wwidList,
 		Lun:        lun,
 	}
-
 	//Only pass the connector
 	return &fcDevice{
 		connector: fcConnector,
@@ -298,6 +403,7 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		Exec:         mount.NewOsExec(),
 		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
 		TargetPath:   req.GetTargetPath(),
+		StagePath:    req.GetStagingTargetPath(),
 	}
 }
 
@@ -511,33 +617,34 @@ func (fc *fcstorage) AttachFCDisk(c Connector, io ioHandler) (string, error) {
 }
 
 // Detach performs a detach operation on a volume
-func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) error {
+func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
+	log.Infof("Detaching fibre channel volume")
+	log.Debugf("Called DetachDisk targetpath: %s", targetPath)
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("Recovered from FC DetachFCDisk  " + fmt.Sprint(res))
+		}
+	}()
 	if io == nil {
 		io = &OSioHandler{}
 	}
-	log.Infof("Detaching fibre channel volume")
 	mounter := mount.New("")
 	mntPath := path.Join("/host", targetPath)
-	device, cnt, err := mount.GetDeviceNameFromMount(mounter, mntPath)
-	if err != nil {
-		return err
-	}
-
 	// unmount volume
-	if pathExist, pathErr := fc.pathExists(targetPath); pathErr != nil {
+	if pathExist, pathErr := fc.cs.pathExists(targetPath); pathErr != nil {
 		return fmt.Errorf("Error checking if path exists: %v", pathErr)
 	} else if !pathExist {
-		if pathExist, _ = fc.pathExists(mntPath); pathErr == nil {
+		if pathExist, _ = fc.cs.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
-				log.Warningf("Warning: Unmount skipped because path does not exist: %v", targetPath)
+				log.Warnf("Warning: Unmount skipped because path does not exist: %v", targetPath)
 				return nil
 			}
 		}
 	}
-	if err = mounter.Unmount(targetPath); err != nil {
+	if err := mounter.Unmount(targetPath); err != nil {
 		if strings.Contains(err.Error(), "not mounted") {
 			log.Debug("volume not mounted removing files ", targetPath)
-			if err := os.RemoveAll(targetPath); err != nil {
+			if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
 				log.Errorf("fc: failed to remove mount path Error: %v", err)
 			}
 			return nil
@@ -545,93 +652,42 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) error {
 		log.Errorf("fc detach disk: failed to unmount: %s\nError: %v", targetPath, err)
 		return err
 	}
-	if err := os.RemoveAll(targetPath); err != nil {
+	if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
 		log.Errorf("fc: failed to remove mount path Error: %v", err)
 		return err
 	}
 	log.Debug("Unmouted volume successfully!")
-	cnt--
-	if cnt < 1 {
-		log.Debugf("disk will not be removed as volume is used by other %d pods ", cnt)
-		return nil
-	}
 
-	// remove multipaths
-	var devices []string
-	multiPath := false
-	dstPath, err := io.EvalSymlinks("/host" + device)
-	if err != nil {
-		return err
-	}
-	if strings.HasPrefix(dstPath, "/host") {
-		dstPath = strings.Replace(dstPath, "/host", "", 1)
-	}
-
-	if strings.HasPrefix(dstPath, "/dev/dm-") {
-		multiPath = true
-		devices = findSlaveDevicesOnMultipath(dstPath)
-	} else {
-		// Add single targetPath to devices
-		devices = append(devices, dstPath)
-	}
-	log.Infof("fc: DetachDisk targetPath: %v, dstPath: %v, devices: %v", targetPath, dstPath, devices)
-	var lastErr error
-	for _, device := range devices {
-		err := detachDisk(device)
-		if err != nil {
-			log.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
-			lastErr = fmt.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
-		}
-	}
-	if lastErr != nil {
-		log.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
-		return lastErr
-	}
-	if multiPath {
-		log.Debug("flush multipath device using multipath -f ", device)
-		_, err := fc.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", device})
-		if err != nil {
-			if _, e := os.Stat("/host" + device); os.IsNotExist(e) {
-				log.Debugf("multipath device %s deleted", device)
-			} else {
-				log.Errorf("multipath -f %s failed to device with error %v", device, err.Error())
-				return err
-			}
-		}
-	}
 	return nil
 }
-func (fc *fcstorage) pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		log.Debug("Path exists: ", path)
-		return true, nil
-	} else if os.IsNotExist(err) {
-		log.Debug("Path not exists: ", path)
-		return false, nil
-	} else if fc.isCorruptedMnt(err) {
-		log.Debug("Path is currupted: ", path)
-		return true, err
-	} else {
-		log.Debug("unable to validate path: ", path)
-		return false, err
-	}
-}
-func (fc *fcstorage) isCorruptedMnt(err error) bool {
-	if err == nil {
-		return false
-	}
-	var underlyingError error
-	switch pe := err.(type) {
-	case nil:
-		return false
-	case *os.PathError:
-		underlyingError = pe.Err
-	case *os.LinkError:
-		underlyingError = pe.Err
-	case *os.SyscallError:
-		underlyingError = pe.Err
-	}
 
-	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
+func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
+	file := path.Join("/host", mnt, conf.VolName+".json")
+	fp, err := os.Create(file)
+	if err != nil {
+		log.Errorf("fc: failed creating persist file with error %v", err)
+		return fmt.Errorf("fc: create %s err %s", file, err)
+	}
+	defer fp.Close()
+	encoder := json.NewEncoder(fp)
+	if err = encoder.Encode(conf); err != nil {
+		log.Errorf("fc: failed creating persist file with error %v", err)
+		return fmt.Errorf("fc: encode err: %v", err)
+	}
+	log.Debugf("fc: created persist config file at path %s", file)
+	return nil
+}
+
+func (fc *fcstorage) loadFcDiskInfoFromFile(conf *diskInfo, mnt string) error {
+	file := path.Join("/host", mnt, conf.VolName+".json")
+	fp, err := os.Open(file)
+	if err != nil {
+		return fmt.Errorf("fc: open %s err %s", file, err)
+	}
+	defer fp.Close()
+	decoder := json.NewDecoder(fp)
+	if err = decoder.Decode(conf); err != nil {
+		return fmt.Errorf("fc: decode err: %v ", err)
+	}
+	return nil
 }

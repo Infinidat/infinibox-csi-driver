@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"time"
 
-	log "github.com/sirupsen/logrus"
+	log "infinibox-csi-driver/helper/logger"
 
 	resty "github.com/go-resty/resty/v2"
 )

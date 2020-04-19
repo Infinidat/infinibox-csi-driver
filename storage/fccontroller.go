@@ -18,9 +18,10 @@ import (
 	"strconv"
 	"strings"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -110,12 +111,10 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	}
 	vi := fc.cs.getCSIResponse(volumeResp, req)
-	log.Debug("volume context created 1", vi.VolumeContext)
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
-	log.Debug("volume context created 2", vi.VolumeContext)
 
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = volumeResp.Name

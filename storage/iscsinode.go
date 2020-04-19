@@ -26,8 +26,9 @@ import (
 	"syscall"
 	"time"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/util/mount"
@@ -202,7 +203,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (res *csi.NodeUnstageVolumeResponse, err error) {
-	log.Debug("Called ISCSI NodeUnstageVolume")
+	log.Info("Called ISCSI NodeUnstageVolume")
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from ISCSI NodeUnstageVolume  " + fmt.Sprint(res))
@@ -214,25 +215,27 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	var volName, iqn, iface, initiatorName, mpathDevice string
 	diskConfigFound := true
 	found := true
-	configFilePath := stagePath
-
-	fi, err := os.Stat("/host/" + stagePath)
-	if err != nil {
-		log.Error("error checking file with error ", err)
-		return
-	}
-	if !fi.IsDir() {
-		diskUnmounter.isBlock = true
-		pubPath := filepath.Dir(stagePath)
-		configFilePath = pubPath
-	}
 
 	// load iscsi disk config from json file
-	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, configFilePath); err == nil {
+	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
 		bkpPortal, iqn, iface, volName, initiatorName, mpathDevice = diskUnmounter.iscsiDisk.Portals, diskUnmounter.iscsiDisk.Iqn, diskUnmounter.iscsiDisk.Iface,
 			diskUnmounter.iscsiDisk.VolName, diskUnmounter.iscsiDisk.InitiatorName, diskUnmounter.iscsiDisk.MpathDevice
 	} else {
-		log.Errorf("iscsi detach disk: failed to get iscsi config from path %s Error: %v", stagePath, err)
+		confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
+		log.Debug("check if iscsi config file exists")
+		pathExist, pathErr := iscsi.cs.pathExists(confFile)
+		if pathErr == nil {
+			if !pathExist {
+				log.Debug("iscsi config file is not exists")
+				if err := os.RemoveAll(stagePath); err != nil {
+					log.Errorf("iscsi: failed to remove mount path Error: %v", err)
+					return nil, err
+				}
+				log.Debug("removed stage path: ", stagePath)
+				return &csi.NodeUnstageVolumeResponse{}, nil
+			}
+		}
+		log.Warnf("iscsi detach disk: failed to get iscsi config from path %s Error: %v", stagePath, err)
 		diskConfigFound = false
 	}
 
@@ -278,12 +281,9 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		log.Debug("Detach Disk Successfully!")
 
 		// rescan disks
+		log.Debug("rescan sessions to discover newly mapped LUNs")
 		for _, portal := range portals {
-			log.Debug("rescan sessions to discover newly mapped LUNs")
-			out, err := diskUnmounter.exec.Run("iscsiadm", "-m", "node", "-p", portal, "-T", iqn, "-R")
-			if err != nil {
-				log.Errorf("iscsi: failed to rescan session with error: %s (%v)", string(out), err)
-			}
+			diskUnmounter.exec.Run("iscsiadm", "-m", "node", "-p", portal, "-T", iqn, "-R")
 		}
 		log.Debug("Rescan Disk Successfully!")
 	}
@@ -291,9 +291,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	var devices []string
 	multiPath := false
 	dstPath := mpathDevice
-	if dstPath == "" {
-		return
-	} else {
+	if dstPath != "" {
 		if strings.HasPrefix(dstPath, "/host") {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
 		}
@@ -332,13 +330,9 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		}
 		log.Debug("Removed multipath sucessfully!")
 	}
-	iscsiDiskConf := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
-	_, err = os.Stat(iscsiDiskConf)
-	if err == nil {
-		log.Debug("removing iscsi config file from stage path: ", iscsiDiskConf)
-		if err := os.Remove(iscsiDiskConf); err != nil {
-			log.Errorf("iscsi: failed to remove iscsi config file %s with error: %v", iscsiDiskConf, err)
-		}
+	if err := os.RemoveAll("/host" + stagePath); err != nil {
+		log.Errorf("iscsi: failed to remove mount path Error: %v", err)
+		return nil, err
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -390,7 +384,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	log.WithFields(log.Fields{"iqn": b.iscsiDisk.Iqn, "lun": b.iscsiDisk.lun,
 		"chap_session": b.chap_session}).Info("Mounting Volume")
 
-	if "debug" == log.GetLevel().String() {
+	if "debug" == log.GetLevel() {
 		//iscsi_lib.EnableDebugLogging(log.New().Writer())
 	}
 	log.Debug("check provided iface is available")
@@ -554,11 +548,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			log.Errorf("iscsi: failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, b.targetPath, err)
 			return "", err
 		}
-		// Persist iscsi disk config to json file for DetachDisk path
-		// if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), filepath.Dir(b.targetPath)); err != nil {
-		// 	log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
-		// 	return "", err
-		// }
 		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
 			log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
 			return "", err
@@ -590,11 +579,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", err
 		}
 		log.Debug("Persist iscsi disk config to json file for DetachDisk path")
-		// Persist iscsi disk config to json file for DetachDisk path
-		// if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), mntPath); err != nil {
-		// 	log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
-		// 	return "", err
-		// }
 		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
 			log.Errorf("iscsi: failed to save iscsi config with error: %v", err)
 			return "", err
@@ -613,22 +597,12 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		}
 	}()
 	mntPath := path.Join("/host", targetPath)
-	device, cnt, err := mount.GetDeviceNameFromMount(c.mounter, mntPath)
-	if err != nil {
-		log.Errorf("iscsi detach disk: failed to get device from mnt: %s\nError: %v", mntPath, err)
-		return err
-	}
-	if c.isBlock {
-		cnt--
-	}
-	log.Debugf("device %s is mounted on %d pods", device, cnt)
-
 	if pathExist, pathErr := iscsi.pathExists(targetPath); pathErr != nil {
 		return fmt.Errorf("Error checking if path exists: %v", pathErr)
 	} else if !pathExist {
 		if pathExist, _ = iscsi.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
-				log.Warningf("Warning: Unmount skipped because path does not exist: %v", targetPath)
+				log.Warn("Warning: Unmount skipped because path does not exist: %v", targetPath)
 				return nil
 			}
 		}
@@ -637,7 +611,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	if err = c.mounter.Unmount(targetPath); err != nil {
 		if strings.Contains(err.Error(), "not mounted") {
 			log.Debug("volume not mounted removing files ", targetPath)
-			if err := os.RemoveAll(targetPath); err != nil {
+			if err := os.RemoveAll(filepath.Dir(mntPath)); err != nil {
 				log.Errorf("iscsi: failed to remove mount path Error: %v", err)
 			}
 			return nil
@@ -645,7 +619,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		log.Errorf("iscsi detach disk: failed to unmount: %s\nError: %v", targetPath, err)
 		return err
 	}
-	if err := os.RemoveAll(targetPath); err != nil {
+	if err := os.RemoveAll(filepath.Dir(mntPath)); err != nil {
 		log.Errorf("iscsi: failed to remove mount path Error: %v", err)
 		return err
 	}
@@ -874,7 +848,7 @@ func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRet
 
 func (iscsi *iscsistorage) createISCSIConfigFile(conf iscsiDisk, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
-	log.Debugf("persistISCSI: creating persist file at path %s ", file)
+	log.Debugf("persistISCSI: creating persist file at path %s", file)
 	fp, err := os.Create(file)
 	if err != nil {
 		log.Errorf("persistISCSI: failed creating persist file with error %v", err)
