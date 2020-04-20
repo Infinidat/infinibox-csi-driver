@@ -16,8 +16,9 @@ import (
 	"infinibox-csi-driver/api"
 	"strings"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
