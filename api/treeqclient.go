@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"strconv"
 
-	log "github.com/sirupsen/logrus"
+	log "infinibox-csi-driver/helper/logger"
 )
 
 //TREEQCOUNT

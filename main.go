@@ -17,7 +17,6 @@ import (
 
 	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
-	log "github.com/sirupsen/logrus"
 )
 
 //starting method of CSI-Driver
@@ -47,22 +46,7 @@ func getConfigParams() map[string]string {
 	if driverversion, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_VERSION"); ok {
 		configParams["driverversion"] = driverversion
 	}
-	if logLevel, ok := csictx.LookupEnv(context.Background(), "APP_LOG_LEVEL"); ok {
-		configureLog(logLevel)
-	}
 	return configParams
-}
-
-// set global log level
-func configureLog(logLevel string) {
-	ll, err := log.ParseLevel(logLevel)
-	if err != nil {
-		log.Error("Invalid logging level: ", logLevel)
-		ll = log.InfoLevel // to be set to error level
-	}
-	log.SetLevel(ll)
-	log.Info("Logging  level set to ", log.GetLevel().String())
-
 }
 
 const usage = `   `

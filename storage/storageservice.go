@@ -18,17 +18,20 @@ import (
 	"infinibox-csi-driver/helper"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"infinibox-csi-driver/api/clientgo"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csictx "github.com/rexray/gocsi/context"
-	log "github.com/sirupsen/logrus"
 	"k8s.io/kubernetes/pkg/util/mount"
 )
 
@@ -355,7 +358,7 @@ func detachDisk(devicePath string) error {
 // Removes a scsi device based upon /dev/sdX name
 func removeFromScsiSubsystem(deviceName string) {
 	fileName := "/sys/block/" + deviceName + "/device/delete"
-	log.Infof("remove device from scsi-subsystem: path: %s", fileName)
+	log.Debugf("remove device from scsi-subsystem: path: %s", fileName)
 	data := []byte("1")
 	ioutil.WriteFile(fileName, data, 0666)
 }
@@ -407,4 +410,39 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 
 	log.Debugf("Finished executing command")
 	return out, err
+}
+
+func (cs *commonservice) pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		log.Debug("Path exists: ", path)
+		return true, nil
+	} else if os.IsNotExist(err) {
+		log.Debug("Path not exists: ", path)
+		return false, nil
+	} else if cs.isCorruptedMnt(err) {
+		log.Debug("Path is currupted: ", path)
+		return true, err
+	} else {
+		log.Debug("unable to validate path: ", path)
+		return false, err
+	}
+}
+func (cs *commonservice) isCorruptedMnt(err error) bool {
+	if err == nil {
+		return false
+	}
+	var underlyingError error
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *os.PathError:
+		underlyingError = pe.Err
+	case *os.LinkError:
+		underlyingError = pe.Err
+	case *os.SyscallError:
+		underlyingError = pe.Err
+	}
+
+	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
 }

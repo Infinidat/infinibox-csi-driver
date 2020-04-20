@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "infinibox-csi-driver/helper/logger"
 )
 
 // Client interface

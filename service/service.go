@@ -19,9 +19,10 @@ import (
 	"os/exec"
 	"strings"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -92,7 +93,7 @@ func (s *service) getNodeFQDN() string {
 	cmd := "hostname -f"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		log.Warning("could not get fqdn with cmd : 'hostname -f', get hostname with 'echo $HOSTNAME'")
+		log.Warn("could not get fqdn with cmd : 'hostname -f', get hostname with 'echo $HOSTNAME'")
 		cmd = "echo $HOSTNAME"
 		out, err = exec.Command("bash", "-c", cmd).Output()
 		if err != nil {
@@ -102,7 +103,7 @@ func (s *service) getNodeFQDN() string {
 	}
 	nodeFQDN := string(out)
 	if nodeFQDN == "" {
-		log.Warning("node fqnd not found, setting node name as node fqdn instead")
+		log.Warn("node fqnd not found, setting node name as node fqdn instead")
 		nodeFQDN = s.nodeName
 	}
 	nodeFQDN = strings.TrimSuffix(nodeFQDN, "\n")

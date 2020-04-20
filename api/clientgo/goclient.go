@@ -11,7 +11,8 @@ limitations under the License.*/
 package clientgo
 
 import (
-	log "github.com/sirupsen/logrus"
+	log "infinibox-csi-driver/helper/logger"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
