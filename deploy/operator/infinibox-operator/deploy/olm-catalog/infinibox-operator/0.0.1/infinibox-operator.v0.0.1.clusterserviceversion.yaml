@@ -25,7 +25,7 @@ metadata:
             "csiDriverVersion": "1.1.0.7",
             "images": {
               "attachersidecar": "quay.io/k8scsi/csi-attacher:v2.0.0",
-              "csidriver": "docker.io/infinidat/infinidat-csi-driver:1.1.0.7",
+              "csidriver": "docker.io/infinidat/infinidat-csi-driver",
               "provisionersidecar": "quay.io/k8scsi/csi-provisioner:v1.4.0",
               "registrarsidecar": "quay.io/k8scsi/csi-node-driver-registrar:v1.3.0",
               "resizersidecar": "quay.io/k8scsi/csi-resizer:v0.3.0",
@@ -41,7 +41,7 @@ metadata:
     capabilities: Basic Install
     categories: Storage
     description: InfiniBox CSI Driver - Operator
-    containerImage: scan.connect.redhat.com/ospid-9dfd4a7a-3f17-430e-a486-5c51eabe164c/infinidat-csi-operator:1.1.0.1
+    containerImage: registry.connect.redhat.com/infinidat/infinibox-operator-certified:1.1.0
     createdAt: 2020-03-11T10:20:01Z
     support: Infinidat
     certified: "false"
@@ -186,8 +186,8 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
-                  value: infinibox-operator
-                image: scan.connect.redhat.com/ospid-9dfd4a7a-3f17-430e-a486-5c51eabe164c/infinidat-csi-operator:1.1.0.1
+                  value: infinibox-operator-certified
+                image: registry.connect.redhat.com/infinidat/infinibox-operator-certified:1.1.0
                 imagePullPolicy: Always
                 name: infinibox-operator
                 resources: {}
