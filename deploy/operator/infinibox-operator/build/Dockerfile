@@ -1,6 +1,6 @@
 FROM quay.io/operator-framework/helm-operator:v0.15.0
 
-MAINTAINER infinibox@infinidat.com
+MAINTAINER partners.infi@infinidat.com
 LABEL name="infinidat-csi-operator" \
       vendor="Infinidat" \
       summary="Infinidat CSI Operator" \
