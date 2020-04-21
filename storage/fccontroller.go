@@ -18,9 +18,10 @@ import (
 	"strconv"
 	"strings"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -110,12 +111,10 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	}
 	vi := fc.cs.getCSIResponse(volumeResp, req)
-	log.Debug("volume context created 1", vi.VolumeContext)
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
-	log.Debug("volume context created 2", vi.VolumeContext)
 
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = volumeResp.Name
@@ -266,16 +265,41 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
+
+	lunList, err := fc.cs.api.GetAllLunByHost(host.ID)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, err
+	}
+	ports := ""
+	if len(host.Ports) > 0 {
+		for _, port := range host.Ports {
+			if port.PortType == "FC" {
+				ports = ports + "," + port.PortAddress
+			}
+		}
+	}
+	if ports != "" {
+		ports = ports[1:]
+	}
+	for _, lun := range lunList {
+		if lun.VolumeID == volID {
+			volCtx := make(map[string]string)
+			volCtx["lun"] = strconv.Itoa(lun.Lun)
+			volCtx["hostID"] = strconv.Itoa(host.ID)
+			volCtx["hostPorts"] = ports
+			log.Debugf("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
+			return &csi.ControllerPublishVolumeResponse{
+				PublishContext: volCtx,
+			}, nil
+		}
+	}
+
 	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
 	if err != nil {
 		log.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
 	log.Debugf("host can have maximum %d volume mapped", maxAllowedVol)
-	lunList, err := fc.cs.api.GetAllLunByHost(host.ID)
-	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, err
-	}
 	log.Debugf("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		log.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
@@ -289,17 +313,6 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 
-	ports := ""
-	if len(host.Ports) > 0 {
-		for _, port := range host.Ports {
-			if port.PortType == "FC" {
-				ports = ports + "," + port.PortAddress
-			}
-		}
-	}
-	if ports != "" {
-		ports = ports[1:]
-	}
 	volCtx := make(map[string]string)
 	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
 	volCtx["hostID"] = strconv.Itoa(host.ID)

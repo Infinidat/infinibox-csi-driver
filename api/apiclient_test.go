@@ -433,8 +433,7 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_panic() {
-	expectedResponse := client.ApiResponse{}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
+	suite.clientMock.On("Get").Return(nil, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
 	_, err := service.GetFilesytemTreeqCount(1001)

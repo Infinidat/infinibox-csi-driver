@@ -17,8 +17,9 @@ import (
 	"strconv"
 	"strings"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -44,7 +45,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	treeqVolumeMap, err = treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), pvName)
 	if len(treeqVolumeMap) == 0 && err == nil {
 		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
-	}
+	} 
 	if err != nil {
 		log.Errorf("fail to create volume %v", err)
 		return &csi.CreateVolumeResponse{}, err
@@ -94,13 +95,11 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 }
 
 func (treeq *treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
-	log.Debugf("ControllerPublishVolume %v", req)
 	return &csi.ControllerPublishVolumeResponse{}, nil
 
 }
 
 func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	log.Debugf("ControllerUnpublishVolume %v", req)
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 

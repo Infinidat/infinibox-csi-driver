@@ -13,9 +13,10 @@ package service
 import (
 	"context"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	log "github.com/sirupsen/logrus"
 )
 
 // Manifest is the SP's manifest.
