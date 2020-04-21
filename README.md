@@ -25,7 +25,6 @@
   **For NFS and NFS-Treeq:** 
   - Latest NFS software package for your operating system
  
-
 **Installation details:**
    - Follow Infinibox CSI driver user guide
 
