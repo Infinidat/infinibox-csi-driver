@@ -4,7 +4,7 @@ RUN chmod +x /setenv.sh
 COPY infinibox-csi-driver /infinibox-csi-driver
 
 
-MAINTAINER infinibox@infinidat.com
+MAINTAINER partners.infi@infinidat.com
 
 LABEL name="infinibox-csi-driver" \
       vendor="Infinidat" \
