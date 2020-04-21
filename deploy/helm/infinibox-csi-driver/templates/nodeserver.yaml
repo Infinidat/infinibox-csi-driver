@@ -78,7 +78,7 @@ spec:
             - name: X_CSI_MODE
               value: node
             - name: X_CSI_DEBUG
-              value: "true"
+              value: "false"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
