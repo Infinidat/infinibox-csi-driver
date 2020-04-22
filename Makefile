@@ -29,7 +29,7 @@ ifeq ($(env),prod)
 	DOCKER_IMAGE_TAG=1.1.0.7
 
 	# For scan.connect.redhat.com
-	REDHAT_DOCKER_USER=ospid-b731bd28-18bf-4a91-ad3f-8a90853cf5ab
+	REDHAT_DOCKER_USER=ospid-956ccd64-1dcf-4d00-ba98-336497448906
 	REDHAT_DOCKER_IMAGE_TAG=1.1.0.1
 endif
 # For Production Build ##################################################################
