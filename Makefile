@@ -11,12 +11,12 @@ DOCKER_IMAGE=infinidat-csi-driver
 
 # For Development Build #################################################################
 # Docker.io username and tag
-DOCKER_USER=nikhilbarge
+DOCKER_USER=user1
 DOCKER_IMAGE_TAG=test1
 
 # redhat username and tag
-REDHAT_DOCKER_USER=nikhilbarge
-REDHAT_DOCKER_IMAGE_TAG=ubi8test1
+REDHAT_DOCKER_USER=user1
+REDHAT_DOCKER_IMAGE_TAG=rhtest1
 # For Development Build #################################################################
 
 
@@ -26,11 +26,11 @@ ifeq ($(env),prod)
 	# Do not change following values unless change in production version or username
 	#For docker.io  
 	DOCKER_USER=infinidat
-	DOCKER_IMAGE_TAG=1.1.0.7
+	DOCKER_IMAGE_TAG=1.1.0
 
 	# For scan.connect.redhat.com
 	REDHAT_DOCKER_USER=ospid-b731bd28-18bf-4a91-ad3f-8a90853cf5ab
-	REDHAT_DOCKER_IMAGE_TAG=1.1.0.1
+	REDHAT_DOCKER_IMAGE_TAG=1.1.0
 endif
 # For Production Build ##################################################################
 
