@@ -17,7 +17,7 @@ spec:
         - name: infinibox-operator
           # Replace this with the built image name
           # image: docker.io/infinidat/infinidat-csi-operator:1.1.0.1 # docker repo
-          image: scan.connect.redhat.com/ospid-9dfd4a7a-3f17-430e-a486-5c51eabe164c/infinidat-csi-operator:1.1.0.1
+          image: registry.connect.redhat.com/infinidat/infinibox-operator-certified
           imagePullPolicy: Always
           env:
             - name: "WATCH_NAMESPACE"
