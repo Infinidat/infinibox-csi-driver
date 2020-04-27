@@ -15,7 +15,7 @@ spec:
     password: "123456"
     username: admin
   csiDriverName: infinibox-csi-driver
-  csiDriverVersion: 1.1.0.7
+  csiDriverVersion: 1.1.0
   images:
     attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
     csidriver: registry.connect.redhat.com/infinidat/infinibox-csidriver-certified
