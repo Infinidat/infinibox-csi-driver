@@ -85,19 +85,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_GetName_fail() {
 	crtValReq := getISCSICreateValumeRequest("PVName", parameterMap)
 	expectedErr := errors.New("some Error")
 
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, expectedErr)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "Name cannot be empty")
-}
-func (suite *ISCSIControllerSuite) Test_CreateVolume_GetNetworkSpaceByName_fail() {
-	service := iscsistorage{cs: *suite.cs}
-	parameterMap := getISCSICreateVolumeParamter()
-	crtValReq := getISCSICreateValumeRequest("PVName", parameterMap)
-	expectedErr := errors.New("some Error")
-
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, expectedErr)
-
+	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	_, err := service.CreateVolume(context.Background(), crtValReq)
 	assert.NotNil(suite.T(), err, "Name cannot be empty")
 }
@@ -291,6 +279,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError()
 	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)	
+	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)	
 	ctrPublishValReq.VolumeContext= map[string]string{"max_vols_per_host": "AA"}
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "Fail to storage class for iscsi protocol")
@@ -423,13 +412,13 @@ func (suite *ISCSIControllerSuite) Test_ValidateVolumeCapabilities(){
 func (suite *ISCSIControllerSuite) Test_ListVolumes(){
 	service := iscsistorage{cs: *suite.cs}
 	_, err := service.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
 func (suite *ISCSIControllerSuite) Test_ListSnapshots(){
 	service := iscsistorage{cs: *suite.cs}
 	_, err := service.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
 func (suite *ISCSIControllerSuite) Test_GetCapacity(){
