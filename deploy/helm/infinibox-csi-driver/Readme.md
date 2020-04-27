@@ -1,9 +1,15 @@
-## Chart
-## Chart will install infinibox-csi-driver 
+# Overview
+Helm Chart for InfiniBox CSI driver deployment
 
-## Command to install infinibox-csi-driver : 
-## Install command example: helm install --name infiniboxcsidriver --namespace infiniboxcsidriver ./infinibox-csi-driver
+# Usage
+## Install driver
+ - Modify values.yaml to include Infinibox hostname and Pool Admin credentials
+ - Create a name space for CSI driver deployment
+   kubectl create namespace infinibox
+ - Install the driver
+   helm install csi-infinibox -n=infinibox ./
 
-## Command to uninstall infinibox-csi-driver:
-## Install command example: helm delete --name infiniboxcsidriver --namespace infiniboxcsidriver
+## Uninstall driver
+   helm uninstall csi-infinibox -n=infinibox
+
 
