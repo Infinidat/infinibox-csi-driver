@@ -29,6 +29,6 @@
  
 
 # Installation details
-   - Follow Infinibox CSI driver user guide
+   - Follow Infinibox CSI driver [user guide](https://support.infinidat.com/hc/en-us/articles/360000633265)
 
 # [Customer Support](https://support.infinidat.com/hc/en-us) 

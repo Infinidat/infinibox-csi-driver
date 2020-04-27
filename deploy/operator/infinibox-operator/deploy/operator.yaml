@@ -16,7 +16,6 @@ spec:
       containers:
         - name: infinibox-operator
           # Replace this with the built image name
-          # image: docker.io/infinidat/infinidat-csi-operator:1.1.0.1 # docker repo
           image: registry.connect.redhat.com/infinidat/infinibox-operator-certified
           imagePullPolicy: Always
           env:

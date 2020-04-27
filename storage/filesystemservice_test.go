@@ -42,17 +42,10 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_maxfilesystem(
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
 	service := getFilesystemService(NFSTREEQ, *suite.cs)
 	service.capacity = 209951162777600
-	_, err := service.getExpectedFileSystemID()
+	_, err := service.getExpectedFileSystemID(1000)
 	assert.NotNil(suite.T(), err, "empty object")
 }
 
-func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_GetPoolIDByPoolName_error() {
-	expectedErr := errors.New("some error")
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
-	service := FilesystemService{cs: *suite.cs}
-	_, err := service.getExpectedFileSystemID()
-	assert.NotNil(suite.T(), err, "empty object")
-}
 
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() {
 	var poolID int64 = 10
@@ -61,7 +54,8 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_getMaxSize_err
 	configmap := make(map[string]string)
 	configmap[MAXFILESYSTEMSIZE] = "4mib"
 	service.configmap = configmap
-	_, err := service.getExpectedFileSystemID()
+	service.capacity = 209951162777600
+	_, err := service.getExpectedFileSystemID(10)
 	fmt.Println(err)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -70,9 +64,9 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FileSystemByPo
 	expectedErr := errors.New("some error")
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(nil, expectedErr)
+	suite.api.On("GetFileSystemsByPoolID",  mock.Anything, 1).Return(nil, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
-	_, err := service.getExpectedFileSystemID()
+	_, err := service.getExpectedFileSystemID(1000)
 	assert.NotNil(suite.T(), err, "empty object")
 }
 
@@ -80,12 +74,12 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeq
 	expectedErr := errors.New("some error")
 	fsMetada := getfsMetadata2()
 	var poolID int64 = 10
-	var fsID int64 = 11
+	//var fsID int64 = 11
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
-	suite.api.On("GetFilesytemTreeqCount", fsID).Return(0, expectedErr)
-	service := FilesystemService{cs: *suite.cs}
-	_, err := service.getExpectedFileSystemID()
+	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(*fsMetada, nil)
+	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
+	service := FilesystemService{cs: *suite.cs,capacity: 100}
+	_, err := service.getExpectedFileSystemID(9999990)
 	assert.NotNil(suite.T(), err, "empty object")
 }
 
@@ -94,8 +88,8 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	var poolID int64 = 10
 	var fsID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
-	suite.api.On("GetFilesytemTreeqCount", fsID).Return(1, nil)
+	suite.api.On("GetFileSystemsByPoolID", mock.Anything, mock.Anything).Return(*fsMetada, nil)
+	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(1, nil)
 
 	exportResp := getExportResponse()
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
@@ -106,7 +100,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	service.capacity = 1000
 	service.exportpath = "/exportPath"
 
-	fs, err := service.getExpectedFileSystemID()
+	fs, err := service.getExpectedFileSystemID(9999999999999)
 	assert.Nil(suite.T(), err, "empty object")
 	assert.Equal(suite.T(), fs.ID, fsID, "file system ID equal")
 }
@@ -552,13 +546,13 @@ func (suite *FileSystemServiceSuite) Test_validateTreeqParameters() {
 }
 
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_Error() {
-	//var poolID int64 = 10
+	var poolID int64 = 10
 	//var fsID int64 = 11
 
 	expectedErr := errors.New("some error")
 
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, expectedErr)
-	//suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	//suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, expectedErr)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
@@ -596,36 +590,21 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolI
 
 }
 
-func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetTreeqByName_Error() {
-	var poolID int64 = 10
-	var fsID int64 = 11
-	fsMetada := getfsMetadata2()
-
-	expectedErr := errors.New("some error")
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
-	suite.api.On("GetTreeqByName", fsID, mock.Anything).Return(nil, expectedErr)
-
-	service := FilesystemService{cs: *suite.cs}
-	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
-	assert.NotNil(suite.T(), err, "err should not be nil")
-
-}
 
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_Error() {
 	var poolID int64 = 10
-	var fsID int64 = 11
+	var fsID int64 = 0
 	fsMetada := getfsMetadata2()
 
 	//expectedErr := errors.New("some error")
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
-	suite.api.On("GetTreeqByName", fsID, mock.Anything).Return(getTreeQResponse(fsID), nil)
 
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
+	suite.api.On("GetTreeqByName",  mock.Anything, mock.Anything).Return(getTreeQResponse(fsID), nil)
+	
 	exportResp := getExportResponse()
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)	
 
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")

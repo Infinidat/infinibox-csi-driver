@@ -602,7 +602,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	} else if !pathExist {
 		if pathExist, _ = iscsi.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
-				log.Warn("Warning: Unmount skipped because path does not exist: %v", targetPath)
+				log.Warnf("Warning: Unmount skipped because path does not exist: %v", targetPath)
 				return nil
 			}
 		}
