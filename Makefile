@@ -11,12 +11,12 @@ DOCKER_IMAGE=infinidat-csi-driver
 
 # For Development Build #################################################################
 # Docker.io username and tag
-DOCKER_USER=nikhilbarge
+DOCKER_USER=user1
 DOCKER_IMAGE_TAG=test1
 
 # redhat username and tag
-REDHAT_DOCKER_USER=nikhilbarge
-REDHAT_DOCKER_IMAGE_TAG=ubi8test1
+REDHAT_DOCKER_USER=user1
+REDHAT_DOCKER_IMAGE_TAG=rhtest1
 # For Development Build #################################################################
 
 
