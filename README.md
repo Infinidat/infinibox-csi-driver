@@ -29,6 +29,6 @@
  
 
 # Installation details
-   - Follow Infinibox CSI driver [user guide](https://support.infinidat.com/hc/en-us/articles/360000633265)
+   - Follow Infinibox CSI driver [user guide](https://support.infinidat.com/hc/en-us/articles/360008917097-InfiniBox-CSI-Driver-for-Kubernetes-User-Guide)
 
 # [Customer Support](https://support.infinidat.com/hc/en-us) 
