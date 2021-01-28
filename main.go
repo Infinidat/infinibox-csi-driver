@@ -12,23 +12,63 @@ package main
 
 import (
 	"context"
+	"flag"
+	"github.com/rexray/gocsi"
+	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
-
-	"github.com/rexray/gocsi"
+	"k8s.io/klog"
+	"os"
 	csictx "github.com/rexray/gocsi/context"
 )
 
 //starting method of CSI-Driver
 func main() {
+	klog.InitFlags(nil)
+	flag.Set("logtostderr", "true")
+	flag.Set("stderrthreshold", "WARNING")
+
+	var verbosity string
+	appLogLevel := os.Getenv("APP_LOG_LEVEL")
+	switch appLogLevel {
+	case "quiet":
+		verbosity = "1"
+	case "info":
+		verbosity = "2"
+	case "extended":
+		verbosity = "3"
+	case "debug":
+		verbosity = "4"
+	case "trace":
+		verbosity = "5"
+	default:
+		verbosity = "2"
+	}
+
+	flag.Set("v", verbosity)
+	flag.Parse()
+
+	klog.V(2).Infof("Infinidat CSI Driver is Starting")
+	klog.V(2).Infof("Log level: %s", appLogLevel)
+
+	// Check ALLOW_XFS_UUID_REGENERATION
+	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
+	_, err := helper.YamlBoolToBool(allow_xfs_uuid_regeneration)
+	if err != nil {
+		klog.Fatalf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
+	}
+	klog.V(2).Infof("Configuration:")
+	klog.V(2).Infof("  ALLOW_XFS_UUID_REGENERATION: %s", allow_xfs_uuid_regeneration)
+
+	klog.Flush()
+
 	configParams := getConfigParams()
 	gocsi.Run(
 		context.Background(),
 		service.ServiceName,
-		"A Infinibox CSI Driver Plugin",
+		"An Infinibox CSI Driver Plugin",
 		usage,
 		provider.New(configParams))
-
 }
 
 func getConfigParams() map[string]string {

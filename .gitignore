@@ -1,12 +1,18 @@
 !.infinibox-csi-driver/
 # Folders
 vendor
+artifact
 
 ### VisualStudioCode ###
 .vscode/*
 
-# Build artifacts
-infinibox-csi-driver
-
 # other
 go.sum
+
+deploy/helm/infinibox-csi-driver/values_gitlab_registry.yaml
+
+# vim
+*.swp
+*.swo
+*.un~
+Session.vim

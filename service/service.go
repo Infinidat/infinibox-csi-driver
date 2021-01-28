@@ -18,9 +18,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
-
-	log "infinibox-csi-driver/helper/logger"
-
+    "k8s.io/klog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
 	"google.golang.org/grpc/codes"
@@ -93,17 +91,17 @@ func (s *service) getNodeFQDN() string {
 	cmd := "hostname -f"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		log.Warn("could not get fqdn with cmd : 'hostname -f', get hostname with 'echo $HOSTNAME'")
+		klog.Warningf("could not get fqdn with cmd : 'hostname -f', get hostname with 'echo $HOSTNAME'")
 		cmd = "echo $HOSTNAME"
 		out, err = exec.Command("bash", "-c", cmd).Output()
 		if err != nil {
-			log.Errorf("Failed to execute command: %s", cmd)
+			klog.Errorf("Failed to execute command: %s", cmd)
 			return s.nodeName
 		}
 	}
 	nodeFQDN := string(out)
 	if nodeFQDN == "" {
-		log.Warn("node fqnd not found, setting node name as node fqdn instead")
+		klog.Warningf("node fqnd not found, setting node name as node fqdn instead")
 		nodeFQDN = s.nodeName
 	}
 	nodeFQDN = strings.TrimSuffix(nodeFQDN, "\n")
@@ -115,7 +113,7 @@ func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtoc
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")
 	}
-	log.Info("volproto ", volproto)
+	klog.V(2).Infof("volproto ", volproto)
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil

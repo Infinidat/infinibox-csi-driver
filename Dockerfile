@@ -7,23 +7,29 @@ COPY infinibox-csi-driver /infinibox-csi-driver
 RUN mkdir /ibox
 ADD host-chroot.sh /ibox
 RUN chmod 777 /ibox/host-chroot.sh
-RUN    ln -s /ibox/host-chroot.sh /ibox/blkid \
+RUN \
+       ln -s /ibox/host-chroot.sh /ibox/blkid \
     && ln -s /ibox/host-chroot.sh /ibox/blockdev \
+    && ln -s /ibox/host-chroot.sh /ibox/cat \
+    && ln -s /ibox/host-chroot.sh /ibox/dmsetup \
+    && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/iscsiadm \
-    && ln -s /ibox/host-chroot.sh /ibox/rpcbind \
     && ln -s /ibox/host-chroot.sh /ibox/lsblk \
     && ln -s /ibox/host-chroot.sh /ibox/lsscsi \
+    && ln -s /ibox/host-chroot.sh /ibox/mkdir \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.ext3 \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.ext4 \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.xfs \
-    && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/mount \
     && ln -s /ibox/host-chroot.sh /ibox/multipath \
     && ln -s /ibox/host-chroot.sh /ibox/multipathd \
-    && ln -s /ibox/host-chroot.sh /ibox/cat \
-    && ln -s /ibox/host-chroot.sh /ibox/mkdir \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \
-    && ln -s /ibox/host-chroot.sh /ibox/umount
+    && ln -s /ibox/host-chroot.sh /ibox/rpcbind \
+    && ln -s /ibox/host-chroot.sh /ibox/umount \
+    && ln -s /ibox/host-chroot.sh /ibox/vi \
+    && ln -s /ibox/host-chroot.sh /ibox/vim \
+    && ln -s /ibox/host-chroot.sh /ibox/xfs_admin \
+    && ln -s /ibox/host-chroot.sh /ibox/xfs_db
 
 ENV PATH="/ibox:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 

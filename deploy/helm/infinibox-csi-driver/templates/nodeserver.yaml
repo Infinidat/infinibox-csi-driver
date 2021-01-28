@@ -1,10 +1,11 @@
 apiVersion: v1
 kind: ServiceAccount
+imagePullSecrets:
+- name: {{ .Values.images.imagePullSecret }}
 metadata:
   name: {{ .Release.Name }}-node
   namespace: {{ .Release.Namespace }}
-imagePullSecrets:
-- name: {{ .Release.Name }}-creds
+
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -71,8 +72,10 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true              
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
+            - name: ALLOW_XFS_UUID_REGENERATION
+              value: {{ required "Enable/disable XFS UUID modification to correct UUID conflicts" .Values.allowXfsUuidRegeneration | quote }}
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
             - name: X_CSI_MODE
@@ -99,6 +102,7 @@ spec:
               mountPropagation: "Bidirectional"
         - name: registrar
           image: {{ required "Provide the csi node registrar sidecar container image." .Values.images.registrarsidecar }}
+          imagePullPolicy: {{ .Values.images.registrarsidecar_pull_policy | default "Always" | quote }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"

@@ -12,11 +12,9 @@ package service
 
 import (
 	"context"
-
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"k8s.io/klog"
 )
 
 // Manifest is the SP's manifest.
@@ -27,14 +25,14 @@ var Manifest = map[string]string{
 	"formed": "",
 }
 
-func (s *service) GetPluginInfo( ctx context.Context, req *csi.GetPluginInfoRequest) ( *csi.GetPluginInfoResponse, error) {
+func (s *service) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	return &csi.GetPluginInfoResponse{
 		Name:          s.driverName,
 		VendorVersion: s.driverVersion,
 	}, nil
 }
 
-func (s *service) GetPluginCapabilities( ctx context.Context, req *csi.GetPluginCapabilitiesRequest) ( *csi.GetPluginCapabilitiesResponse, error) {
+func (s *service) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.GetPluginCapabilitiesResponse, error) {
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
@@ -55,11 +53,11 @@ func (s *service) GetPluginCapabilities( ctx context.Context, req *csi.GetPlugin
 	}, nil
 }
 
-func (s *service) Probe( ctx context.Context, req *csi.ProbeRequest) ( *csi.ProbeResponse, error) {
+func (s *service) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeResponse, error) {
 	ready := new(wrappers.BoolValue)
 	ready.Value = true
 	proberes := new(csi.ProbeResponse)
 	proberes.Ready = ready
-	log.Debugf("Probe returning: %v", proberes.Ready.GetValue())
+	klog.V(4).Infof("Probe returning: %v", proberes.Ready.GetValue())
 	return proberes, nil
 }

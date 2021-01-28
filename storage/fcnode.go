@@ -15,7 +15,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"infinibox-csi-driver/helper"
 	"io/ioutil"
+	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/volume/util"
+	"k8s.io/mount-utils"
+	utilexec "k8s.io/utils/exec"
 	"os"
 	"os/exec"
 	"path"
@@ -23,14 +31,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	log "infinibox-csi-driver/helper/logger"
-
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/util/mount"
-	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 type fcDevice struct {
@@ -50,15 +50,18 @@ type FCMounter struct {
 	FsType       string
 	MountOptions []string
 	Mounter      *mount.SafeFormatAndMount
-	Exec         mount.Exec
+	Exec         utilexec.Interface
 	DeviceUtil   util.DeviceUtil
 	TargetPath   string
 	StagePath    string
 	fcDisk       fcDevice
 }
 
+// Global resouce contains a sync.Mutex. Used to serialize FC resource accesses.
+var execFc helper.ExecScsi
+
 func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Debugf("NodePublishVolume called")
+	klog.V(4).Infof("NodePublishVolume called")
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -105,42 +108,42 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			err = errors.New("Recovered from FC NodeStageVolume  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("NodeStageVolume called with ", req.GetPublishContext())
+	klog.V(2).Infof("NodeStageVolume called with ", req.GetPublishContext())
 	hostID := req.GetPublishContext()["hostID"]
 	ports := req.GetPublishContext()["hostPorts"]
 
 	hstID, _ := strconv.Atoi(hostID)
-	log.Debugf("publishing volume to host id is %s", hostID)
+	klog.V(4).Infof("publishing volume to host id is %s", hostID)
 	//validate host exists
 	if hstID < 1 {
-		log.Errorf("hostID %d is not valid host ID", hstID)
+		klog.Errorf("hostID %d is not valid host ID", hstID)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
 	}
 	fcPorts := getPortName()
 	if len(fcPorts) == 0 {
-		log.Error("port name not found on worker")
+		klog.Errorf("port name not found on worker")
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "Port name not found")
 	}
 	for _, fcp := range fcPorts {
 		if !strings.Contains(ports, fcp) {
-			log.Debugf("host port %s is not created, creating it", fcp)
+			klog.V(4).Infof("host port %s is not created, creating it", fcp)
 			err = fc.cs.AddPortForHost(hstID, "FC", fcp)
 			if err != nil {
-				log.Errorf("error creating host port %v", err)
+				klog.Errorf("error creating host port %v", err)
 				return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 			}
 			_, err := fc.cs.api.GetHostPort(hstID, fcp)
 			if err != nil {
-				log.Errorf("failed to get host port %s with error %v", fcp, err)
+				klog.Errorf("failed to get host port %s with error %v", fcp, err)
 				return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
-	log.Debug("NodeStageVolume completed")
+	klog.V(4).Infof("NodeStageVolume completed")
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	log.Info("Called FC NodeUnstageVolume")
+	klog.V(2).Infof("Called FC NodeUnstageVolume")
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -156,28 +159,28 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	dskInfo := diskInfo{}
 	dskInfo.VolName = volName
 
-	// load iscsi disk config from json file
-	log.Debug("read fc config from staging path")
+	// load fc disk config from json file
+	klog.V(4).Infof("read fc config from staging path")
 	if err := fc.loadFcDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
-		log.Debugf("fc config: mpathDevice %s", mpathDevice)
+		klog.V(4).Infof("fc config: mpathDevice %s", mpathDevice)
 	} else {
-		log.Debug("fc config not existing at staging path")
+		klog.V(4).Infof("fc config not existing at staging path")
 		confFile := path.Join("/host", stagePath, volName+".json")
-		log.Debug("check if fc config file exists")
+		klog.V(4).Infof("check if fc config file exists")
 		pathExist, pathErr := fc.cs.pathExists(confFile)
 		if pathErr == nil {
 			if !pathExist {
-				log.Debug("fc config file is not exists")
+				klog.V(4).Infof("fc config file is not exists")
 				if err := os.RemoveAll(stagePath); err != nil {
-					log.Errorf("fc: failed to remove mount path Error: %v", err)
+					klog.Errorf("fc: failed to remove mount path Error: %v", err)
 					return nil, err
 				}
-				log.Debug("removed stage path: ", stagePath)
+				klog.V(4).Infof("removed stage path: ", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
-		log.Warnf("fc detach disk: failed to get fc config from path %s Error: %v", stagePath, err)
+		klog.Warningf("fc detach disk: failed to get fc config from path %s Error: %v", stagePath, err)
 	}
 
 	// remove multipath
@@ -185,12 +188,12 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	multiPath := false
 	dstPath := mpathDevice
 
-	log.Debug("removing mpath")
+	klog.V(4).Infof("removing mpath")
 	if strings.HasPrefix(dstPath, "/host") {
 		dstPath = strings.Replace(dstPath, "/host", "", 1)
 	}
 
-	log.Debugf("remove multipath device %s", dstPath)
+	klog.V(4).Infof("remove multipath device %s", dstPath)
 	if strings.HasPrefix(dstPath, "/dev/dm-") {
 		multiPath = true
 		devices = findSlaveDevicesOnMultipath(dstPath)
@@ -202,30 +205,30 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	for _, device := range devices {
 		err := detachDisk(device)
 		if err != nil {
-			log.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
+			klog.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
 			lastErr = fmt.Errorf("fc: detach disk failed. device: %v err: %v", device, err)
 		}
 	}
 	if lastErr != nil {
-		log.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
+		klog.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
 		return nil, lastErr
 	}
 	if multiPath {
-		log.Debug("flush multipath device using multipath -f ", dstPath)
+		klog.V(4).Infof("flush multipath device using multipath -f ", dstPath)
 		_, err := fc.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
 		if err != nil {
 			if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
-				log.Debugf("multipath device %s deleted", dstPath)
+				klog.V(4).Infof("multipath device %s deleted", dstPath)
 			} else {
-				log.Errorf("multipath -f %s failed to device with error %v", dstPath, err.Error())
+				klog.Errorf("multipath -f %s failed to device with error %v", dstPath, err.Error())
 				return nil, err
 			}
 		}
 	}
-	log.Debug("Removed multipath sucessfully!")
+	klog.V(4).Infof("Removed multipath sucessfully!")
 
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
-		log.Errorf("fc: failed to remove mount path Error: %v", err)
+		klog.Errorf("fc: failed to remove mount path Error: %v", err)
 		return nil, err
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
@@ -273,35 +276,60 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		fmt.Printf("fc: %s already mounted", fm.TargetPath)
 	}
 	if fm.fcDisk.isBlock {
-		log.Infof("Block volume will be mount at file %s", fm.TargetPath)
+		klog.V(2).Infof("Block volume will be mount at file %s", fm.TargetPath)
 		if fm.ReadOnly {
 			return status.Error(codes.Internal, "Read only is not supported for Block Volume")
 		}
 
-		if err := os.MkdirAll(filepath.Dir(fm.TargetPath), 0750); err != nil {
-			log.Errorf("fc: failed to mkdir %s, error", filepath.Dir(fm.TargetPath))
+		klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+		klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", fm.TargetPath)
+		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+		// MkdirAll() will cause hard-to-grok mount errors.
+		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", fm.TargetPath)
+		err = cmd.Run()
+		if err != nil {
+			klog.Errorf("failed to mkdir '%s': %s", fm.TargetPath, err)
 			return err
 		}
 
 		_, err = os.Create("/host/" + fm.TargetPath)
 		if err != nil {
-			log.Errorf("failed to create target file %q: %v", fm.TargetPath, err)
+			klog.Errorf("failed to create target file %q: %v", fm.TargetPath, err)
 			return fmt.Errorf("failed to create target file for raw block bind mount: %v", err)
 		}
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 		options := []string{"bind"}
 		options = append(options, "rw")
 		if err := fm.Mounter.Mount(devicePath, fm.TargetPath, "", options); err != nil {
-			log.Errorf("fc: failed to mount fc volume %s to %s, error %v", devicePath, fm.TargetPath, err)
+			klog.Errorf("fc: failed to mount fc volume %s to %s, error %v", devicePath, fm.TargetPath, err)
 			return err
 		}
-		log.Debug("Block volume mounted successfully")
+		klog.V(4).Infof("Block volume mounted successfully")
+
 	} else {
-		log.Debugf("mount volume to given path %s", fm.TargetPath)
-		if err := os.MkdirAll(fm.TargetPath, 0750); err != nil {
-			log.Errorf("fc: failed to mkdir %s, error", fm.TargetPath)
-			return err
+		klog.V(4).Infof("mount volume to given path %s", fm.TargetPath)
+
+		// Create mountPoint, with prepended /host, if it does not exist.
+		mountPoint := "/host" + fm.TargetPath
+		_, err := os.Stat(mountPoint)
+		if os.IsNotExist(err) {
+			klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+			// MkdirAll() will cause hard-to-grok mount errors.
+			_, err := execFc.Command(fmt.Sprintf("mkdir --parents --mode 0750 '%s'", mountPoint))
+			if err != nil {
+				klog.Errorf("Failed to mkdir '%s': %s", mountPoint, err)
+				return err
+			}
+
+			// Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
+			util.SetReady(mountPoint)
+			is_ready := util.IsReady(mountPoint)
+			klog.V(2).Infof("Check that mountPoint is ready: %t", is_ready)
+		} else {
+			klog.V(4).Infof("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
+
 		var options []string
 
 		if fm.ReadOnly {
@@ -309,6 +337,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		} else {
 			options = append(options, "rw")
 		}
+
 		options = append(options, fm.MountOptions...)
 		if err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options); err != nil {
 			return fmt.Errorf("fc: failed to mount fc volume %s [%s] to %s, error %v", devicePath, fm.FsType, fm.TargetPath, err)
@@ -320,7 +349,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		dskinfo.IsBlock = fm.fcDisk.isBlock
 		dskinfo.VolName = fm.fcDisk.connector.VolumeName
 		if err := fc.createFcConfigFile(dskinfo, fm.StagePath); err != nil {
-			log.Errorf("fc: failed to save fc config with error: %v", err)
+			klog.Errorf("fc: failed to save fc config with error: %v", err)
 			return err
 		}
 	}
@@ -337,7 +366,7 @@ func getPortName() []string {
 	cmd := "cat /sys/class/fc_host/host*/port_name"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		log.Errorf("Failed to port name with error %v", err)
+		klog.Errorf("Failed to port name with error %v", err)
 		return ports
 	}
 	portName := string(out)
@@ -346,7 +375,7 @@ func getPortName() []string {
 			ports = append(ports, strings.Replace(port, "0x", "", 1))
 		}
 	}
-	log.Debugf("fc ports found %v ", ports)
+	klog.V(4).Infof("fc ports found %v ", ports)
 	return ports
 }
 
@@ -374,7 +403,7 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 			}
 		}
 	}
-	log.Debugf("lun %s , targetList %v , wwidList %v", lun, targetList, wwidList)
+	klog.V(4).Infof("lun %s , targetList %v , wwidList %v", lun, targetList, wwidList)
 	if lun == "" || (len(targetList) == 0 && len(wwidList) == 0) {
 		return nil, fmt.Errorf("FC target information is missing")
 	}
@@ -399,8 +428,8 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		ReadOnly:     false,
 		FsType:       fstype,
 		MountOptions: mountOptions,
-		Mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: mount.NewOsExec()},
-		Exec:         mount.NewOsExec(),
+		Mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
+		Exec:         utilexec.New(),
 		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
 		TargetPath:   req.GetTargetPath(),
 		StagePath:    req.GetStagingTargetPath(),
@@ -448,7 +477,7 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 
 // FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent
 func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (string, error) {
-	log.Debug("In findMultipathDeviceForDevice")
+	klog.V(4).Infof("In findMultipathDeviceForDevice")
 	disk, err := fc.findDeviceForPath(device)
 	if err != nil {
 		return "", err
@@ -464,15 +493,15 @@ func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (
 			}
 		}
 	} else {
-		log.Errorf("failed to find multipath device with error %v", err)
+		klog.Errorf("failed to find multipath device with error %v", err)
 		return "", err2
 	}
-	log.Debug("multipath not configured")
+	klog.V(4).Infof("multipath not configured")
 	return "", nil
 }
 
 func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
-	log.Debug("In findDeviceForPath")
+	klog.V(4).Infof("In findDeviceForPath")
 	devicePath, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return "", err
@@ -482,7 +511,7 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
 	parts := strings.Split(devicePath, "/")
 	if len(parts) == 3 && strings.HasPrefix(parts[1], "dev") {
-		log.Debug("found device ", parts[2])
+		klog.V(4).Infof("found device ", parts[2])
 		return parts[2], nil
 	}
 	return "", errors.New("Illegal path for device " + devicePath)
@@ -500,7 +529,7 @@ func scsiHostRescan(io ioHandler) {
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
-	log.Debug("In searchDisk")
+	klog.V(4).Infof("In searchDisk")
 	var diskIds []string
 	var disk string
 	var dm string
@@ -521,7 +550,7 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 				disk, dm = fc.getDisksWwids(diskID, io)
 			}
 			// if multipath device is found, break
-			log.Debugf("searchDisk: found disk %s and dm %s", disk, dm)
+			klog.V(4).Infof("searchDisk: found disk %s and dm %s", disk, dm)
 			if dm != "" {
 				break
 			}
@@ -532,7 +561,7 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 		}
 		// rescan and search again
 		// rescan scsi bus
-		log.Debugf("searchDisk rescan scsi host")
+		klog.V(4).Infof("searchDisk rescan scsi host")
 		scsiHostRescan(io)
 		rescaned = true
 	}
@@ -543,16 +572,16 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 
 	// if multipath devicemapper device is found, use it; otherwise use raw disk
 	if dm != "" {
-		log.Debugf("multipath devicemapper device is found")
+		klog.V(4).Infof("multipath devicemapper device is found")
 		return dm, nil
 	}
-	log.Debugf("multipath devicemapper device not found, using raw disk")
+	klog.V(4).Infof("multipath devicemapper device not found, using raw disk")
 	return disk, nil
 }
 
 // find the fc device and device mapper parent
 func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) {
-	log.Debug("In findFcDisk")
+	klog.V(4).Infof("In findFcDisk")
 	FcPath := "-fc-0x" + wwn + "-lun-" + lun
 	DevPath := "/host/dev/disk/by-path/"
 	if dirs, err := io.ReadDir(DevPath); err == nil {
@@ -563,16 +592,16 @@ func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) 
 					if dm, err2 := fc.findMultipathDeviceForDevice(disk, io); err2 == nil {
 						return disk, dm
 					} else {
-						log.Errorf("could not find disk with error %v", err2)
+						klog.Errorf("could not find disk with error %v", err2)
 					}
 				} else {
-					log.Errorf("could not find disk with error %v", err1)
+					klog.Errorf("could not find disk with error %v", err1)
 				}
 
 			}
 		}
 	} else {
-		log.Errorf("could not find disk with error %v", err)
+		klog.Errorf("could not find disk with error %v", err)
 	}
 	return "", ""
 }
@@ -586,7 +615,7 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
 			if name == FcPath {
 				disk, err := io.EvalSymlinks(DevID + name)
 				if err != nil {
-					log.Errorf("fc: failed to find a corresponding disk from symlink[%s], error %v", DevID+name, err)
+					klog.Errorf("fc: failed to find a corresponding disk from symlink[%s], error %v", DevID+name, err)
 					return "", ""
 				}
 				if dm, err1 := fc.findMultipathDeviceForDevice(disk, io); err1 != nil {
@@ -595,7 +624,7 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
 			}
 		}
 	}
-	log.Errorf("fc: failed to find a disk [%s]", DevID+FcPath)
+	klog.Errorf("fc: failed to find a disk [%s]", DevID+FcPath)
 	return "", ""
 }
 
@@ -604,22 +633,22 @@ func (fc *fcstorage) AttachFCDisk(c Connector, io ioHandler) (string, error) {
 	if io == nil {
 		io = &OSioHandler{}
 	}
-	log.Infof("Attaching fc volume")
+	klog.V(2).Infof("Attaching fc volume")
 	devicePath, err := fc.searchDisk(c, io)
 	if err != nil {
-		log.Infof("unable to find disk given WWNN or WWIDs with error %v", err)
+		klog.V(2).Infof("unable to find disk given WWNN or WWIDs with error %v", err)
 		return "", err
 	}
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	log.Debugf("Attaching fc volume successful, device path %s", devicePath)
+	klog.V(4).Infof("Attaching fc volume successful, device path %s", devicePath)
 
 	return devicePath, nil
 }
 
 // Detach performs a detach operation on a volume
 func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
-	log.Infof("Detaching fibre channel volume")
-	log.Debugf("Called DetachDisk targetpath: %s", targetPath)
+	klog.V(2).Infof("Detaching fibre channel volume")
+	klog.V(4).Infof("Called DetachDisk targetpath: %s", targetPath)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from FC DetachFCDisk  " + fmt.Sprint(res))
@@ -636,27 +665,27 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	} else if !pathExist {
 		if pathExist, _ = fc.cs.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
-				log.Warnf("Warning: Unmount skipped because path does not exist: %v", targetPath)
+				klog.Warningf("Warning: Unmount skipped because path does not exist: %v", targetPath)
 				return nil
 			}
 		}
 	}
 	if err := mounter.Unmount(targetPath); err != nil {
 		if strings.Contains(err.Error(), "not mounted") {
-			log.Debug("volume not mounted removing files ", targetPath)
+			klog.V(4).Infof("volume not mounted removing files ", targetPath)
 			if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
-				log.Errorf("fc: failed to remove mount path Error: %v", err)
+				klog.Errorf("fc: failed to remove mount path Error: %v", err)
 			}
 			return nil
 		}
-		log.Errorf("fc detach disk: failed to unmount: %s\nError: %v", targetPath, err)
+		klog.Errorf("fc detach disk: failed to unmount: %s\nError: %v", targetPath, err)
 		return err
 	}
 	if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
-		log.Errorf("fc: failed to remove mount path Error: %v", err)
+		klog.Errorf("fc: failed to remove mount path Error: %v", err)
 		return err
 	}
-	log.Debug("Unmouted volume successfully!")
+	klog.V(4).Infof("Unmouted volume successfully!")
 
 	return nil
 }
@@ -665,16 +694,16 @@ func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
 	fp, err := os.Create(file)
 	if err != nil {
-		log.Errorf("fc: failed creating persist file with error %v", err)
+		klog.Errorf("fc: failed creating persist file with error %v", err)
 		return fmt.Errorf("fc: create %s err %s", file, err)
 	}
 	defer fp.Close()
 	encoder := json.NewEncoder(fp)
 	if err = encoder.Encode(conf); err != nil {
-		log.Errorf("fc: failed creating persist file with error %v", err)
+		klog.Errorf("fc: failed creating persist file with error %v", err)
 		return fmt.Errorf("fc: encode err: %v", err)
 	}
-	log.Debugf("fc: created persist config file at path %s", file)
+	klog.V(4).Infof("fc: created persist config file at path %s", file)
 	return nil
 }
 

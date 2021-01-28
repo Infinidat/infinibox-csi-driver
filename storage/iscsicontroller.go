@@ -19,7 +19,9 @@ import (
 	"strings"
 	"time"
 
+	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
@@ -39,17 +41,17 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		return &csi.CreateVolumeResponse{}, err
 	}
-	log.Infof("requested size in bytes is %d ", sizeBytes)
+	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
 	params := req.GetParameters()
-	log.Infof(" csi request parameters %v", params)
+	klog.V(2).Infof(" csi request parameters %v", params)
 	err = validateParametersiSCSI(params)
 	if err != nil {
 		return &csi.CreateVolumeResponse{}, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Get Volume Provision Type
 	volType := "THIN"
-	if prosiontype, ok := params[KeyVolumeProvisionType]; ok {
-		volType = prosiontype
+	if provisionType, ok := params[KeyVolumeProvisionType]; ok {
+		volType = provisionType
 	}
 
 	// Access Mode check
@@ -59,14 +61,14 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	for _, volCap := range volCaps {
 		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			log.Errorf("volume cpability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
-			return &csi.CreateVolumeResponse{}, fmt.Errorf("volume cpability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			klog.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			return &csi.CreateVolumeResponse{}, fmt.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
 		}
 	}
 
 	// Volume name to be created
 	name := req.GetName()
-	log.Infof("csi voume name from request is %s", name)
+	klog.V(2).Infof("csi voume name from request is %s", name)
 	if name == "" {
 		return &csi.CreateVolumeResponse{}, errors.New("Name cannot be empty")
 	}
@@ -119,7 +121,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, poolName)
 	if err != nil {
-		log.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
+		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal,
 			"error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
 
@@ -150,8 +152,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	metadata["host.filesystem_type"] = fstype
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
 	if err != nil {
-		log.Errorf("fail to attach metadata for volume : %s", vol.Name)
-		log.Errorf("error to attach metadata %v", err)
+		klog.Errorf("fail to attach metadata for volume : %s", vol.Name)
+		klog.Errorf("error to attach metadata %v", err)
 		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
 	}
 	return csiResp, err
@@ -163,7 +165,7 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			err = errors.New("Recovered from ISCSI DeleteSnapshot  " + fmt.Sprint(res))
 		}
 	}()
-	log.Debug("Called DeleteVolume")
+	klog.V(4).Infof("Called DeleteVolume")
 	if req.GetVolumeId() == "" {
 		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
 			"error parsing volume id : %s", errors.New("Volume id not found"))
@@ -203,7 +205,7 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	// Lookup the snapshot source volume.
 	volproto, err := validateStorageType(volumeContentID)
 	if err != nil {
-		log.Errorf("Failed to validate storage type %v", err)
+		klog.Errorf("Failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
 
@@ -262,23 +264,39 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
-		log.Errorf("fail to attach metadata for volume : %s", dstVol.Name)
-		log.Errorf("error to attach metadata %v", err)
+		klog.Errorf("fail to attach metadata for volume : %s", dstVol.Name)
+		klog.Errorf("error to attach metadata %v", err)
 		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
 	}
-	log.Errorf("Volume (from snap) %s (%s) storage pool %s",
+	klog.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
 
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	log.Infof("ControllerPublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	klog.V(2).Infof("ControllerPublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := validateStorageType(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("Failed to validate storage type %v", err)
+		klog.Errorf("Failed to validate storage type %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
+
+	klog.V(4).Infof("volID: %d", volID)
+	v, err := iscsi.cs.api.GetVolume(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume by volume ID '%d': %v", req.GetVolumeId(), err)
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
+	}
+	// helper.PrettyKlogDebug("volume:", v)
+	// klog.V(4).Infof("write protected: %v", v.WriteProtected)
+	// helper.PrettyKlogDebug("req:", req)
+	// klog.V(4).Infof("vol cap access mode: %v", req.VolumeCapability.AccessMode)
+
+	_, err = helper.IsValidAccessMode(v, req)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
 
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
@@ -320,20 +338,20 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
 	if err != nil {
-		log.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
+		klog.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
-	log.Debugf("host can have maximum %d volume mapped", maxAllowedVol)
-	log.Debugf("host %s has %d volume mapped", host.Name, len(lunList))
+	klog.V(4).Infof("host can have maximum %d volume mapped", maxAllowedVol)
+	klog.V(4).Infof("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
-		log.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+		klog.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
 	}
 	// map volume to host
-	log.Debugf("mapping volume %d to host %s", volID, host.Name)
+	klog.V(4).Infof("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
 	if err != nil {
-		log.Errorf("Failed to map volume to host with error %v", err)
+		klog.Errorf("Failed to map volume to host with error %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 
@@ -348,10 +366,10 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 }
 
 func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	log.Infof("ControllerUnpublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	klog.V(2).Infof("ControllerUnpublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := validateStorageType(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("failed to validate storage type %v", err)
+		klog.Errorf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
@@ -364,27 +382,27 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
-		log.Errorf("failed to get host details with error %v", err)
+		klog.Errorf("failed to get host details with error %v", err)
 		return nil, err
 	}
 	if len(host.Luns) > 0 {
 		volID, _ := strconv.Atoi(volproto.VolumeID)
-		log.Debugf("unmap volume %d from host %d", volID, host.ID)
+		klog.V(4).Infof("unmap volume %d from host %d", volID, host.ID)
 		err = iscsi.cs.unmapVolumeFromHost(host.ID, volID)
 		if err != nil {
-			log.Errorf("failed to unmap volume %d from host %d with error %v", volID, host.ID, err)
+			klog.Errorf("failed to unmap volume %d from host %d with error %v", volID, host.ID, err)
 			return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if len(host.Luns) < 2 {
 		luns, err := iscsi.cs.api.GetAllLunByHost(host.ID)
 		if err != nil {
-			log.Errorf("failed to retrive luns for host %d with error %v", host.ID, err)
+			klog.Errorf("failed to retrive luns for host %d with error %v", host.ID, err)
 		}
 		if len(luns) == 0 {
 			err = iscsi.cs.api.DeleteHost(host.ID)
 			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-				log.Errorf("failed to delete host with error %v", err)
+				klog.Errorf("failed to delete host with error %v", err)
 				return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 			}
 		}
@@ -417,18 +435,18 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	}()
 	var snapshotID string
 	snapshotName := req.GetName()
-	log.Debugf("Create Snapshot of name %s", snapshotName)
-	log.Debugf("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
+	klog.V(4).Infof("Create Snapshot of name %s", snapshotName)
+	klog.V(4).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
+		klog.Errorf("fail to validate storage type %v", err)
 		return
 	}
 
 	sourceVolumeID, _ := strconv.Atoi(volproto.VolumeID)
 	volumeSnapshot, err := iscsi.cs.api.GetVolumeByName(snapshotName)
 	if err != nil {
-		log.Debug("Snapshot with given name not found : ", snapshotName)
+		klog.V(4).Infof("Snapshot with given name not found : ", snapshotName)
 	} else if volumeSnapshot.ParentId == sourceVolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
 		return &csi.CreateSnapshotResponse{
@@ -450,7 +468,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	snapshot, err := iscsi.cs.api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
-		log.Errorf("Failed to create snapshot %s error %v", snapshotName, err)
+		klog.Errorf("Failed to create snapshot %s error %v", snapshotName, err)
 		return
 	}
 
@@ -462,7 +480,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		CreationTime:   ptypes.TimestampNow(),
 		SizeBytes:      snapshot.Size,
 	}
-	log.Debug("CreateFileSystemSnapshot resp() ", csiSnapshot)
+	klog.V(4).Infof("CreateFileSystemSnapshot resp() ", csiSnapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
 	return snapshotResp, nil
 }
@@ -477,7 +495,7 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	err = iscsi.ValidateDeleteVolume(snapshotID)
 	if err != nil {
-		log.Errorf("fail to delete snapshot %v", err)
+		klog.Errorf("fail to delete snapshot %v", err)
 		return &csi.DeleteSnapshotResponse{}, err
 	}
 	return &csi.DeleteSnapshotResponse{}, nil
@@ -505,7 +523,7 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata[TOBEDELETED] = true
 		_, err = iscsi.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
 		if err != nil {
-			log.Errorf("fail to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
+			klog.Errorf("fail to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
 		}
 		return
@@ -538,14 +556,14 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	volumeID, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("Invalid Volume ID %v", err)
+		klog.Errorf("Invalid Volume ID %v", err)
 		return
 	}
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
-		log.Warn("Volume Minimum capacity should be greater 1 GB")
+		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
 	}
 
 	// Expand volume size
@@ -553,7 +571,7 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	volume.Size = capacity
 	_, err = iscsi.cs.api.UpdateVolume(volumeID, volume)
 	if err != nil {
-		log.Errorf("Failed to update file system %v", err)
+		klog.Errorf("Failed to update file system %v", err)
 		return
 	}
 	log.Infoln("Volume size updated successfully")

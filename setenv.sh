@@ -11,6 +11,11 @@ else
     fi
     [ -e $socket_file ] && rm $socket_file
 fi
+
+# Start infinibox-csi-driver with debugging
+# enabled per https://github.com/rexray/gocsi
+#export X_CSI_DEBUG=true
+
 # Start infinibox-csi-driver
 exec "/infinibox-csi-driver"
 

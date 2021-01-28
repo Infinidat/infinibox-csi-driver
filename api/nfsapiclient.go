@@ -15,13 +15,12 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
+	"k8s.io/klog"
 	"net"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
-
-	log "infinibox-csi-driver/helper/logger"
 )
 
 // OneTimeValidation :
@@ -45,7 +44,7 @@ func (c *ClientService) OneTimeValidation(poolname string, networkspace string) 
 	for _, name := range arrayofNetworkSpaces {
 		nspace, err := c.GetNetworkSpaceByName(name)
 		if err != nil {
-			log.Error(err)
+			klog.Errorf(err.Error())
 		}
 		if nspace.Name == name {
 			arrayOfValidnetspaces = append(arrayOfValidnetspaces, name)
@@ -67,19 +66,19 @@ func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error
 			err = errors.New("DeleteExportPath Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Delete export path : ", exportID)
+	klog.V(2).Infof("Delete export path : ", exportID)
 	uri := "api/rest/exports/" + strconv.FormatInt(exportID, 10) + "?approved=true"
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &eResp)
 	if err != nil {
-		log.Errorf("Error occured while deleting export path : %s ", err)
+		klog.Errorf("Error occured while deleting export path : %s ", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, (ExportResponse{})) {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(ExportResponse)
 	}
-	log.Info("Deleted export path : ", exportID)
+	klog.V(2).Infof("Deleted export path : ", exportID)
 	return &eResp, nil
 }
 
@@ -91,19 +90,19 @@ func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error
 			err = errors.New("DeleteFileSystem Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Delete filesystem : ", fileSystemID)
+	klog.V(2).Infof("Delete filesystem : ", fileSystemID)
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "?approved=true"
 	fileSystem := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &fileSystem)
 	if err != nil {
-		log.Errorf("Error occured while deleting file System : %s ", err)
+		klog.Errorf("Error occured while deleting file System : %s ", err)
 		return nil, err
 	}
 	if fileSystem == (FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
 		fileSystem, _ = apiresp.Result.(FileSystem)
 	}
-	log.Info("Deleted filesystem : ", fileSystemID)
+	klog.V(2).Infof("Deleted filesystem : ", fileSystemID)
 	return &fileSystem, nil
 }
 
@@ -115,19 +114,19 @@ func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]i
 			err = errors.New("AttachMetadataToObject Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Attach metadata to object : ", objectID)
+	klog.V(2).Infof("Attach metadata to object : ", objectID)
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &metadata)
 	if err != nil {
-		log.Errorf("Error occured while attaching metadata to object : %s", err)
+		klog.Errorf("Error occured while attaching metadata to object : %s", err)
 		return nil, err
 	}
 	if len(metadata) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.([]Metadata)
 	}
-	log.Info("Attached metadata to object : ", objectID)
+	klog.V(2).Infof("Attached metadata to object : ", objectID)
 	return &metadata, nil
 }
 
@@ -139,7 +138,7 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 			err = errors.New("DetachMetadataFromObject Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Detach metadata from object : ", objectID)
+	klog.V(2).Infof("Detach metadata from object : ", objectID)
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10) + "?approved=true"
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &metadata)
@@ -147,14 +146,14 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		}
-		log.Errorf("Error occured while detaching metadata from object : %s ", err)
+		klog.Errorf("Error occured while detaching metadata from object : %s ", err)
 		return nil, err
 	}
 	if len(metadata) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.([]Metadata)
 	}
-	log.Info("Detached metadata from object : ", objectID)
+	klog.V(2).Infof("Detached metadata from object : ", objectID)
 	return &metadata, nil
 }
 
@@ -166,19 +165,19 @@ func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}
 			err = errors.New("CreateFilesystem Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Create filesystem")
+	klog.V(2).Infof("Create filesystem")
 	uri := "api/rest/filesystems/"
 	fileSystemResp := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
 	if err != nil {
-		log.Errorf("Error occured while creating filesystem : %s", err)
+		klog.Errorf("Error occured while creating filesystem : %s", err)
 		return nil, err
 	}
 	if fileSystemResp == (FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
 		fileSystemResp, _ = apiresp.Result.(FileSystem)
 	}
-	log.Info("Created filesystem : ", fileSystemResp.Name)
+	klog.V(2).Infof("Created filesystem : ", fileSystemResp.Name)
 	return &fileSystemResp, nil
 }
 
@@ -190,12 +189,12 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 			err = errors.New("GetFileSystemCount Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get FileSystem Count")
+	klog.V(2).Infof("Get FileSystem Count")
 	uri := "api/rest/filesystems"
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {
-		log.Errorf("error occured while fetching filesystems : %s ", err)
+		klog.Errorf("error occured while fetching filesystems : %s ", err)
 		return 0, err
 	}
 
@@ -206,7 +205,7 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 		filesystems, _ = apiresp.Result.([]FileSystem)
 	}
 	// return len(filesystems), nil
-	log.Info("Total number of filesystem : ", metadata.NoOfObject)
+	klog.V(2).Infof("Total number of filesystem : ", metadata.NoOfObject)
 	return metadata.NoOfObject, nil
 }
 
@@ -218,7 +217,7 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 			err = errors.New("ExportFileSystem Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Export FileSystem : ", export.FilesystemID)
+	klog.V(2).Infof("Export FileSystem : ", export.FilesystemID)
 	urlPost := "api/rest/exports"
 	exportResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
@@ -230,7 +229,7 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 		apiresp := resp.(client.ApiResponse)
 		exportResp, _ = apiresp.Result.(ExportResponse)
 	}
-	log.Info("Exported FileSystem : ", exportResp.FilesystemId)
+	klog.V(2).Infof("Exported FileSystem : ", exportResp.FilesystemId)
 	return &exportResp, nil
 }
 
@@ -242,19 +241,19 @@ func (c *ClientService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResp
 			err = errors.New("GetExportByFileSystem Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get export paths of filesystem : ", fileSystemID)
+	klog.V(2).Infof("Get export paths of filesystem : ", fileSystemID)
 	uri := "api/rest/exports?filesystem_id=" + strconv.FormatInt(fileSystemID, 10)
 	eResp := []ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		log.Errorf("Error occured while getting export path : %s", err)
+		klog.Errorf("Error occured while getting export path : %s", err)
 		return nil, err
 	}
 	if len(eResp) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.([]ExportResponse)
 	}
-	log.Info("Got export paths of filesystem : ", fileSystemID)
+	klog.V(2).Infof("Got export paths of filesystem : ", fileSystemID)
 	return &eResp, nil
 }
 
@@ -282,14 +281,14 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 			err = errors.New("AddNodeInExport Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Add node in export path : ", exportID)
+	klog.V(2).Infof("Add node in export path : ", exportID)
 	flag := false
 	exportPathRef := ExportPathRef{}
 	uri := "api/rest/exports/" + strconv.Itoa(exportID)
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		log.Errorf("Error occured while getting export path : %s", err)
+		klog.Errorf("Error occured while getting export path : %s", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
@@ -301,7 +300,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	for i, permission := range permissionList {
 		if compareClientIP(permission.Client, ip) {
 			flag = true
-			log.Debug("Node IP address already added in export rule")
+			klog.V(4).Infof("Node IP address already added in export rule")
 		}
 		if permission.Client == "*" {
 			index = i
@@ -320,14 +319,14 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		exportPathRef.Permissions = permissionList
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {
-			log.Errorf("Error occured while updating export rule : %s", err)
+			klog.Errorf("Error occured while updating export rule : %s", err)
 			return nil, err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
 			eResp, _ = resp.(ExportResponse)
 		}
 	}
-	log.Info("Added node in export path : ", exportID)
+	klog.V(2).Infof("Added node in export path : ", exportID)
 	return &eResp, nil
 }
 
@@ -339,10 +338,10 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 			err = errors.New("DeleteExportRule Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Delete export rule from filesystem : ", fileSystemID)
+	klog.V(2).Infof("Delete export rule from filesystem : ", fileSystemID)
 	exportArray, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("Error occured while getting export : %v", err)
+		klog.Errorf("Error occured while getting export : %v", err)
 		return err
 	}
 	for _, export := range *exportArray {
@@ -350,7 +349,7 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 		eResp := ExportResponse{}
 		resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 		if err != nil {
-			log.Errorf("Error occured while getting export path : %s", err)
+			klog.Errorf("Error occured while getting export path : %s", err)
 			return err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
@@ -362,13 +361,13 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 			if permission.Client == ipAddress {
 				_, err = c.DeleteNodeFromExport(export.ID, permission.Access, permission.NoRootSquash, ipAddress)
 				if err != nil {
-					log.Errorf("Error occured while getting export path : %s", err)
+					klog.Errorf("Error occured while getting export path : %s", err)
 					return err
 				}
 			}
 		}
 	}
-	log.Info("Deleted export rule from filesystem : ", fileSystemID)
+	klog.V(2).Infof("Deleted export rule from filesystem : ", fileSystemID)
 	return nil
 }
 
@@ -380,7 +379,7 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 			err = errors.New("DeleteNodeFromExport Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Delete node from export : ", exportID)
+	klog.V(2).Infof("Delete node from export : ", exportID)
 	flag := false
 	var index int
 	exportPathRef := ExportPathRef{}
@@ -388,7 +387,7 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		log.Errorf("Error occured while getting export path : %s", err)
+		klog.Errorf("Error occured while getting export path : %s", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
@@ -415,16 +414,16 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 		exportPathRef.Permissions = permissionList
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {
-			log.Errorf("Error occured while updating permission : %s", err)
+			klog.Errorf("Error occured while updating permission : %s", err)
 			return nil, err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
 			eResp, _ = resp.(ExportResponse)
 		}
 	} else {
-		log.Errorf("Given Ip %s address not found in the list", ip)
+		klog.Errorf("Given Ip %s address not found in the list", ip)
 	}
-	log.Info("Deleted node from export : ", exportID)
+	klog.V(2).Infof("Deleted node from export : ", exportID)
 	return &eResp, nil
 }
 
@@ -436,19 +435,19 @@ func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapsh
 			err = errors.New("CreateFileSystemSnapshot Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Create a snapshot of filesystem : ", snapshotParam.ParentID)
+	klog.V(2).Infof("Create a snapshot of filesystem : ", snapshotParam.ParentID)
 	path := "/api/rest/filesystems"
 	snapShotResponse := FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
 	if err != nil {
-		log.Errorf("fail to create %v", err)
+		klog.Errorf("fail to create %v", err)
 		return nil, err
 	}
 	if (FileSystemSnapshotResponce{}) == snapShotResponse {
 		apiresp := resp.(client.ApiResponse)
 		snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
 	}
-	log.Info("Created snapshot : ", snapShotResponse.Name)
+	klog.V(2).Infof("Created snapshot : ", snapShotResponse.Name)
 	return &snapShotResponse, nil
 }
 
@@ -467,7 +466,7 @@ func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
 	queryParam["parent_id"] = fileSystemID
 	resp, err := c.getResponseWithQueryString(voluri, queryParam, &filesystem)
 	if err != nil {
-		log.Errorf("fail to check FileSystemHasChild %v", err)
+		klog.Errorf("fail to check FileSystemHasChild %v", err)
 		return hasChild
 	}
 	if len(filesystem) == 0 {
@@ -494,12 +493,12 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 			err = errors.New("GetMetadataStatus Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get metadata status of filesystem : ", fileSystemID)
+	klog.V(2).Infof("Get metadata status of filesystem : ", fileSystemID)
 	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TOBEDELETED
 	metadata := Metadata{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
 	if err != nil {
-		log.Debugf("Error occured while getting metadata value: %s", err)
+		klog.V(4).Infof("Error occured while getting metadata value: %s", err)
 		return false
 	}
 	if metadata == (Metadata{}) {
@@ -508,10 +507,10 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 	}
 	status, statusErr := strconv.ParseBool(metadata.Value)
 	if statusErr != nil {
-		log.Debugf("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
+		klog.V(4).Infof("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
 		status = false
 	}
-	log.Info("Got metadata status of filesystem : ", fileSystemID)
+	klog.V(2).Infof("Got metadata status of filesystem : ", fileSystemID)
 	return status
 
 }
@@ -524,7 +523,7 @@ func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem,
 			err = errors.New("GetFileSystemByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get filesystem : ", fileSystemName)
+	klog.V(2).Infof("Get filesystem : ", fileSystemName)
 	uri := "/api/rest/filesystems"
 	fsystems := []FileSystem{}
 	queryParam := make(map[string]interface{})
@@ -540,7 +539,7 @@ func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem,
 	}
 	for _, fsystem := range fsystems {
 		if fsystem.Name == fileSystemName {
-			log.Info("Got filesystem : ", fileSystemName)
+			klog.V(2).Infof("Got filesystem : ", fileSystemName)
 			return &fsystem, nil
 		}
 	}
@@ -555,19 +554,19 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 			err = errors.New("GetFileSystemByID Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get filesystem of Id : ", fileSystemID)
+	klog.V(2).Infof("Get filesystem of Id : ", fileSystemID)
 	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
 	eResp := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		log.Errorf("Error occured while getting fileSystem: %s", err)
+		klog.Errorf("Error occured while getting fileSystem: %s", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(FileSystem)
 	}
-	log.Info("Got filesystem of Id : ", fileSystemID)
+	klog.V(2).Infof("Got filesystem of Id : ", fileSystemID)
 	return &eResp, nil
 }
 
@@ -579,13 +578,13 @@ func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 			err = errors.New("GetParentID Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get parent Id of : ", fileSystemID)
+	klog.V(2).Infof("Get parent Id of : ", fileSystemID)
 	fileSystem, err := c.GetFileSystemByID(fileSystemID)
 	if err != nil {
-		log.Errorf("Error occured while getting fileSystem: %s", err)
+		klog.Errorf("Error occured while getting fileSystem: %s", err)
 		return 0
 	}
-	log.Info("Got parent Id of : ", fileSystemID)
+	klog.V(2).Infof("Got parent Id of : ", fileSystemID)
 	return fileSystem.ParentID
 }
 
@@ -602,7 +601,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
 		if err != nil {
-			log.Errorf("Failed to delete filesystem, filesystemID:%d error:%v", fileSystemID, err)
+			klog.Errorf("Failed to delete filesystem, filesystemID:%d error:%v", fileSystemID, err)
 			return
 		}
 		if parentID != 0 {
@@ -627,7 +626,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 			err = nil
 		} else {
-			log.Errorf("fail to delete export path %v", err)
+			klog.Errorf("fail to delete export path %v", err)
 			return
 		}
 	}
@@ -638,14 +637,14 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 				if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 					err = nil
 				} else {
-					log.Errorf("fail to delete export path %v", err)
+					klog.Errorf("fail to delete export path %v", err)
 					return
 				}
 			}
 		}
 	}
 
-	log.Debug("Export path deleted successfully")
+	klog.V(4).Infof("Export path deleted successfully")
 
 	//2.delete metadata
 	_, err = c.DetachMetadataFromObject(fileSystemID)
@@ -653,16 +652,16 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		} else {
-			log.Errorf("fail to delete metadata %v", err)
+			klog.Errorf("fail to delete metadata %v", err)
 			return
 		}
 	}
 
 	//3. delete file system
-	log.Infof("delete FileSystem FileSystemID %d", fileSystemID)
+	klog.V(2).Infof("delete FileSystem FileSystemID %d", fileSystemID)
 	_, err = c.DeleteFileSystem(fileSystemID)
 	if err != nil {
-		log.Errorf("fail to delete filesystem %v", err)
+		klog.Errorf("fail to delete filesystem %v", err)
 		return
 	}
 	return
@@ -676,13 +675,13 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSyst
 			err = errors.New("UpdateFilesystem Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Update filesystem : ", fileSystemID)
+	klog.V(2).Infof("Update filesystem : ", fileSystemID)
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
 	fileSystemResp := FileSystem{}
 
 	resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
 	if err != nil {
-		log.Errorf("Error occured while updating filesystem : %s", err)
+		klog.Errorf("Error occured while updating filesystem : %s", err)
 		return nil, err
 	}
 
@@ -690,7 +689,7 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSyst
 		apiresp := resp.(client.ApiResponse)
 		fileSystem, _ = apiresp.Result.(FileSystem)
 	}
-	log.Info("Updated filesystem : ", fileSystemID)
+	klog.V(2).Infof("Updated filesystem : ", fileSystemID)
 	return &fileSystemResp, nil
 }
 
@@ -702,13 +701,13 @@ func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID in
 			err = errors.New("RestoreFileSystemFromSnapShot Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Restore filesystem from snapshot : ", srcSnapShotID)
+	klog.V(2).Infof("Restore filesystem from snapshot : ", srcSnapShotID)
 	uri := "api/rest/filesystems/" + strconv.FormatInt(parentID, 10) + "/restore?approved=true"
 	var result bool
 	body := map[string]interface{}{"source_id": srcSnapShotID}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &result)
 	if err != nil {
-		log.Errorf("Error occured while updating filesystem : %s", err)
+		klog.Errorf("Error occured while updating filesystem : %s", err)
 		return false, err
 	}
 
@@ -716,7 +715,7 @@ func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID in
 		apiresp := resp.(client.ApiResponse)
 		result, _ = apiresp.Result.(bool)
 	}
-	log.Info("Restored filesystem from snapshot : ", srcSnapShotID)
+	klog.V(2).Infof("Restored filesystem from snapshot : ", srcSnapShotID)
 	return result, nil
 }
 
@@ -732,18 +731,18 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 			err = errors.New("GetSnapshotByName Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get snapshot : ", snapshotName)
+	klog.V(2).Infof("Get snapshot : ", snapshotName)
 	uri := "api/rest/filesystems?name=" + snapshotName
 	snapshot := []FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
 	if err != nil {
-		log.Errorf("Error occured while getting snapshot : %s ", err)
+		klog.Errorf("Error occured while getting snapshot : %s ", err)
 		return nil, err
 	}
 	if len(snapshot) == 0 {
 		snapshot, _ = resp.([]FileSystemSnapshotResponce)
 	}
-	log.Info("Got snapshot : ", snapshotName)
+	klog.V(2).Infof("Got snapshot : ", snapshotName)
 	return &snapshot, nil
 }
 
@@ -754,12 +753,12 @@ func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int
 			err = errors.New("GetFileSystemCount Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Get FileSystem Count")
+	klog.V(2).Infof("Get FileSystem Count")
 	uri := "api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10)
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {
-		log.Errorf("error occured while fetching filesystems : %s ", err)
+		klog.Errorf("error occured while fetching filesystems : %s ", err)
 		return
 	}
 	apiresp := resp.(client.ApiResponse)
@@ -767,7 +766,7 @@ func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int
 	if len(filesystems) == 0 {
 		filesystems, _ = apiresp.Result.([]FileSystem)
 	}
-	log.Info("Total number of filesystem : ", metadata.NoOfObject)
+	klog.V(2).Infof("Total number of filesystem : ", metadata.NoOfObject)
 	fileSysCnt = metadata.NoOfObject
 	return
 }
