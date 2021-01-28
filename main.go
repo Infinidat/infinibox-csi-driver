@@ -11,6 +11,8 @@ limitations under the License.*/
 package main
 
 import (
+    "flag"
+    "k8s.io/klog"
 	"context"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
@@ -21,11 +23,20 @@ import (
 
 //starting method of CSI-Driver
 func main() {
+	klog.InitFlags(nil)
+    flag.Set("logtostderr", "true")
+    flag.Set("stderrthreshold", "WARNING")
+    flag.Set("v", "4")
+    flag.Parse()
+
+	klog.V(2).Infof("Infinidat CSI Driver is Starting")
+    klog.Flush()
+
 	configParams := getConfigParams()
 	gocsi.Run(
 		context.Background(),
 		service.ServiceName,
-		"A Infinibox CSI Driver Plugin",
+		"An Infinibox CSI Driver Plugin",
 		usage,
 		provider.New(configParams))
 

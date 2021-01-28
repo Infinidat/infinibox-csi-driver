@@ -11,11 +11,17 @@ csiDriverName: infinibox-csi-driver
 csiDriverVersion: 1.1.0
 images:
   attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
-  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0
+  attachersidecar_pull_policy: Always
   provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.4.0
-  registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
-  resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
+  provisionersidecar_pull_policy: Always
   snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v1.2.2
+  snapshottersidecar_pull_policy: Always
+  registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
+  registrarsidecar_pull_policy: Always
+  resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
+  resizersidecar_pull_policy: Always
+  csidriver: docker.io/infinidat/infinidat-csi-driver:1.1.0
+  csidriver_pull_policy: Always
 instanceCount: 1
 logLevel: info
 replicaCount: 1

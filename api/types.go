@@ -90,7 +90,7 @@ type StoragePool struct {
 	FilesystemSnapshotsCount int      `json:"filesystem_snapshots_count"`
 	AllocatedPhysicalSpace   int      `json:"allocated_physical_space"`
 	FreeVirtualSpace         int      `json:"free_virtual_space"`
-	Owners                   []string `json:"owners"`
+	Owners                   []int    `json:"owners"`
 	QosPolicues              []string `json:"qos_policies"`
 	EntitiesCount            int      `json:"entities_count"`
 	FreePhysicalSpace        int      `json:"free_physical_space"`

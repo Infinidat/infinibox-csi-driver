@@ -10,3 +10,5 @@ infinibox-csi-driver
 
 # other
 go.sum
+
+deploy/helm/infinibox-csi-driver/values_gitlab_registry.yaml

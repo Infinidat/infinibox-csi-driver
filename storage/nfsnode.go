@@ -13,11 +13,10 @@ package storage
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
-
 	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,18 +30,18 @@ func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnsta
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Debug("NodePublishVolume")
+	log.Debug("nfs: NodePublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
 			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
-				log.Errorf("Error while mkdir %v", err)
+				log.Errorf("nfs: Error while mkdir %v", err)
 				return nil, err
 			}
 			notMnt = true
 		} else {
-			log.Errorf("IsLikelyNotMountPint method error  %v", err)
+			log.Errorf("nfs: IsLikelyNotMountPoint method error  %v", err)
 			return nil, err
 		}
 	}
@@ -66,22 +65,36 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
+	log.Debugf("nfs: Mount sourcePath %v, targetPath %v", source, targetPath)
+
+	// Create mount point
+	log.Debug("nfs: Mount point does not exist. Creating mount point.")
+	log.Debugf("nfs: mkdir --parents --mode 0750 '%s' ", targetPath)
+	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+	// MkdirAll() will cause hard-to-grok mount errors.
+	cmd := exec.Command("mkdir", "--parents", "--mode", "0750", targetPath)
+	err = cmd.Run()
+	if err != nil {
+		log.Errorf("nfs: failed to mkdir '%s': %s", targetPath, err)
+		return nil, err
+	}
+
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		log.Errorf("fail to mount source path '%s' : %s", source, err)
+		log.Errorf("nfs: Failed to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
+	log.Infof("nfs: Successfully mounted nfs volume '%s' to mount point '%s'", source, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Debug("NodeUnpublishVolume")
+	log.Debug("nfs: NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			log.Warnf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
+			log.Warnf("nfs: mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		return nil, err

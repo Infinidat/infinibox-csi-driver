@@ -31,15 +31,15 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 			err = errors.New("Recovered from NodePublishVolume " + fmt.Sprint(res))
 		}
 	}()
-	voltype := req.GetVolumeId()
-	log.Infof("NodePublishVolume called with volume name %s", voltype)
-	storagePorotcol := req.GetVolumeContext()["storage_protocol"]
+	volumeId := req.GetVolumeId()
+	log.Infof("NodePublishVolume called with volume ID '%s'", volumeId)
+	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 	config["nodeIPAddress"] = s.nodeIPAddress
 	log.Debug("NodePublishVolume nodeIPAddress ", s.nodeIPAddress)
 
 	// get operator
-	storageNode, err := storage.NewStorageNode(storagePorotcol, config, req.GetSecrets())
+	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		return storageNode.NodePublishVolume(ctx, req)
 	}
@@ -113,13 +113,13 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 			err = errors.New("Recovered from NodeStageVolume " + fmt.Sprint(res))
 		}
 	}()
-	voltype := req.GetVolumeId()
-	log.Infof("NodeStageVolume called with volume name %s", voltype)
-	storagePorotcol := req.GetVolumeContext()["storage_protocol"]
+	volumeId := req.GetVolumeId()
+	log.Infof("NodeStageVolume called with volume ID '%s'", volumeId)
+	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 	config["nodeIPAddress"] = s.nodeIPAddress
 	// get operator
-	storageNode, err := storage.NewStorageNode(storagePorotcol, config, req.GetSecrets())
+	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		return storageNode.NodeStageVolume(ctx, req)
 	}

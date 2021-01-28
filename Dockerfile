@@ -21,6 +21,8 @@ RUN    ln -s /ibox/host-chroot.sh /ibox/blkid \
     && ln -s /ibox/host-chroot.sh /ibox/multipath \
     && ln -s /ibox/host-chroot.sh /ibox/multipathd \
     && ln -s /ibox/host-chroot.sh /ibox/cat \
+	&& ln -s /ibox/host-chroot.sh /ibox/vi \
+	&& ln -s /ibox/host-chroot.sh /ibox/vim \
     && ln -s /ibox/host-chroot.sh /ibox/mkdir \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \
     && ln -s /ibox/host-chroot.sh /ibox/umount
