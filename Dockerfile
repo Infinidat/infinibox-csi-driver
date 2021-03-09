@@ -27,7 +27,8 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/rpcbind \
     && ln -s /ibox/host-chroot.sh /ibox/umount \
     && ln -s /ibox/host-chroot.sh /ibox/vi \
-    && ln -s /ibox/host-chroot.sh /ibox/vim
+    && ln -s /ibox/host-chroot.sh /ibox/vim \
+    && ln -s /ibox/host-chroot.sh /ibox/xfs_admin
 
 ENV PATH="/ibox:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 

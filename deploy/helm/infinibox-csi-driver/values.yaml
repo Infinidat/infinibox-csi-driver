@@ -13,9 +13,11 @@ logLevel: "info"
 
 # name of the driver 
 #  note same name will be used for provisioner name
-csiDriverName : "infinibox-csi-driver"
+csiDriverName: "infinibox-csi-driver"
 
-csiDriverVersion : "1.1.0"
+csiDriverVersion: "1.1.0"
+
+allowXfsUuidRegeneration: "yes" 
 
 # Image paths 
 images:

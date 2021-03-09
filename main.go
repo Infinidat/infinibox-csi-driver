@@ -11,11 +11,12 @@ limitations under the License.*/
 package main
 
 import (
-    "flag"
-    "k8s.io/klog"
 	"context"
+	"flag"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
+	"k8s.io/klog"
+	"os"
 
 	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
@@ -24,13 +25,33 @@ import (
 //starting method of CSI-Driver
 func main() {
 	klog.InitFlags(nil)
-    flag.Set("logtostderr", "true")
-    flag.Set("stderrthreshold", "WARNING")
-    flag.Set("v", "4")
-    flag.Parse()
+	flag.Set("logtostderr", "true")
+	flag.Set("stderrthreshold", "WARNING")
+
+	var verbosity string
+	appLogLevel := os.Getenv("APP_LOG_LEVEL")
+	switch appLogLevel {
+	case "quiet":
+		verbosity = "1"
+	case "info":
+		verbosity = "2"
+	case "extended":
+		verbosity = "3"
+	case "debug":
+		verbosity = "4"
+	case "trace":
+		verbosity = "5"
+	default:
+		verbosity = "2"
+	}
+
+	flag.Set("v", verbosity)
+	flag.Parse()
 
 	klog.V(2).Infof("Infinidat CSI Driver is Starting")
-    klog.Flush()
+	klog.V(2).Infof("Log level: %s", appLogLevel)
+	klog.V(4).Infof("ALLOW_XFS_UUID_REGENERATION: %s", os.Getenv("ALLOW_XFS_UUID_REGENERATION"))
+	klog.Flush()
 
 	configParams := getConfigParams()
 	gocsi.Run(
