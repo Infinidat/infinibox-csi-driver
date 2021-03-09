@@ -26,14 +26,19 @@ import (
 	"syscall"
 	"time"
 
-	"k8s.io/klog"
 	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
+)
+
+const (
+	devMapperDir string = dmsetup.DevMapperDir // ie /dev/mapper/
 )
 
 type iscsiDiskUnmounter struct {
@@ -156,7 +161,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	if initiatorName == "" {
 		msg := "Initiator name not found"
 		klog.Errorf(msg)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
 	}
 	if !strings.Contains(ports, initiatorName) {
 		klog.V(4).Infof("Host port is not created, creating one")
@@ -179,7 +184,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
+					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
 			if useChap == "mutual_chap" {
@@ -190,7 +195,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
+					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
 			if len(chapCreds) > 1 {
@@ -592,8 +597,23 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// A mounted (file) volume is volume that will be mounted using a specified file system
 		// and appear as a directory inside the container.
 		mountPoint := mntPath
-		hostDevicePath := devicePath
-		klog.V(4).Infof("Mount volume '%s' to mountPoint '%s'", devicePath, mountPoint)
+		klog.V(4).Infof("Mounting volume '%s' to mountPoint '%s'", devicePath, mountPoint)
+
+		// Attempt to find a mapper device to use rather than a bare devicePath.
+		// If not found, use the devicePath.
+		dmsetupInfo, dmsetupErr := dmsetup.Info(devicePath)
+		if dmsetupErr != nil {
+			klog.Errorf("Failed to execute dmsetup info '%s'. Cannot look up mapper device: %s", devicePath, dmsetupErr)
+		} else {
+			for i, info := range dmsetupInfo {
+				klog.V(4).Infof("dmsetupInfo[%d]: %+v", i, *info)
+			}
+			if len(dmsetupInfo) == 1 { // One and only one mapper should be in the slice since the devicePath was given.
+				mapperPath := devMapperDir + dmsetupInfo[0].Name
+				klog.V(2).Infof("Using mapper device. '%s' maps to '%s'", devicePath, mapperPath)
+				devicePath = mapperPath
+			}
+		}
 
 		// Create mountPoint if it does not exist.
 		_, err := os.Stat(mountPoint)
@@ -628,7 +648,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 		klog.V(4).Infof("Format '%s' (if needed) and mount volume", devicePath)
 		klog.V(4).Infof("See k8s.io/kubernetes@v1.14.0/pkg/util/mount/mount.go +504")
-		err = b.mounter.FormatAndMount(hostDevicePath, mountPoint, b.fsType, options)
+		err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
 		klog.V(4).Infof("FormatAndMount returned: %s", err)
 		if err != nil {
 			searchString := fmt.Sprintf("already mounted on %s", mountPoint)
