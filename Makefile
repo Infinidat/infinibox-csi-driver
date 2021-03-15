@@ -14,7 +14,7 @@ _DOCKER_IMAGE=infinidat-csi-driver
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER=dohlemacher
-_DOCKER_IMAGE_TAG=test1
+_DOCKER_IMAGE_TAG=test_mwasher_001
 
 # redhat username and tag
 _REDHAT_DOCKER_USER=user1

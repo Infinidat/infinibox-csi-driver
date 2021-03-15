@@ -26,13 +26,13 @@ import (
 	"syscall"
 	"time"
 
-	log "infinibox-csi-driver/helper/logger"
 	"k8s.io/klog"
+	log "infinibox-csi-driver/helper/logger"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
@@ -161,7 +161,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	if initiatorName == "" {
 		msg := "Initiator name not found"
 		klog.Errorf(msg)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
 	}
 	if !strings.Contains(ports, initiatorName) {
 		klog.V(4).Infof("Host port is not created, creating one")
@@ -171,7 +171,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 			return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 		}
 	}
-	klog.V(4).Infof("Setup chap auth as %s", useChap)
+	klog.V(4).Infof("Setup chap auth as '%s'", useChap)
 	if strings.ToLower(hostSecurity) != useChap || !strings.Contains(ports, initiatorName) {
 		secrets := req.GetSecrets()
 		chapCreds := make(map[string]string)
@@ -184,7 +184,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
+					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
 				}
 			}
 			if useChap == "mutual_chap" {
@@ -195,7 +195,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
+					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
 				}
 			}
 			if len(chapCreds) > 1 {
@@ -263,12 +263,12 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		}
 
 		for _, portal := range portals {
-			logoutArgs := []string{"-m", "node", "-p", portal, "-T", iqn, "--logout"}
-			deleteArgs := []string{"-m", "node", "-p", portal, "-T", iqn, "-o", "delete"}
+			logoutArgs := []string{"--mode", "node", "--portal", portal, "--targetname", iqn, "--logout"}
+			deleteArgs := []string{"--mode", "node", "--portal", portal, "--targetname", iqn, "--op", "delete"}
 
 			if found {
-				logoutArgs = append(logoutArgs, []string{"-I", iface}...)
-				deleteArgs = append(deleteArgs, []string{"-I", iface}...)
+				logoutArgs = append(logoutArgs, []string{"--interface", iface}...)
+				deleteArgs = append(deleteArgs, []string{"--interface", iface}...)
 			}
 
 			klog.V(4).Infof("Logout")
@@ -290,7 +290,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		// If the iface is not created via iscsi plugin, skip to delete
 		for _, portal := range portals {
 			if initiatorName != "" && found && iface == (portal+":"+volName) {
-				deleteArgs := []string{"-m", "iface", "-I", iface, "-o", "delete"}
+				deleteArgs := []string{"--mode", "iface", "--interface", iface, "--op", "delete"}
 				klog.V(4).Infof("Delete iface after all session logouts")
 				klog.V(4).Infof("Run: iscsiadm %t", deleteArgs)
 				out, err := diskUnmounter.exec.Run("iscsiadm", deleteArgs...)
@@ -306,8 +306,8 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		klog.V(4).Infof("Rescan sessions to discover newly mapped LUNs")
 		for _, portal := range portals {
 			klog.V(4).Infof("Rescan session")
-			klog.V(4).Infof("Run: iscsiadm -m node -p %s -T %s -R", portal, iqn)
-			diskUnmounter.exec.Run("iscsiadm", "-m", "node", "-p", portal, "-T", iqn, "-R")
+			klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --rescan", portal, iqn)
+			diskUnmounter.exec.Run("iscsiadm", "--mode", "node", "--portal", portal, "--targetname", iqn, "--rescan")
 		}
 		klog.V(4).Infof("Successfully Rescanned disk")
 	}
@@ -412,8 +412,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		//iscsi_lib.EnableDebugLogging(log.New().Writer())
 	}
 	klog.V(4).Infof("Check that provided interface is available")
-	klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o show", b.Iface)
-	out, err := b.exec.Run("iscsiadm", "-m", "iface", "-I", b.Iface, "-o", "show")
+	klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op show", b.Iface)
+	out, err := b.exec.Run("iscsiadm", "--mode", "iface", "--interface", b.Iface, "--op", "show")
 	if err != nil {
 		klog.Errorf("could not read interface %s error: %s", b.Iface, string(out))
 		return "", err
@@ -431,8 +431,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		newIface := bkpPortal[0] + ":" + b.VolName
 		klog.V(4).Infof("New iface name is <target portal>:<volume name>: %s", newIface)
 		ifaceAvailable := true
-		klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o show", newIface)
-		_, err := b.exec.Run("iscsiadm", "-m", "iface", "-I", newIface, "-o", "show")
+		klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op show", newIface)
+		_, err := b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "show")
 		if err != nil {
 			ifaceAvailable = false
 		}
@@ -454,8 +454,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// Rescan sessions to discover newly mapped LUNs. Do not specify the interface when rescanning
 		// to avoid establishing additional sessions to the same target.
 		klog.V(4).Infof("Rescan sessions. Discover new mapped LUNs")
-		klog.V(4).Infof("Run: iscsiadm -m node -p %s -T %s -R", tp, b.Iqn)
-		out, err := b.exec.Run("iscsiadm", "-m", "node", "-p", tp, "-T", b.Iqn, "-R")
+		klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --rescan", tp, b.Iqn)
+		out, err := b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--targetname", b.Iqn, "--rescan")
 		if err != nil {
 			klog.Errorf("Failed to rescan session with error: %s (%v)", string(out), err)
 		}
@@ -478,8 +478,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 		// build discoverydb and discover iscsi target
 		klog.V(4).Infof("Build discoverydb and discover iscsi target")
-		klog.V(4).Infof("Run: iscsiadm -m discoverydb -t sendtargets -p %s -I %s -o new", tp, b.Iface)
-		b.exec.Run("iscsiadm", "-m", "discoverydb", "-t", "sendtargets", "-p", tp, "-I", b.Iface, "-o", "new")
+		klog.V(4).Infof("Run: iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op new", tp, b.Iface)
+		b.exec.Run("iscsiadm", "--mode", "discoverydb", "--type", "sendtargets", "--portal", tp, "--interface", b.Iface, "--op", "new")
 		// update discoverydb with CHAP secret
 		err = iscsi.updateISCSIDiscoverydb(b, tp)
 		if err != nil {
@@ -487,12 +487,12 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			continue
 		}
 		klog.V(4).Infof("Do discovery without chap")
-		klog.V(4).Infof("Run: iscsiadm -m discoverydb -t sendtargets -p %s -I %s --discover", tp, b.Iface)
-		out, err = b.exec.Run("iscsiadm", "-m", "discoverydb", "-t", "sendtargets", "-p", tp, "-I", b.Iface, "--discover")
+		klog.V(4).Infof("Run: iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --discover", tp, b.Iface)
+		out, err = b.exec.Run("iscsiadm", "--mode", "discoverydb", "--type", "sendtargets", "--portal", tp, "--interface", b.Iface, "--discover")
 		if err != nil {
 			klog.V(4).Infof("Delete discoverydb record")
-			klog.V(4).Infof("Run: iscsiadm -m discoverydb -t sendtargets -p %s -I %s -o delete", tp, b.Iface)
-			b.exec.Run("iscsiadm", "-m", "discoverydb", "-t", "sendtargets", "-p", tp, "-I", b.Iface, "-o", "delete")
+			klog.V(4).Infof("Run: iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op delete", tp, b.Iface)
+			b.exec.Run("iscsiadm", "--mode", "discoverydb", "--type", "sendtargets", "--portal", tp, "--interface", b.Iface, "--op", "delete")
 			lastErr = fmt.Errorf("iscsi: Failed to sendtargets to portal %s output: %s, err %v", tp, string(out), err)
 			continue
 		}
@@ -506,12 +506,12 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 
 		klog.V(4).Infof("Login to iscsi target")
-		klog.V(4).Infof("Run: iscsiadm -m node -p %s -T %s -I %s --login", tp, b.Iqn, b.Iface)
-		out, err = b.exec.Run("iscsiadm", "-m", "node", "-p", tp, "-T", b.Iqn, "-I", b.Iface, "--login")
+		klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --interface %s --login", tp, b.Iqn, b.Iface)
+		out, err = b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--targetname", b.Iqn, "--interface", b.Iface, "--login")
 		if err != nil {
 			klog.V(4).Infof("Delete the node record from database")
-			klog.V(4).Infof("Run: iscsiadm -m node -p %s -I %s -T %s -o delete", tp, b.Iface, b.Iqn)
-			b.exec.Run("iscsiadm", "-m", "node", "-p", tp, "-I", b.Iface, "-T", b.Iqn, "-o", "delete")
+			klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --interface %s --targetname %s --op delete", tp, b.Iface, b.Iqn)
+			b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--interface", b.Iface, "--targetname", b.Iqn, "--op", "delete")
 			lastErr = fmt.Errorf("iscsi: Failed to attach disk: Error: %s (%v)", string(out), err)
 			continue
 		}
@@ -529,8 +529,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	if len(devicePaths) == 0 {
 		// delete cloned iface
 		klog.V(4).Infof("Zero device paths found, delete iface")
-		klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o delete", b.Iface)
-		b.exec.Run("iscsiadm", "-m", "iface", "-I", b.Iface, "-o", "delete")
+		klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op delete", b.Iface)
+		b.exec.Run("iscsiadm", "--mode", "iface", "--interface", b.Iface, "--op", "delete")
 		klog.Errorf("Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
 		return "", fmt.Errorf("iscsi: Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
 	}
@@ -610,7 +610,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			}
 			if len(dmsetupInfo) == 1 { // One and only one mapper should be in the slice since the devicePath was given.
 				mapperPath := devMapperDir + dmsetupInfo[0].Name
-				klog.V(2).Infof("Using mapper device. '%s' maps to '%s'", devicePath, mapperPath)
+				klog.V(2).Infof("Using mapper device. '%s' maps to '%s'", devicePath, mapperPath )
 				devicePath = mapperPath
 			}
 		}
@@ -868,8 +868,8 @@ func (iscsi *iscsistorage) updateISCSIDiscoverydb(b iscsiDiskMounter, tp string)
 		return nil
 	}
 	klog.V(4).Infof("Update discoverydb with CHAP")
-	klog.V(4).Infof("Run: iscsiadm -m discoverydb -t sendtargets -p %s -I %s -o update -n discovery.sendtargets.auth.authmethod -v CHAP", tp, b.Iface)
-	out, err := b.exec.Run("iscsiadm", "-m", "discoverydb", "-t", "sendtargets", "-p", tp, "-I", b.Iface, "-o", "update", "-n", "discovery.sendtargets.auth.authmethod", "-v", "CHAP")
+	klog.V(4).Infof("Run: iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op update --name discovery.sendtargets.auth.authmethod --value CHAP", tp, b.Iface)
+	out, err := b.exec.Run("iscsiadm", "--mode", "discoverydb", "--type", "sendtargets", "--portal", tp, "--interface", b.Iface, "--op", "update", "--name", "discovery.sendtargets.auth.authmethod", "--value", "CHAP")
 	if err != nil {
 		return fmt.Errorf("iscsi: Failed to update discoverydb with CHAP, output: %v", string(out))
 	}
@@ -878,8 +878,8 @@ func (iscsi *iscsistorage) updateISCSIDiscoverydb(b iscsiDiskMounter, tp string)
 		v := b.secret[k]
 		if len(v) > 0 {
 			klog.V(4).Infof("Update discoverdb with key/value")
-			klog.V(4).Infof("Run: iscsiadm -m discoverydb -t sendtargets -p %s -I %s -o update -n %q -v %q", tp, b.Iface, k, v)
-			out, err := b.exec.Run("iscsiadm", "-m", "discoverydb", "-t", "sendtargets", "-p", tp, "-I", b.Iface, "-o", "update", "-n", k, "-v", v)
+			klog.V(4).Infof("Run: iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op update --name %q --value %q", tp, b.Iface, k, v)
+			out, err := b.exec.Run("iscsiadm", "--mode", "discoverydb", "--type", "sendtargets", "--portal", tp, "--interface", b.Iface, "--op", "update", "--name", k, "--value", v)
 			if err != nil {
 				return fmt.Errorf("iscsi: Failed to update discoverydb key %q with value %q error: %v", k, v, string(out))
 			}
@@ -894,8 +894,8 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, tp string) error 
 	}
 
 	klog.V(4).Infof("Update node with CHAP")
-	klog.V(4).Infof("Run: iscsiadm -m node -p %s -T %s -I %s -o update -n node.session.auth.authmethod -v CHAP", tp, b.Iqn, b.Iface)
-	out, err := b.exec.Run("iscsiadm", "-m", "node", "-p", tp, "-T", b.Iqn, "-I", b.Iface, "-o", "update", "-n", "node.session.auth.authmethod", "-v", "CHAP")
+	klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --interface %s --op update --name node.session.auth.authmethod --value CHAP", tp, b.Iqn, b.Iface)
+	out, err := b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--targetname", b.Iqn, "--interface", b.Iface, "--op", "update", "--name", "node.session.auth.authmethod", "--value", "CHAP")
 	if err != nil {
 		return fmt.Errorf("iscsi: Failed to update node with CHAP, output: %v", string(out))
 	}
@@ -904,8 +904,8 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, tp string) error 
 		v := b.secret[k]
 		if len(v) > 0 {
 			klog.V(4).Infof("Update node session key/value")
-			klog.V(4).Infof("Run: iscsiadm -m node -p %s -T %s -I %s -o update -n %q -v %q", tp, b.Iface, k, v)
-			out, err := b.exec.Run("iscsiadm", "-m", "node", "-p", tp, "-T", b.Iqn, "-I", b.Iface, "-o", "update", "-n", k, "-v", v)
+			klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --interface %s --op update --name %q --value %q", tp, b.Iface, k, v)
+			out, err := b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--targetname", b.Iqn, "--interface", b.Iface, "--op", "update", "--name", k, "--value", v)
 			if err != nil {
 				return fmt.Errorf("iscsi: Failed to update node session key %q with value %q error: %v", k, v, string(out))
 			}
@@ -1070,8 +1070,8 @@ func (iscsi *iscsistorage) parseIscsiadmShow(output string) (map[string]string, 
 func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error {
 	var lastErr error
 	klog.V(4).Infof("Find pre-configured iface records")
-	klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o show", b.Iface)
-	out, err := b.exec.Run("iscsiadm", "-m", "iface", "-I", b.Iface, "-o", "show")
+	klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op show", b.Iface)
+	out, err := b.exec.Run("iscsiadm", "--mode", "iface", "--interface", b.Iface, "--op", "show")
 	if err != nil {
 		lastErr = fmt.Errorf("iscsi: Failed to show iface records: %s (%v)", string(out), err)
 		return lastErr
@@ -1088,8 +1088,8 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	params["iface.initiatorname"] = b.InitiatorName
 
 	klog.V(4).Infof("Create new iface")
-	klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o new", newIface)
-	out, err = b.exec.Run("iscsiadm", "-m", "iface", "-I", newIface, "-o", "new")
+	klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op new", newIface)
+	out, err = b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "new")
 	if err != nil {
 		lastErr = fmt.Errorf("iscsi: Failed to create new iface: %s (%v)", string(out), err)
 		return lastErr
@@ -1097,12 +1097,12 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	// update new iface records
 	for key, val := range params {
 		klog.V(4).Infof("Update iface records")
-		klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o update -n %q -v %q", newIface, key, val)
-		_, err = b.exec.Run("iscsiadm", "-m", "iface", "-I", newIface, "-o", "update", "-n", key, "-v", val)
+		klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op update --name %q --value %q", newIface, key, val)
+		_, err = b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "update", "--name", key, "--value", val)
 		if err != nil {
 			klog.V(4).Infof("Failed to update iface records. Use other iface.")
-			klog.V(4).Infof("Run: iscsiadm -m iface -I %s -o delete", newIface)
-			b.exec.Run("iscsiadm", "-m", "iface", "-I", newIface, "-o", "delete")
+			klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op delete", newIface)
+			b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "delete")
 			lastErr = fmt.Errorf("iscsi: Failed to update iface records: %s (%v). iface(%s) will be used", string(out), err, b.Iface)
 			break
 		}

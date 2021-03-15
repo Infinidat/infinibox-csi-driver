@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"time"
 
+	"k8s.io/klog"
 	log "infinibox-csi-driver/helper/logger"
 
 	resty "github.com/go-resty/resty/v2"
@@ -71,40 +72,40 @@ type restclient struct {
 
 // Get :
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
-	log.Infof("called client.Get with url %s ", url)
+	klog.V(2).Infof("called client.Get with url %s ", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			log.Errorf("error in Get() while making request on %s url error : %v ", url, err)
+			klog.Errorf("error in Get() while making request on %s url error : %v ", url, err)
 			err = errors.New("error in Get() " + fmt.Sprint(res))
 		}
 	}()
 	if err := checkHttpClient(); err != nil {
-		log.Errorf("checkHttpClient returned err %v ", err)
+		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
 	SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
 	resp, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		log.Errorf("error in validating response %v", err)
+		klog.Errorf("error in validating response %v", err)
 		return nil, err
 	}
-	log.Info("client.Get request completed.")
+	klog.V(2).Infof("client.Get request completed.")
 	return resp, err
 }
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
-	log.Infof("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
+	klog.V(2).Infof("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			log.Errorf("error in GetWithQueryString while making request on %s url error : %v ", url, err)
+			klog.Errorf("error in GetWithQueryString while making request on %s url error : %v ", url, err)
 			err = errors.New("error in GetWithQueryString " + fmt.Sprint(res))
 		}
 	}()
 	if err := checkHttpClient(); err != nil {
-		log.Errorf("checkHttpClient returned err %v  ", err)
+		klog.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
@@ -113,24 +114,24 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		log.Errorf("error in validating response %v ", err)
+		klog.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Info("GetWithQueryString request completed.")
+	klog.V(2).Infof("GetWithQueryString request completed.")
 	return res, err
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Infof("called Post with url %s", url)
+	klog.V(2).Infof("called Post with url %s", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			log.Errorf("error in Post while making request on %s url error : %v ", url, err)
+			klog.Errorf("error in Post while making request on %s url error : %v ", url, err)
 			err = errors.New("error in Post " + fmt.Sprint(res))
 		}
 	}()
 	if err := checkHttpClient(); err != nil {
-		log.Errorf("checkHttpClient returned err %v  ", err)
+		klog.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
@@ -139,24 +140,24 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 		Post(url)
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		log.Errorf("error in validating response %v ", err)
+		klog.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Info("Post request completed.")
+	klog.V(2).Infof("Post request completed.")
 	return res, err
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	log.Infof("called Put with url %s  ", url)
+	klog.V(2).Infof("called Put with url %s  ", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			log.Errorf("error in Put while making request on %s url error : %v ", url, err)
+			klog.Errorf("error in Put while making request on %s url error : %v ", url, err)
 			err = errors.New("error in Put " + fmt.Sprint(res))
 		}
 	}()
 	if err := checkHttpClient(); err != nil {
-		log.Errorf("checkHttpClient returned err %v ", err)
+		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
@@ -164,10 +165,10 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 		R().SetBody(body).Put(url)
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		log.Errorf("error in validating response %v ", err)
+		klog.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Info("client.Put request Completed")
+	klog.V(2).Infof("client.Put request Completed")
 	return res, err
 }
 
@@ -175,13 +176,13 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			log.Errorf("error in Delete while making request on %s url error : %v ", url, err)
+			klog.Errorf("error in Delete while making request on %s url error : %v ", url, err)
 			err = errors.New("error in Delete " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("called client.Delete with url %s  ", url)
+	klog.V(2).Infof("called client.Delete with url %s  ", url)
 	if err := checkHttpClient(); err != nil {
-		log.Errorf("checkHttpClient returned err %v ", err)
+		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
@@ -189,10 +190,10 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 		R().Delete(url)
 	res, err := rc.checkResponse(response, err, nil)
 	if err != nil {
-		log.Errorf("error in validating response %v ", err)
+		klog.Errorf("error in validating response %v ", err)
 		return nil, err
 	}
-	log.Info("client.Delete request Completed")
+	klog.V(2).Infof("client.Delete request Completed")
 	return res, err
 }
 
@@ -229,7 +230,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 		apiresp := ApiResponse{}
 		apiresp.Result = resptpye
 		if err := json.Unmarshal(res.Body(), &apiresp); err != nil {
-			log.Errorf("checkResponse expected type provided case. err %v", err)
+			klog.Errorf("checkResponse expected type provided case. err %v", err)
 			return result, er
 		}
 		if res != nil {
@@ -246,10 +247,10 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 		}
 		// end: bind to given struct
 	} else {
-		log.Info("checkResponse resptpye nil case ", resptpye)
+		klog.V(2).Infof("checkResponse resptpye nil case ", resptpye)
 		var response interface{}
 		if er := json.Unmarshal(res.Body(), &response); er != nil {
-			log.Errorf("checkResponse expected type provided case. error %v", er)
+			klog.Errorf("checkResponse expected type provided case. error %v", er)
 			return result, er
 		}
 
