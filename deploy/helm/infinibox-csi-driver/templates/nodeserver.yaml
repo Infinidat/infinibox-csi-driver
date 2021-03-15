@@ -71,7 +71,7 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true              
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: {{ required "Provide an image pull policy for the csi driver image." .Values.images.csidriver_pull_policy }}
+          imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: ALLOW_XFS_UUID_REGENERATION
               value: {{ required "Enable/disable XFS UUID modification to correct UUID conflicts" .Values.allowXfsUuidRegeneration | quote }}
@@ -101,7 +101,7 @@ spec:
               mountPropagation: "Bidirectional"
         - name: registrar
           image: {{ required "Provide the csi node registrar sidecar container image." .Values.images.registrarsidecar }}
-          imagePullPolicy: {{ required "Provide an image pull policy for the csi node registrar sidecar image." .Values.images.registrarsidecar_pull_policy }}
+          imagePullPolicy: {{ .Values.images.registrarsidecar_pull_policy | default "Always" | quote }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
