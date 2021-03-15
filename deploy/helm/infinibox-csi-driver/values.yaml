@@ -17,10 +17,12 @@ csiDriverName: "infinibox-csi-driver"
 
 csiDriverVersion: "1.1.0"
 
-allowXfsUuidRegeneration: "yes" 
+allowXfsUuidRegeneration: "yes"
 
 # Image paths 
 images:
+  imagePullSecret: private-docker-reg-secret
+
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar
   attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
   attachersidecar_pull_policy: Always
