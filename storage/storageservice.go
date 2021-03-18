@@ -28,6 +28,7 @@ import (
 
 	"infinibox-csi-driver/api/clientgo"
 
+	"k8s.io/klog"
 	log "infinibox-csi-driver/helper/logger"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -127,7 +128,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 	commonserv := commonservice{}
 	if config != nil {
 		if secretMap == nil || len(secretMap) < 3 {
-			log.Error("Api client cannot be initialized without proper secrets")
+			klog.Errorf("Api client cannot be initialized without proper secrets")
 			return commonserv, errors.New("secrets are missing or not valid")
 		}
 		commonserv = commonservice{
@@ -137,7 +138,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		}
 		err := commonserv.verifyApiClient()
 		if err != nil {
-			log.Error("API client not initialized.", err)
+			klog.Errorf("API client not initialized.", err)
 			return commonserv, err
 		}
 		commonserv.driverversion = config["driverversion"]
@@ -147,14 +148,14 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 }
 
 func (cs *commonservice) verifyApiClient() error {
-	log.Info("verifying api client")
+	klog.V(2).Infof("verifying api client")
 	c, err := cs.api.NewClient()
 	if err != nil {
-		log.Info("api client is not working.")
+		klog.V(2).Infof("api client is not working.")
 		return errors.New("failed to create rest client")
 	}
 	cs.api = c
-	log.Info("api client is verified.")
+	klog.V(2).Infof("api client is verified.")
 	return nil
 }
 func (cs *commonservice) getIscsiInitiatorName() string {
@@ -192,13 +193,13 @@ func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 	if err != nil {
 		// ignoring following error
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			log.Debugf("cannot unmap volume from host with id %d, host not found", hostID)
+			klog.V(4).Infof("cannot unmap volume from host with id %d, host not found", hostID)
 			return nil
 		} else if strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-			log.Debugf("cannot unmap volume with id %d from host id %d , lun not found", volumeID, hostID)
+			klog.V(4).Infof("cannot unmap volume with id %d from host id %d , lun not found", volumeID, hostID)
 			return nil
 		} else if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			log.Debugf("volume with ID %d is already deleted , volume not found", volumeID)
+			klog.V(4).Infof("volume with ID %d is already deleted , volume not found", volumeID)
 			return nil
 		}
 		return err
@@ -209,7 +210,7 @@ func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
 	_, err := cs.api.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-		log.Errorf("failed to add host port with error %v", err)
+		klog.Errorf("failed to add host port with error %v", err)
 		return err
 	}
 	return nil
@@ -218,24 +219,24 @@ func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) e
 func (cs *commonservice) AddChapSecurityForHost(hostID int, credentials map[string]string) error {
 	_, err := cs.api.AddHostSecurity(credentials, hostID)
 	if err != nil {
-		log.Errorf("failed to add authentication for host %d with error %v", hostID, err)
+		klog.Errorf("failed to add authentication for host %d with error %v", hostID, err)
 		return err
 	}
 	return nil
 }
 
 func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
-	log.Info("Check if host available, create if not available")
+	klog.V(2).Infof("Check if host available, create if not available")
 	host, err := cs.api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-		log.Errorf("failed to get host with error %v", err)
+		klog.Errorf("failed to get host with error %v", err)
 		return nil, err
 	}
 	if host.ID == 0 {
-		log.Info("Creating host with name ", hostName)
+		klog.V(2).Infof("Creating host with name ", hostName)
 		host, err = cs.api.CreateHost(hostName)
 		if err != nil {
-			log.Errorf("failed to create host with error %v", err)
+			klog.Errorf("failed to create host with error %v", err)
 			return nil, err
 		}
 	}
@@ -251,9 +252,9 @@ func (cs *commonservice) deleteVolume(volumeID int) (err error) {
 }
 
 func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
-	log.Infof("getCSIResponse called with vol %v", vol)
+	klog.V(2).Infof("getCSIResponse called with vol %v", vol)
 	storagePoolName := vol.PoolName
-	log.Infof("getCSIResponse storagePoolName is %s", vol.PoolName)
+	klog.V(2).Infof("getCSIResponse storagePoolName is %s", vol.PoolName)
 	if storagePoolName == "" {
 		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolId)
 	}
@@ -276,7 +277,7 @@ func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 }
 
 func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
-	log.Infof("getStoragePoolNameFromID called with storagepoolid %d", id)
+	klog.V(2).Infof("getStoragePoolNameFromID called with storagepoolid %d", id)
 	storagePoolName := cs.storagePoolIdName[id]
 	if storagePoolName == "" {
 		pool, err := cs.api.FindStoragePool(id, "")
@@ -284,7 +285,7 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 			storagePoolName = pool.Name
 			cs.storagePoolIdName[id] = pool.Name
 		} else {
-			log.Errorf("Could not found StoragePool: %d", id)
+			klog.Errorf("Could not found StoragePool: %d", id)
 		}
 	}
 	return storagePoolName
@@ -336,7 +337,7 @@ func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, e
 	}
 	i, err := strconv.ParseUint(unixPermission, 8, 32)
 	if err != nil {
-		log.Errorf("fail to cast unixPermission %v", err)
+		klog.Errorf("fail to cast unixPermission %v", err)
 		return mode, err
 	}
 	mode = os.FileMode(i)
@@ -358,7 +359,7 @@ func detachDisk(devicePath string) error {
 // Removes a scsi device based upon /dev/sdX name
 func removeFromScsiSubsystem(deviceName string) {
 	fileName := "/sys/block/" + deviceName + "/device/delete"
-	log.Debugf("remove device from scsi-subsystem: path: %s", fileName)
+	klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
 	data := []byte("1")
 	ioutil.WriteFile(fileName, data, 0666)
 }
@@ -382,7 +383,7 @@ func findSlaveDevicesOnMultipath(dm string) []string {
 }
 
 func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args []string) ([]byte, error) {
-	log.Debugf("Executing command : {%v} with args : {%v}. and timeout : {%v} mseconds", command, args, mSeconds)
+	klog.V(4).Infof("Executing command : {%v} with args : {%v}. and timeout : {%v} mseconds", command, args, mSeconds)
 
 	// Create a new context and add a timeout to it
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(mSeconds)*time.Millisecond)
@@ -398,33 +399,33 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 	// The error returned by cmd.Output() will be OS specific based on what
 	// happens when a process is killed.
 	if ctx.Err() == context.DeadlineExceeded {
-		log.Debugf("Command %s timeout reached", command)
+		klog.V(4).Infof("Command %s timeout reached", command)
 		return nil, ctx.Err()
 	}
 
 	// If there's no context error, we know the command completed (or errored).
-	log.Debugf("Output from command: %s", string(out))
+	klog.V(4).Infof("Output from command: %s", string(out))
 	if err != nil {
-		log.Debugf("Non-zero exit code: %s", err)
+		klog.V(4).Infof("Non-zero exit code: %s", err)
 	}
 
-	log.Debugf("Finished executing command")
+	klog.V(4).Infof("Finished executing command")
 	return out, err
 }
 
 func (cs *commonservice) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		log.Debug("Path exists: ", path)
+		klog.V(4).Infof("Path exists: ", path)
 		return true, nil
 	} else if os.IsNotExist(err) {
-		log.Debug("Path not exists: ", path)
+		klog.V(4).Infof("Path not exists: ", path)
 		return false, nil
 	} else if cs.isCorruptedMnt(err) {
-		log.Debug("Path is currupted: ", path)
+		klog.V(4).Infof("Path is currupted: ", path)
 		return true, err
 	} else {
-		log.Debug("unable to validate path: ", path)
+		klog.V(4).Infof("unable to validate path: ", path)
 		return false, err
 	}
 }

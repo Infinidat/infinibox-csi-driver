@@ -14,17 +14,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/storage"
-
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"infinibox-csi-driver/storage"
+	"k8s.io/klog"
 )
 
-//CreateVolume method create the volumne
+//CreateVolume method create the volume
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -39,13 +36,13 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 	storageprotocol := req.GetParameters()["storage_protocol"]
 
-	log.Infof("In CreateVolume method nodeid: %s, storageprotocols %s", s.nodeID, storageprotocol)
+	klog.V(2).Infof("In CreateVolume method nodeid: %s, storageprotocols %s", s.nodeID, storageprotocol)
 	if storageprotocol == "" {
 		return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, "storage protocol is not found, 'storage_protocol' is required field")
 	}
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {
-		log.Errorf("In CreateVolume method : %v", err)
+		klog.Errorf("In CreateVolume method : %v", err)
 		err = errors.New("fail to initialise storage controller while create volume " + storageprotocol)
 		return
 	}
@@ -56,7 +53,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	}
 	if csiResp != nil && csiResp.Volume != nil && csiResp.Volume.VolumeId != "" {
 		csiResp.Volume.VolumeId = csiResp.Volume.VolumeId + "$$" + storageprotocol
-		log.Infof("CreateVolume updated volumeId %s", csiResp.Volume.VolumeId)
+		klog.V(2).Infof("CreateVolume updated volumeId %s", csiResp.Volume.VolumeId)
 		return
 	}
 	err = errors.New("CreateVolume error: failed to create volume")
@@ -79,10 +76,10 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	}()
 
 	voltype := req.GetVolumeId()
-	log.Infof("DeleteVolume method called with volume name %s", voltype)
+	klog.V(2).Infof("DeleteVolume method called with volume name %s", voltype)
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
+		klog.Errorf("fail to validate storage type %v", err)
 		return
 	}
 	config := make(map[string]string)
@@ -95,7 +92,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	req.VolumeId = volproto.VolumeID
 	deleteResponce, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
-		log.Errorf("fail to delete volume %v", err)
+		klog.Errorf("fail to delete volume %v", err)
 		err = errors.New("fail to delete volume of type " + volproto.StorageType)
 		return
 	}
@@ -105,7 +102,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 
 //ControllerPublishVolume method
 func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (controlePublishResponce *csi.ControllerPublishVolumeResponse, err error) {
-	log.Infof("Main ControllerPublishVolume called with req volumeID %s, nodeID %s", req.GetVolumeId(), req.GetNodeId())
+	klog.V(2).Infof("Main ControllerPublishVolume called with req volumeID %s, nodeID %s", req.GetVolumeId(), req.GetNodeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))
@@ -114,7 +111,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("fail to validate StorageType Publish Volume %v", err)
+		klog.Errorf("fail to validate StorageType Publish Volume %v", err)
 		err = errors.New("fail to validate StorageType")
 		return
 	}
@@ -127,14 +124,14 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	}
 	controlePublishResponce, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
-		log.Errorf("ControllerPublishVolume %v", err)
+		klog.Errorf("ControllerPublishVolume %v", err)
 	}
 	return
 }
 
 //ControllerUnpublishVolume method
 func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (controleUnPublishResponce *csi.ControllerUnpublishVolumeResponse, err error) {
-	log.Info("Main ControllerUnpublishVolume called with req", req.GetVolumeId(), req.GetNodeId())
+	klog.V(2).Infof("Main ControllerUnpublishVolume called with req", req.GetVolumeId(), req.GetNodeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
@@ -143,7 +140,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("fail to validate StorageType while Unpublish Volume %v", err)
+		klog.Errorf("fail to validate StorageType while Unpublish Volume %v", err)
 		err = errors.New("fail to validate StorageType while Unpublish Volume")
 		return
 	}
@@ -155,7 +152,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 	}
 	controleUnPublishResponce, err = storageController.ControllerUnpublishVolume(ctx, req)
 	if err != nil {
-		log.Errorf("ControllerUnpublishVolume %v", err)
+		klog.Errorf("ControllerUnpublishVolume %v", err)
 	}
 	return
 }
@@ -246,10 +243,10 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 		}
 	}()
 
-	log.Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
+	klog.V(2).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := s.validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
+		klog.Errorf("fail to validate storage type %v", err)
 		return
 	}
 	config := make(map[string]string)
@@ -257,7 +254,7 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	config["nodeIPAddress"] = s.nodeIPAddress
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		log.Error("Error Occured: ", err)
+		klog.Errorf("Error Occured: ", err)
 		return
 	}
 	if storageController != nil {
@@ -274,10 +271,10 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 		}
 	}()
 
-	log.Infof("Delete Snapshot called with snapshot Id %s", req.GetSnapshotId())
+	klog.V(2).Infof("Delete Snapshot called with snapshot Id %s", req.GetSnapshotId())
 	volproto, err := s.validateStorageType(req.GetSnapshotId())
 	if err != nil {
-		log.Errorf("fail to validate storage type %v", err)
+		klog.Errorf("fail to validate storage type %v", err)
 		return
 	}
 
@@ -286,7 +283,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	config["nodeIPAddress"] = s.nodeIPAddress
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		log.Error("Error Occured: ", err)
+		klog.Errorf("Error Occured: ", err)
 		return
 	}
 	if storageController != nil {
@@ -318,7 +315,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
-		log.Error("Error Occured: ", err)
+		klog.Errorf("Error Occurred: ", err)
 		return
 	}
 	if storageController != nil {

@@ -26,13 +26,13 @@ import (
 	"syscall"
 	"time"
 
-	"k8s.io/klog"
 	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
@@ -161,7 +161,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	if initiatorName == "" {
 		msg := "Initiator name not found"
 		klog.Errorf(msg)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
 	}
 	if !strings.Contains(ports, initiatorName) {
 		klog.V(4).Infof("Host port is not created, creating one")
@@ -184,7 +184,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
+					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
 			if useChap == "mutual_chap" {
@@ -195,7 +195,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: " + msg)
+					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
 			if len(chapCreds) > 1 {
@@ -411,11 +411,12 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	if "debug" == log.GetLevel() {
 		//iscsi_lib.EnableDebugLogging(log.New().Writer())
 	}
+	klog.V(4).Infof("iscsiDiskMounter: %v", b)
 	klog.V(4).Infof("Check that provided interface is available")
 	klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op show", b.Iface)
 	out, err := b.exec.Run("iscsiadm", "--mode", "iface", "--interface", b.Iface, "--op", "show")
 	if err != nil {
-		klog.Errorf("could not read interface %s error: %s", b.Iface, string(out))
+		klog.Errorf("Cannot read interface %s error: %s", b.Iface, string(out))
 		return "", err
 	}
 
@@ -610,7 +611,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			}
 			if len(dmsetupInfo) == 1 { // One and only one mapper should be in the slice since the devicePath was given.
 				mapperPath := devMapperDir + dmsetupInfo[0].Name
-				klog.V(2).Infof("Using mapper device. '%s' maps to '%s'", devicePath, mapperPath )
+				klog.V(2).Infof("Using mapper device. '%s' maps to '%s'", devicePath, mapperPath)
 				devicePath = mapperPath
 			}
 		}

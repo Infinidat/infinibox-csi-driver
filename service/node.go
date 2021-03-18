@@ -14,14 +14,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/storage"
-	"time"
-
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"infinibox-csi-driver/storage"
+	"k8s.io/klog"
+	"time"
 )
 
 func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -32,18 +30,18 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 		}
 	}()
 	volumeId := req.GetVolumeId()
-	log.Infof("NodePublishVolume called with volume ID '%s'", volumeId)
+	klog.V(2).Infof("NodePublishVolume called with volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 	config["nodeIPAddress"] = s.nodeIPAddress
-	log.Debug("NodePublishVolume nodeIPAddress ", s.nodeIPAddress)
+	klog.V(4).Infof("NodePublishVolume nodeIPAddress ", s.nodeIPAddress)
 
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		return storageNode.NodePublishVolume(ctx, req)
 	}
-	log.Error("Error Occured: ", err)
+	klog.Errorf("Error Occured: ", err)
 	return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 }
 
@@ -54,7 +52,7 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 			err = errors.New("Recovered from  NodeUnpublishVolume " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("NodeUnpublishVolume called with volume name %s", req.GetVolumeId())
+	klog.V(2).Infof("NodeUnpublishVolume called with volume name %s", req.GetVolumeId())
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
 		return &csi.NodeUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
@@ -99,7 +97,7 @@ func (s *service) NodeGetCapabilities(
 }
 
 func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	log.Infof("Setting NodeId %s", s.nodeID)
+	klog.V(2).Infof("Setting NodeId %s", s.nodeID)
 	nodeFQDN := s.getNodeFQDN()
 	return &csi.NodeGetInfoResponse{
 		NodeId: nodeFQDN + "$$" + s.nodeID,
@@ -114,7 +112,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 		}
 	}()
 	volumeId := req.GetVolumeId()
-	log.Infof("NodeStageVolume called with volume ID '%s'", volumeId)
+	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 	config["nodeIPAddress"] = s.nodeIPAddress
@@ -123,7 +121,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	if storageNode != nil {
 		return storageNode.NodeStageVolume(ctx, req)
 	}
-	log.Error("Error Occured: ", err)
+	klog.Errorf("Error Occurred: ", err)
 	return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 }
 
@@ -134,7 +132,7 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 			err = errors.New("Recovered from NodeUnstageVolume " + fmt.Sprint(res))
 		}
 	}()
-	log.Infof("NodeUnstageVolume called with volume name %s", req.GetVolumeId())
+	klog.V(2).Infof("NodeUnstageVolume called with volume name %s", req.GetVolumeId())
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
 		return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Internal, err.Error())

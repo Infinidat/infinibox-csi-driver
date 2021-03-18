@@ -11,12 +11,11 @@ limitations under the License.*/
 package clientgo
 
 import (
-	log "infinibox-csi-driver/helper/logger"
-
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 )
 
 type KubeClient interface {
@@ -32,17 +31,17 @@ var clientapi kubeclient
 
 //BuildClient
 func BuildClient() (kc *kubeclient, err error) {
-	log.Debug("BuildClient called.")
+	klog.V(4).Infof("BuildClient called.")
 	if clientapi.client == nil {
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			log.Error("BuildClient Error while getting cluster config", err)
+			klog.Errorf("BuildClient Error while getting cluster config", err)
 			return nil, err
 		}
 		// creates the clientset
 		clientset, err := kubernetes.NewForConfig(config)
 		if err != nil {
-			log.Error("BuildClient Error while creating client", err)
+			klog.Errorf("BuildClient Error while creating client", err)
 			return nil, err
 		}
 		clientapi = kubeclient{clientset}
@@ -51,11 +50,11 @@ func BuildClient() (kc *kubeclient, err error) {
 }
 
 func (kc *kubeclient) GetSecret(secretName, nameSpace string) (map[string]string, error) {
-	log.Debugf("get request for secret with namespace %s and secretname %s", nameSpace, secretName)
+	klog.V(4).Infof("get request for secret with namespace %s and secretname %s", nameSpace, secretName)
 	secretMap := make(map[string]string)
 	secret, err := kc.client.CoreV1().Secrets(nameSpace).Get(secretName, metav1.GetOptions{})
 	if err != nil {
-		log.Errorf("Error Getting secret with namespace %s and secretname %s Error: %v ", nameSpace, secretName, err)
+		klog.Errorf("Error Getting secret with namespace %s and secretname %s Error: %v ", nameSpace, secretName, err)
 		return secretMap, err
 	}
 	for key, value := range secret.Data {
@@ -76,7 +75,7 @@ func (kc *kubeclient) GetNodeIpsByMountedVolume(volumeName string) ([]string, er
 	pvcName := pv.Spec.ClaimRef.Name
 	pods, err := kc.client.CoreV1().Pods(nameSpace).List(metav1.ListOptions{})
 	if err != nil {
-		log.Error("error occured", err)
+		klog.Errorf("error occured", err)
 		return nil, err
 	}
 	nodeIps := []string{}
@@ -98,7 +97,7 @@ func (kc *kubeclient) GetNodeIpsByMountedVolume(volumeName string) ([]string, er
 func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.PersistentVolume, error) {
 	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
 	if err != nil {
-		log.Error(err)
+		klog.Errorf(err.Error())
 		return nil, err
 	}
 	return persistVol, nil
@@ -121,7 +120,7 @@ func (kc *kubeclient) GetNodeIdByNodeName(nodeName string) (InternalIp string, e
 func (kc *kubeclient) GetClusterVerion() (string, error) {
 	info, err := kc.client.Discovery().ServerVersion()
 	if err != nil {
-		log.Error(err)
+		klog.Errorf(err.Error())
 		return "", err
 	}
 	return info.GitVersion, nil
