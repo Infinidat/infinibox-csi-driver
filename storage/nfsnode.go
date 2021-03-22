@@ -70,7 +70,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	// Create mount point
 	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
-	klog.V(4).Infof("mkdir --parents --mode 0750 '%s' ", targetPath)
+	klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", targetPath)
 	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 	// MkdirAll() will cause hard-to-grok mount errors.
 	cmd := exec.Command("mkdir", "--parents", "--mode", "0750", targetPath)

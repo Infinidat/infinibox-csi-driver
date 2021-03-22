@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
 	"k8s.io/klog"
 
@@ -94,6 +95,8 @@ type GlobFunc func(string) ([]string, error)
 
 func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).Infof("NodePublishVolume called")
+	klog.V(4).Infof("Publishing volume ID '%s'", req.VolumeId)
+
 	iscsiInfo, err := iscsi.getISCSIInfo(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -272,14 +275,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			}
 
 			klog.V(4).Infof("Logout")
-			klog.V(4).Infof("Run: iscsiadm %t", logoutArgs)
+			helper.PrettyKlogDebug("Run: iscsiadm", logoutArgs)
 			out, err := diskUnmounter.exec.Run("iscsiadm", logoutArgs...)
 			if err != nil {
 				klog.Errorf("Failed to detach disk Error: %s", string(out))
 			}
 
 			klog.V(4).Infof("Delete node record")
-			klog.V(4).Infof("Run: iscsiadm %t", deleteArgs)
+			helper.PrettyKlogDebug("Run: iscsiadm", deleteArgs)
 			out, err = diskUnmounter.exec.Run("iscsiadm", deleteArgs...)
 			if err != nil {
 				klog.Errorf("Failed to delete node record. Error: %s", string(out))
@@ -290,9 +293,10 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		// If the iface is not created via iscsi plugin, skip to delete
 		for _, portal := range portals {
 			if initiatorName != "" && found && iface == (portal+":"+volName) {
+				// TODO - Delete iface?
 				deleteArgs := []string{"--mode", "iface", "--interface", iface, "--op", "delete"}
 				klog.V(4).Infof("Delete iface after all session logouts")
-				klog.V(4).Infof("Run: iscsiadm %t", deleteArgs)
+				helper.PrettyKlogDebug("Run: iscsiadm", deleteArgs)
 				out, err := diskUnmounter.exec.Run("iscsiadm", deleteArgs...)
 				if err != nil {
 					klog.Errorf("Failed to delete iface Error: %s", string(out))
@@ -341,7 +345,8 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			return res, lastErr
 		}
 		if multiPath {
-			klog.V(4).Infof("Flush multipath device using multipath -f ", dstPath)
+			klog.V(4).Infof("Flush multipath device '%s'", dstPath)
+			klog.V(4).Infof("Run: multipath -f %s", dstPath)
 			_, err := iscsi.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
 			if err != nil {
 				if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
@@ -408,9 +413,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	log.WithFields(log.Fields{"iqn": b.iscsiDisk.Iqn, "lun": b.iscsiDisk.lun,
 		"chap_session": b.chap_session}).Info("Mounting Volume")
 
-	if "debug" == log.GetLevel() {
-		//iscsi_lib.EnableDebugLogging(log.New().Writer())
-	}
+	//if "debug" == log.GetLevel() {
+	//	// pkg: iscsi_lib "github.com/kubernetes-csi/csi-lib-iscsi/iscsi"
+	//	iscsi_lib.EnableDebugLogging(log.New().Writer())
+	//}
 	klog.V(4).Infof("iscsiDiskMounter: %v", b)
 	klog.V(4).Infof("Check that provided interface is available")
 	klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op show", b.Iface)
@@ -424,13 +430,13 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	bkpPortal := b.Portals
 
-	// create new iface and copy parameters from pre-configured iface to the created iface
+	// Create new iface and copy parameters from pre-configured iface to the created iface
+	// Use one interface per iSCSI network-space, i.e. usually one per IBox.
 	if b.InitiatorName != "" {
-		// TODO only if iface does not exist.
 		klog.V(4).Infof("Creating new iface (clone) and copying parameters from pre-configured iface to it")
 		klog.V(4).Infof("initiatorName: %s", b.InitiatorName)
-		newIface := bkpPortal[0] + ":" + b.VolName
-		klog.V(4).Infof("New iface name is <target portal>:<volume name>: %s", newIface)
+		newIface := bkpPortal[0] // Do not append ':$volume_id'
+		klog.V(4).Infof("New iface name name is '%s'", newIface)
 		ifaceAvailable := true
 		klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op show", newIface)
 		_, err := b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "show")
@@ -528,10 +534,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	}
 
 	if len(devicePaths) == 0 {
-		// delete cloned iface
-		klog.V(4).Infof("Zero device paths found, delete iface")
-		klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op delete", b.Iface)
-		b.exec.Run("iscsiadm", "--mode", "iface", "--interface", b.Iface, "--op", "delete")
+		// Delete cloned iface
+		//klog.V(4).Infof("Zero device paths found, delete iface")
+		//klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op delete", b.Iface)
+		//b.exec.Run("iscsiadm", "--mode", "iface", "--interface", b.Iface, "--op", "delete")
 		klog.Errorf("Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
 		return "", fmt.Errorf("iscsi: Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
 	}
@@ -723,7 +729,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		klog.Errorf("Failed to remove mount path Error: %v", err)
 		return err
 	}
-	klog.V(4).Infof("Unmout volume successfully!")
+	klog.V(4).Infof("Unmounted volume successfully!")
 	return nil
 }
 
@@ -1097,11 +1103,11 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	}
 	// update new iface records
 	for key, val := range params {
-		klog.V(4).Infof("Update iface records")
+		klog.V(4).Infof("Update records of interface '%s'", newIface)
 		klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op update --name %q --value %q", newIface, key, val)
 		_, err = b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "update", "--name", key, "--value", val)
 		if err != nil {
-			klog.V(4).Infof("Failed to update iface records. Use other iface.")
+			klog.V(4).Infof("Failed to update records of interface '%s'", newIface)
 			klog.V(4).Infof("Run: iscsiadm --mode iface --interface %s --op delete", newIface)
 			b.exec.Run("iscsiadm", "--mode", "iface", "--interface", newIface, "--op", "delete")
 			lastErr = fmt.Errorf("iscsi: Failed to update iface records: %s (%v). iface(%s) will be used", string(out), err, b.Iface)

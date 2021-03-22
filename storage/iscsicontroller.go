@@ -49,8 +49,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	// Get Volume Provision Type
 	volType := "THIN"
-	if prosiontype, ok := params[KeyVolumeProvisionType]; ok {
-		volType = prosiontype
+	if provisionType, ok := params[KeyVolumeProvisionType]; ok {
+		volType = provisionType
 	}
 
 	// Access Mode check
@@ -60,8 +60,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	for _, volCap := range volCaps {
 		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			klog.Errorf("volume cpability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
-			return &csi.CreateVolumeResponse{}, fmt.Errorf("volume cpability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			klog.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			return &csi.CreateVolumeResponse{}, fmt.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
 		}
 	}
 

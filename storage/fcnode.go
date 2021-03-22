@@ -276,8 +276,14 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return status.Error(codes.Internal, "Read only is not supported for Block Volume")
 		}
 
-		if err := os.MkdirAll(filepath.Dir(fm.TargetPath), 0750); err != nil {
-			klog.Errorf("fc: failed to mkdir %s, error", filepath.Dir(fm.TargetPath))
+		klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+		klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", fm.TargetPath)
+		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+		// MkdirAll() will cause hard-to-grok mount errors.
+		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", fm.TargetPath)
+		err = cmd.Run()
+		if err != nil {
+			klog.Errorf("failed to mkdir '%s': %s", fm.TargetPath, err)
 			return err
 		}
 
