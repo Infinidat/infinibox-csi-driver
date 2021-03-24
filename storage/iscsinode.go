@@ -113,10 +113,68 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
+		klog.Errorf("AttachDisk failed")
+		rescanDeviceMap()
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	rescanDeviceMap()
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func rescanDeviceMap() {
+	// TODO: DCO sleep and then rescan
+	//sleep_sec := 45
+	//klog.V(4).Infof("NodePublishVolume: Sleep %d seconds before rescanning device map", sleep_sec)
+	//time.Sleep(time.Duration(sleep_sec) * time.Second)
+
+	klog.V(4).Infof("*************************** Rescan hosts")
+
+	cmd := "iscsiadm -m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%s \", $3) }'"
+    klog.V(4).Infof("Run: %s", cmd)
+	hostIds, err := exec.Command("bash", "-c", cmd).Output()
+	//hostIds, err := exec.Command("iscsiadm", "-m", "session", "-P3", "|", "awk", "'{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'").Output()
+	if err != nil {
+		klog.V(4).Infof("Finding hosts failed: %s", err)
+	}
+
+	hosts := string(hostIds[:])
+	for _, host := range strings.Fields(hosts) {
+		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
+		cmd := fmt.Sprintf("echo '- - -' > %s", scsiHostPath)
+		klog.V(4).Infof("Run: %s", cmd)
+		_, err = exec.Command("bash", "-c", cmd).Output()
+		if err != nil {
+			klog.V(4).Infof("Rescan of host %s failed: %s", scsiHostPath, err)
+		}
+	}
+	klog.V(4).Infof("Rescan hosts complete")
+
+	// klog.V(4).Infof("Run: iscsiadm -m session -P3 | grep 'Host Number:' | awk '{ printf(\"%s \", $3) }'")
+	// hostIds, err := exec.Command("iscsiadm", "-m", "session", "-P3", "|", "grep", "'Host Number:'", "|", "awk", "'{ printf(\"%s \", $3) }'").Output()
+	// if err != nil {
+	// 	klog.V(4).Infof("Finding hosts failed: %s", err)
+	// }
+
+	// hosts := string(hostIds[:])
+	// for _, host := range strings.Fields(hosts) {
+	// 	scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
+	// 	klog.V(4).Infof("Run: echo '- - -' > %s", scsiHostPath)
+	// 	_, err = exec.Command("echo", "- - -", ">", scsiHostPath).Output()
+	// 	if err != nil {
+	// 		klog.V(4).Infof("Rescan of host %s failed: %s", scsiHostPath, err)
+	// 	}
+	// }
+	// klog.V(4).Infof("Rescan hosts complete")
+
+	// klog.V(4).Infof("*************************** Rescan device map")
+	// klog.V(4).Infof("Run: multipath -r")
+	// out, err := exec.Command("multipath", "-r").Output()
+	// if err != nil {
+	// 	klog.V(4).Infof("Rescan failed: %s", err)
+	// 	//return nil, status.Error(codes.Internal, err.Error())
+	// }
+	// klog.V(4).Infof("Rescan device output: %s", out)
 }
 
 func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -303,13 +361,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 				}
 				break
 			}
+			// TODO
 		}
 		klog.V(4).Infof("Detach Disk Successfully!")
 
 		// rescan disks
 		klog.V(4).Infof("Rescan sessions to discover newly mapped LUNs")
 		for _, portal := range portals {
-			klog.V(4).Infof("Rescan session")
+			klog.V(4).Infof("Rescan node")
 			klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --rescan", portal, iqn)
 			diskUnmounter.exec.Run("iscsiadm", "--mode", "node", "--portal", portal, "--targetname", iqn, "--rescan")
 		}
@@ -345,15 +404,35 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			return res, lastErr
 		}
 		if multiPath {
-			klog.V(4).Infof("Flush multipath device '%s'", dstPath)
-			klog.V(4).Infof("Run: multipath -f %s", dstPath)
-			_, err := iscsi.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
+			device := strings.Replace(dstPath, "/dev/", "", 1)
+			klog.V(4).Infof("Flush multipath device '%s'", device)
+			klog.V(4).Infof("Run: multipath -f %s", device)
+			_, err := iscsi.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", device})
 			if err != nil {
 				if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
 					klog.V(4).Infof("multipath device %s deleted", dstPath)
 				} else {
-					klog.Errorf("multipath -f %s failed to device with error %v", dstPath, err.Error())
+					klog.Errorf("multipath -f %s failed to flush device with error %v", device, err.Error())
 					return res, err
+				}
+			}
+			// TODO: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/storage_administration_guide/removing_devices
+			// Step: 5
+			for _, device := range devices {
+				klog.V(4).Infof("Flush device '%s'", device)
+				klog.V(4).Infof("Run: blockdev --flushbufs %s", device)
+				blockdevOut, blockdevErr := exec.Command("blockdev", "--flushbufs", device).Output()
+				if blockdevErr != nil {
+					klog.V(4).Infof("blockdev --flushbufs failed: %s", blockdevErr)
+					return res, blockdevErr
+				}
+				klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
+
+				deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
+				klog.V(4).Infof("Run: echo 1 > %s", deletePath)
+				_, deleteErr := exec.Command("echo", "1", ">", deletePath).Output()
+				if deleteErr != nil {
+					klog.Errorf("Failed to delete device '%s' with error %v", device, deleteErr.Error())
 				}
 			}
 		}
@@ -460,7 +539,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	for _, tp := range bkpPortal {
 		// Rescan sessions to discover newly mapped LUNs. Do not specify the interface when rescanning
 		// to avoid establishing additional sessions to the same target.
-		klog.V(4).Infof("Rescan sessions. Discover new mapped LUNs")
+		klog.V(4).Infof("Rescan nodes (not sessions). Discover new mapped LUNs")
 		klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --rescan", tp, b.Iqn)
 		out, err := b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--targetname", b.Iqn, "--rescan")
 		if err != nil {
@@ -570,6 +649,20 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 	}
 
+	// // TODO: DCO sleep and then rescan
+	// sleep_sec := 45
+	// klog.V(4).Infof("Sleep %d seconds before rescanning device map", sleep_sec)
+	// time.Sleep(time.Duration(sleep_sec) * time.Second)
+
+	// klog.V(4).Infof("Rescan device map")
+	// klog.V(4).Infof("Run: multipath -r")
+	// out, err = b.exec.Run("multipath", "-r")
+	// if err != nil {
+	// 	klog.V(4).Infof("Rescan failed: %s", err)
+	// 	lastErr = fmt.Errorf("Rescan failed: %s", err)
+	// }
+	// klog.V(4).Infof("Rescan device output: %s", out)
+
 	if b.isBlock {
 		// A block volume is a volume that will appear as a block device inside the container.
 		klog.V(4).Infof("Block volume will be mount at file %s", mntPath)
@@ -658,11 +751,17 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
 		klog.V(4).Infof("FormatAndMount returned: %s", err)
 		if err != nil {
-			searchString := fmt.Sprintf("already mounted on %s", mountPoint)
-			klog.V(4).Infof("search err: %s", err)
-			klog.V(4).Infof("searchString: %s", searchString)
-			if isAlreadyMounted := strings.Contains(err.Error(), searchString); isAlreadyMounted {
-				klog.Errorf("Volume %s is already mounted to %s", devicePath, mountPoint)
+			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
+			searchBadSuperBlock := fmt.Sprintf("wrong fs type, bad option, bad superblock")
+			klog.V(4).Infof("search error for matches to handle: %s", err)
+			klog.V(4).Infof("1. searchAlreadyMounted: %s", searchAlreadyMounted)
+			klog.V(4).Infof("2. searchBadSuperBlock : %s", searchBadSuperBlock)
+
+			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
+				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
+			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
+				klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted", devicePath)
+				return "", err
 			} else {
 				klog.Errorf("Failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, mountPoint, err)
 				mountPathExists(mountPoint)
