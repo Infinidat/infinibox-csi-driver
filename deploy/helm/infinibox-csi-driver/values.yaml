@@ -17,6 +17,14 @@ csiDriverName: "infinibox-csi-driver"
 
 csiDriverVersion: "1.1.0"
 
+# It is possible for two volumes, formatted XFS, to have identical XFS UUIDs.
+# A common cause is to create a snapshot from a volume. Both will have
+# the same UUIDs.
+# If both are mounted on the same cluster node, the second mount will fail
+# with a mount error: "wrong fs type, bad option, bad superblock".
+# If allowXfsUuidRegeneration is enabled, and if the second volume/snapshot is
+# writable, Infindat's CSI driver will generate new s XFS UUID and write it to
+# the volume. This will allow the mount to succeed.
 allowXfsUuidRegeneration: "yes"
 
 # Image paths 
