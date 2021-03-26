@@ -6,13 +6,21 @@ import (
     "k8s.io/klog"
     "os/exec"
     "strings"
+    "sync"
 )
 
 const (
     leader string = "Run:"
 )
 
-func ExecScsiCommand(cmd string) (out string, err error) {
+type ExecScsi struct {
+    mu sync.Mutex
+}
+
+func (s *ExecScsi) Command(cmd string) (out string, err error) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+
     var result []byte
 
     pipefailCmd := fmt.Sprintf("set -o pipefail; %s", cmd)
