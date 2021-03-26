@@ -25,6 +25,7 @@ func getYamlBoolsTrue() (bools []string) {
 
 
 // Many strings are true in YAML. Convert to boolean. 
+// Ref: https://yaml.org/type/bool.html
 func YamlBoolToBool(b string) (myBool bool, err error) {
     if Contains(getYamlBoolsTrue(), b) {
 		return true, nil
@@ -36,7 +37,7 @@ func YamlBoolToBool(b string) (myBool bool, err error) {
 	return false, errors.New(msg)
 }
 
-// Contains tells whether a contains x.
+// Contains tells whether 'x' is found within the array of strings 'a'.
 func Contains(a []string, x string) bool {
     for _, n := range a {
         if x == n {

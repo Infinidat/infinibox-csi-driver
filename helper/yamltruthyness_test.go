@@ -5,39 +5,40 @@ import (
     "strings"
 )
 
-// ErrorContains checks if the error message in out contains the text in
-// want.
-//
-// This is safe when out is nil. Use an empty string for want if you want to
-// test that err is nil.
-func ErrorContains(out error, want string) bool {
-    if out == nil {
+// ErrorContains checks if the error message in 'err' contains the text in
+// want. This is safe when out is nil. Use an empty string for want
+// if you want to test that err is nil.
+// Ref: https://stackoverflow.com/questions/42035104/how-to-unit-test-go-errors
+func ErrorContains(err error, want string) bool {
+    if err == nil {
         return want == ""
     }
     if want == "" {
         return false
     }
-    return strings.Contains(out.Error(), want)
+    return strings.Contains(err.Error(), want)
 }
 
+// TestYamlBoolToBool tests that YamlBoolToBool() generates bools.
 func TestYamlBoolToBool(t *testing.T) {
+	expected_err := "not a valid YAML boolean"
     var tests = []struct {
         input string
         want bool
         wanterr string
     }{
-        {"y", true,  ""},
-		{"yes", true,  ""},
+        {"y", true, ""},
+		{"yes", true, ""},
         {"n", false, ""},
 		{"OFF", false, ""},
-        {"?", false, "not a valid YAML boolean"},
-		{"", false, "not a valid YAML boolean"},
-		{"  ", false, "not a valid YAML boolean"},
-		{"yesno", false, "not a valid YAML boolean"},
-		{"yEs", false, "not a valid YAML boolean"},
-		{"nO", false, "not a valid YAML boolean"},
-		{"0", false, "not a valid YAML boolean"},
-		{"1", false, "not a valid YAML boolean"},
+        {"?", false, expected_err},
+		{"", false, expected_err},
+		{"  ", false, expected_err},
+		{"yesno", false, expected_err},
+		{"yEs", false, expected_err},
+		{"nO", false, expected_err},
+		{"0", false, expected_err},
+		{"1", false, expected_err},
     }
 
     for _, test := range tests {

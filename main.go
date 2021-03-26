@@ -13,12 +13,12 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/rexray/gocsi"
+	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
 	"k8s.io/klog"
 	"os"
-
-	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
 )
 
@@ -45,12 +45,21 @@ func main() {
 		verbosity = "2"
 	}
 
+
 	flag.Set("v", verbosity)
 	flag.Parse()
 
 	klog.V(2).Infof("Infinidat CSI Driver is Starting")
 	klog.V(2).Infof("Log level: %s", appLogLevel)
-	klog.V(4).Infof("ALLOW_XFS_UUID_REGENERATION: %s", os.Getenv("ALLOW_XFS_UUID_REGENERATION"))
+
+	// Check ALLOW_XFS_UUID_REGENERATION
+	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
+	_, err := helper.YamlBoolToBool(allow_xfs_uuid_regeneration)
+	if err != nil {
+		klog.Fatalf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
+	}
+	klog.V(4).Infof("ALLOW_XFS_UUID_REGENERATION: %s", allow_xfs_uuid_regeneration)
+
 	klog.Flush()
 
 	configParams := getConfigParams()
