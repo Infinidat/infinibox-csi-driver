@@ -1,40 +1,52 @@
 package helper
 
+// Ref: https://quii.gitbook.io/learn-go-with-tests/go-fundamentals/sync
+
 import (
 	"errors"
 	"fmt"
-    "k8s.io/klog"
-    "os/exec"
-    "strings"
-    "sync"
+	"k8s.io/klog"
+	"os/exec"
+	"strings"
+	"sync"
 )
 
 const (
-    leader string = "Run:"
+	leader   string = "LOCK:"
+	follower string = "UNLOCK:"
 )
 
 type ExecScsi struct {
-    mu sync.Mutex
+	mu sync.Mutex
 }
 
+// Command runs commands and may be used with concurrancy.
+// All commands will have "set -o pipefail" prepended.
 func (s *ExecScsi) Command(cmd string) (out string, err error) {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+	s.mu.Lock()
+	defer func() {
+		s.mu.Unlock()
+		klog.V(4).Infof("%s", follower)
+	}()
 
-    var result []byte
+	var result []byte
 
-    pipefailCmd := fmt.Sprintf("set -o pipefail; %s", cmd)
+	// Prepend pipefail to cmd
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", cmd)
 
-    klog.V(4).Infof("%s %s", leader, pipefailCmd)
+	klog.V(4).Infof("%s %s", leader, pipefailCmd)
+
 	result, err = exec.Command("bash", "-c", pipefailCmd).Output()
-    out = strings.Replace(string(result), "\n", "", -1)
+	out = strings.Replace(string(result), "\n", "", -1)
 
 	if err != nil {
-        msg := fmt.Sprintf("'%s' failed", pipefailCmd)
-        klog.Errorf(msg)
-        return "", errors.New(msg)
+		msg := fmt.Sprintf("'%s' failed", pipefailCmd)
+		klog.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
-    klog.V(4).Infof("out: %s", out)
-    return out, nil 
+	if len(out) != 0 {
+		klog.V(4).Infof("out: %s", out)
+	}
+	return out, nil
 }
