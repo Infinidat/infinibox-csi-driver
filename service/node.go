@@ -34,7 +34,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 	config["nodeIPAddress"] = s.nodeIPAddress
-	klog.V(4).Infof("NodePublishVolume nodeIPAddress ", s.nodeIPAddress)
+	klog.V(4).Infof("NodePublishVolume nodeIPAddress '%s'", s.nodeIPAddress)
 
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
