@@ -119,19 +119,19 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
 		klog.Errorf("AttachDisk failed")
-		rescanDeviceMap(req.VolumeId)
+		//rescanDeviceMap(req.VolumeId)
 		return nil, status.Error(codes.Internal, err.Error())
 	} else {
 		klog.Errorf("AttachDisk succeeded")
 	}
 
-	err = rescanDeviceMap(req.VolumeId)
-	if err != nil {
-		klog.Errorf("AttachDisk failed rescan (2): %s", err.Error())
-		klog.Errorf("NodePublishVolume failed rescan (2): %s", err.Error())
-		rescanDeviceMap(req.VolumeId)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	//err = rescanDeviceMap(req.VolumeId)
+	//if err != nil {
+	//	klog.Errorf("AttachDisk failed rescan (2): %s", err.Error())
+	//	klog.Errorf("NodePublishVolume failed rescan (2): %s", err.Error())
+	//	//rescanDeviceMap(req.VolumeId)
+	//	return nil, status.Error(codes.Internal, err.Error())
+	//}
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
@@ -155,7 +155,7 @@ func rescanDeviceMap(volumeId string) (error) {
 	}
 
 	sleep_sec := 5
-	klog.V(4).Infof("Sleep %d seconds before rescan", sleep_sec)
+	klog.V(4).Infof("Sleep %d seconds after rescan", sleep_sec)
 	time.Sleep(time.Duration(sleep_sec) * time.Second)
 
 	klog.V(4).Infof("Rescan hosts complete")
@@ -486,16 +486,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	}
 
 	for _, tp := range bkpPortal {
-		// Rescan sessions to discover newly mapped LUNs. Do not specify the interface when rescanning
-		// to avoid establishing additional sessions to the same target.
-		//     klog.V(4).Infof("Login to node on all portals")
-		//     // MUTEX klog.V(4).Infof("Run: iscsiadm --mode node --portal %s --targetname %s --rescan", tp, b.Iqn)
-		//     // MUTEX out, err := b.exec.Run("iscsiadm", "--mode", "node", "--portal", tp, "--targetname", b.Iqn, "--rescan")
-		//     out, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode node --targetname %s --portal %s --interface %s --login", b.Iqn, tp, newIface))
-		//     if err != nil {
-		//     	klog.Errorf("Failed to login: %s ", err)
-		//     	return "", fmt.Errorf("Cannot login to portal '%s': %s", tp, err)
-		//     }
+		// Loop over portals:
+		// - Wait for iSCSI transport paths to appear.
+		// - Set CHAP usage.
+		// - Login.
 
 		if iscsiTransport == "" {
 			klog.Errorf("Could not find transport name in iface %s", b.Iface)  // TODO - b.Iface here realy should be newIface...or does it matter?
@@ -586,6 +580,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	if lastErr != nil {
 		klog.Errorf("Last error occurred during iscsi init:\n%v", lastErr)
 	}
+
+	rescanDeviceMap(b.VolName)
 
 	// Make sure we use a valid devicepath to find mpio device.
 	devicePath = devicePaths[0]
