@@ -34,7 +34,7 @@ import (
 	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	//"github.com/google/uuid"
+	"github.com/google/uuid"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
@@ -121,7 +121,10 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		klog.Errorf("AttachDisk failed")
 		rescanDeviceMap(req.VolumeId)
 		return nil, status.Error(codes.Internal, err.Error())
+	} else {
+		klog.Errorf("AttachDisk succeeded")
 	}
+
 	err = rescanDeviceMap(req.VolumeId)
 	if err != nil {
 		klog.Errorf("AttachDisk failed rescan (2): %s", err.Error())
@@ -706,19 +709,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
 			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
-				// Determine if the XFS UUID should be fixed.
-				allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
-				allow_uuid_fix, err := helper.YamlBoolToBool(allow_xfs_uuid_regeneration)
-				if err != nil {
-					klog.Errorf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
-					return "", err
-				}
-				if allow_uuid_fix {
-					// TODO Check if vol is RW
-					klog.Errorf("Device %s has duplicate XFS UUID. TODO: Implement fix. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
-					return "", err // TODO remove once UUID is fixed
-				} else {
-					klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
+				if err := regenerateXfsFilesystemUuid(devicePath); err != nil {
 					return "", err
 				}
 			} else {
@@ -1208,4 +1199,34 @@ func findDeviceForPath(path string) (string, error) {
 		return parts[2], nil
 	}
 	return "", errors.New("iscsi: Illegal path for device " + devicePath)
+}
+
+func regenerateXfsFilesystemUuid(devicePath string) (err error) {
+	klog.V(4).Infof("regenerateXfsFilesystemUuid called")
+
+	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
+	allow_uuid_fix, err := helper.YamlBoolToBool(allow_xfs_uuid_regeneration)
+	if err != nil {
+		klog.Errorf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
+		return err
+	}
+
+	if allow_uuid_fix {
+		// TODO Check if vol is RW
+		newUuid := uuid.New()
+
+		klog.Errorf("Device %s has duplicate XFS UUID. New UUID: %s. TODO: Implement fix. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, newUuid, allow_xfs_uuid_regeneration)
+
+		klog.V(4).Infof("ECHO : Update device '%s' UUID with '%s'", devicePath, newUuid)
+		// TODO Remove echo
+		execScsi.Command(fmt.Sprintf("echo \"xfs_admin -U %s\"", newUuid))
+		if err != nil {
+			klog.V(4).Infof("xfs_admin failed: %s", err)
+			return err
+		}
+	} else {
+		klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
+		return err
+	}
+	return nil
 }
