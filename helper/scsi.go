@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"k8s.io/klog"
 	"os/exec"
-	"strings"
 	"sync"
 )
 
@@ -37,7 +36,7 @@ func (s *ExecScsi) Command(cmd string) (out string, err error) {
 	klog.V(4).Infof("%s %s", leader, pipefailCmd)
 
 	result, err = exec.Command("bash", "-c", pipefailCmd).Output()
-	out = strings.Replace(string(result), "\n", "", -1)
+	out = string(result)
 
 	if err != nil {
 		msg := fmt.Sprintf("'%s' failed", pipefailCmd)

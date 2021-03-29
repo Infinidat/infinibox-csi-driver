@@ -22,22 +22,21 @@ func TestExecScsiCommand(t *testing.T) {
 		execScsi := ExecScsi{}
 		var tests = []struct {
 			cmd     string
-			want    string
+			want    string // Escapes like \\n do not work
 			wanterr string
 		}{
-			{"echo 'foo'", "foo", ""},
+			{"echo 'foo'", "foo\n", ""},
 			{"true", "", ""},
 			{"false", "", "'" + pf + "false' failed"},
 
-			{"[ '1' == '1' ] && echo 'success' || echo 'fail'", "success", ""},
-			{"[ '1' == '2' ] && echo 'success' || echo 'fail'", "fail", ""},
+			{"[ '1' == '1' ] && echo 'success' || echo 'fail'", "success\n", ""},
+			{"[ '1' == '2' ] && echo 'success' || echo 'fail'", "fail\n", ""},
 
-			// This would pass without setting pipefail even though grep failed
-			// except that ExecScsiCommand() always sets pipefail.
-			{"echo 'blah' | grep 'foo' | echo && echo 'success' || echo 'fail'", "fail", ""},
-			// Fail with pipefail set. The echo after grep ensures that the final return code would be 0.
-			// Pipefail catches the grep failure.
-			{"set -o pipefail; echo 'blah' | grep 'foo' | echo && echo 'success' || echo 'fail'", "fail", ""},
+			// This would pass, even though grep fails, except that
+			// ExecScsiCommand() sets pipefail. Therefore, this correctly fails.
+			{"echo 'blah' | grep 'foo' | echo 'force 0' && echo 'success' || echo 'fail'", "force 0\nfail\n", ""},
+			// Test line feeds and tabs in output are returned.
+			{"echo -e 'foo\nbar\tblah'", "foo\nbar\tblah\n", ""},
 		}
 
 		for _, test := range tests {
@@ -73,7 +72,7 @@ func TestExecScsiCommand(t *testing.T) {
 				if err != nil {
 					t.Errorf(`ExecScsiCommand("%s") has err: '%s'`, cmd, err)
 				}
-				if answer != r {
+				if answer != r+"\n" {
 					t.Errorf(`ExecScsiCommand("%s") != %s, result: %s`, r, r, answer)
 				}
 				w.Done()
