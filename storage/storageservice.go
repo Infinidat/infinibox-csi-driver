@@ -358,10 +358,19 @@ func detachDisk(devicePath string) error {
 
 // Removes a scsi device based upon /dev/sdX name
 func removeFromScsiSubsystem(deviceName string) {
-	fileName := "/sys/block/" + deviceName + "/device/delete"
-	klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
-	data := []byte("1")
-	ioutil.WriteFile(fileName, data, 0666)
+	// fileName := "/sys/block/" + deviceName + "/device/delete"
+	// klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
+	// data := []byte("1\n")
+	// ioutil.WriteFile(fileName, data, 0666)
+	// klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
+	device := strings.Replace(deviceName, "/dev/", "", 1)
+	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
+	klog.V(4).Infof("Run: echo 1 > %s", deletePath)
+	// _, deleteErr := exec.Command("echo", "1", ">", deletePath).Output()
+	_, deleteErr := execScsi.Command(fmt.Sprintf("echo 1 > %s", deletePath))
+	if deleteErr != nil {
+		klog.Errorf("Failed to delete device '%s' with error %v", deletePath, deleteErr.Error())
+	}
 }
 
 //FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path

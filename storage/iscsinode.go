@@ -168,6 +168,7 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("iscsi: Recovered from ISCSI NodeUnpublishVolume  " + fmt.Sprint(res))
 		}
+		klog.V(4).Infof("NodeUnpublishVolume returning")
 	}()
 	klog.V(4).Infof("NodeUnpublishVolume called")
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
@@ -274,6 +275,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("iscsi: Recovered from NodeUnstageVolume  " + fmt.Sprint(res))
 		}
+		klog.V(2).Infof("NodeUnstageVolume returning")
 	}()
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
@@ -327,12 +329,12 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	var devices []string
 	multiPath := false
 	dstPath := mpathDevice
+
 	if dstPath != "" {
 		if strings.HasPrefix(dstPath, "/host") {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
 		}
 
-		klog.V(4).Infof("Remove multipath device %s", dstPath)
 		if strings.HasPrefix(dstPath, "/dev/dm-") {
 			multiPath = true
 			devices = findSlaveDevicesOnMultipath(dstPath)
@@ -340,6 +342,32 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			// Add single targetPath to devices
 			devices = append(devices, dstPath)
 		}
+		helper.PrettyKlogDebug("multipath devices", devices)
+
+		// blockdev --flushbufs
+		if multiPath {
+			// TODO: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/storage_administration_guide/removing_devices
+			// Step: 5
+			for _, device := range devices {
+				klog.V(4).Infof("Flush device '%s'", device)
+				blockdevOut, blockdevErr := execScsi.Command(fmt.Sprintf("blockdev --flushbufs %s", device))
+				if blockdevErr != nil {
+					klog.V(4).Infof("blockdev --flushbufs failed: %s", blockdevErr)
+					return res, blockdevErr
+				}
+				klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
+			}
+			klog.V(4).Infof("Flush blockdev succeeded")
+		}
+
+		// detachDisk() - Echo 1  to delete devices
+		err := deleteMultipathDevices(devices)
+		if err != nil {
+			klog.V(4).Infof("deleteMultipathDevices failed: %s", err)
+			return res, err 
+		}
+		//deleteMultipathMap(dstPath)
+
 		var lastErr error
 		for _, device := range devices {
 			err := detachDisk(device)
@@ -352,18 +380,24 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			klog.Errorf("Last error occurred during detach disk:\n%v", lastErr)
 			return res, lastErr
 		}
+		klog.V(4).Infof("detachDisk() succeeded")
+
+		// Multipath -f
+		// TODO Fix next
+		multiPath = false
 		if multiPath {
-			device := strings.Replace(dstPath, "/dev/", "", 1)
-			klog.V(4).Infof("Flush multipath device '%s'", device)
-			_, err := execScsi.Command(fmt.Sprintf("multipath -f %s", device))
+			klog.V(4).Infof("Flush multipath device '%s'", dstPath)
+			_, err := execScsi.Command(fmt.Sprintf("multipath -f %s", dstPath))
 			if err != nil {
 				if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
 					klog.V(4).Infof("multipath device %s deleted", dstPath)
 				} else {
-					klog.Errorf("multipath -f %s failed to flush device with error %v", device, err.Error())
+					klog.Errorf("multipath -f %s failed to flush device with error %v", dstPath, err.Error())
 					return res, err
 				}
 			}
+			klog.V(4).Infof("Flush multipath succeeded for '%s'", dstPath)
+
 			// TODO: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/6/html/storage_administration_guide/removing_devices
 			// Step: 5
 			for _, device := range devices {
@@ -374,21 +408,17 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 					return res, blockdevErr
 				}
 				klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
-
-				deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
-				klog.V(4).Infof("Run: echo 1 > %s", deletePath)
-				_, deleteErr := exec.Command("echo", "1", ">", deletePath).Output()
-				if deleteErr != nil {
-					klog.Errorf("Failed to delete device '%s' with error %v", device, deleteErr.Error())
-				}
 			}
+			klog.V(4).Infof("Flush blockdev succeeded")
 		}
-		klog.V(4).Infof("Removed multipath sucessfully!")
+		klog.V(4).Infof("Removed multipath sucessfully")
+
 	}
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
 		klog.Errorf("Failed to remove mount path Error: %v", err)
 		return nil, err
 	}
+	klog.V(2).Infof("NodeUnstageVolume returned")
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
@@ -717,7 +747,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			klog.V(4).Infof("FormatAndMount err is nil")
 		}
 
-		klog.V(4).Infof("Persist iscsi disk config to json file for DetachDisk path")
+		klog.V(4).Infof("Persist iscsi disk config to json file for later use, when detaching the disk")
 		if err = iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
 			klog.Errorf("Failed to save iscsi config with error: %v", err)
 			return "", err
@@ -746,6 +776,7 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("iscsi: Recovered from ISCSI DetachDisk  " + fmt.Sprint(res))
 		}
+		klog.V(4).Infof("DetachDisk is returning")
 	}()
 	mntPath := path.Join("/host", targetPath)
 	if pathExist, pathErr := iscsi.pathExists(targetPath); pathErr != nil {
@@ -1224,5 +1255,32 @@ func regenerateXfsFilesystemUuid(devicePath string) (err error) {
 		klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
 		return err
 	}
+	return nil
+}
+
+
+func deleteMultipathDevices(devices []string) (err error) {
+	for _, device := range devices {
+		device = strings.Replace(device, "/dev/", "", 1)
+		klog.V(4).Infof("Delete multipath device %s", device)
+		out, err := execScsi.Command(fmt.Sprintf("multipathd -k\"del path %s\"", device))
+		if err != nil {
+			klog.V(4).Infof("Delete multipath device '%s' failed: %s", device, err)
+			return err
+		}
+		klog.V(4).Infof("Delete device '%s' output: %s", device, out)
+	}
+	return nil
+}
+
+func deleteMultipathMap(multipathMap string) (err error) {
+	multipathMap = strings.Replace(multipathMap, "/dev/", "", 1)
+	klog.V(4).Infof("Delete multipath map '%s'", multipathMap)
+	out, err := execScsi.Command(fmt.Sprintf("multipathd -k\"del map %s\"", multipathMap))
+	if err != nil {
+		klog.V(4).Infof("Delete multipath map '%s' failed: %s", multipathMap, err)
+		return err
+	}
+	klog.V(4).Infof("Delete map '%s' output: %s", multipathMap, out)
 	return nil
 }
