@@ -9,6 +9,7 @@ require (
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/go-resty/resty/v2 v2.1.0
 	github.com/golang/protobuf v1.3.2
+	github.com/google/uuid v1.2.0
 	github.com/googleapis/gnostic v0.3.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/kubernetes-csi/csi-lib-iscsi v0.0.0-20200118015005-959f12c91ca8

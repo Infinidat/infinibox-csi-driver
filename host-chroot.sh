@@ -13,4 +13,4 @@ if [ ! -d "${DIR}" ]; then
 fi
 
 # chroot a single command
-exec chroot $DIR /usr/bin/env --ignore-environment PATH="/sbin:/bin:/usr/bin" "${COMMAND}" "${@:1}"
+exec chroot $DIR /usr/bin/env --ignore-environment PATH="/sbin:/usr/sbin:/bin:/usr/bin" "${COMMAND}" "${@:1}"

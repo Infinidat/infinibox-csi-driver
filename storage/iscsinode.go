@@ -32,9 +32,9 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
+	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"github.com/google/uuid"
 	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
@@ -136,7 +136,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func rescanDeviceMap(volumeId string) (error) {
+func rescanDeviceMap(volumeId string) error {
 	klog.V(4).Infof("*************************** Rescan hosts for volume '%s'", volumeId)
 	hostIds, err := execScsi.Command(fmt.Sprintf("iscsiadm -m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
 	if err != nil {
@@ -364,7 +364,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		err := deleteMultipathDevices(devices)
 		if err != nil {
 			klog.V(4).Infof("deleteMultipathDevices failed: %s", err)
-			return res, err 
+			return res, err
 		}
 		//deleteMultipathMap(dstPath)
 
@@ -522,7 +522,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// - Login.
 
 		if iscsiTransport == "" {
-			klog.Errorf("Could not find transport name in iface %s", b.Iface)  // TODO - b.Iface here realy should be newIface...or does it matter?
+			klog.Errorf("Could not find transport name in iface %s", b.Iface) // TODO - b.Iface here realy should be newIface...or does it matter?
 			return "", fmt.Errorf("iscsi: Could not parse iface file for %s", b.Iface)
 		}
 		if iscsiTransport == "tcp" {
@@ -735,9 +735,17 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
 			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
-				if err := regenerateXfsFilesystemUuid(devicePath); err != nil {
+				isReadOnly := b.readOnly
+				if err := regenerateXfsFilesystemUuid(devicePath, isReadOnly); err != nil {
 					return "", err
 				}
+				klog.V(4).Infof("Run FormatAndMount, after UUID change")
+				err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
+				klog.V(4).Infof("FormatAndMount, after UUID change, returned: %s", err)
+				if err != nil {
+					return "", err
+				}
+				klog.V(4).Infof("FormatAndMount, after UUID change, err is nil")
 			} else {
 				klog.Errorf("Failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, mountPoint, err)
 				mountPathExists(mountPoint)
@@ -754,7 +762,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 	}
 	klog.V(4).Infof("Mounted volume successfully at '%s'", mntPath)
-	return devicePath, nil 
+	return devicePath, nil
 }
 
 func mountPathExists(path string) (bool, error) {
@@ -1228,7 +1236,7 @@ func findDeviceForPath(path string) (string, error) {
 	return "", errors.New("iscsi: Illegal path for device " + devicePath)
 }
 
-func regenerateXfsFilesystemUuid(devicePath string) (err error) {
+func regenerateXfsFilesystemUuid(devicePath string, isReadOnly bool) (err error) {
 	klog.V(4).Infof("regenerateXfsFilesystemUuid called")
 
 	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
@@ -1238,18 +1246,23 @@ func regenerateXfsFilesystemUuid(devicePath string) (err error) {
 		return err
 	}
 
+	if isReadOnly {
+		ro_msg := fmt.Sprintf("Device %s has duplicate XFS UUID. ALLOW_XFS_UUID_REGENERATION is set to %s. Volume read only status is set to 'true'. Cannot update XFS UUID.", devicePath, allow_xfs_uuid_regeneration)
+		klog.Errorf(ro_msg)
+		return errors.New(ro_msg)
+	}
+
 	if allow_uuid_fix {
-		// TODO Check if vol is RW
 		newUuid := uuid.New()
 
-		klog.Errorf("Device %s has duplicate XFS UUID. New UUID: %s. TODO: Implement fix. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, newUuid, allow_xfs_uuid_regeneration)
+		klog.Errorf("Device %s has duplicate XFS UUID. New UUID: %s. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, newUuid, allow_xfs_uuid_regeneration)
 
-		klog.V(4).Infof("ECHO : Update device '%s' UUID with '%s'", devicePath, newUuid)
-		// TODO Remove echo
-		execScsi.Command(fmt.Sprintf("echo \"xfs_admin -U %s\"", newUuid))
-		if err != nil {
-			klog.V(4).Infof("xfs_admin failed: %s", err)
-			return err
+		klog.V(4).Infof("Update device '%s' UUID with '%s'", devicePath, newUuid)
+		_, err_xfs := execScsi.Command(fmt.Sprintf("xfs_admin -U %s %s", newUuid, devicePath))
+
+		if err_xfs != nil {
+			klog.V(4).Infof("xfs_admin failed: %s", err_xfs)
+			return err_xfs
 		}
 	} else {
 		klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
@@ -1257,7 +1270,6 @@ func regenerateXfsFilesystemUuid(devicePath string) (err error) {
 	}
 	return nil
 }
-
 
 func deleteMultipathDevices(devices []string) (err error) {
 	for _, device := range devices {
