@@ -35,17 +35,17 @@ func (s *ExecScsi) Command(cmd string) (out string, err error) {
 
 	klog.V(4).Infof("%s %s", leader, pipefailCmd)
 
-	result, err = exec.Command("bash", "-c", pipefailCmd).Output()
-	out = string(result)
+	result, err = exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 
 	if err != nil {
-		msg := fmt.Sprintf("'%s' failed", pipefailCmd)
+		msg := fmt.Sprintf("'%s' failed: %s", pipefailCmd, err)
 		klog.Errorf(msg)
 		return "", errors.New(msg)
 	}
 
+	out = string(result)
 	if len(out) != 0 {
-		klog.V(4).Infof("out: %s", out)
+		klog.V(4).Infof("Output: %s", out)
 	}
 	return out, nil
 }

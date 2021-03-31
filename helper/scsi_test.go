@@ -1,6 +1,7 @@
 package helper
 
 // go test -v ./helper/...
+// go test ./helper -run TestExecScsiCommand
 
 import (
 	"fmt"
@@ -37,6 +38,10 @@ func TestExecScsiCommand(t *testing.T) {
 			{"echo 'blah' | grep 'foo' | echo 'force 0' && echo 'success' || echo 'fail'", "force 0\nfail\n", ""},
 			// Test line feeds and tabs in output are returned.
 			{"echo -e 'foo\nbar\tblah'", "foo\nbar\tblah\n", ""},
+
+            // Test failure with writing to stderr
+            {">&2 echo stderr", "stderr\n", ""},
+            {"echo stdout; >&2 echo stderr", "stdout\nstderr\n", ""},
 		}
 
 		for _, test := range tests {
