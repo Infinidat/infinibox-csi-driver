@@ -45,7 +45,6 @@ func main() {
 		verbosity = "2"
 	}
 
-
 	flag.Set("v", verbosity)
 	flag.Parse()
 
@@ -69,7 +68,6 @@ func main() {
 		"An Infinibox CSI Driver Plugin",
 		usage,
 		provider.New(configParams))
-
 }
 
 func getConfigParams() map[string]string {

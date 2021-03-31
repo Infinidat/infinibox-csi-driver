@@ -90,6 +90,8 @@ var (
 // Global resouce contains a sync.Mutex. Used to serialize iSCSI resource accesses.
 var execScsi helper.ExecScsi
 
+var volumeIdCache string
+
 // StatFunc stat a path, if not exists, retry maxRetries times
 // when iscsi transports other than default are used
 type StatFunc func(string) (os.FileInfo, error)
@@ -97,100 +99,32 @@ type StatFunc func(string) (os.FileInfo, error)
 // GlobFunc  use glob instead as pci id of device is unknown
 type GlobFunc func(string) ([]string, error)
 
-func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(4).Infof("NodePublishVolume called")
-	klog.V(4).Infof("Publishing volume ID '%s'", req.VolumeId)
-	helper.PrettyKlogDebug("NodePublishVolume req: ", req)
-
-	iscsiInfo, err := iscsi.getISCSIInfo(req)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return nil, status.Error(codes.InvalidArgument, "iscsi: Volume capability not provided")
-	}
-	switch volCap.GetAccessType().(type) {
-	case *csi.VolumeCapability_Block:
-		iscsiInfo.isBlock = true
-	}
-	diskMounter := iscsi.getISCSIDiskMounter(iscsiInfo, req)
-
-	_, err = iscsi.AttachDisk(*diskMounter)
-	if err != nil {
-		klog.Errorf("AttachDisk failed")
-		//rescanDeviceMap(req.VolumeId)
-		return nil, status.Error(codes.Internal, err.Error())
-	} else {
-		klog.Errorf("AttachDisk succeeded")
-	}
-
-	//err = rescanDeviceMap(req.VolumeId)
-	//if err != nil {
-	//	klog.Errorf("AttachDisk failed rescan (2): %s", err.Error())
-	//	klog.Errorf("NodePublishVolume failed rescan (2): %s", err.Error())
-	//	//rescanDeviceMap(req.VolumeId)
-	//	return nil, status.Error(codes.Internal, err.Error())
-	//}
-
-	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-func rescanDeviceMap(volumeId string) error {
-	klog.V(4).Infof("*************************** Rescan hosts for volume '%s'", volumeId)
-	hostIds, err := execScsi.Command(fmt.Sprintf("iscsiadm -m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
-	if err != nil {
-		klog.V(4).Infof("Finding hosts failed: %s", err)
-		return err
-	}
-
-	hosts := string(hostIds[:])
-	for _, host := range strings.Fields(hosts) {
-		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
-		_, err = execScsi.Command(fmt.Sprintf("echo '- - -' > %s", scsiHostPath))
-		if err != nil {
-			klog.V(4).Infof("Rescan of host %s failed: %s", scsiHostPath, err)
-			return err
-		}
-	}
-
-	sleep_sec := 5
-	klog.V(4).Infof("Sleep %d seconds after rescan", sleep_sec)
-	time.Sleep(time.Duration(sleep_sec) * time.Second)
-
-	klog.V(4).Infof("Rescan hosts complete")
-	return err
-}
-
-func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from ISCSI NodeUnpublishVolume  " + fmt.Sprint(res))
-		}
-		klog.V(4).Infof("NodeUnpublishVolume returning")
-	}()
-	klog.V(4).Infof("NodeUnpublishVolume called")
-	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
-	targetPath := req.GetTargetPath()
-
-	err = iscsi.DetachDisk(*diskUnmounter, targetPath)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	var err error
+	err = nil
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("iscsi: Recovered from ISCSI NodeStageVolume  " + fmt.Sprint(res))
 		}
+		if err == nil {
+			klog.V(4).Infof("NodeStageVolume completed")
+		} else {
+			klog.V(4).Infof("NodeStageVolume failed. Clearing volumeIdCache.")
+			volumeIdCache = ""
+		}
 	}()
 	klog.V(2).Infof("NodeStageVolume called with publish context: %s", req.GetPublishContext())
-	helper.PrettyKlogDebug("NodeStageVolume req: ", req)
+
+	if len(volumeIdCache) != 0 && volumeIdCache != req.GetVolumeId() {
+		msg := fmt.Sprintf("NodeStageVolume ABORT: volume '%s'", req.GetVolumeId())
+		klog.V(2).Infof(msg)
+		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, msg)
+	} else if len(volumeIdCache) != 0 {
+		klog.V(2).Infof("NodeStageVolume volume '%s' is being serviced (again)", req.GetVolumeId())
+	} else {
+		klog.V(2).Infof("NodeStageVolume volume '%s' is being serviced", req.GetVolumeId())
+	}
+	volumeIdCache = req.GetVolumeId()
 
 	hostIDString := req.GetPublishContext()["hostID"]
 	hostID, err := strconv.Atoi(hostIDString)
@@ -265,17 +199,98 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 			}
 		}
 	}
-	klog.V(4).Infof("NodeStageVolume completed")
+
 	return &csi.NodeStageVolumeResponse{}, nil
 }
 
+func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	var err error
+	err = nil
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("iscsi: Recovered from ISCSI NodePublishVolume  " + fmt.Sprint(res))
+		}
+		if err == nil {
+			klog.V(4).Infof("NodePublishVolume completed. Clearing volumeIdCache.")
+		} else {
+			klog.V(4).Infof("NodePublishVolume failed. Clearing volumeIdCache.")
+		}
+		volumeIdCache = ""
+	}()
+
+	klog.V(4).Infof("NodePublishVolume called")
+	klog.V(4).Infof("Publishing volume ID '%s'", req.VolumeId)
+	//helper.PrettyKlogDebug("NodePublishVolume req: ", req)
+
+	iscsiInfo, err := iscsi.getISCSIInfo(req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	volCap := req.GetVolumeCapability()
+	if volCap == nil {
+		err = errors.New("GetVolumeCapability failed")
+		return nil, status.Error(codes.InvalidArgument, "iscsi: Volume capability not provided")
+	}
+	switch volCap.GetAccessType().(type) {
+	case *csi.VolumeCapability_Block:
+		iscsiInfo.isBlock = true
+	}
+	diskMounter := iscsi.getISCSIDiskMounter(iscsiInfo, req)
+
+	_, err = iscsi.AttachDisk(*diskMounter)
+	if err != nil {
+		klog.Errorf("AttachDisk failed")
+		//rescanDeviceMap(req.VolumeId)
+		return nil, status.Error(codes.Internal, err.Error())
+	} else {
+		klog.Errorf("AttachDisk succeeded")
+	}
+
+	klog.V(4).Infof("NodePublishVolume succeeded.")
+	helper.PrettyKlogDebug("NodePublishVolume returning csi.NodePublishVolumeResponse:", csi.NodePublishVolumeResponse{})
+
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	var err error
+	err = nil
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("iscsi: Recovered from ISCSI NodeUnpublishVolume  " + fmt.Sprint(res))
+		}
+		if err == nil {
+			klog.V(4).Infof("NodeUnpublishVolume completed")
+		} else {
+			klog.V(4).Infof("NodeUnpublishVolume failed. Clearing volumeIdCache.")
+			volumeIdCache = ""
+		}
+	}()
+	klog.V(4).Infof("NodeUnpublishVolume called")
+	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
+	targetPath := req.GetTargetPath()
+
+	err = iscsi.DetachDisk(*diskUnmounter, targetPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (res *csi.NodeUnstageVolumeResponse, err error) {
+	err = nil
 	klog.V(2).Infof("Called NodeUnstageVolume")
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("iscsi: Recovered from NodeUnstageVolume  " + fmt.Sprint(res))
 		}
-		klog.V(2).Infof("NodeUnstageVolume returning")
+		if err == nil {
+			klog.V(4).Infof("NodeUnstageVolume completed. Clearing volumeIdCache.")
+		} else {
+			klog.V(4).Infof("NodeUnstageVolume failed. Clearing volumeIdCache.")
+		}
+		volumeIdCache = ""
 	}()
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
@@ -306,6 +321,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		klog.Warningf("detach disk: failed to get iscsi config from path %s Error: %v", stagePath, err)
 		diskConfigFound = false
 	}
+	err = nil
 
 	if diskConfigFound {
 		// Disconnecting iscsi session
@@ -320,6 +336,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode node --portal %s --targetname %s --rescan", portal, iqn))
 			if err != nil {
 				klog.Errorf("Failed to rescan node with portal '%s' and targetname '%s': %s", portal, iqn, err)
+				err = nil
 			}
 		}
 		klog.V(4).Infof("Successfully Rescanned disk")
@@ -350,10 +367,11 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			// Step: 5
 			for _, device := range devices {
 				klog.V(4).Infof("Flush device '%s'", device)
-				blockdevOut, blockdevErr := execScsi.Command(fmt.Sprintf("blockdev --flushbufs %s", device))
-				if blockdevErr != nil {
-					klog.V(4).Infof("blockdev --flushbufs failed: %s", blockdevErr)
-					return res, blockdevErr
+				var blockdevOut string
+				blockdevOut, err = execScsi.Command(fmt.Sprintf("blockdev --flushbufs %s", device))
+				if err != nil {
+					klog.V(4).Infof("blockdev --flushbufs failed: %s", err)
+					return res, err
 				}
 				klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
 			}
@@ -418,12 +436,15 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		klog.Errorf("Failed to remove mount path Error: %v", err)
 		return nil, err
 	}
+
+	klog.V(2).Infof("NodeUnstageVolume is removing %s", req.GetVolumeId())
+	volumeIdCache = ""
+
 	klog.V(2).Infof("NodeUnstageVolume returned")
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
-func (iscsi *iscsistorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (
-	*csi.NodeGetCapabilitiesResponse, error) {
+func (iscsi *iscsistorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
 			{
@@ -437,13 +458,11 @@ func (iscsi *iscsistorage) NodeGetCapabilities(ctx context.Context, req *csi.Nod
 	}, nil
 }
 
-func (iscsi *iscsistorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (
-	*csi.NodeGetInfoResponse, error) {
+func (iscsi *iscsistorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return &csi.NodeGetInfoResponse{}, nil
 }
 
-func (iscsi *iscsistorage) NodeGetVolumeStats(
-	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+func (iscsi *iscsistorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
 
 }
@@ -453,6 +472,31 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 }
 
 // ------------------------------------ Supporting methods  ---------------------------
+func rescanDeviceMap(volumeId string) error {
+	klog.V(4).Infof("*************************** Rescan hosts for volume '%s'", volumeId)
+	hostIds, err := execScsi.Command(fmt.Sprintf("iscsiadm -m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
+	if err != nil {
+		klog.V(4).Infof("Finding hosts failed: %s", err)
+		return err
+	}
+
+	hosts := string(hostIds[:])
+	for _, host := range strings.Fields(hosts) {
+		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
+		_, err = execScsi.Command(fmt.Sprintf("echo '- - -' > %s", scsiHostPath))
+		if err != nil {
+			klog.V(4).Infof("Rescan of host %s failed: %s", scsiHostPath, err)
+			return err
+		}
+	}
+
+	sleep_sec := 5
+	klog.V(4).Infof("Sleep %d seconds after rescan", sleep_sec)
+	time.Sleep(time.Duration(sleep_sec) * time.Second)
+
+	klog.V(4).Infof("Rescan hosts complete")
+	return err
+}
 
 func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err error) {
 	defer func() {
@@ -472,12 +516,13 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	klog.V(4).Infof("iscsiDiskMounter: %v", b)
 	klog.V(4).Infof("Check that provided interface '%s' is available", b.Iface)
 
-	out, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode iface --interface %s --op show", b.Iface))
+	isToLogOutput := false
+	out, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode iface --interface %s --op show", b.Iface), isToLogOutput)
 	if err != nil {
 		klog.Errorf("Cannot read interface %s error: %s", b.Iface, string(out))
 		return "", err
 	}
-	klog.V(4).Infof("Provided interface '%s': ", b.Iface, out)
+	klog.V(4).Infof("Provided interface '%s': ", b.Iface) //, out)
 
 	iscsiTransport = iscsi.extractTransportName(string(out))
 	klog.V(4).Infof("iscsiTransport: %s", iscsiTransport)
@@ -491,7 +536,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// Look for existing interface named newIface. Clone default iface, if not found.
 		klog.V(4).Infof("initiatorName: %s", b.InitiatorName)
 		klog.V(4).Infof("Required iface name: '%s'", newIface)
-		_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode iface --interface %s --op show", newIface))
+		isToLogOutput := false
+		_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode iface --interface %s --op show", newIface), isToLogOutput)
 		if err != nil {
 			klog.V(4).Infof("Creating new iface (clone) and copying parameters from pre-configured iface to it")
 			err = iscsi.cloneIface(b, newIface)
@@ -510,9 +556,13 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	}
 
 	klog.V(4).Infof("Discover targets at portal '%s'", bkpPortal[0])
+	// Discover all targets associated with a portal.
 	_, err = execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", bkpPortal[0]))
 	if err != nil {
-		klog.Errorf("Failed to discover targets at portal '%s': %s ", out, err)
+		msg := fmt.Sprintf("Failed to discover targets at portal '%s': %s ", out, err)
+		klog.Errorf(msg)
+		err = errors.New(msg)
+		return "", fmt.Errorf(msg)
 	}
 
 	for _, tp := range bkpPortal {
@@ -523,6 +573,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 		if iscsiTransport == "" {
 			klog.Errorf("Could not find transport name in iface %s", b.Iface) // TODO - b.Iface here realy should be newIface...or does it matter?
+			err = errors.New(fmt.Sprintf("Could not parse iface file for %s", b.Iface))
 			return "", fmt.Errorf("iscsi: Could not parse iface file for %s", b.Iface)
 		}
 		if iscsiTransport == "tcp" {
@@ -537,52 +588,62 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			continue
 		}
 
-		klog.V(4).Infof("Discover targets")
-		_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op new", tp, b.Iface))
-		if err != nil {
-			klog.Errorf("Failed to build discoverydb and discover iscsi target: %s ", err)
-		}
+		// klog.V(4).Infof("Discover targets")
+		// _, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op new", tp, b.Iface))
+		// if err != nil {
+		// 	klog.Errorf("Failed to build discoverydb and discover iscsi target: %s ", err)
+		// }
 
 		// update discoverydb with CHAP secret
-		err = iscsi.updateISCSIDiscoverydb(b, tp)
-		if err != nil {
-			lastErr = fmt.Errorf("iscsi: Failed to update discoverydb to portal %s error: %v", tp, err)
-			continue
-		}
+		if ! b.chap_session {
+			// err = iscsi.updateISCSIDiscoverydb(b, tp)
+			// if err != nil {
+			// 	lastErr = fmt.Errorf("iscsi: Failed to update discoverydb to portal %s error: %v", tp, err)
+			// 	continue
+			// }
 
-		klog.V(4).Infof("Do discovery without chap")
-		out, err = execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --discover", tp, b.Iface))
-		if err != nil {
-			klog.V(4).Infof("Delete discoverydb record")
-			_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op delete", tp, b.Iface))
+			// klog.V(4).Infof("Do discovery without chap")
+			// out, err = execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --discover", tp, b.Iface))
+			// if err != nil {
+			// 	klog.V(4).Infof("Delete discoverydb record")
+			// 	_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op delete", tp, b.Iface))
+			// 	if err != nil {
+			// 		klog.Errorf("Failed delete/cleanup discoverydb record: %s ", err)
+			// 	}
+
+			// 	lastErr = fmt.Errorf("iscsi: Failed to sendtargets to portal %s output: %s, err %v", tp, string(out), err)
+			// 	continue
+			// }
+		} else if b.chap_session {
+			klog.V(4).Infof("Do session auth with chap")
+			err = iscsi.updateISCSINode(b, tp)
 			if err != nil {
-				klog.Errorf("Failed delete/cleanup discoverydb record: %s ", err)
+				// failure to update node db is rare. But deleting record will likely impact those who already start using it.
+				lastErr = fmt.Errorf("iscsi: Failed to update iscsi node to portal %s error: %v", tp, err)
+				continue
 			}
-
-			lastErr = fmt.Errorf("iscsi: Failed to sendtargets to portal %s output: %s, err %v", tp, string(out), err)
-			continue
-		}
-
-		klog.V(4).Infof("Do session auth with chap")
-		err = iscsi.updateISCSINode(b, tp)
-		if err != nil {
-			// failure to update node db is rare. But deleting record will likely impact those who already start using it.
-			lastErr = fmt.Errorf("iscsi: Failed to update iscsi node to portal %s error: %v", tp, err)
-			continue
+		} else {
+			klog.V(4).Infof("Ask Kfred")
 		}
 
 		klog.V(4).Infof("Login to iscsi target")
 		out, err = execScsi.Command(fmt.Sprintf("iscsiadm --mode node --portal %s --targetname %s --interface %s --login", tp, b.Iqn, b.Iface))
 		if err != nil {
-			klog.V(4).Infof("Delete the node record from database")
-			_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode node --portal %s --interface %s --targetname %s --op delete", tp, b.Iface, b.Iqn))
-			if err != nil {
-				klog.Errorf("Failed delete node record from database: %s ", err)
-			}
-
-			lastErr = fmt.Errorf("iscsi: Failed to attach disk: Error: %s (%v)", string(out), err)
+			msg := fmt.Sprintf("Login failed: %s", err)
+			klog.Errorf(msg)
+		    lastErr = errors.New(msg)
 			continue
 		}
+		// if err != nil {
+		// 	klog.V(4).Infof("Delete the node record from database")
+		// 	_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode node --portal %s --interface %s --targetname %s --op delete", tp, b.Iface, b.Iqn))
+		// 	if err != nil {
+		// 		klog.Errorf("Failed delete node record from database: %s ", err)
+		// 	}
+
+		// 	lastErr = fmt.Errorf("iscsi: Failed to attach disk: Error: %s (%v)", string(out), err)
+		// 	continue
+		// }
 
 		klog.V(4).Infof("Wait for path '%s' to exist", devicePath)
 		if exist := iscsi.waitForPathToExist(&devicePath, 10, iscsiTransport); !exist {
@@ -604,8 +665,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	}
 
 	if len(devicePaths) == 0 {
-		klog.Errorf("Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
-		return "", fmt.Errorf("iscsi: Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
+		msg := fmt.Sprintf("Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
+		klog.Errorf(msg)
+		err = errors.New(msg)
+		return "", fmt.Errorf(msg)
 	}
 	if lastErr != nil {
 		klog.Errorf("Last error occurred during iscsi init:\n%v", lastErr)
@@ -959,7 +1022,7 @@ func (iscsi *iscsistorage) updateISCSIDiscoverydb(b iscsiDiskMounter, tp string)
 		return nil
 	}
 	klog.V(4).Infof("Update discoverydb with CHAP")
-	out, err := execScsi.Command(fmt.Sprintf("scsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op update --name discovery.sendtargets.auth.authmethod --value CHAP", tp, b.Iface))
+	out, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op update --name discovery.sendtargets.auth.authmethod --value CHAP", tp, b.Iface))
 	if err != nil {
 		return fmt.Errorf("iscsi: Failed to update discoverydb with CHAP, output: %v", string(out))
 	}
@@ -1296,3 +1359,30 @@ func deleteMultipathMap(multipathMap string) (err error) {
 	klog.V(4).Infof("Delete map '%s' output: %s", multipathMap, out)
 	return nil
 }
+
+// // Find returns the smallest index i at which x == a[i],
+// // or len(a) if there is no such index.
+// // TODO Move to helper pkg.
+// func Find(slice []string, x string) int {
+// 	for i, n := range slice {
+// 		if x == n {
+// 			return i
+// 		}
+// 	}
+// 	return len(slice)
+// }
+// 
+// func Purge(slice []string, x string) []string {
+// 	var pos int
+// 	for _, val := range slice {
+// 		if val == x {
+// 			slice = append(slice[:pos], slice[pos+1:]...)
+// 			if pos > 0 {
+// 				pos = pos - 1
+// 			}
+// 			continue
+// 		}
+// 		pos++
+// 	}
+// 	return slice
+// }

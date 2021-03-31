@@ -39,9 +39,9 @@ func TestExecScsiCommand(t *testing.T) {
 			// Test line feeds and tabs in output are returned.
 			{"echo -e 'foo\nbar\tblah'", "foo\nbar\tblah\n", ""},
 
-            // Test failure with writing to stderr
-            {">&2 echo stderr", "stderr\n", ""},
-            {"echo stdout; >&2 echo stderr", "stdout\nstderr\n", ""},
+			// Test failure with writing to stderr
+			{">&2 echo stderr", "stderr\n", ""},
+			{"echo stdout; >&2 echo stderr", "stdout\nstderr\n", ""},
 		}
 
 		for _, test := range tests {
