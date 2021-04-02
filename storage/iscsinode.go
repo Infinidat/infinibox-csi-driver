@@ -588,33 +588,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			continue
 		}
 
-		// klog.V(4).Infof("Discover targets")
-		// _, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op new", tp, b.Iface))
-		// if err != nil {
-		// 	klog.Errorf("Failed to build discoverydb and discover iscsi target: %s ", err)
-		// }
-
 		// update discoverydb with CHAP secret
-		if ! b.chap_session {
-			// err = iscsi.updateISCSIDiscoverydb(b, tp)
-			// if err != nil {
-			// 	lastErr = fmt.Errorf("iscsi: Failed to update discoverydb to portal %s error: %v", tp, err)
-			// 	continue
-			// }
-
-			// klog.V(4).Infof("Do discovery without chap")
-			// out, err = execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --discover", tp, b.Iface))
-			// if err != nil {
-			// 	klog.V(4).Infof("Delete discoverydb record")
-			// 	_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode discoverydb --type sendtargets --portal %s --interface %s --op delete", tp, b.Iface))
-			// 	if err != nil {
-			// 		klog.Errorf("Failed delete/cleanup discoverydb record: %s ", err)
-			// 	}
-
-			// 	lastErr = fmt.Errorf("iscsi: Failed to sendtargets to portal %s output: %s, err %v", tp, string(out), err)
-			// 	continue
-			// }
-		} else if b.chap_session {
+		if b.chap_session {
 			klog.V(4).Infof("Do session auth with chap")
 			err = iscsi.updateISCSINode(b, tp)
 			if err != nil {
@@ -623,7 +598,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				continue
 			}
 		} else {
-			klog.V(4).Infof("Ask Kfred")
+			klog.V(4).Infof("Not using CHAP")
 		}
 
 		klog.V(4).Infof("Login to iscsi target")
@@ -634,16 +609,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		    lastErr = errors.New(msg)
 			continue
 		}
-		// if err != nil {
-		// 	klog.V(4).Infof("Delete the node record from database")
-		// 	_, err := execScsi.Command(fmt.Sprintf("iscsiadm --mode node --portal %s --interface %s --targetname %s --op delete", tp, b.Iface, b.Iqn))
-		// 	if err != nil {
-		// 		klog.Errorf("Failed delete node record from database: %s ", err)
-		// 	}
-
-		// 	lastErr = fmt.Errorf("iscsi: Failed to attach disk: Error: %s (%v)", string(out), err)
-		// 	continue
-		// }
 
 		klog.V(4).Infof("Wait for path '%s' to exist", devicePath)
 		if exist := iscsi.waitForPathToExist(&devicePath, 10, iscsiTransport); !exist {
@@ -653,9 +618,12 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			lastErr = fmt.Errorf("iscsi: " + msg)
 			continue
 		} else {
+			klog.Infof("Found path '%s', adding to devicePaths", devicePath)
 			devicePaths = append(devicePaths, devicePath)
 		}
 	}
+
+	helper.PrettyKlogDebug("Found devicePaths:", devicePaths)
 
 	klog.V(4).Infof("Rescan sessions")
 	out, err = execScsi.Command(fmt.Sprintf("iscsiadm --mode session --rescan"))
@@ -786,6 +754,14 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		klog.V(4).Infof("Strip /host from %s", devicePath)
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
+		// Persist here so that even if mount fails, the globalmount metadata json
+		// file will contain an mpath to use during clean up.
+		klog.V(4).Infof("Persist iscsi disk config to json file for later use, when detaching the disk")
+		if err = iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
+			klog.Errorf("Failed to save iscsi config with error: %v", err)
+			return "", err
+		}
+
 		klog.V(4).Infof("Format '%s' (if needed) and mount volume", devicePath)
 		klog.V(4).Infof("See k8s.io/kubernetes@v1.14.0/pkg/util/mount/mount.go +504")
 		err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
@@ -815,12 +791,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			}
 		} else {
 			klog.V(4).Infof("FormatAndMount err is nil")
-		}
-
-		klog.V(4).Infof("Persist iscsi disk config to json file for later use, when detaching the disk")
-		if err = iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
-			klog.Errorf("Failed to save iscsi config with error: %v", err)
-			return "", err
 		}
 	}
 	klog.V(4).Infof("Mounted volume successfully at '%s'", mntPath)
