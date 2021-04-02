@@ -798,8 +798,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
 			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
-				isReadOnly := b.readOnly
-				if err := regenerateXfsFilesystemUuid(devicePath, isReadOnly); err != nil {
+				if err := regenerateXfsFilesystemUuid(devicePath); err != nil {
 					return "", err
 				}
 				klog.V(4).Infof("Run FormatAndMount, after UUID change")
@@ -1299,7 +1298,7 @@ func findDeviceForPath(path string) (string, error) {
 	return "", errors.New("iscsi: Illegal path for device " + devicePath)
 }
 
-func regenerateXfsFilesystemUuid(devicePath string, isReadOnly bool) (err error) {
+func regenerateXfsFilesystemUuid(devicePath string) (err error) {
 	klog.V(4).Infof("regenerateXfsFilesystemUuid called")
 
 	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
@@ -1307,12 +1306,6 @@ func regenerateXfsFilesystemUuid(devicePath string, isReadOnly bool) (err error)
 	if err != nil {
 		klog.Errorf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
 		return err
-	}
-
-	if isReadOnly {
-		ro_msg := fmt.Sprintf("Device %s has duplicate XFS UUID. ALLOW_XFS_UUID_REGENERATION is set to %s. Volume read only status is set to 'true'. Cannot update XFS UUID.", devicePath, allow_xfs_uuid_regeneration)
-		klog.Errorf(ro_msg)
-		return errors.New(ro_msg)
 	}
 
 	if allow_uuid_fix {
@@ -1324,8 +1317,9 @@ func regenerateXfsFilesystemUuid(devicePath string, isReadOnly bool) (err error)
 		_, err_xfs := execScsi.Command(fmt.Sprintf("xfs_admin -U %s %s", newUuid, devicePath))
 
 		if err_xfs != nil {
-			klog.V(4).Infof("xfs_admin failed: %s", err_xfs)
-			return err_xfs
+			msg := fmt.Sprintf("xfs_admin failed. Volume likely to be read-only: %s", err_xfs)
+			klog.V(4).Infof(msg)
+			return errors.New(msg)
 		}
 	} else {
 		klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
