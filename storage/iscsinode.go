@@ -35,8 +35,9 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
+	utilexec "k8s.io/utils/exec"
+	"k8s.io/utils/mount"
 )
 
 const (
@@ -46,7 +47,7 @@ const (
 type iscsiDiskUnmounter struct {
 	*iscsiDisk
 	mounter mount.Interface
-	exec    mount.Exec
+	exec    utilexec.Interface //mount.Exec
 }
 type iscsiDiskMounter struct {
 	*iscsiDisk
@@ -54,7 +55,7 @@ type iscsiDiskMounter struct {
 	fsType       string
 	mountOptions []string
 	mounter      *mount.SafeFormatAndMount
-	exec         mount.Exec
+	exec         utilexec.Interface
 	deviceUtil   util.DeviceUtil
 	targetPath   string
 	stagePath    string
@@ -606,7 +607,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		if err != nil {
 			msg := fmt.Sprintf("Login failed: %s", err)
 			klog.Errorf(msg)
-		    lastErr = errors.New(msg)
+			lastErr = errors.New(msg)
 			continue
 		}
 
@@ -763,7 +764,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 
 		klog.V(4).Infof("Format '%s' (if needed) and mount volume", devicePath)
-		klog.V(4).Infof("See k8s.io/kubernetes@v1.14.0/pkg/util/mount/mount.go +504")
 		err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
 		klog.V(4).Infof("FormatAndMount returned: %s", err)
 		if err != nil {
@@ -938,8 +938,8 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.No
 		fsType:       fstype,
 		readOnly:     false,
 		mountOptions: mountOptions,
-		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: mount.NewOsExec()},
-		exec:         mount.NewOsExec(),
+		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
+		exec:         utilexec.New(),
 		targetPath:   req.GetTargetPath(),
 		stagePath:    req.GetStagingTargetPath(),
 		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
@@ -954,7 +954,7 @@ func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmo
 			VolName: volName,
 		},
 		mounter: mount.New(""),
-		exec:    mount.NewOsExec(),
+		exec:    utilexec.New(),
 	}
 }
 

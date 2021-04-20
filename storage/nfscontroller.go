@@ -564,8 +564,8 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	//var ts *timestamp.Timestamp
 	var snapshotID string
 	snapshotName := req.GetName()
-	klog.V(4).Infof("Create Snapshot of name %s", snapshotName)
-	klog.V(2).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
+	klog.V(4).Infof("Create Snapshot named '%s'", snapshotName)
+	klog.V(2).Infof("Create Snapshot called with source volume Id '%s'", req.GetSourceVolumeId())
 	volproto, err := validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
 		klog.Errorf("fail to validate storage type %v", err)

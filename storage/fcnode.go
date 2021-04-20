@@ -20,8 +20,9 @@ import (
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
+	"k8s.io/mount-utils"
+	utilexec "k8s.io/utils/exec"
 	"os"
 	"os/exec"
 	"path"
@@ -48,7 +49,7 @@ type FCMounter struct {
 	FsType       string
 	MountOptions []string
 	Mounter      *mount.SafeFormatAndMount
-	Exec         mount.Exec
+	Exec         utilexec.Interface
 	DeviceUtil   util.DeviceUtil
 	TargetPath   string
 	StagePath    string
@@ -154,7 +155,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	dskInfo := diskInfo{}
 	dskInfo.VolName = volName
 
-	// load iscsi disk config from json file
+	// load fc disk config from json file
 	klog.V(4).Infof("read fc config from staging path")
 	if err := fc.loadFcDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
@@ -403,8 +404,8 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		ReadOnly:     false,
 		FsType:       fstype,
 		MountOptions: mountOptions,
-		Mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: mount.NewOsExec()},
-		Exec:         mount.NewOsExec(),
+		Mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
+		Exec:         utilexec.New(),
 		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
 		TargetPath:   req.GetTargetPath(),
 		StagePath:    req.GetStagingTargetPath(),

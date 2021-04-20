@@ -13,14 +13,14 @@ package storage
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"strings"
-	"time"
-	"k8s.io/klog"
-	log "infinibox-csi-driver/helper/logger"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
+	"os/exec"
+	"strings"
+	"time"
 )
 
 func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
@@ -33,7 +33,7 @@ func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnsta
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).Infof("NodePublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
+	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
 			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
@@ -92,7 +92,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := nfs.mounter.IsNotMountPoint(targetPath)
+	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
 			klog.Warningf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)

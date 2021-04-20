@@ -28,12 +28,13 @@ import (
 
 	"infinibox-csi-driver/api/clientgo"
 
-	"k8s.io/klog"
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csictx "github.com/rexray/gocsi/context"
-	"k8s.io/kubernetes/pkg/util/mount"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
+	"k8s.io/utils/mount"
 )
 
 const (
@@ -455,4 +456,31 @@ func (cs *commonservice) isCorruptedMnt(err error) bool {
 	}
 
 	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
+}
+
+// Q. Is it legit to not implement alpha features such as ControllerGetVolume()?
+// A. Yes. Reference: https://kubernetes.slack.com/archives/C8EJ01Z46/p1599290937022900
+
+func (st *fcstorage) ControllerGetVolume(
+	_ context.Context, _ *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+
+	// Infinidat does not support ControllerGetVolume
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (st *iscsistorage) ControllerGetVolume(
+	_ context.Context, _ *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+
+	// Infinidat does not support ControllerGetVolume
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func (st *nfsstorage) ControllerGetVolume(
+	_ context.Context, _ *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+
+	// Infinidat does not support ControllerGetVolume
+	return nil, status.Error(codes.Unimplemented, "")
 }

@@ -325,3 +325,11 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	}
 	return
 }
+
+func (s *service) ControllerGetVolume(
+    _ context.Context, _ *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+
+    // Infinidat does not support ControllerGetVolume
+    return nil, status.Error(codes.Unimplemented, "")
+}

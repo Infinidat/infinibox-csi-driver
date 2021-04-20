@@ -25,7 +25,7 @@ import (
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Debug("treeq NodePublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := treeq.mounter.IsNotMountPoint(targetPath)
+	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.osHelper.IsNotExist(err) {
 			if err := treeq.osHelper.MkdirAll(targetPath, 0750); err != nil {
@@ -34,7 +34,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			}
 			notMnt = true
 		} else {
-			log.Errorf("IsNotMountPoint method error  %v", err)
+			log.Errorf("IsLikelyNotMountPoint method error  %v", err)
 			return nil, err
 		}
 	}
@@ -69,7 +69,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Debug("treeq NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := treeq.mounter.IsNotMountPoint(targetPath)
+	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.osHelper.IsNotExist(err) {
 			log.Warnf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)

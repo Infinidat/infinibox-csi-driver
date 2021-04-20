@@ -11,6 +11,7 @@ limitations under the License.*/
 package clientgo
 
 import (
+	"context"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -52,7 +53,7 @@ func BuildClient() (kc *kubeclient, err error) {
 func (kc *kubeclient) GetSecret(secretName, nameSpace string) (map[string]string, error) {
 	klog.V(4).Infof("get request for secret with namespace %s and secretname %s", nameSpace, secretName)
 	secretMap := make(map[string]string)
-	secret, err := kc.client.CoreV1().Secrets(nameSpace).Get(secretName, metav1.GetOptions{})
+	secret, err := kc.client.CoreV1().Secrets(nameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf("Error Getting secret with namespace %s and secretname %s Error: %v ", nameSpace, secretName, err)
 		return secretMap, err
@@ -73,7 +74,7 @@ func (kc *kubeclient) GetNodeIpsByMountedVolume(volumeName string) ([]string, er
 	}
 	nameSpace := pv.Spec.ClaimRef.Namespace
 	pvcName := pv.Spec.ClaimRef.Name
-	pods, err := kc.client.CoreV1().Pods(nameSpace).List(metav1.ListOptions{})
+	pods, err := kc.client.CoreV1().Pods(nameSpace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		klog.Errorf("error occured", err)
 		return nil, err
@@ -95,7 +96,7 @@ func (kc *kubeclient) GetNodeIpsByMountedVolume(volumeName string) ([]string, er
 }
 
 func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.PersistentVolume, error) {
-	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(volumeName, metav1.GetOptions{})
+	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(context.TODO(), volumeName, metav1.GetOptions{})
 	if err != nil {
 		klog.Errorf(err.Error())
 		return nil, err
@@ -104,7 +105,7 @@ func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.Persiste
 }
 
 func (kc *kubeclient) GetNodeIdByNodeName(nodeName string) (InternalIp string, err error) {
-	node, err := kc.client.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := kc.client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
