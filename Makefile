@@ -10,11 +10,14 @@ _REDHAT_REPO=scan.connect.redhat.com
 _GITLAB_REPO=git.infinidat.com:4567
 _BINARY_NAME=infinibox-csi-driver
 _DOCKER_IMAGE=infinidat-csi-driver
+_art_dir=artifact
 
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER=dohlemacher
-_DOCKER_IMAGE_TAG=test1
+#_DOCKER_IMAGE_TAG=test1
+#_DOCKER_IMAGE_TAG=psdev-628-1
+_DOCKER_IMAGE_TAG=redhat1
 
 # redhat username and tag
 _REDHAT_DOCKER_USER=user1
@@ -90,3 +93,17 @@ docker-push-gitlab-registry: docker-build-docker
 buildlocal: build docker-build clean
 
 all: build docker-build docker-push clean
+
+docker-image-save:
+	@# Save image to gzipped tar file to _art_dir.
+	mkdir -p $(_art_dir) && \
+	docker save $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) | gzip > ./$(_art_dir)/$(_DOCKER_IMAGE)_$(_DOCKER_IMAGE_TAG)_docker-image.tar.gz
+
+docker-helm-chart-save:
+	@# Save the helm chart to a tarball in _art_dir.
+	mkdir -p $(_art_dir) && \
+	tar cvfz ./$(_art_dir)/$(_DOCKER_IMAGE)_$(_DOCKER_IMAGE_TAG)_helm-chart.tar.gz deploy/helm
+	@# --exclude='*.un~'
+
+docker-save: docker-image-save docker-helm-chart-save
+	@# Save the image and the helm chart to the _art_dir so that they may be provided to others.

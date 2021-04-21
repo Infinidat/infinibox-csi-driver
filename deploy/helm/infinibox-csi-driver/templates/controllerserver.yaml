@@ -161,7 +161,7 @@ spec:
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
-            - name: ALLOW_XFS_UUID_REGENERATION
+            - name: ALLOW_XFS_UUID_REGENERATION_DISABLED
               value: {{ required "Enable/disable XFS UUID modification to correct UUID conflicts" .Values.allowXfsUuidRegeneration | quote }}
             - name: CSI_ENDPOINT
               value: /var/run/csi/csi.sock
