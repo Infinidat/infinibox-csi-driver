@@ -57,7 +57,8 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
 	}
-	klog.V(4).Infof("ALLOW_XFS_UUID_REGENERATION: %s", allow_xfs_uuid_regeneration)
+	klog.V(2).Infof("Configuration:")
+	klog.V(2).Infof("  ALLOW_XFS_UUID_REGENERATION: %s", allow_xfs_uuid_regeneration)
 
 	klog.Flush()
 
