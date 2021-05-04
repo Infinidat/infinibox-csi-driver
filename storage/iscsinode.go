@@ -779,11 +779,9 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				}
 				klog.V(4).Infof("Run FormatAndMount, after UUID change")
 				err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
-				klog.V(4).Infof("FormatAndMount, after UUID change, returned: %s", err)
 				if err != nil {
 					return "", err
 				}
-				klog.V(4).Infof("FormatAndMount, after UUID change, err is nil")
 			} else {
 				klog.Errorf("Failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, mountPoint, err)
 				mountPathExists(mountPoint)
@@ -1335,7 +1333,7 @@ func deleteMultipathMap(multipathMap string) (err error) {
 // 	}
 // 	return len(slice)
 // }
-// 
+//
 // func Purge(slice []string, x string) []string {
 // 	var pos int
 // 	for _, val := range slice {

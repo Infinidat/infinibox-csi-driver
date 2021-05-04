@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
 	"k8s.io/klog"
 	"strconv"
@@ -262,6 +263,17 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	hostName := nodeNameIP[0]
 
 	host, err := fc.cs.validateHost(hostName)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+
+	v, err := fc.cs.api.GetVolume(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume by volume ID '%d': %v", req.GetVolumeId(), err)
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
+	}
+
+	_, err = helper.IsValidAccessMode(v, req)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}

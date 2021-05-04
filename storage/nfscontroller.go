@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/helper"
 	"k8s.io/klog"
 	"strconv"
 	"strings"
@@ -503,6 +504,19 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 
 //ControllerPublishVolume
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+
+	volID, _ := strconv.Atoi(req.GetVolumeId())
+	v, err := nfs.cs.api.GetVolume(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume by volume ID '%d': %v", req.GetVolumeId(), err)
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
+	}
+
+	_, err = helper.IsValidAccessMode(v, req)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
+
 	exportID := req.GetVolumeContext()["exportID"]
 	access := NfsExportPermissions
 	/*noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
@@ -510,14 +524,14 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		klog.V(4).Infof("fail to cast no_root_squash .set default =true")
 		noRootSquash = true
 	}*/
-	noRootSquash := true //defautl value
+	noRootSquash := true //default value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
 	}
 	nodeIP := nodeNameIP[1]
 	eportid, _ := strconv.Atoi(exportID)
-	_, err := nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nodeIP)
+	_, err = nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nodeIP)
 	if err != nil {
 		klog.Errorf("fail to add export rule %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, status.Errorf(codes.Internal, "fail to add export rule  %s", err)

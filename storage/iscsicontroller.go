@@ -19,8 +19,9 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog"
+	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
@@ -280,6 +281,22 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
+
+	klog.V(4).Infof("volID: %d", volID)
+	v, err := iscsi.cs.api.GetVolume(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume by volume ID '%d': %v", req.GetVolumeId(), err)
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
+	}
+	// helper.PrettyKlogDebug("volume:", v)
+	// klog.V(4).Infof("write protected: %v", v.WriteProtected)
+	// helper.PrettyKlogDebug("req:", req)
+	// klog.V(4).Infof("vol cap access mode: %v", req.VolumeCapability.AccessMode)
+
+	_, err = helper.IsValidAccessMode(v, req)
+	if err != nil {
+		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	}
 
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
