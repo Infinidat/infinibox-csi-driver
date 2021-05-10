@@ -100,6 +100,13 @@ type StatFunc func(string) (os.FileInfo, error)
 // GlobFunc  use glob instead as pci id of device is unknown
 type GlobFunc func(string) ([]string, error)
 
+func clearVolumeIdCache() {
+	if volumeIdCache != "" {
+		klog.V(4).Infof("Clearing volumeIdCache.")
+		volumeIdCache = ""
+	}
+}
+
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	var err error
 	err = nil
@@ -110,14 +117,15 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		if err == nil {
 			klog.V(4).Infof("NodeStageVolume completed")
 		} else {
-			klog.V(4).Infof("NodeStageVolume failed. Clearing volumeIdCache.")
-			volumeIdCache = ""
+			klog.V(4).Infof("NodeStageVolume failed.")
 		}
+
+		clearVolumeIdCache()
 	}()
 	klog.V(2).Infof("NodeStageVolume called with publish context: %s", req.GetPublishContext())
 
 	if len(volumeIdCache) != 0 && volumeIdCache != req.GetVolumeId() {
-		msg := fmt.Sprintf("NodeStageVolume ABORT: volume '%s'", req.GetVolumeId())
+		msg := fmt.Sprintf("NodeStageVolume ABORT: volume '%s'. Volume '%s' is in progress", req.GetVolumeId(), volumeIdCache)
 		klog.V(2).Infof(msg)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, msg)
 	} else if len(volumeIdCache) != 0 {
@@ -212,11 +220,12 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			err = errors.New("iscsi: Recovered from ISCSI NodePublishVolume  " + fmt.Sprint(res))
 		}
 		if err == nil {
-			klog.V(4).Infof("NodePublishVolume completed. Clearing volumeIdCache.")
+			klog.V(4).Infof("NodePublishVolume completed")
 		} else {
-			klog.V(4).Infof("NodePublishVolume failed. Clearing volumeIdCache.")
+			klog.V(4).Infof("NodePublishVolume failed")
 		}
-		volumeIdCache = ""
+
+		clearVolumeIdCache()
 	}()
 
 	klog.V(4).Infof("NodePublishVolume called")
@@ -263,9 +272,10 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 		if err == nil {
 			klog.V(4).Infof("NodeUnpublishVolume completed")
 		} else {
-			klog.V(4).Infof("NodeUnpublishVolume failed. Clearing volumeIdCache.")
-			volumeIdCache = ""
+			klog.V(4).Infof("NodeUnpublishVolume failed")
 		}
+
+		clearVolumeIdCache()
 	}()
 	klog.V(4).Infof("NodeUnpublishVolume called")
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
@@ -287,11 +297,12 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			err = errors.New("iscsi: Recovered from NodeUnstageVolume  " + fmt.Sprint(res))
 		}
 		if err == nil {
-			klog.V(4).Infof("NodeUnstageVolume completed. Clearing volumeIdCache.")
+			klog.V(4).Infof("NodeUnstageVolume completed")
 		} else {
-			klog.V(4).Infof("NodeUnstageVolume failed. Clearing volumeIdCache.")
+			klog.V(4).Infof("NodeUnstageVolume failed")
 		}
-		volumeIdCache = ""
+
+		clearVolumeIdCache()
 	}()
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()

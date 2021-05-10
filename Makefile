@@ -15,8 +15,8 @@ _art_dir					= artifact
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER				= dohlemacher
-_DOCKER_IMAGE_TAG			= test1
-#_DOCKER_IMAGE_TAG  		 = psdev-628-1
+#_DOCKER_IMAGE_TAG			= test1
+_DOCKER_IMAGE_TAG  		 	= v2.0.0
 
 # redhat username and tag
 _REDHAT_DOCKER_USER			= user1
