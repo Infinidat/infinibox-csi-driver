@@ -505,25 +505,17 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 //ControllerPublishVolume
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 
-	volID, _ := strconv.Atoi(req.GetVolumeId())
-	v, err := nfs.cs.api.GetVolume(volID)
-	if err != nil {
-		klog.Errorf("Failed to find volume by volume ID '%d': %v", req.GetVolumeId(), err)
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
-	}
+	var err error
+	// helper.PrettyKlogDebug("req:", req)
 
-	_, err = helper.IsValidAccessMode(v, req)
+	_, err = helper.IsValidAccessModeNfs(req)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 
+	access := req.GetVolumeContext()["nfs_export_permissions"]
 	exportID := req.GetVolumeContext()["exportID"]
-	access := NfsExportPermissions
-	/*noRootSquash, castErr := strconv.ParseBool(req.GetVolumeContext()["no_root_squash"])
-	if castErr != nil {
-		klog.V(4).Infof("fail to cast no_root_squash .set default =true")
-		noRootSquash = true
-	}*/
+
 	noRootSquash := true //default value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
