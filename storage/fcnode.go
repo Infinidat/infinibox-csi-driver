@@ -23,6 +23,7 @@ import (
 	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
+	"infinibox-csi-driver/helper"
 	"os"
 	"os/exec"
 	"path"
@@ -55,6 +56,9 @@ type FCMounter struct {
 	StagePath    string
 	fcDisk       fcDevice
 }
+
+// Global resouce contains a sync.Mutex. Used to serialize FC resource accesses.
+var execFc helper.ExecScsi
 
 func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).Infof("NodePublishVolume called")
@@ -301,12 +305,31 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 		klog.V(4).Infof("Block volume mounted successfully")
+
 	} else {
 		klog.V(4).Infof("mount volume to given path %s", fm.TargetPath)
-		if err := os.MkdirAll(fm.TargetPath, 0750); err != nil {
-			klog.Errorf("fc: failed to mkdir %s, error", fm.TargetPath)
-			return err
+
+		// Create mountPoint, with prepended /host, if it does not exist.
+		mountPoint := "/host" + fm.TargetPath
+		_, err := os.Stat(mountPoint)
+		if os.IsNotExist(err) {
+			klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+			// MkdirAll() will cause hard-to-grok mount errors.
+			_, err := execFc.Command(fmt.Sprintf("mkdir --parents --mode 0750 '%s'", mountPoint))
+			if err != nil {
+				klog.Errorf("Failed to mkdir '%s': %s", mountPoint, err)
+				return err
+			}
+
+			// Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
+			util.SetReady(mountPoint)
+			is_ready := util.IsReady(mountPoint)
+			klog.V(2).Infof("Check that mountPoint is ready: %t", is_ready)
+		} else {
+			klog.V(4).Infof("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
+
 		var options []string
 
 		if fm.ReadOnly {
@@ -314,6 +337,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		} else {
 			options = append(options, "rw")
 		}
+
 		options = append(options, fm.MountOptions...)
 		if err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options); err != nil {
 			return fmt.Errorf("fc: failed to mount fc volume %s [%s] to %s, error %v", devicePath, fm.FsType, fm.TargetPath, err)
