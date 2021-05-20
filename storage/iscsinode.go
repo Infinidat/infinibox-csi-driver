@@ -875,7 +875,7 @@ func getInitiatorName() string {
 	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		klog.Errorf("Failed to get initiator name with error %v", err)
+		klog.Errorf("Failed to get initiator name. Is iSCSI initiator installed? Error: %v", err)
 		return ""
 	}
 	initiatorName := string(out)
