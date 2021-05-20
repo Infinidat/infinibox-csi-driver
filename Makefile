@@ -14,8 +14,7 @@ _art_dir					= artifact
 
 # For Development Build #################################################################
 # Docker.io username and tag
-_DOCKER_USER				= dohlemacher
-#_DOCKER_IMAGE_TAG			= test1
+_DOCKER_USER				= ohlemacher
 _DOCKER_IMAGE_TAG  		 	= v2.0.0
 
 # redhat username and tag
@@ -26,10 +25,10 @@ _REDHAT_DOCKER_IMAGE_TAG	= rhtest1
 
 # For Production Build ##################################################################
 ifeq ($(env),prod)
-	_IMAGE_TAG=1.2.0
+	_IMAGE_TAG=v2.0.0
 	# For Production
 	# Do not change following values unless change in production version or username
-	#For docker.io  
+	# For docker.io
 	_DOCKER_USER=infinidat
 	_DOCKER_IMAGE_TAG=$(_IMAGE_TAG)
 
