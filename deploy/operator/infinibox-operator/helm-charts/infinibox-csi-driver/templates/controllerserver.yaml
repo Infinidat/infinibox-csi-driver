@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ServiceAccount
 imagePullSecrets:
-- name: {{ .Values.images.imagePullSecret }}
+- name: {{ .Release.Name }}-creds
 metadata:
   name: {{ .Release.Name }}-driver
   namespace: {{ .Release.Namespace }}
@@ -96,7 +96,7 @@ spec:
       containers:
         - name: attacher
           image: {{ required "csi attacher sidercar image." .Values.images.attachersidecar }}
-          imagePullPolicy: {{ .Values.images.attachersidecar_pull_policy | default "Always" | quote }}
+          imagePullPolicy: {{ required "Provide an image pull policy for the csi attacher sidecar image." .Values.images.attachersidecar_pull_policy}}
           securityContext:
             privileged: true
             capabilities:
@@ -113,7 +113,7 @@ spec:
               mountPath: /var/run/csi
         - name: provisioner
           image: {{ required "csi provisioner sidecar container image." .Values.images.provisionersidecar }}
-          imagePullPolicy: {{  .Values.images.provisionersidecar_pull_policy | default "Always" | quote }}
+          imagePullPolicy: {{ required "Provide an image pull policy for the csi provisioner sidecar image." .Values.images.provisionersidecar_pull_policy }}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
@@ -128,7 +128,7 @@ spec:
               mountPath: /var/run/csi
         - name: snapshotter
           image: {{ required "csi snapshotter sidecar container image." .Values.images.snapshottersidecar }}
-          imagePullPolicy: {{ .Values.images.snapshottersidecar_pull_policy | default "Always" | quote }}
+          imagePullPolicy: {{ required "Provide an image pull policy for the snapshotter sidecar image." .Values.images.snapshottersidecar_pull_policy }}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"   
@@ -141,8 +141,8 @@ spec:
             - name: socket-dir
               mountPath: /var/run/csi
         - name: resizer
-          image: {{ required "csi resizer sidercar image." .Values.images.resizersidecar }}
-          imagePullPolicy: {{ .Values.images.resizersidecar_pull_policy | default "Always" | quote }}
+          image: {{ required "csi resizer sidecar image." .Values.images.resizersidecar }}
+          imagePullPolicy: {{ required "Provide an image pull policy for the csi resizer sidecar image." .Values.images.resizersidecar_pull_policy }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -159,10 +159,8 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
-          imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
+          imagePullPolicy: {{ required "Provide an image pull policy for the csi driver." .Values.images.csidriver_pull_policy }}
           env:
-            - name: ALLOW_XFS_UUID_REGENERATION
-              value: {{ required "Enable/disable XFS UUID modification to correct UUID conflicts" .Values.allowXfsUuidRegeneration | quote }}
             - name: CSI_ENDPOINT
               value: /var/run/csi/csi.sock
             - name: APP_LOG_LEVEL
@@ -179,6 +177,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: ISCSI_INITIATOR_PREFIX
+              value: {{ .Values.initiatorNamePrefix }}
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
