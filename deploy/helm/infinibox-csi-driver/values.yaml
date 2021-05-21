@@ -12,7 +12,7 @@ volumeNamePrefix: csi
 logLevel: "info"
 
 # name of the driver 
-#  note same name will be used for provisioner name
+# note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
 csiDriverVersion: "v2.0.0"
 

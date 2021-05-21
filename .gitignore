@@ -6,9 +6,6 @@ artifact
 ### VisualStudioCode ###
 .vscode/*
 
-# Build artifacts
-infinibox-csi-driver
-
 # other
 go.sum
 
