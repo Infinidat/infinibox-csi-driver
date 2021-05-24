@@ -7,10 +7,10 @@
 ## Operating Systems Supported
   - CentOS 7,8
   - RHEL 7, 8
-  - Ubuntu 16.04, 18.04
+  - Ubuntu 16.04, 18.04, 20.04
       
 # Environments Supported
-  - Kubernetes 1.14+
+  - Kubernetes 1.17+
   - Minimum Helm version required is 3.1.0.
   - Pivotal Kubernetes Service 1.5, 1.6
   - RedHat OpenShift 4.x
