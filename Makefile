@@ -14,7 +14,7 @@ _art_dir					= artifact
 
 # For Development Build #################################################################
 # Docker.io username and tag
-_DOCKER_USER				= ohlemacher
+_DOCKER_USER				= infinidat
 _DOCKER_IMAGE_TAG  		 	= v2.0.0
 
 # redhat username and tag
@@ -75,6 +75,10 @@ docker-build-redhat: build
 docker-build-all: docker-build-docker docker-build-redhat
 
 docker-push-docker:
+	docker login
+	#$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
+
+	docker tag d8cd25fd4713 $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 docker-push-redhat:
@@ -88,6 +92,9 @@ docker-push-gitlab-registry: docker-build-docker
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE) 
 	docker push $(_TARGET_IMAGE)
 	@#docker push $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG)
+
+gitlab-push:
+	git push --set-upstream upstream $(_DOCKER_IMAGE_TAG)
 
 buildlocal: build docker-build clean
 
