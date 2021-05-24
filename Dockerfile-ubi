@@ -2,7 +2,7 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
 COPY setenv.sh /setenv.sh
 RUN chmod +x /setenv.sh
-COPY infinibox-csi-driver /infinibox-csi-driver
+ADD https://ftp.infinidat.com/f/02bb590f07489e67 /infinibox-csi-driver
 
 
 MAINTAINER partners.infi@infinidat.com
