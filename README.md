@@ -5,7 +5,7 @@
 # Platform and Software dependencies
 
 ## Operating Systems Supported
-  - CentOS 7,8
+  - CentOS 7, 8
   - RHEL 7, 8
   - Ubuntu 16.04, 18.04, 20.04
       

@@ -11,10 +11,10 @@ volumeNamePrefix: csi
 # log level of driver
 logLevel: "info"
 
-# name of the driver 
+# name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "v2.0.0"
+csiDriverVersion: "v2.0.1-rc1"
 
 # It is possible for two volumes, formatted XFS, to have identical XFS UUIDs.
 # A common cause is to create a snapshot from a volume. Both will have
@@ -26,7 +26,7 @@ csiDriverVersion: "v2.0.0"
 # the volume. This will allow the mount to succeed.
 allowXfsUuidRegeneration: "yes"
 
-# Image paths 
+# Image paths
 images:
   imagePullSecret: private-docker-reg-secret
 
@@ -51,7 +51,7 @@ images:
   resizersidecar_pull_policy: Always
 
   # "images.csidriver" defines csidriver image used for external provisioning
-  csidriver: docker.io/infinidat/infinidat-csi-driver:v2.0.0
+  csidriver: docker.io/infinidat/infinidat-csi-driver:v2.0.1-rc1
   csidriver_pull_policy: Always
 
 # Infinibox secrets temp: will create secret for testing purpose

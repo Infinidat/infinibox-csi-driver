@@ -14,18 +14,16 @@ _art_dir					= artifact
 
 # For Development Build #################################################################
 # Docker.io username and tag
-_DOCKER_USER				= infinidat
-_DOCKER_IMAGE_TAG  		 	= v2.0.0
+_DOCKER_USER				= ohlemacher
+_DOCKER_IMAGE_TAG  		 	= v2.0.1-rc1
 
 # redhat username and tag
 _REDHAT_DOCKER_USER			= user1
-_REDHAT_DOCKER_IMAGE_TAG	= rhtest1
-# For Development Build #################################################################
-
+_REDHAT_DOCKER_IMAGE_TAG	= $(_DOCKER_IMAGE_TAG)
 
 # For Production Build ##################################################################
 ifeq ($(env),prod)
-	_IMAGE_TAG=v2.0.0
+	_IMAGE_TAG=$(_DOCKER_IMAGE_TAG)
 	# For Production
 	# Do not change following values unless change in production version or username
 	# For docker.io
@@ -37,7 +35,6 @@ ifeq ($(env),prod)
 	_REDHAT_DOCKER_IMAGE_TAG=$(_IMAGE_TAG)
 endif
 # For Production Build ##################################################################
-
 
 clean:
 	$(_GOCLEAN)
@@ -74,11 +71,13 @@ docker-build-redhat: build
 
 docker-build-all: docker-build-docker docker-build-redhat
 
-docker-push-docker:
+docker-login-docker:
+	@docker login
+
+docker-push-docker: docker-login-docker
 	docker login
 	#$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
-
-	docker tag d8cd25fd4713 $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker tag 82d61b47403b $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 docker-push-redhat:
@@ -103,7 +102,10 @@ all: build docker-build docker-push clean
 docker-image-save:
 	@# Save image to gzipped tar file to _art_dir.
 	mkdir -p $(_art_dir) && \
-	docker save $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) | gzip > ./$(_art_dir)/$(_DOCKER_IMAGE)_$(_DOCKER_IMAGE_TAG)_docker-image.tar.gz
+	docker save $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) \
+		| gzip > ./$(_art_dir)/$(_DOCKER_IMAGE)_$(_DOCKER_IMAGE_TAG)_docker-image.tar.gz
+	docker save $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) \
+		| gzip > ./$(_art_dir)/ubi_$(_DOCKER_IMAGE)_$(_REDHAT_DOCKER_IMAGE_TAG)_docker-image.tar.gz
 
 docker-helm-chart-save:
 	@# Save the helm chart to a tarball in _art_dir.
@@ -113,6 +115,7 @@ docker-helm-chart-save:
 
 docker-save: docker-image-save docker-helm-chart-save
 	@# Save the image and the helm chart to the _art_dir so that they may be provided to others.
+
 
 docker-load-help:
 	@echo "docker load < <docker image tar file>"
