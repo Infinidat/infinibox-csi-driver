@@ -15,6 +15,7 @@ _art_dir					= artifact
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER				= ohlemacher
+_GITLAB_USER				= dohlemacher
 _DOCKER_IMAGE_TAG  		 	= v2.0.1-rc1
 
 # redhat username and tag
@@ -86,9 +87,9 @@ docker-push-redhat:
 docker-push-all: docker-push-docker docker-push-redhat
 
 docker-push-gitlab-registry: docker-build-docker
-	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
 	docker login $(_GITLAB_REPO)
-	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE) 
+	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
 	docker push $(_TARGET_IMAGE)
 	@#docker push $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG)
 
