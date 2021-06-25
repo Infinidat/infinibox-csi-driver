@@ -66,6 +66,7 @@ build-linux:
 
 docker-build-docker: build
 	docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) -f Dockerfile .
+	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 docker-build-redhat: build
 	docker build -t $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) -f Dockerfile-ubi .

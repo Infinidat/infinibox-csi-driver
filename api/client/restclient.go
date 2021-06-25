@@ -19,10 +19,10 @@ import (
 	"net/http"
 	"time"
 
-	"k8s.io/klog"
-	log "infinibox-csi-driver/helper/logger"
+	//"infinibox-csi-driver/helper"
 
 	resty "github.com/go-resty/resty/v2"
+	"k8s.io/klog"
 )
 
 type HostConfig struct {
@@ -85,7 +85,7 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 		return nil, err
 	}
 	response, err := rClient.SetHostURL(hostconfig.ApiHost).
-	SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
+		SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
 	resp, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
 		klog.Errorf("error in validating response %v", err)
@@ -148,7 +148,9 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	klog.V(2).Infof("called Put with url %s  ", url)
+	prettyKlogDebug("Body: ", body)
+	klog.V(2).Infof("Put: context.Context '%s'", ctx)
+	klog.V(2).Infof("Put: url '%s'", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -222,7 +224,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 	}
 
 	if err != nil {
-		log.Error("Error While Resty call for request " + res.Request.URL + err.Error())
+		klog.Errorf("Error While Resty call for request " + res.Request.URL + err.Error())
 		return result, err
 	}
 	if resptpye != nil {
@@ -291,4 +293,14 @@ func (rc *restclient) parseError(responseinmap interface{}) (str string, iserr b
 		return resultmap["code"].(string) + " " + resultmap["message"].(string), true
 	}
 	return "", false
+}
+
+// Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
+// Copied here from helper/ because of a cyclic import error.
+func prettyKlogDebug(msg string, v interface{}) (err error) {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err == nil {
+		klog.V(4).Infof("%s %s", msg, string(b))
+	}
+	return
 }

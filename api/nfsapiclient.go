@@ -12,6 +12,7 @@ package api
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
@@ -286,7 +287,13 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	exportPathRef := ExportPathRef{}
 	uri := "api/rest/exports/" + strconv.Itoa(exportID)
 	eResp := ExportResponse{}
+
+	klog.V(4).Infof("************* access: %s", access)
+	prettyKlogDebug("ExportResponse{}: ", ExportResponse{})
+
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+	prettyKlogDebug("resp: ", resp)
+
 	if err != nil {
 		klog.Errorf("Error occured while getting export path : %s", err)
 		return nil, err
@@ -298,6 +305,9 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	index := -1
 	permissionList := eResp.Permissions
 	for i, permission := range permissionList {
+		klog.V(4).Infof("i: %d", i)
+		prettyKlogDebug("permission: ", permission)
+		klog.V(4).Infof("ip: %s", ip)
 		if compareClientIP(permission.Client, ip) {
 			flag = true
 			klog.V(4).Infof("Node IP address already added in export rule")
@@ -322,6 +332,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 			klog.Errorf("Error occured while updating export rule : %s", err)
 			return nil, err
 		}
+
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
 			eResp, _ = resp.(ExportResponse)
 		}
@@ -768,5 +779,15 @@ func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int
 	}
 	klog.V(2).Infof("Total number of filesystem : ", metadata.NoOfObject)
 	fileSysCnt = metadata.NoOfObject
+	return
+}
+
+// Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
+// Copied here from helper/ because of a cyclic import error.
+func prettyKlogDebug(msg string, v interface{}) (err error) {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err == nil {
+		klog.V(4).Infof("%s %s", msg, string(b))
+	}
 	return
 }

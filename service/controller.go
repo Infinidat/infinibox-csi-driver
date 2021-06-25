@@ -124,7 +124,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	}
 	controlePublishResponce, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
-		klog.Errorf("ControllerPublishVolume %v", err)
+		klog.Errorf("ControllerPublishVolume, request: '%v', error: '%v'", req, err)
 	}
 	return
 }
@@ -327,9 +327,9 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 }
 
 func (s *service) ControllerGetVolume(
-    _ context.Context, _ *csi.ControllerGetVolumeRequest,
+	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
 
-    // Infinidat does not support ControllerGetVolume
-    return nil, status.Error(codes.Unimplemented, "")
+	// Infinidat does not support ControllerGetVolume
+	return nil, status.Error(codes.Unimplemented, "")
 }

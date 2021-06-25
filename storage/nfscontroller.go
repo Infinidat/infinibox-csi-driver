@@ -502,6 +502,12 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	return
 }
 
+type ExportPermission struct {
+	Access         string
+	No_Root_Squash bool
+	Client         string
+}
+
 //ControllerPublishVolume
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 
@@ -513,7 +519,15 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
 
-	access := req.GetVolumeContext()["nfs_export_permissions"]
+	exportPermissionReturn := strings.Replace(req.GetVolumeContext()["nfs_export_permissions"], "'", "\"", -1)
+	klog.V(4).Infof("exportPermissionReturn: %s", exportPermissionReturn)
+	var exportPermissions []ExportPermission
+
+	json.Unmarshal([]byte(exportPermissionReturn), &exportPermissions)
+
+	prettyKlogDebug("exportPermissions unmarshaled: ", exportPermissions)
+	access := exportPermissions[0].Access
+
 	exportID := req.GetVolumeContext()["exportID"]
 
 	noRootSquash := true //default value
@@ -677,4 +691,14 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,
 	}, nil
+}
+
+// Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
+// Copied here from helper/ because of a cyclic import error.
+func prettyKlogDebug(msg string, v interface{}) (err error) {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err == nil {
+		klog.V(4).Infof("%s %s", msg, string(b))
+	}
+	return
 }
