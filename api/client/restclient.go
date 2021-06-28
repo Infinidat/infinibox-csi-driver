@@ -148,7 +148,6 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	prettyKlogDebug("Body: ", body)
 	klog.V(2).Infof("Put: context.Context '%s'", ctx)
 	klog.V(2).Infof("Put: url '%s'", url)
 	var err error
@@ -295,12 +294,12 @@ func (rc *restclient) parseError(responseinmap interface{}) (str string, iserr b
 	return "", false
 }
 
-// Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
-// Copied here from helper/ because of a cyclic import error.
-func prettyKlogDebug(msg string, v interface{}) (err error) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err == nil {
-		klog.V(4).Infof("%s %s", msg, string(b))
-	}
-	return
-}
+// // Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
+// // Copied here from helper/ because of a cyclic import error.
+// func prettyKlogDebug(msg string, v interface{}) (err error) {
+// 	b, err := json.MarshalIndent(v, "", "  ")
+// 	if err == nil {
+// 		klog.V(4).Infof("%s %s", msg, string(b))
+// 	}
+// 	return
+// }
