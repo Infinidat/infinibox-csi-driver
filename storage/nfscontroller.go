@@ -353,7 +353,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 	var exportFileSystem api.ExportFileSys
 	exportFileSystem.FilesystemID = nfs.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
-	exportFileSystem.Privileged_port = true
+	exportFileSystem.Privileged_port = false
 	exportFileSystem.Export_path = nfs.exportpath
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsput...)
 	exportResp, err := nfs.cs.api.ExportFileSystem(exportFileSystem)

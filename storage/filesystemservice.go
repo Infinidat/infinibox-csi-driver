@@ -460,7 +460,7 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 	var exportFileSystem api.ExportFileSys
 	exportFileSystem.FilesystemID = filesystem.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
-	exportFileSystem.Privileged_port = true
+	exportFileSystem.Privileged_port = false
 	exportFileSystem.Export_path = filesystem.exportpath
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsput...)
 	exportResp, err := filesystem.cs.api.ExportFileSystem(exportFileSystem)
