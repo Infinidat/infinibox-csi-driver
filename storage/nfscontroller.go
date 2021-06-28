@@ -525,7 +525,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 
 	json.Unmarshal([]byte(exportPermissionReturn), &exportPermissions)
 
-	prettyKlogDebug("exportPermissions unmarshaled: ", exportPermissions)
+	helper.PrettyKlogDebug("exportPermissions unmarshaled: ", exportPermissions)
 	access := exportPermissions[0].Access
 
 	exportID := req.GetVolumeContext()["exportID"]
@@ -691,14 +691,4 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,
 	}, nil
-}
-
-// Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
-// Copied here from helper/ because of a cyclic import error.
-func prettyKlogDebug(msg string, v interface{}) (err error) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err == nil {
-		klog.V(4).Infof("%s %s", msg, string(b))
-	}
-	return
 }
