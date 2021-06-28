@@ -512,7 +512,6 @@ type ExportPermission struct {
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 
 	var err error
-	// helper.PrettyKlogDebug("req:", req)
 
 	_, err = helper.IsValidAccessModeNfs(req)
 	if err != nil {
@@ -520,16 +519,12 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	}
 
 	exportPermissionReturn := strings.Replace(req.GetVolumeContext()["nfs_export_permissions"], "'", "\"", -1)
-	klog.V(4).Infof("exportPermissionReturn: %s", exportPermissionReturn)
 	var exportPermissions []ExportPermission
 
 	json.Unmarshal([]byte(exportPermissionReturn), &exportPermissions)
 
-	helper.PrettyKlogDebug("exportPermissions unmarshaled: ", exportPermissions)
 	access := exportPermissions[0].Access
-
 	exportID := req.GetVolumeContext()["exportID"]
-
 	noRootSquash := true //default value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
