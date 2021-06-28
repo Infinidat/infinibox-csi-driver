@@ -27,7 +27,7 @@ spec:
     volumeAttributes:
       exportID: "3000"     
       ipAddress: 172.17.35.45
-      nfs_mount_options: hard,rsize=1048576,wsize=1048576      
+      nfs_mount_options: vers=3,hard,rsize=1048576,wsize=1048576
       volPathd: /csi-1c1324de94
       storage_protocol: nfs    
     volumeHandle: 7394$$nfs

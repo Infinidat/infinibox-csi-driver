@@ -28,7 +28,7 @@ spec:
       ID: "20430"
       TREEQID: "20001"
       ipAddress: 172.17.35.42
-      nfs_mount_options: hard,rsize=1048576,wsize=1048576
+      nfs_mount_options: vers=3,hard,rsize=1048576,wsize=1048576
       storage.kubernetes.io/csiProvisionerIdentity: 1583835085125-8081-infinibox-csi-driver
       storage_protocol: nfs_treeq
       volumePath: /csit_45e7bfda30/csi-eba52ccb100

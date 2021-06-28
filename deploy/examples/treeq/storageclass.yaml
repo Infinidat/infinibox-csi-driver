@@ -12,7 +12,7 @@ parameters:
     provision_type: THIN    
     storage_protocol: nfs_treeq 
     fs_prefix: csit_  
-    nfs_mount_options: hard,rsize=1048576,wsize=1048576
+    nfs_mount_options: vers=3,hard,rsize=1048576,wsize=1048576
     nfs_export_permissions: "[{'access':'RW','client':'192.168.147.182-192.168.147.185','no_root_squash':true}]"
     ssd_enabled: "true"     
     max_filesystems: "999"
