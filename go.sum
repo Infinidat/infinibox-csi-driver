@@ -1602,6 +1602,7 @@ k8s.io/kubernetes v1.17.17 h1:4JbBX+ak70Fh7jYmU7yLQ9bpfPtlD1E43mUxKcWBtqo=
 k8s.io/kubernetes v1.17.17/go.mod h1:J8bqjhrOYZ/dDhaQU8sEfM+aH81x3Urfw1uODZc7ZfU=
 k8s.io/kubernetes v1.21.0 h1:LUUQgdFsKB+wVgKPUapmXjkvvJHSLN53CuQwre4c+mM=
 k8s.io/kubernetes v1.21.0/go.mod h1:Yx6XZ8zalyqEk7but+j4+5SvLzdyH1eeqZ4cwO+5dD4=
+k8s.io/kubernetes v1.21.2 h1:7r1wYSBaMwleFy/VIhdte8G8TUJTmx+MR6Ip2ZsF4NM=
 k8s.io/kubernetes/staging/src/k8s.io/api v0.0.0-20210113131219-f3abc15296f3 h1:bZxXRQOp3yjqC3HhvsTddq7CWdeaakkOMckiUwOdb24=
 k8s.io/kubernetes/staging/src/k8s.io/api v0.0.0-20210113131219-f3abc15296f3/go.mod h1:D7sf1F7GAHEK5DOn11dKP5J/QJvUShU2AopXe/AXghk=
 k8s.io/kubernetes/staging/src/k8s.io/apiextensions-apiserver v0.0.0-20210113131219-f3abc15296f3 h1:q9MUOG1oTC7dc/LBqozA1HzuuO4QVAtHzA2KHESfj60=

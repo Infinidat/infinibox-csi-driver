@@ -92,7 +92,6 @@ docker-push-gitlab-registry: docker-build-docker
 	docker login $(_GITLAB_REPO)
 	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
 	docker push $(_TARGET_IMAGE)
-	@#docker push $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG)
 
 gitlab-push:
 	git push --set-upstream upstream $(_DOCKER_IMAGE_TAG)
