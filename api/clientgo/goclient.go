@@ -36,13 +36,13 @@ func BuildClient() (kc *kubeclient, err error) {
 	if clientapi.client == nil {
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			klog.Errorf("BuildClient Error while getting cluster config", err)
+			klog.Errorf("BuildClient Error while getting cluster config: %s", err)
 			return nil, err
 		}
 		// creates the clientset
 		clientset, err := kubernetes.NewForConfig(config)
 		if err != nil {
-			klog.Errorf("BuildClient Error while creating client", err)
+			klog.Errorf("BuildClient Error while creating client: %s", err)
 			return nil, err
 		}
 		clientapi = kubeclient{clientset}
@@ -76,7 +76,7 @@ func (kc *kubeclient) GetNodeIpsByMountedVolume(volumeName string) ([]string, er
 	pvcName := pv.Spec.ClaimRef.Name
 	pods, err := kc.client.CoreV1().Pods(nameSpace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		klog.Errorf("error occured", err)
+		klog.Errorf("Error while attempting to list pods: %s", err)
 		return nil, err
 	}
 	nodeIps := []string{}

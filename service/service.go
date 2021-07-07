@@ -14,15 +14,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/api"
-	"net"
-	"os/exec"
-	"strings"
-    "k8s.io/klog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"infinibox-csi-driver/api"
+	"k8s.io/klog"
+	"net"
+	"os/exec"
+	"strings"
 )
 
 const (
@@ -113,7 +113,7 @@ func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtoc
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")
 	}
-	klog.V(2).Infof("volproto ", volproto)
+	klog.V(2).Infof("volproto: %s", volproto)
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil

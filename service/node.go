@@ -41,7 +41,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	if storageNode != nil {
 		return storageNode.NodePublishVolume(ctx, req)
 	}
-	klog.Errorf("Error occurred: ", err)
+	klog.Errorf("NodePublishVolume failed: %s", err)
 	return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 }
 
@@ -121,7 +121,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	if storageNode != nil {
 		return storageNode.NodeStageVolume(ctx, req)
 	}
-	klog.Errorf("Error Occurred: ", err)
+	klog.Errorf("NodeStateVolume failed: %s", err)
 	return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
 }
 

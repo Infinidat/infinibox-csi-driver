@@ -131,7 +131,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 
 //ControllerUnpublishVolume method
 func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (controleUnPublishResponce *csi.ControllerUnpublishVolumeResponse, err error) {
-	klog.V(2).Infof("Main ControllerUnpublishVolume called with req", req.GetVolumeId(), req.GetNodeId())
+	klog.V(2).Infof("Main ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
@@ -254,7 +254,7 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	config["nodeIPAddress"] = s.nodeIPAddress
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		klog.Errorf("Error Occured: ", err)
+		klog.Errorf("Create snapshot failed: %s", err)
 		return
 	}
 	if storageController != nil {
@@ -283,7 +283,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	config["nodeIPAddress"] = s.nodeIPAddress
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		klog.Errorf("Error Occured: ", err)
+		klog.Errorf("Delete snapshot failed: %s", err)
 		return
 	}
 	if storageController != nil {
@@ -297,7 +297,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI ControllerExpandVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -315,7 +315,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
-		klog.Errorf("Error Occurred: ", err)
+		klog.Errorf("Expand volume failed: %s", err)
 		return
 	}
 	if storageController != nil {

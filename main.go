@@ -14,12 +14,12 @@ import (
 	"context"
 	"flag"
 	"github.com/rexray/gocsi"
+	csictx "github.com/rexray/gocsi/context"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
 	"k8s.io/klog"
 	"os"
-	csictx "github.com/rexray/gocsi/context"
 )
 
 //starting method of CSI-Driver

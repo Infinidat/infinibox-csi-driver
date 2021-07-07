@@ -248,7 +248,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye int
 		}
 		// end: bind to given struct
 	} else {
-		klog.V(2).Infof("checkResponse resptpye nil case ", resptpye)
+		klog.V(2).Infof("checkResponse resptpye nil case: %s", resptpye)
 		var response interface{}
 		if er := json.Unmarshal(res.Body(), &response); er != nil {
 			klog.Errorf("checkResponse expected type provided case. error %v", er)
