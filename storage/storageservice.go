@@ -28,11 +28,12 @@ import (
 
 	"infinibox-csi-driver/api/clientgo"
 
+	log "infinibox-csi-driver/helper/logger"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	csictx "github.com/rexray/gocsi/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	log "infinibox-csi-driver/helper/logger"
 	"k8s.io/klog"
 	"k8s.io/utils/mount"
 )
@@ -139,7 +140,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		}
 		err := commonserv.verifyApiClient()
 		if err != nil {
-			klog.Errorf("API client not initialized.", err)
+			klog.Errorf("API client not initialized, err: %v", err)
 			return commonserv, err
 		}
 		commonserv.driverversion = config["driverversion"]
@@ -234,7 +235,7 @@ func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
 		return nil, err
 	}
 	if host.ID == 0 {
-		klog.V(2).Infof("Creating host with name ", hostName)
+		klog.V(2).Infof("Creating host with name: %s", hostName)
 		host, err = cs.api.CreateHost(hostName)
 		if err != nil {
 			klog.Errorf("failed to create host with error %v", err)
@@ -426,16 +427,16 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 func (cs *commonservice) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		klog.V(4).Infof("Path exists: ", path)
+		klog.V(4).Infof("Path exists: %s", path)
 		return true, nil
 	} else if os.IsNotExist(err) {
-		klog.V(4).Infof("Path not exists: ", path)
+		klog.V(4).Infof("Path not exists: %s", path)
 		return false, nil
 	} else if cs.isCorruptedMnt(err) {
-		klog.V(4).Infof("Path is currupted: ", path)
+		klog.V(4).Infof("Path is currupted: %s", path)
 		return true, err
 	} else {
-		klog.V(4).Infof("unable to validate path: ", path)
+		klog.V(4).Infof("unable to validate path: %s", path)
 		return false, err
 	}
 }

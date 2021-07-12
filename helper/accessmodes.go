@@ -13,9 +13,10 @@ package helper
 import (
 	"errors"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"infinibox-csi-driver/api"
 	"strings"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
 func accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName string, err error) {
@@ -38,7 +39,7 @@ func accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName strin
 	case 5:
 		return "MULTI_NODE_MULTI_WRITER", nil
 	default:
-		return "", errors.New(fmt.Sprintf("Invalid CSI AccessMode: %i", mode))
+		return "", errors.New(fmt.Sprintf("Invalid CSI AccessMode: %d", mode))
 	}
 }
 
