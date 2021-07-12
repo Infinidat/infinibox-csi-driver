@@ -13,9 +13,10 @@ package helper
 import (
 	"errors"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"infinibox-csi-driver/api"
 	"strings"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
 func accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName string, err error) {

@@ -15,15 +15,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"infinibox-csi-driver/helper"
 	"io/ioutil"
-	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/volume/util"
-	"k8s.io/mount-utils"
-	utilexec "k8s.io/utils/exec"
 	"os"
 	"os/exec"
 	"path"
@@ -31,6 +24,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/klog"
+	"k8s.io/kubernetes/pkg/volume/util"
+	"k8s.io/mount-utils"
+	utilexec "k8s.io/utils/exec"
 )
 
 type fcDevice struct {

@@ -15,15 +15,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/helper"
+	"strconv"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/helper"
 	"k8s.io/klog"
-	"strconv"
-	"strings"
 )
 
 const (
