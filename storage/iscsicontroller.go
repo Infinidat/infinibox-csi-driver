@@ -285,7 +285,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	klog.V(4).Infof("volID: %d", volID)
 	v, err := iscsi.cs.api.GetVolume(volID)
 	if err != nil {
-		klog.Errorf("Failed to find volume by volume ID '%d': %v", req.GetVolumeId(), err)
+		klog.Errorf("Failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
 	}
 	// helper.PrettyKlogDebug("volume:", v)
@@ -446,7 +446,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	sourceVolumeID, _ := strconv.Atoi(volproto.VolumeID)
 	volumeSnapshot, err := iscsi.cs.api.GetVolumeByName(snapshotName)
 	if err != nil {
-		klog.V(4).Infof("Snapshot with given name not found : ", snapshotName)
+		klog.V(4).Infof("Snapshot with given name not found: %s", snapshotName)
 	} else if volumeSnapshot.ParentId == sourceVolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
 		return &csi.CreateSnapshotResponse{
@@ -480,7 +480,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		CreationTime:   ptypes.TimestampNow(),
 		SizeBytes:      snapshot.Size,
 	}
-	klog.V(4).Infof("CreateFileSystemSnapshot resp() ", csiSnapshot)
+	klog.V(4).Infof("CreateFileSystemSnapshot resp: %v", csiSnapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
 	return snapshotResp, nil
 }

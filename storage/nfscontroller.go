@@ -138,7 +138,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 
 	// check if volume with given name already exists
 	volume, err := nfs.cs.api.GetFileSystemByName(pvName)
-	klog.V(4).Infof("CreateVolume - GetFileSystemByName error : ", err)
+	klog.V(4).Infof("CreateVolume - GetFileSystemByName error: %v", err)
 	if err != nil && !strings.EqualFold(err.Error(), "filesystem with given name not found") {
 		return &csi.CreateVolumeResponse{}, err
 	}
@@ -162,20 +162,20 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 
 	// Volume content source support Volumes and Snapshots
 	contentSource := req.GetVolumeContentSource()
-	klog.V(4).Infof("content volume source is : ", contentSource)
+	klog.V(4).Infof("content volume source: %v", contentSource)
 	if contentSource != nil {
 		if contentSource.GetSnapshot() != nil {
 			snapshot := req.GetVolumeContentSource().GetSnapshot()
 			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"], snapshot.GetSnapshotId())
 			if err != nil {
-				klog.Errorf("failed to create volume from snapshot with error %v", err)
+				klog.Errorf("failed to create volume from snapshot with error: %v", err)
 				return &csi.CreateVolumeResponse{}, err
 			}
 		} else if contentSource.GetVolume() != nil {
 			volume := req.GetVolumeContentSource().GetVolume()
 			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"], volume.GetVolumeId())
 			if err != nil {
-				klog.Errorf("failed to create volume from pvc with error %v", err)
+				klog.Errorf("failed to create volume from pvc with error: %v", err)
 				return &csi.CreateVolumeResponse{}, err
 			}
 		}
@@ -231,14 +231,14 @@ func (nfs *nfsstorage) createVolumeFrmPVCSource(req *csi.CreateVolumeRequest, si
 	}
 
 	snapParam := &api.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: name, WriteProtected: false}
-	klog.V(2).Infof("createVolumeFrmPVCSource creating filesystem with params : ", snapParam)
+	klog.V(2).Infof("createVolumeFrmPVCSource creating filesystem with params: %v", snapParam)
 	// Create snapshot
 	snapResponse, err := nfs.cs.api.CreateFileSystemSnapshot(snapParam)
 	if err != nil {
 		klog.Errorf("Failed to create snapshot: %s error: %v", snapParam.SnapshotName, err.Error())
 		return nil, status.Errorf(codes.Internal, "Failed to create snapshot: %s", err.Error())
 	}
-	klog.V(2).Infof("createVolumeFrmPVCSource successfully created volume from clone with name: ", snapParam.SnapshotName)
+	klog.V(2).Infof("createVolumeFrmPVCSource successfully created volume from clone with name: %s", snapParam.SnapshotName)
 	nfs.fileSystemID = snapResponse.SnapshotID
 
 	err = nfs.createExportPathAndAddMetadata()
@@ -300,7 +300,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 			err = errors.New("error while AttachMetadata directory" + fmt.Sprint(res))
 		}
 		if err != nil && nfs.exportID != 0 {
-			klog.V(2).Infof("Seemes to be some problem reverting created export id:", nfs.exportID)
+			klog.V(2).Infof("Seemes to be some problem reverting created export id: %d", nfs.exportID)
 			nfs.cs.api.DeleteExportPath(nfs.exportID)
 		}
 	}()
@@ -625,7 +625,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		CreationTime:   ptypes.TimestampNow(),
 		SizeBytes:      resp.Size,
 	}
-	klog.V(4).Infof("CreateFileSystemSnapshot resp() ", snapshot)
+	klog.V(4).Infof("CreateFileSystemSnapshot resp: %v", snapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
 	return snapshotResp, nil
 }

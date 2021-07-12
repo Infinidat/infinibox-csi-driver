@@ -326,7 +326,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 					klog.Errorf("Failed to remove mount path Error: %v", err)
 					return nil, err
 				}
-				klog.V(4).Infof("Removed stage path: ", stagePath)
+				klog.V(4).Infof("Removed stage path: %s", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
@@ -841,9 +841,9 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	klog.V(4).Infof("Umount volume from targetPath '%s'", targetPath)
 	if err = c.mounter.Unmount(targetPath); err != nil {
 		if strings.Contains(err.Error(), "not mounted") {
-			klog.V(4).Infof("Volume not mounted removing files ", targetPath)
+			klog.V(4).Infof("Volume not mounted, while trying to unmount: %s", targetPath)
 			if err := os.RemoveAll(filepath.Dir(mntPath)); err != nil {
-				klog.Errorf("Failed to remove mount path Error: %v", err)
+				klog.Errorf("Failed to unmount mount path Error: %v", err)
 			}
 			return nil
 		}
@@ -1134,16 +1134,16 @@ func (iscsi *iscsistorage) isCorruptedMnt(err error) bool {
 func (iscsi *iscsistorage) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		klog.V(4).Infof("Path exists: ", path)
+		klog.V(4).Infof("Path exists: %s", path)
 		return true, nil
 	} else if os.IsNotExist(err) {
-		klog.V(4).Infof("Path does not exist: ", path)
+		klog.V(4).Infof("Path does not exist: %s", path)
 		return false, nil
 	} else if iscsi.isCorruptedMnt(err) {
-		klog.V(4).Infof("Path is corrupted: ", path)
+		klog.V(4).Infof("Path is corrupted: %s", path)
 		return true, err
 	} else {
-		klog.V(4).Infof("Path cannot be validated: ", path)
+		klog.V(4).Infof("Path cannot be validated: %s", path)
 		return false, err
 	}
 }

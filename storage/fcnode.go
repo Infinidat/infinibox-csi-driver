@@ -108,7 +108,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			err = errors.New("Recovered from FC NodeStageVolume  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(2).Infof("NodeStageVolume called with ", req.GetPublishContext())
+	klog.V(2).Infof("NodeStageVolume called with PublishContext: %v", req.GetPublishContext())
 	hostID := req.GetPublishContext()["hostID"]
 	ports := req.GetPublishContext()["hostPorts"]
 
@@ -176,7 +176,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 					klog.Errorf("fc: failed to remove mount path Error: %v", err)
 					return nil, err
 				}
-				klog.V(4).Infof("removed stage path: ", stagePath)
+				klog.V(4).Infof("removed stage path: %s", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
@@ -214,7 +214,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, lastErr
 	}
 	if multiPath {
-		klog.V(4).Infof("flush multipath device using multipath -f ", dstPath)
+		klog.V(4).Infof("flush multipath device using multipath -f: %s", dstPath)
 		_, err := fc.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
 		if err != nil {
 			if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
@@ -511,7 +511,7 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
 	parts := strings.Split(devicePath, "/")
 	if len(parts) == 3 && strings.HasPrefix(parts[1], "dev") {
-		klog.V(4).Infof("found device ", parts[2])
+		klog.V(4).Infof("found device: %s", parts[2])
 		return parts[2], nil
 	}
 	return "", errors.New("Illegal path for device " + devicePath)
@@ -672,9 +672,9 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	}
 	if err := mounter.Unmount(targetPath); err != nil {
 		if strings.Contains(err.Error(), "not mounted") {
-			klog.V(4).Infof("volume not mounted removing files ", targetPath)
+			klog.V(4).Infof("volume not mounted, while trying to unmount: %s", targetPath)
 			if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
-				klog.Errorf("fc: failed to remove mount path Error: %v", err)
+				klog.Errorf("fc: failed to unmount path Error: %v", err)
 			}
 			return nil
 		}

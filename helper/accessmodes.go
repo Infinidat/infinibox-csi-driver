@@ -38,7 +38,7 @@ func accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName strin
 	case 5:
 		return "MULTI_NODE_MULTI_WRITER", nil
 	default:
-		return "", errors.New(fmt.Sprintf("Invalid CSI AccessMode: %i", mode))
+		return "", errors.New(fmt.Sprintf("Invalid CSI AccessMode: %d", mode))
 	}
 }
 
