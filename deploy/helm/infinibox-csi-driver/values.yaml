@@ -51,7 +51,7 @@ images:
   resizersidecar_pull_policy: Always
 
   # "images.csidriver" defines csidriver image used for external provisioning
-  csidriver: docker.io/infinidat/infinidat-csi-driver:v2.0.1-rc1
+  csidriver: docker.io/infinidat/infinidat-csi-driver:v2.1.0
   csidriver_pull_policy: Always
 
 # Infinibox secrets temp: will create secret for testing purpose

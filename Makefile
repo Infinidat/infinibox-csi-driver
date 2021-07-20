@@ -16,7 +16,7 @@ _art_dir					= artifact
 # Docker.io username and tag
 _DOCKER_USER				= ohlemacher
 _GITLAB_USER				= dohlemacher
-_DOCKER_IMAGE_TAG  		 	= v2.0.1-rc1
+_DOCKER_IMAGE_TAG  		 	= v2.1.0
 
 # redhat username and tag
 _REDHAT_DOCKER_USER			= user1
