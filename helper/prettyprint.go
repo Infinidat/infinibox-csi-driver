@@ -2,7 +2,7 @@ package helper
 
 import (
 	"encoding/json"
-    "k8s.io/klog"
+	"k8s.io/klog"
 )
 
 // Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().

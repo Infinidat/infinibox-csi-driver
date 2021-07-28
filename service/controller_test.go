@@ -101,6 +101,7 @@ func (suite *ControllerTestSuite) Test_DeleteVolume_Success() {
 	_, err := s.DeleteVolume(context.Background(), deleteVolumeReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
+
 /*
 func (suite *ControllerTestSuite) Test_DeleteVolume_Error() {
 	deleteVolumeReq := getCtrDeleteVolumeRequest()
@@ -246,7 +247,7 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_Invalid_protocol()
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 	crtexpandReq := getCrtControllerExpandVolumeRequest()
-	
+
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
 		return &ControllerMock{}, nil
 	})
@@ -257,48 +258,45 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
-
 func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_() {
-	crtCapabilitiesReqReq := getCtrControllerGetCapabilitiesRequest()	
+	crtCapabilitiesReqReq := getCtrControllerGetCapabilitiesRequest()
 	s := getService()
 	_, err := s.ControllerGetCapabilities(context.Background(), crtCapabilitiesReqReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
-
-func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities(){
+func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
 	s := getService()
 	_, err := s.ValidateVolumeCapabilities(context.Background(), &csi.ValidateVolumeCapabilitiesRequest{})
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
-func (suite *ControllerTestSuite) Test_ListVolumes(){
+func (suite *ControllerTestSuite) Test_ListVolumes() {
 	s := getService()
 	_, err := s.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
 	assert.NotNil(suite.T(), err, "Invalid volume ID")
 }
 
-func (suite *ControllerTestSuite) Test_ListSnapshots(){
+func (suite *ControllerTestSuite) Test_ListSnapshots() {
 	s := getService()
 	_, err := s.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
 	assert.NotNil(suite.T(), err, "Invalid volume ID")
 }
 
-func (suite *ControllerTestSuite) Test_GetCapacity(){
+func (suite *ControllerTestSuite) Test_GetCapacity() {
 	s := getService()
 	_, err := s.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
-
 //=============================
 
-func getCtrControllerGetCapabilitiesRequest()*csi.ControllerGetCapabilitiesRequest {
+func getCtrControllerGetCapabilitiesRequest() *csi.ControllerGetCapabilitiesRequest {
 	return &csi.ControllerGetCapabilitiesRequest{}
 }
-func getCrtControllerExpandVolumeRequest()*csi.ControllerExpandVolumeRequest{
+func getCrtControllerExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{
-		VolumeId: "100$$nfs",
+		VolumeId:      "100$$nfs",
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 10000},
 	}
 

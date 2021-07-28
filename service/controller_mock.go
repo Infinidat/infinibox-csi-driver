@@ -35,5 +35,5 @@ func (m *ControllerMock) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnap
 }
 
 func (s *ControllerMock) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
-	return &csi.ControllerExpandVolumeResponse{},nil
+	return &csi.ControllerExpandVolumeResponse{}, nil
 }
