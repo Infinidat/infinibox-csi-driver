@@ -17,9 +17,16 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/stretchr/testify/mock"
 )
 
-func accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName string, err error) {
+//AccessModesHelper interface
+type AccessModesHelper interface {
+	IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
+	IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
+}
+
+func _accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName string, err error) {
 	// Given an access mode, return a human readable mode name.
 	// Ref:
 	// - https://github.com/container-storage-interface/spec/blob/master/csi.proto
@@ -43,13 +50,17 @@ func accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName strin
 	}
 }
 
-func IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
+//AcessMode service struct
+type AccessMode struct {
+}
+
+func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
 	// Compare the volume's write protected state on IBox to the requested access mode. Return an error if incompatible.
 	isIboxVolWriteProtected := volume.WriteProtected
 	volName := volume.Name
 	volId := req.GetVolumeId()
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
-	modeName, err := accessModeToName(reqAccessMode)
+	modeName, err := _accessModeToName(reqAccessMode)
 	if err != nil {
 		return false, errors.New(fmt.Sprintf("For volume '%s' (%s), an error occurred: %s", volName, volId, err))
 	}
@@ -70,7 +81,7 @@ func IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeReque
 	return false, errors.New(fmt.Sprintf("Unsupported access mode for volume '%s' (%s): '%s'", volName, volId, modeName))
 }
 
-func IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
+func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
 	// Compare the export permissions on IBox to the requested access mode. Return an error if incompatible.
 	nfsExportPermission := req.GetVolumeContext()["nfs_export_permissions"]
 	isIboxExportReadonly := strings.Contains(nfsExportPermission, "'access':'RO'") // Could also contain "'access':'RW'"
@@ -78,7 +89,7 @@ func IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAcces
 	exportVolPathd := req.GetVolumeContext()["volPathd"]
 	exportID := req.GetVolumeContext()["exportID"]
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
-	modeName, err := accessModeToName(reqAccessMode)
+	modeName, err := _accessModeToName(reqAccessMode)
 	if err != nil {
 		return false, errors.New(fmt.Sprintf("For NFS export '%s' (%s), an error occurred: %s", exportVolPathd, exportID, err))
 	}
@@ -97,4 +108,24 @@ func IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAcces
 		return true, nil
 	}
 	return false, errors.New(fmt.Sprintf("Unsupported access mode for NFS export '%s' (%s): '%s'", exportVolPathd, exportID, modeName))
+}
+
+//MockAccessModesHelper -- mock method
+type MockAccessModesHelper struct {
+	mock.Mock
+	AccessModesHelper
+}
+
+func (m *MockAccessModesHelper) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (bool, error) {
+	status := m.Called(volume, req)
+	isValid, _ := status.Get(0).(bool)
+	err, _ := status.Get(1).(error)
+	return isValid, err
+}
+
+func (m *MockAccessModesHelper) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (bool, error) {
+	status := m.Called(req)
+	isValid, _ := status.Get(0).(bool)
+	err, _ := status.Get(1).(error)
+	return isValid, err
 }

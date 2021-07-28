@@ -1,0 +1,18 @@
+variables:
+    MAINTENANCE_MODE: 1
+
+stages:
+    - test
+
+default:
+    image: golang:1.15.14-stretch
+
+    before_script:
+        - echo ${CI_PROJECT_DIR}
+
+unit_tests:
+    stage: test
+    # dependencies:
+    script:
+        - make build
+        - make test

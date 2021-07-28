@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
 
 	"k8s.io/klog"
@@ -294,7 +293,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	// helper.PrettyKlogDebug("req:", req)
 	// klog.V(4).Infof("vol cap access mode: %v", req.VolumeCapability.AccessMode)
 
-	_, err = helper.IsValidAccessMode(v, req)
+	_, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}

@@ -3,10 +3,9 @@ package helper
 import (
 	"errors"
 	"fmt"
+	"k8s.io/klog"
 	"strings"
-    "k8s.io/klog"
 )
-
 
 func getYamlBoolsAll() (bools []string) {
 	bools = strings.Split("y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF", "|")
@@ -23,11 +22,10 @@ func getYamlBoolsTrue() (bools []string) {
 	return bools
 }
 
-
-// Many strings are true in YAML. Convert to boolean. 
+// Many strings are true in YAML. Convert to boolean.
 // Ref: https://yaml.org/type/bool.html
 func YamlBoolToBool(b string) (myBool bool, err error) {
-    if Contains(getYamlBoolsTrue(), b) {
+	if Contains(getYamlBoolsTrue(), b) {
 		return true, nil
 	} else if Contains(getYamlBoolsAll(), b) {
 		return false, nil
@@ -39,11 +37,10 @@ func YamlBoolToBool(b string) (myBool bool, err error) {
 
 // Contains tells whether 'x' is found within the array of strings 'a'.
 func Contains(a []string, x string) bool {
-    for _, n := range a {
-        if x == n {
-            return true
-        }
-    }
-    return false
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
 }
-

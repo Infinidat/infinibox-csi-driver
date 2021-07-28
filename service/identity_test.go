@@ -17,21 +17,20 @@ func TestIdentitySuite(t *testing.T) {
 	suite.Run(t, new(IdentitySuite))
 }
 
-
 func (suite *IdentitySuite) Test_GetPluginInfo() {
-	s := getService()	
+	s := getService()
 	_, err := s.GetPluginInfo(context.Background(), &csi.GetPluginInfoRequest{})
-	assert.Nil(suite.T(), err)	
+	assert.Nil(suite.T(), err)
 }
 
 func (suite *IdentitySuite) Test_GetPluginCapabilities() {
-	s := getService()	
+	s := getService()
 	_, err := s.GetPluginCapabilities(context.Background(), &csi.GetPluginCapabilitiesRequest{})
-	assert.Nil(suite.T(), err)	
+	assert.Nil(suite.T(), err)
 }
 
 func (suite *IdentitySuite) Test_Probe() {
-	s := getService()	
+	s := getService()
 	_, err := s.Probe(context.Background(), &csi.ProbeRequest{})
-	assert.Nil(suite.T(), err)	
+	assert.Nil(suite.T(), err)
 }

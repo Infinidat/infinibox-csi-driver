@@ -86,6 +86,7 @@ type commonservice struct {
 	api               api.Client
 	storagePoolIdName map[int64]string
 	driverversion     string
+	accessModesHelper helper.AccessModesHelper
 }
 
 //NewStorageController : To return specific implementation of storage
@@ -144,6 +145,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 			return commonserv, err
 		}
 		commonserv.driverversion = config["driverversion"]
+		commonserv.accessModesHelper = helper.AccessMode{}
 	}
 	log.Infoln("buildCommonService commonservice configuration done.")
 	return commonserv, nil

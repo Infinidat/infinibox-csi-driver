@@ -115,7 +115,7 @@ type NetworkSpace struct {
 	ID                  int                  `json:"id,omitempty"`
 	Portals             []Portal             `json:"ips,omitempty"`
 	Mtu                 int                  `json:"mtu,omitempty"`
-	NetworkConfig       NetworkConfigDetails `json:""network_config,omitempty"`
+	NetworkConfig       NetworkConfigDetails `json:"network_config,omitempty"`
 	Name                string               `json:"name,omitempty"`
 	Vmac_Addresses      []VmacAddress        `json:"vmac_addresses,omitempty"`
 	Routes              []Route              `json:"routes,omitempty"`
