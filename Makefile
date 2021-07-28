@@ -14,9 +14,9 @@ _art_dir					= artifact
 
 # For Development Build #################################################################
 # Docker.io username and tag
-_DOCKER_USER				= ohlemacher
+_DOCKER_USER				= infinidat
 _GITLAB_USER				= dohlemacher
-_DOCKER_IMAGE_TAG  		 	= v2.1.0
+_DOCKER_IMAGE_TAG  		 	= v2.1.0-rc1
 
 # redhat username and tag
 _REDHAT_DOCKER_USER			= user1
@@ -79,11 +79,15 @@ docker-login-docker:
 docker-push-docker: docker-login-docker
 	docker login
 	#$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
-	docker tag 82d61b47403b $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	#docker tag 82d61b47403b $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 docker-push-redhat:
-	docker push $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG)
+	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
+	docker login -u unused scan.connect.redhat.com
+	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 docker-push-all: docker-push-docker docker-push-redhat
 

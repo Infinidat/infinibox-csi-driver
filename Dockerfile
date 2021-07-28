@@ -1,8 +1,24 @@
-FROM ubuntu:18.04
+#FROM ubuntu:18.04
+#FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+#FROM redhat/ubi8-minimal:8.4-205
+FROM redhat/ubi8:8.4-206.1626828523
 
+# Note: See "linux_host" note the IBox Ansible vars yaml
+# file in git.infinidat.com:PSUS/webinar-automate-sla.git.
+# This is affected by the base image choice.
+
+MAINTAINER partners.infi@infinidat.com
+
+LABEL name="infinibox-csi-driver" \
+      vendor="Infinidat" \
+      summary="Infinidat CSI-Plugin" \
+      description="A CSI Driver image for InfiniBox"
+
+COPY licenses /licenses
 COPY setenv.sh /setenv.sh
 RUN chmod +x /setenv.sh
 COPY infinibox-csi-driver /infinibox-csi-driver
+RUN chmod +x /infinibox-csi-driver
 
 RUN mkdir /ibox
 ADD host-chroot.sh /ibox
