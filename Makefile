@@ -6,7 +6,8 @@ ifneq ($(EUID),0)
 endif
 
 # Go parameters
-_GOCMD						= go
+# Set a special via '_GOCMD=/usr/local/go/bin/go make test'
+_GOCMD						?= go
 _GOBUILD					= $(_GOCMD) build
 _GOCLEAN					= $(_GOCMD) clean
 _GOTEST						= $(_SUDO) $(_GOCMD) test
