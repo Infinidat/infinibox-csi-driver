@@ -1,7 +1,7 @@
 #FROM ubuntu:18.04
 #FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 #FROM redhat/ubi8-minimal:8.4-205
-FROM redhat/ubi8
+FROM redhat/ubi8:8.4-206.1626828523
 
 # Note: See "linux_host" note the IBox Ansible vars yaml
 # file in git.infinidat.com:PSUS/webinar-automate-sla.git.
