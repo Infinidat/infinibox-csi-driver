@@ -1,9 +1,15 @@
 SHELL						= /bin/bash
+
+EUID := $(shell id -u -r)
+ifneq ($(EUID),0)
+	_SUDO = sudo
+endif
+
 # Go parameters
 _GOCMD						= go
 _GOBUILD					= $(_GOCMD) build
 _GOCLEAN					= $(_GOCMD) clean
-_GOTEST						= $(_GOCMD) test
+_GOTEST						= $(_SUDO) $(_GOCMD) test
 _GOMOD						= $(_GOCMD) mod
 
 _REDHAT_REPO				= scan.connect.redhat.com
@@ -44,9 +50,9 @@ clean:
 build:
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
 
-test: 
+test:
 	$(_GOTEST) -v ./...
-  
+
 run:
 	$(_GOBUILD) -o $(_BINARY_NAME) -v ./...
 	./$(_BINARY_NAME)
