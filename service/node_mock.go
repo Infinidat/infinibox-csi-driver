@@ -14,11 +14,14 @@ type NodeMock struct {
 }
 
 func (m *NodeMock) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	m.Called(ctx, req)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 func (m *NodeMock) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	return &csi.NodeUnpublishVolumeResponse{},nil	
+	m.Called(ctx, req)
+	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 func (m *NodeMock) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	return &csi.NodeStageVolumeResponse{},nil
+	m.Called(ctx, req)
+	return &csi.NodeStageVolumeResponse{}, nil
 }

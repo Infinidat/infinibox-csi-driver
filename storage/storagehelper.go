@@ -11,14 +11,17 @@ limitations under the License.*/
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"strconv"
 	"strings"
 
 	log "infinibox-csi-driver/helper/logger"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"k8s.io/klog"
 )
 
 const (
@@ -129,4 +132,26 @@ func validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil
+}
+
+func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
+	permissionFixed := strings.Replace(permission, "'", "\"", -1)
+	var permissionsMapArray []map[string]interface{}
+	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
+	if err != nil {
+		klog.Errorf("invalid nfs_export_permissions format %v", err)
+	}
+
+	for _, pass := range permissionsMapArray {
+		no_root_squash_str, ok := pass["no_root_squash"].(string)
+		if ok {
+			rootsq, err := strconv.ParseBool(no_root_squash_str)
+			if err != nil {
+				klog.V(4).Infof("fail to cast no_root_squash value in export permission - setting default value 'true'")
+				rootsq = true
+			}
+			pass["no_root_squash"] = rootsq
+		}
+	}
+	return permissionsMapArray, err
 }

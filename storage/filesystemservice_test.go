@@ -46,7 +46,6 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_maxfilesystem(
 	assert.NotNil(suite.T(), err, "empty object")
 }
 
-
 func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() {
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
@@ -64,7 +63,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FileSystemByPo
 	expectedErr := errors.New("some error")
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID",  mock.Anything, 1).Return(nil, expectedErr)
+	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(nil, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID(1000)
 	assert.NotNil(suite.T(), err, "empty object")
@@ -78,7 +77,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeq
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
-	service := FilesystemService{cs: *suite.cs,capacity: 100}
+	service := FilesystemService{cs: *suite.cs, capacity: 100}
 	_, err := service.getExpectedFileSystemID(9999990)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -135,11 +134,11 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 
 	suite.api.On("UpdateFilesystem", fsID, mock.Anything).Return(nil, nil)
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
-	configMap := make(map[string]string)
-	configMap["network_space"] = "networkspace"
+	configMap := getCreateTreeqVolumeParameter()
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.Nil(suite.T(), err, "empty object")
@@ -158,7 +157,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Erro
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(0, expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := make(map[string]string)
@@ -170,7 +169,6 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Erro
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowed() {
 	var fsMetada api.FSMetadata
 	var poolID int64 = 10
-	//expectedErr := errors.New("some error")
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
@@ -178,11 +176,11 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notA
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(20000, nil)
 
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
-	configMap := make(map[string]string)
-	configMap["network_space"] = "networkspace"
+	configMap := getCreateTreeqVolumeParameter()
+
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "fail to get filecount")
 }
@@ -199,12 +197,12 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Err
 	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
-	configMap := make(map[string]string)
-	configMap["network_space"] = "networkspace"
+	configMap := getCreateTreeqVolumeParameter()
 	configMap["fs_prefix"] = "csit_"
+
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "fail to get filecount")
 }
@@ -222,13 +220,11 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Err
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
-	configMap := make(map[string]string)
-	configMap["network_space"] = "networkspace"
+	configMap := getCreateTreeqVolumeParameter()
 	configMap["fs_prefix"] = "csit_"
-	configMap["nfs_export_permissions"] = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "fail to get filecount")
@@ -248,13 +244,11 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
-	configMap := make(map[string]string)
-	configMap["network_space"] = "networkspace"
+	configMap := getCreateTreeqVolumeParameter()
 	configMap["fs_prefix"] = "csit_"
-	configMap["nfs_export_permissions"] = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "fail to get filecount")
@@ -276,13 +270,11 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() 
 	suite.api.On("DeleteFileSystemComplete", mock.Anything, mock.Anything).Return(expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
-	// paramter values to filesystemService
+	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
-	configMap := make(map[string]string)
-	configMap["network_space"] = "networkspace"
+	configMap := getCreateTreeqVolumeParameter()
 	configMap["fs_prefix"] = "csit_"
-	configMap["nfs_export_permissions"] = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "fail to get filecount")
@@ -590,7 +582,6 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolI
 
 }
 
-
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_Error() {
 	var poolID int64 = 10
 	var fsID int64 = 0
@@ -600,11 +591,11 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSys
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
-	suite.api.On("GetTreeqByName",  mock.Anything, mock.Anything).Return(getTreeQResponse(fsID), nil)
-	
+	suite.api.On("GetTreeqByName", mock.Anything, mock.Anything).Return(getTreeQResponse(fsID), nil)
+
 	exportResp := getExportResponse()
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)	
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
@@ -676,4 +667,11 @@ func getfsMetadata2() *api.FSMetadata {
 	fsMetadata.Filemetadata = fsMeta
 	fsMetadata.FileSystemArry = fsArry
 	return &fsMetadata
+}
+
+func getCreateTreeqVolumeParameter() map[string]string {
+	return map[string]string{
+		"pool_name":              "pool_name1",
+		"network_space":          "network_space1",
+		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
 }

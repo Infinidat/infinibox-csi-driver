@@ -16,11 +16,12 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
-	"k8s.io/klog"
 	"path"
 	"strconv"
 	"strings"
 	"sync"
+
+	"k8s.io/klog"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -436,33 +437,17 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 }
 
 func (filesystem *FilesystemService) createExportPath() (err error) {
-	permissionsMapArray, err := getPermission(filesystem.configmap["nfs_export_permissions"])
+	permissionsMapArray, err := getPermissionMaps(filesystem.configmap["nfs_export_permissions"])
 	if err != nil {
 		return
 	}
-	var permissionsput []map[string]interface{}
-	for _, pass := range permissionsMapArray {
-		access := pass["access"].(string)
-		var rootsq bool
-		_, ok := pass["no_root_squash"].(string)
-		if ok {
-			rootsq, err = strconv.ParseBool(pass["no_root_squash"].(string))
-			if err != nil {
-				klog.V(4).Infof("fail to cast no_root_squash value in export permission . setting default value 'true' ")
-				rootsq = true
-			}
-		} else {
-			rootsq = pass["no_root_squash"].(bool)
-		}
-		client := pass["client"].(string)
-		permissionsput = append(permissionsput, map[string]interface{}{"access": access, "no_root_squash": rootsq, "client": client})
-	}
+
 	var exportFileSystem api.ExportFileSys
 	exportFileSystem.FilesystemID = filesystem.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
 	exportFileSystem.Privileged_port = false
 	exportFileSystem.Export_path = filesystem.exportpath
-	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsput...)
+	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	exportResp, err := filesystem.cs.api.ExportFileSystem(exportFileSystem)
 	if err != nil {
 		klog.Errorf("fail to create export path of filesystem %s", filesystem.pVName)

@@ -47,6 +47,7 @@ func (h Service) Remove(name string) error {
 //MockOsHelper -- mock method
 type MockOsHelper struct {
 	mock.Mock
+	OsHelper
 }
 
 func (m *MockOsHelper) IsNotExist(err error) bool {

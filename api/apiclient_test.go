@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -421,7 +422,7 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_error() {
 }
 
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
-	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject:10}}
+	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject: 10}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
@@ -872,6 +873,7 @@ func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_deletes() {
 func (suite *ApiTestSuite) Test_DeleteParentFileSystem_haschild_false() {
 	var FilesystemID int64 = 3111
 	suite.clientMock.On("Get").Return(false)
+	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	err := service.DeleteParentFileSystem(FilesystemID)
 	// Assert
@@ -884,6 +886,7 @@ func (suite *ApiTestSuite) Test_DeleteParentFileSystem() {
 	suite.clientMock.On("Get").Return(true)
 	suite.clientMock.On("Get").Return(0)
 	suite.clientMock.On("Delete").Return(nil)
+	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	err := service.DeleteParentFileSystem(FilesystemID)
 	// Assert

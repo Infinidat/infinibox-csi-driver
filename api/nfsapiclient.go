@@ -15,12 +15,13 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
-	"k8s.io/klog"
 	"net"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"k8s.io/klog"
 )
 
 // OneTimeValidation :
@@ -714,7 +715,7 @@ func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID in
 		return false, err
 	}
 
-	if result == false {
+	if !result {
 		apiresp := resp.(client.ApiResponse)
 		result, _ = apiresp.Result.(bool)
 	}

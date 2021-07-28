@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/helper"
 	log "infinibox-csi-driver/helper/logger"
 	"strconv"
 	"strings"
@@ -259,7 +258,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
+		return &csi.ControllerPublishVolumeResponse{}, errors.New("not found Node ID")
 	}
 	hostName := nodeNameIP[0]
 
@@ -274,7 +273,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
 	}
 
-	_, err = helper.IsValidAccessMode(v, req)
+	_, err = fc.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	}
