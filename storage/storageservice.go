@@ -56,7 +56,7 @@ type fcstorage struct {
 	cs commonservice
 }
 type iscsistorage struct {
-	cs commonservice
+	cs       commonservice
 	osHelper helper.OsHelper
 }
 type treeqstorage struct {
@@ -73,14 +73,15 @@ type nfsstorage struct {
 	capacity  int64
 
 	////
-	fileSystemID int64
-	exportpath   string
-	exportID     int64
-	exportBlock  string
-	ipAddress    string
-	cs           commonservice
-	mounter      mount.Interface
-	osHelper     helper.OsHelper
+	fileSystemID       int64
+	exportpath         string
+	usePrivilegedPorts bool
+	exportID           int64
+	exportBlock        string
+	ipAddress          string
+	cs                 commonservice
+	mounter            mount.Interface
+	osHelper           helper.OsHelper
 }
 
 type commonservice struct {

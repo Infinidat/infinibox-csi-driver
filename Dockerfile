@@ -47,6 +47,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/umount \
     && ln -s /ibox/host-chroot.sh /ibox/vi \
     && ln -s /ibox/host-chroot.sh /ibox/vim \
+    && ln -s /ibox/host-chroot.sh /ibox/whoami \
     && ln -s /ibox/host-chroot.sh /ibox/xfs_admin \
     && ln -s /ibox/host-chroot.sh /ibox/xfs_db
 

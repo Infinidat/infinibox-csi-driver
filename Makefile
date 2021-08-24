@@ -12,6 +12,7 @@ _GOBUILD					= $(_GOCMD) build
 _GOCLEAN					= $(_GOCMD) clean
 _GOTEST						= $(_SUDO) $(_GOCMD) test
 _GOMOD						= $(_GOCMD) mod
+_GOLINT						= golangci-lint
 
 _REDHAT_REPO				= scan.connect.redhat.com
 _GITLAB_REPO				= git.infinidat.com:4567
@@ -53,6 +54,9 @@ build:
 
 test:
 	$(_GOTEST) -v ./...
+
+lint:
+	$(_GOLINT) run
 
 run:
 	$(_GOBUILD) -o $(_BINARY_NAME) -v ./...

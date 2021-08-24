@@ -123,9 +123,22 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		klog.Warningf("Volume Minimum capacity should be greater than %d", gib)
 	}
 
+	usePrivilegedPortsString := config["privileged_ports_only"]
+	if usePrivilegedPortsString == "" {
+		usePrivilegedPortsString = "false"
+	}
+	usePrivilegedPorts, err := strconv.ParseBool(usePrivilegedPortsString)
+	if err != nil {
+		msg := fmt.Sprintf("Invalid NFS privileged_ports_only value: %s, error: %s", usePrivilegedPortsString, err)
+		klog.Errorf(msg)
+		return nil, errors.New(msg)
+	}
+	klog.V(2).Infof("Using priviledged ports only: %t", usePrivilegedPorts)
+
 	nfs.pVName = pvName
 	nfs.configmap = config
 	nfs.capacity = capacity
+	nfs.usePrivilegedPorts = usePrivilegedPorts
 	nfs.exportpath = "/" + pvName
 	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
@@ -326,7 +339,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 	var exportFileSystem api.ExportFileSys
 	exportFileSystem.FilesystemID = nfs.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
-	exportFileSystem.Privileged_port = false
+	exportFileSystem.Privileged_port = nfs.usePrivilegedPorts
 	exportFileSystem.Export_path = nfs.exportpath
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	exportResp, err := nfs.cs.api.ExportFileSystem(exportFileSystem)
