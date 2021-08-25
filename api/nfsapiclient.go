@@ -304,9 +304,10 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		if compareClientIP(permission.Client, ip) {
 			flag = true
 			klog.V(4).Infof("Node IP address already added in export rule")
-		}
-		if permission.Client == "*" {
+		} else if permission.Client == "*" {
 			index = i
+			flag = true
+			klog.V(4).Infof("Node IP address already covered by '*' export rule")
 		}
 	}
 	if index != -1 {

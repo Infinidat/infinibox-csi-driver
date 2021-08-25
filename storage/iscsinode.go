@@ -254,7 +254,17 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		//rescanDeviceMap(req.VolumeId)
 		return nil, status.Error(codes.Internal, err.Error())
 	} else {
-		klog.Errorf("AttachDisk succeeded")
+		klog.V(4).Infof("AttachDisk succeeded")
+	}
+
+	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
+	gid := req.GetVolumeContext()["gid"]
+	targetPath := req.GetTargetPath()
+	err = iscsi.osHelper.ChownVolume(uid, gid, targetPath)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to chown path '%s' : %s", targetPath, err.Error())
+		klog.Errorf(msg)
+		return nil, status.Error(codes.Internal, msg)
 	}
 
 	klog.V(4).Infof("NodePublishVolume succeeded.")

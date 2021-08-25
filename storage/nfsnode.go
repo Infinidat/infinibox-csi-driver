@@ -13,12 +13,15 @@ package storage
 import (
 	"context"
 	"fmt"
+	log "infinibox-csi-driver/helper/logger"
+	"os/exec"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	log "infinibox-csi-driver/helper/logger"
 	"k8s.io/klog"
-	"os/exec"
+
+	//"strconv"
 	"strings"
 	"time"
 )
@@ -86,6 +89,16 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
 	log.Infof("Successfully mounted nfs volume '%s' to mount point '%s'", source, targetPath)
+
+	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
+	gid := req.GetVolumeContext()["gid"]
+	err = nfs.osHelper.ChownVolume(uid, gid, targetPath)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to chown path '%s' : %s", targetPath, err)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.Internal, msg)
+	}
+
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 

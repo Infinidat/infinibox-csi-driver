@@ -1,4 +1,6 @@
 !.infinibox-csi-driver/
+infinibox-csi-driver
+
 # Folders
 vendor
 artifact
