@@ -9,10 +9,11 @@ FROM redhat/ubi8:8.4-206.1626828523
 
 MAINTAINER partners.infi@infinidat.com
 
-LABEL name="infinibox-csi-driver" \
-      vendor="Infinidat" \
-      summary="Infinidat CSI-Plugin" \
-      description="A CSI Driver image for InfiniBox"
+LABEL name="infinibox-csi-driver"
+LABEL vendor="Infinidat"
+LABEL summary="Infinidat CSI-Plugin"
+LABEL description="A CSI Driver image for InfiniBox"
+LABEL org.opencontainers.image.authors="partners.infi@infinidat.com"
 
 COPY licenses /licenses
 COPY setenv.sh /setenv.sh
@@ -27,6 +28,7 @@ RUN \
        ln -s /ibox/host-chroot.sh /ibox/blkid \
     && ln -s /ibox/host-chroot.sh /ibox/blockdev \
     && ln -s /ibox/host-chroot.sh /ibox/cat \
+    && ln -s /ibox/host-chroot.sh /ibox/chown \
     && ln -s /ibox/host-chroot.sh /ibox/dmsetup \
     && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/hostnamectl \

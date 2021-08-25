@@ -40,10 +40,11 @@ func TestNodeSuite(t *testing.T) {
 }
 
 func (suite *NodeSuite) Test_NodePublishVolume_mnt_false() {
-	service := nfsstorage{mounter: suite.nfsMountMock}
+	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
+	suite.osmock.On("ChownVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
 	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
 	assert.Nil(suite.T(), err, "empty object")
@@ -78,10 +79,11 @@ func (suite *NodeSuite) Test_NodePublishVolume_Exist_true() {
 }
 
 func (suite *NodeSuite) Test_NodePublishVolume_success() {
-	service := nfsstorage{mounter: suite.nfsMountMock}
+	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.osmock.On("ChownVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
 
@@ -93,6 +95,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
+	suite.osmock.On("ChownVolume", mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
 

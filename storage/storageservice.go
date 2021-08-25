@@ -57,6 +57,7 @@ type fcstorage struct {
 }
 type iscsistorage struct {
 	cs commonservice
+	osHelper helper.OsHelper
 }
 type treeqstorage struct {
 	csi.ControllerServer
@@ -97,7 +98,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
 		} else if storageProtocol == "iscsi" {
-			return &iscsistorage{cs: comnserv}, nil
+			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
@@ -116,7 +117,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
 		} else if storageProtocol == "iscsi" {
-			return &iscsistorage{cs: comnserv}, nil
+			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New(""), osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {

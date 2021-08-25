@@ -11,9 +11,14 @@ limitations under the License.*/
 package helper
 
 import (
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
 
 	"github.com/stretchr/testify/mock"
+	"k8s.io/klog"
 )
 
 //OsHelper interface
@@ -21,6 +26,8 @@ type OsHelper interface {
 	MkdirAll(path string, perm os.FileMode) error
 	IsNotExist(err error) bool
 	Remove(name string) error
+	ChownVolume(uid string, gid string, targetPath string) error
+	ChownVolumeExec(uid string, gid string, targetPath string) error
 }
 
 //Service service struct
@@ -40,6 +47,51 @@ func (h Service) IsNotExist(err error) bool {
 //Remove method delete the dir
 func (h Service) Remove(name string) error {
 	return os.Remove(name)
+}
+
+//SetUidGid method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
+func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
+	// Sanity check values.
+	if uid != "" {
+		uid_int, err := strconv.Atoi(uid)
+		if err != nil || uid_int < 0 {
+			msg := fmt.Sprintf("Storage class specifies an invalid volume UID with value [%s]: %s", uid, err)
+			klog.Errorf(msg)
+			return errors.New(msg)
+		}
+	}
+	if gid != "" {
+		gid_int, err := strconv.Atoi(gid)
+		if err != nil || gid_int < 0 {
+			msg := fmt.Sprintf("Storage class specifies an invalid volume GID with value [%s]: %s", gid, err)
+			klog.Errorf(msg)
+			return errors.New(msg)
+		}
+	}
+
+	return h.ChownVolumeExec(uid, gid, targetPath)
+}
+
+func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) error {
+	if uid != "" || gid != "" {
+		klog.V(4).Infof("Specified volume UID: '%s', GID: '%s'", uid, gid)
+		ownerGroup := fmt.Sprintf("%s:%s", uid, gid)
+		// .snapshot within the mounted volume is readonly. Cannot change its ownership so omit.
+		chown := fmt.Sprintf("find %s -maxdepth 1 ! -name '.snapshot' -exec chown -R %s '{}' \\;", targetPath, ownerGroup)
+		klog.V(4).Infof("Run: %s", chown)
+		cmd := exec.Command("bash", "-c", chown)
+		err := cmd.Run()
+		if err != nil {
+			msg := fmt.Sprintf("Failed to execute '%s': %s", chown, err)
+			klog.Errorf(msg)
+			return errors.New(msg)
+		} else {
+			klog.V(4).Infof("Set mount point directory and contents ownership. Omitted readonly .snapshot/ if found.")
+		}
+	} else {
+		klog.V(4).Infof("Using default ownership for mount point %s", targetPath)
+	}
+	return nil
 }
 
 /*OsHelper method mock services */
@@ -66,6 +118,24 @@ func (m *MockOsHelper) MkdirAll(path string, perm os.FileMode) error {
 
 func (m *MockOsHelper) Remove(path string) error {
 	status := m.Called(path)
+	if status.Get(0) == nil {
+		return nil
+	}
+	st, _ := status.Get(0).(error)
+	return st
+}
+
+func (m *MockOsHelper) ChownVolume(uid string, gid string, targetPath string) error {
+	status := m.Called(uid, gid, targetPath)
+	if status.Get(0) == nil {
+		return nil
+	}
+	st, _ := status.Get(0).(error)
+	return st
+}
+
+func (m *MockOsHelper) ChownVolumeExec(uid string, gid string, targetPath string) error {
+	status := m.Called(uid, gid, targetPath)
 	if status.Get(0) == nil {
 		return nil
 	}

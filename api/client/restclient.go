@@ -150,6 +150,7 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
 	klog.V(2).Infof("Put: context.Context '%s'", ctx)
 	klog.V(2).Infof("Put: url '%s'", url)
+	klog.V(4).Infof("Put: body '%s'", body)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
