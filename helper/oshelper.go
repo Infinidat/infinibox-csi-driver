@@ -28,6 +28,8 @@ type OsHelper interface {
 	Remove(name string) error
 	ChownVolume(uid string, gid string, targetPath string) error
 	ChownVolumeExec(uid string, gid string, targetPath string) error
+	ChmodVolume(unixPermissions string, targetPath string) error
+	ChmodVolumeExec(unixPermissions string, targetPath string) error
 }
 
 //Service service struct
@@ -49,7 +51,7 @@ func (h Service) Remove(name string) error {
 	return os.Remove(name)
 }
 
-//SetUidGid method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
+//ChownVolume method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
 func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 	// Sanity check values.
 	if uid != "" {
@@ -72,12 +74,13 @@ func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 	return h.ChownVolumeExec(uid, gid, targetPath)
 }
 
+//ChownVolumeExec method Execute chown.
 func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) error {
 	if uid != "" || gid != "" {
-		klog.V(4).Infof("Specified volume UID: '%s', GID: '%s'", uid, gid)
+		klog.V(4).Infof("Specified UID: '%s', GID: '%s'", uid, gid)
 		ownerGroup := fmt.Sprintf("%s:%s", uid, gid)
-		// .snapshot within the mounted volume is readonly. Cannot change its ownership so omit.
-		chown := fmt.Sprintf("find %s -maxdepth 1 ! -name '.snapshot' -exec chown -R %s '{}' \\;", targetPath, ownerGroup)
+		// .snapshot within the mounted volume is readonly. Find will ignore.
+		chown := fmt.Sprintf("find %s -maxdepth 1 -name '*' -exec chown --recursive %s '{}' \\;", targetPath, ownerGroup)
 		klog.V(4).Infof("Run: %s", chown)
 		cmd := exec.Command("bash", "-c", chown)
 		err := cmd.Run()
@@ -86,10 +89,37 @@ func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) erro
 			klog.Errorf(msg)
 			return errors.New(msg)
 		} else {
-			klog.V(4).Infof("Set mount point directory and contents ownership. Omitted readonly .snapshot/ if found.")
+			klog.V(4).Infof("Set mount point directory and contents ownership.")
 		}
 	} else {
 		klog.V(4).Infof("Using default ownership for mount point %s", targetPath)
+	}
+	return nil
+}
+
+//ChmodVolume method If unixPermissions key is found in req, chmod recursively for target path ommitting a toplevel .snapshot/.
+func (h Service) ChmodVolume(unixPermissions string, targetPath string) error {
+	return h.ChmodVolumeExec(unixPermissions, targetPath)
+}
+
+//ChmodVolumeExec method Execute chmod.
+func (h Service) ChmodVolumeExec(unixPermissions string, targetPath string) error {
+	if unixPermissions != "" {
+		klog.V(4).Infof("Specified unix permissions: '%s'", unixPermissions)
+		// .snapshot within the mounted volume is readonly. Find will ignore.
+		chmod := fmt.Sprintf("find %s -maxdepth 1 -name '*' -exec chmod --recursive %s '{}' \\;", targetPath, unixPermissions)
+		klog.V(4).Infof("Run: %s", chmod)
+		cmd := exec.Command("bash", "-c", chmod)
+		err := cmd.Run()
+		if err != nil {
+			msg := fmt.Sprintf("Failed to execute '%s': error: %s", chmod, err)
+			klog.Errorf(msg)
+			return errors.New(msg)
+		} else {
+			klog.V(4).Infof("Set mount point directory and contents mode bits.")
+		}
+	} else {
+		klog.V(4).Infof("Using default mode bits for mount point %s", targetPath)
 	}
 	return nil
 }
@@ -136,6 +166,24 @@ func (m *MockOsHelper) ChownVolume(uid string, gid string, targetPath string) er
 
 func (m *MockOsHelper) ChownVolumeExec(uid string, gid string, targetPath string) error {
 	status := m.Called(uid, gid, targetPath)
+	if status.Get(0) == nil {
+		return nil
+	}
+	st, _ := status.Get(0).(error)
+	return st
+}
+
+func (m *MockOsHelper) ChmodVolume(unixPermissions string, targetPath string) error {
+	status := m.Called(unixPermissions, targetPath)
+	if status.Get(0) == nil {
+		return nil
+	}
+	st, _ := status.Get(0).(error)
+	return st
+}
+
+func (m *MockOsHelper) ChmodVolumeExec(unixPermissions string, targetPath string) error {
+	status := m.Called(unixPermissions, targetPath)
 	if status.Get(0) == nil {
 		return nil
 	}

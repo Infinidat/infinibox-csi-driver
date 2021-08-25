@@ -29,7 +29,9 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/blockdev \
     && ln -s /ibox/host-chroot.sh /ibox/cat \
     && ln -s /ibox/host-chroot.sh /ibox/chown \
+    && ln -s /ibox/host-chroot.sh /ibox/chmod \
     && ln -s /ibox/host-chroot.sh /ibox/dmsetup \
+    && ln -s /ibox/host-chroot.sh /ibox/find \
     && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/hostnamectl \
     && ln -s /ibox/host-chroot.sh /ibox/iscsiadm \

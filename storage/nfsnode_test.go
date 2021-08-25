@@ -45,6 +45,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_mnt_false() {
 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
 	suite.osmock.On("ChownVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.osmock.On("ChmodVolume", mock.Anything, mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
 	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
 	assert.Nil(suite.T(), err, "empty object")
@@ -84,6 +85,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.osmock.On("ChownVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.osmock.On("ChmodVolume", mock.Anything, mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
 

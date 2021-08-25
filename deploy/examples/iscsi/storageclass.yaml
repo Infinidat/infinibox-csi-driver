@@ -7,21 +7,24 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
 parameters:
-  csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
-  csi.storage.k8s.io/provisioner-secret-namespace: infi
-  csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
-  csi.storage.k8s.io/controller-publish-secret-namespace: infi
-  csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
-  csi.storage.k8s.io/node-stage-secret-namespace: infi
-  csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
-  csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
-  useCHAP: "none" # none / chap / mutual_chap
+  csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/controller-publish-secret-namespace: infi
+  csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: infi
+  csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-stage-secret-namespace: infi
+  csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: infi
   fstype: ext4
-  pool_name: "iscsipool"
-  network_space: "niscsi"
-  provision_type: "THIN"
-  storage_protocol: "iscsi"
-  ssd_enabled: "false"
+  # gid: 1000 # GID of volume
   max_vols_per_host: "100"
+  network_space: "niscsi"
+  pool_name: "iscsipool"
+  provision_type: "THIN"
+  ssd_enabled: "false"
+  storage_protocol: "iscsi"
+  useCHAP: "none" # none / chap / mutual_chap
+  # uid: 1000 # UID of volume
+  # unix_permissions: 777 # chmod -R of volume

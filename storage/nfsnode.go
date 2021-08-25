@@ -72,17 +72,16 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
 
 	// Create mount point
-	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
-	klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", targetPath)
 	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 	// MkdirAll() will cause hard-to-grok mount errors.
+	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+	klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", targetPath)
 	cmd := exec.Command("mkdir", "--parents", "--mode", "0750", targetPath)
 	err = cmd.Run()
 	if err != nil {
 		klog.Errorf("failed to mkdir '%s': %s", targetPath, err)
 		return nil, err
 	}
-
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		klog.Errorf("Failed to mount source path '%s' : %s", source, err)
@@ -90,11 +89,21 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	log.Infof("Successfully mounted nfs volume '%s' to mount point '%s'", source, targetPath)
 
+	// Chown
 	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
 	gid := req.GetVolumeContext()["gid"]
 	err = nfs.osHelper.ChownVolume(uid, gid, targetPath)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to chown path '%s' : %s", targetPath, err)
+		msg := fmt.Sprintf("Failed to chown path '%s': %s", targetPath, err)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.Internal, msg)
+	}
+
+	// Chmod
+	unixPermissions := req.GetVolumeContext()["unix_permissions"] // Returns an empty string if key not found
+	err = nfs.osHelper.ChmodVolume(unixPermissions, targetPath)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to chmod path '%s': %s", targetPath, err)
 		klog.Errorf(msg)
 		return nil, status.Errorf(codes.Internal, msg)
 	}
