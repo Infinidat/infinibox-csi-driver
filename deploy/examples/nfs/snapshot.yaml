@@ -1,11 +1,10 @@
-apiVersion: snapshot.storage.k8s.io/v1alpha1
+apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
   name: ibox-pvc-snapshot-demo
   namespace: infi
 spec:
-  snapshotClassName: ibox-snapshotclass-demo
+  volumeSnapshotClassName: ibox-snapshotclass-demo
   source:
-    name: ibox-pvc-demo
-    kind: PersistentVolumeClaim
+    persistentVolumeClaimName: ibox-pvc-demo
 

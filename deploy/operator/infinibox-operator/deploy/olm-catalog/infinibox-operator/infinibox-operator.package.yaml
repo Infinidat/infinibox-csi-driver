@@ -1,5 +1,0 @@
-channels:
-- currentCSV: infinibox-operator.v0.0.1
-  name: alpha
-defaultChannel: alpha
-packageName: infinibox-operator-certified

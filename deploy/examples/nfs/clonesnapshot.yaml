@@ -1,4 +1,4 @@
-apiVersion: snapshot.storage.k8s.io/v1alpha1
+apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
   name: ibox-pvc-clone-snapshot-demo
@@ -6,6 +6,5 @@ metadata:
 spec:
   snapshotClassName: ibox-snapshotclass-demo
   source:
-    name: ibox-pvc-clone-demo
-    kind: PersistentVolumeClaim
+    persistentVolumeClaimName: ibox-pvc-clone-demo
 
