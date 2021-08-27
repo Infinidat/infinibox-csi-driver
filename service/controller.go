@@ -183,13 +183,13 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
-			&csi.ControllerServiceCapability{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
-					},
-				},
-			},
+			// &csi.ControllerServiceCapability{
+			// 	Type: &csi.ControllerServiceCapability_Rpc{
+			// 		Rpc: &csi.ControllerServiceCapability_RPC{
+			// 			Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
+			// 		},
+			// 	},
+			// },
 			&csi.ControllerServiceCapability{
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
@@ -218,13 +218,13 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
-			&csi.ControllerServiceCapability{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
-					},
-				},
-			},
+			// &csi.ControllerServiceCapability{
+			// 	Type: &csi.ControllerServiceCapability_Rpc{
+			// 		Rpc: &csi.ControllerServiceCapability_RPC{
+			// 			Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
+			// 		},
+			// 	},
+			// },
 			&csi.ControllerServiceCapability{
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
