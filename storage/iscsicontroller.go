@@ -39,14 +39,14 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	cr := req.GetCapacityRange()
 	sizeBytes, err := verifyVolumeSize(cr)
 	if err != nil {
-		return &csi.CreateVolumeResponse{}, err
+		return nil, err
 	}
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
 	err = validateParametersiSCSI(params)
 	if err != nil {
-		return &csi.CreateVolumeResponse{}, status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Get Volume Provision Type
 	volType := "THIN"
@@ -62,25 +62,32 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	for _, volCap := range volCaps {
 		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
 			klog.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
-			return &csi.CreateVolumeResponse{}, fmt.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			return nil, fmt.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
 		}
 	}
 
 	// Volume name to be created
 	name := req.GetName()
-	klog.V(2).Infof("csi voume name from request is %s", name)
+	klog.V(2).Infof("csi volume name from request is %s", name)
 	if name == "" {
-		return &csi.CreateVolumeResponse{}, errors.New("Name cannot be empty")
+		return nil, status.Error(codes.InvalidArgument, "Name cannot be empty")
 	}
 
 	targetVol, err := iscsi.cs.api.GetVolumeByName(name)
 	if err != nil {
 		if !strings.Contains(err.Error(), "volume with given name not found") {
-			return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if targetVol != nil {
-		return &csi.CreateVolumeResponse{}, nil
+		if targetVol.Size == sizeBytes {
+			existingVolResp := iscsi.cs.getCSIResponse(targetVol, req)
+			copyRequestParameters(req.GetParameters(), existingVolResp.VolumeContext)
+			return &csi.CreateVolumeResponse {
+						Volume: existingVolResp,
+					}, nil
+		}
+		return nil, errors.New("volume exists but has different size")
 	}
 
 	networkSpace := req.GetParameters()["network_space"]
@@ -99,7 +106,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// We require the storagePool name for creation
 	poolName, ok := req.GetParameters()["pool_name"]
 	if !ok {
-		return &csi.CreateVolumeResponse{}, errors.New("pool_name is a required parameter")
+		return nil, errors.New("pool_name is a required parameter")
 	}
 	fstype := req.GetParameters()["fstype"]
 	// Volume content source support volume and snapshots
