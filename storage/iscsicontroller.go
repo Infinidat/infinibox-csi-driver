@@ -465,6 +465,8 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 				ReadyToUse:     true,
 			},
 		}, nil
+	} else {
+		return nil, status.Error(codes.AlreadyExists, "snapshot with already existing name and different source volume ID")
 	}
 
 	snapshotParam := &api.VolumeSnapshot{
