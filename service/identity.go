@@ -42,13 +42,14 @@ func (s *service) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginC
 					},
 				},
 			},
-			{
-				Type: &csi.PluginCapability_Service_{
-					Service: &csi.PluginCapability_Service{
-						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
-					},
-				},
-			},
+			// To be reported when topology contstraints are supported
+			// {
+			// 	Type: &csi.PluginCapability_Service_{
+			// 		Service: &csi.PluginCapability_Service{
+			// 			Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
+			// 		},
+			// 	},
+			// },
 		},
 	}, nil
 }
