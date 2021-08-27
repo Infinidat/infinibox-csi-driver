@@ -109,9 +109,12 @@ func (s *service) getNodeFQDN() string {
 }
 
 func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+	if str == "" {
+		return volprotoconf, errors.New("volume Id empty - invalid")
+	}
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
-		return volprotoconf, errors.New("volume Id and other details not found")
+		return volprotoconf, errors.New("volume Id invalid")
 	}
 	klog.V(2).Infof("volproto: %s", volproto)
 	volprotoconf.VolumeID = volproto[0]

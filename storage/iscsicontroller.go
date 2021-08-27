@@ -76,10 +76,11 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	targetVol, err := iscsi.cs.api.GetVolumeByName(name)
 	if err != nil {
 		if !strings.Contains(err.Error(), "volume with given name not found") {
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, status.Errorf(codes.NotFound, "CreateVolume failed: %v", err)
 		}
 	}
 	if targetVol != nil {
+		klog.V(2).Infof("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
 		if targetVol.Size == sizeBytes {
 			existingVolResp := iscsi.cs.getCSIResponse(targetVol, req)
 			copyRequestParameters(req.GetParameters(), existingVolResp.VolumeContext)
@@ -87,7 +88,9 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 						Volume: existingVolResp,
 					}, nil
 		}
-		return nil, errors.New("volume exists but has different size")
+		err = status.Errorf(codes.AlreadyExists, "CreateVolume failed: volume exists but has different size")
+		klog.Errorf("Volume: %s already exists with a different size, %v", name, err)
+		return nil, err
 	}
 
 	networkSpace := req.GetParameters()["network_space"]
