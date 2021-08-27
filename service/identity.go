@@ -17,14 +17,6 @@ import (
 	"k8s.io/klog"
 )
 
-// Manifest is the SP's manifest.
-var Manifest = map[string]string{
-	"url":    "http://github.com/infinidat/csi-infinidat-driver",
-	"semver": "1.0.0",
-	"commit": "",
-	"formed": "",
-}
-
 func (s *service) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	return &csi.GetPluginInfoResponse{
 		Name:          s.driverName,
