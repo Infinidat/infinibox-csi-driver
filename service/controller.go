@@ -53,7 +53,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err == nil && createVolResp != nil && createVolResp.Volume != nil && createVolResp.Volume.VolumeId != "" {
 		createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
-		klog.V(2).Infof("CreateVolume success, volume name: %s id: %s", volName, createVolResp.Volume.VolumeId)
+		klog.V(2).Infof("CreateVolume success, resp: %v", createVolResp)
 	}
 	return
 }
@@ -97,7 +97,9 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 
 // ControllerPublishVolume method
 func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (publishVolResp *csi.ControllerPublishVolumeResponse, err error) {
-	klog.V(2).Infof("Main ControllerPublishVolume called with req volumeID %s, nodeID %s", req.GetVolumeId(), req.GetNodeId())
+	klog.V(2).Infof("ControllerPublishVolume called with req volumeID %s, nodeID %s, ctxt: %v",
+		req.GetVolumeId(), req.GetNodeId(), req.GetVolumeContext())
+
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))

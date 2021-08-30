@@ -83,7 +83,7 @@ func validateParameter(config map[string]string) (bool, map[string]string) {
 	return validationStatus, validationStatusMap
 }
 
-func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
+func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(4).Infof("Creating Volume of nfs protocol")
 	// Adding the the request parameter into Map config
 	config := req.GetParameters()
@@ -145,19 +145,24 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 
 	// check if volume with given name already exists
 	volume, err := nfs.cs.api.GetFileSystemByName(pvName)
-	klog.V(4).Infof("CreateVolume - GetFileSystemByName error: %v", err)
 	if err != nil && !strings.EqualFold(err.Error(), "filesystem with given name not found") {
-		return &csi.CreateVolumeResponse{}, err
+		klog.V(4).Infof("CreateVolume - GetFileSystemByName error: %v", err)
+		return nil, status.Errorf(codes.NotFound, "CreateVolume failed: %v", err)
 	}
 	if volume != nil {
 		// return existing volume
 		nfs.fileSystemID = volume.ID
 		exportArray, err := nfs.cs.api.GetExportByFileSystem(nfs.fileSystemID)
 		if err != nil {
-			return &csi.CreateVolumeResponse{}, err
+			return nil, status.Errorf(codes.Internal, "CreateVolume failed: %v", err)
 		}
 		if exportArray == nil {
-			return &csi.CreateVolumeResponse{}, errors.New("exports not found")
+			return nil, status.Errorf(codes.NotFound, "CreateVolume failed: %v", err)
+		}
+		if capacity != volume.Size {
+			err = status.Errorf(codes.AlreadyExists, "CreateVolume failed: volume exists but has different size")
+			klog.Errorf("Volume: %s id: %d, %v", pvName, nfs.fileSystemID, err)
+			return nil, err
 		}
 		for _, export := range *exportArray {
 			nfs.exportBlock = export.ExportPath
@@ -170,6 +175,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	// Volume content source support Volumes and Snapshots
 	contentSource := req.GetVolumeContentSource()
 	klog.V(4).Infof("content volume source: %v", contentSource)
+	var csiResp *csi.CreateVolumeResponse
 	if contentSource != nil {
 		if contentSource.GetSnapshot() != nil {
 			snapshot := req.GetVolumeContentSource().GetSnapshot()
