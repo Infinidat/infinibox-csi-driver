@@ -15,8 +15,6 @@ import (
 	"errors"
 	"fmt"
 
-	"infinibox-csi-driver/storage"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -176,7 +174,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 	return
 }
 
-func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResp *csi.ValidateVolumeCapabilitiesResponse, err error) {
+func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
 	klog.V(2).Infof("Main ValidateVolumeCapabilities called with req volumeID %s", req.GetVolumeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -197,7 +195,7 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 		err = errors.New("ValidateVolumeCapabilities failed to initialise storage controller: " + volproto.StorageType)
 		return
 	}
-	validateVolCapsResp, err = storageController.ValidateVolumeCapabilities(ctx, req)
+	validateVolCapsResponse, err = storageController.ValidateVolumeCapabilities(ctx, req)
 	if err != nil {
 		klog.Errorf("ValidateVolumeCapabilities %v", err)
 	}

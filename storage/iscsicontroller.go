@@ -463,8 +463,8 @@ func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *
 	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
 	// }
 
-	resp = &csi.ValidateVolumeCapabilitiesResponse{
-		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+	resp = &csi.ValidateVolumeCapabilitiesResponse {
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed {
 			VolumeCapabilities: req.GetVolumeCapabilities(),
 		},
 	}
