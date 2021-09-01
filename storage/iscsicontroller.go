@@ -84,9 +84,9 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if targetVol.Size == sizeBytes {
 			existingVolResp := iscsi.cs.getCSIResponse(targetVol, req)
 			copyRequestParameters(req.GetParameters(), existingVolResp.VolumeContext)
-			return &csi.CreateVolumeResponse {
-						Volume: existingVolResp,
-					}, nil
+			return &csi.CreateVolumeResponse{
+				Volume: existingVolResp,
+			}, nil
 		}
 		err = status.Errorf(codes.AlreadyExists, "CreateVolume failed: volume exists but has different size")
 		klog.Errorf("Volume: %s already exists with a different size, %v", name, err)
@@ -116,7 +116,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
 		return iscsi.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
-
 	}
 	ssd := req.GetParameters()["ssd_enabled"]
 	if ssd == "" {
@@ -132,40 +131,44 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, poolName)
 	if err != nil {
 		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
-		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal,
-			"error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
-
+		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
 	}
 	vi := iscsi.cs.getCSIResponse(volumeResp, req)
 
+	// check volume id format
+	volID, err := strconv.Atoi(vi.VolumeId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error getting volume id")
+	}
+
+	// confirm volume creation
+	var vol *api.Volume
+	var counter int
+	vol, err = iscsi.cs.api.GetVolume(volID)
+	for vol == nil && counter < 100 {
+		time.Sleep(3 * time.Millisecond)
+		vol, err = iscsi.cs.api.GetVolume(volID)
+		counter = counter + 1
+	}
+
+	// Prepare response struct
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
-	volID, err := strconv.Atoi(vi.VolumeId)
-	if err != nil {
-		return &csi.CreateVolumeResponse{}, errors.New("error getting volume id")
-	}
 
-	// confirm volume creation
-	vol, err := iscsi.cs.api.GetVolume(volID)
-	counter := 0
-	if vol == nil {
-		for err != nil && counter < 100 {
-			time.Sleep(3 * time.Millisecond)
-			vol, err = iscsi.cs.api.GetVolume(volID)
-			counter = counter + 1
-		}
-	}
+	// attach metadata to volume object
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = vol.Name
 	metadata["host.filesystem_type"] = fstype
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
 	if err != nil {
-		klog.Errorf("fail to attach metadata for volume : %s", vol.Name)
-		klog.Errorf("error to attach metadata %v", err)
-		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
+		klog.Errorf("failed to attach metadata for volume : %s, err: %v", name, err)
+		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
 	}
+
+	klog.V(2).Infof("CreateVolume resp: %v", *csiResp)
+	klog.Infof("created volume: %s id: %d", name, volID)
 	return csiResp, err
 }
 
@@ -216,16 +219,16 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	volproto, err := validateStorageType(volumeContentID)
 	if err != nil {
 		klog.Errorf("Failed to validate storage type %v", err)
-		return nil, errors.New("error getting volume id")
+		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
 
 	ID, err := strconv.Atoi(volproto.VolumeID)
 	if err != nil {
-		return nil, errors.New("error getting volume id")
+		return nil, status.Errorf(codes.InvalidArgument, restoreType+" invalid: %s", volumeContentID)
 	}
 	srcVol, err := iscsi.cs.api.GetVolume(ID)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
+		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", ID)
 	}
 
 	// Validate the size is the same.
@@ -274,9 +277,8 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
-		klog.Errorf("fail to attach metadata for volume : %s", dstVol.Name)
-		klog.Errorf("error to attach metadata %v", err)
-		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
+		klog.Errorf("failed to attach metadata for volume : %s, err: %v", dstVol.Name, err)
+		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
 	}
 	klog.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
@@ -333,6 +335,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	lunList, err := iscsi.cs.api.GetAllLunByHost(host.ID)
 	if err != nil {
+		klog.Errorf("ControllerPublishVolume failed to GetAllLunByHost(), error: %v", err)
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
 	for _, lun := range lunList {
@@ -341,6 +344,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 			volCtx["lun"] = strconv.Itoa(lun.Lun)
 			volCtx["hostID"] = strconv.Itoa(host.ID)
 			volCtx["hostPorts"] = ports
+			klog.V(4).Infof("vol: %d already mapped to host:%s id:%d as LUN: %s at ports: %s", volID, host.Name, host.ID, lun.Lun, ports)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: volCtx,
 			}, nil
@@ -352,7 +356,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		return &csi.ControllerPublishVolumeResponse{}, err
 	}
 	klog.V(4).Infof("host can have maximum %d volume mapped", maxAllowedVol)
-	klog.V(4).Infof("host %s has %d volume mapped", host.Name, len(lunList))
+	klog.V(4).Infof("host %s id: %d has %d volumes mapped", host.Name, host.ID, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		klog.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
 		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
@@ -370,6 +374,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	volCtx["hostID"] = strconv.Itoa(host.ID)
 	volCtx["hostPorts"] = ports
 	volCtx["securityMethod"] = host.SecurityMethod
+	klog.V(4).Infof("mapped volume %d, publish context: %v", volID, volCtx)
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: volCtx,
 	}, nil
@@ -421,7 +426,33 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 }
 
 func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	return &csi.ValidateVolumeCapabilitiesResponse{}, nil
+	klog.V(2).Infof("ValidateVolumeCapabilities called with volumeId %s", req.GetVolumeId())
+	volproto, err := validateStorageType(req.GetVolumeId())
+	if err != nil {
+		klog.Errorf("Failed to validate storage type %v", err)
+		return nil, errors.New("error getting volume id")
+	}
+	volID, _ := strconv.Atoi(volproto.VolumeID)
+
+	klog.V(4).Infof("volID: %d", volID)
+	v, err := iscsi.cs.api.GetVolume(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume ID: %d, %v", volID, err)
+		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
+	}
+	klog.V(4).Infof("volID: %d colume: %v", volID, v)
+
+	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
+	// if err != nil {
+	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// }
+
+	resp = &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: req.GetVolumeCapabilities(),
+		},
+	}
+	return
 }
 
 func (iscsi *iscsistorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (resp *csi.ListVolumesResponse, err error) {
