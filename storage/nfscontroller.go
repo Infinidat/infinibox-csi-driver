@@ -123,6 +123,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		klog.Warningf("Volume Minimum capacity should be greater than %d", gib)
 	}
 
+	// Privileged ports only
 	usePrivilegedPortsString := config["privileged_ports_only"]
 	if usePrivilegedPortsString == "" {
 		usePrivilegedPortsString = "false"
@@ -135,10 +136,24 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	}
 	klog.V(2).Infof("Using priviledged ports only: %t", usePrivilegedPorts)
 
+	// Snapshot dir visible
+	snapdirVisibleString := config["snapdir_visible"]
+	if snapdirVisibleString == "" {
+		snapdirVisibleString = "true"
+	}
+	snapdirVisible, err := strconv.ParseBool(snapdirVisibleString)
+	if err != nil {
+		msg := fmt.Sprintf("Invalid NFS snapdir_visible value: %s, error: %s", snapdirVisibleString, err)
+		klog.Errorf(msg)
+		return nil, errors.New(msg)
+	}
+	klog.V(2).Infof("Snapshot directory is visible: %t", snapdirVisible)
+
 	nfs.pVName = pvName
 	nfs.configmap = config
 	nfs.capacity = capacity
 	nfs.usePrivilegedPorts = usePrivilegedPorts
+	nfs.snapdirVisible = snapdirVisible
 	nfs.exportpath = "/" + pvName
 	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
@@ -155,7 +170,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		return &csi.CreateVolumeResponse{}, err
 	}
 	if volume != nil {
-		// return exiting volume
+		// return existing volume
 		nfs.fileSystemID = volume.ID
 		exportArray, err := nfs.cs.api.GetExportByFileSystem(nfs.fileSystemID)
 		if err != nil {
@@ -340,6 +355,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 	exportFileSystem.FilesystemID = nfs.fileSystemID
 	exportFileSystem.Transport_protocols = "TCP"
 	exportFileSystem.Privileged_port = nfs.usePrivilegedPorts
+	exportFileSystem.SnapdirVisible = nfs.snapdirVisible
 	exportFileSystem.Export_path = nfs.exportpath
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	exportResp, err := nfs.cs.api.ExportFileSystem(exportFileSystem)
@@ -349,6 +365,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 	}
 	nfs.exportID = exportResp.ID
 	nfs.exportBlock = exportResp.ExportPath
+	klog.V(4).Infof("Created nfs export for PV '%s', snapdirVisible: %t", nfs.pVName, nfs.snapdirVisible)
 	return err
 }
 

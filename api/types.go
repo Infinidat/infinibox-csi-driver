@@ -120,12 +120,14 @@ type NetworkSpace struct {
 	Vmac_Addresses      []VmacAddress        `json:"vmac_addresses,omitempty"`
 	Routes              []Route              `json:"routes,omitempty"`
 }
+
 type Route struct {
 	Netmask     int    `json:"netmask,omitempty"`
 	Destination string `json:"destination,omitempty"`
 	ID          int    `json:"id,omitempty"`
 	Gateway     string `json:"gateway,omitempty"`
 }
+
 type VmacAddress struct {
 	Role         string `json:"role,omitempty"`
 	Vmac_Address string `json:"vmac_address,omitempty"`
@@ -174,6 +176,7 @@ type HostPort struct {
 	PortType    string `json:"type,omitempty"`
 	PortAddress string `json:"address,omitempty"`
 }
+
 type LunInfo struct {
 	HostClusterID int  `json:"host_cluster_id,omitempty"`
 	VolumeID      int  `json:"volume_id,omitempty"`
@@ -182,13 +185,15 @@ type LunInfo struct {
 	ID            int  `json:"id,omitempty"`
 	Lun           int  `json:"lun,omitempty"`
 }
+
 type ExportFileSys struct {
 	FilesystemID        int64                    `json:"filesystem_id,omitempty"`
 	Name                string                   `json:"name,omitempty"`
 	Transport_protocols string                   `json:"transport_protocols,omitempty"`
-	Privileged_port     bool                     `json:"privileged_port,omitempty"`
+	Privileged_port     bool                     `json:"privileged_port"`
 	Export_path         string                   `json:"export_path,omitempty"`
 	Permissionsput      []map[string]interface{} `json:"permissions,omitempty"`
+	SnapdirVisible      bool                     `json:"snapdir_visible"`
 }
 
 type ExportResponse struct {
@@ -259,9 +264,10 @@ type ExportPathRef struct {
 	TransportProtocols string        `json:"transport_protocols,omitempty"`
 	FilesystemId       int           `json:"filesystem_id,omitempty"`
 	MaxWrite           int           `json:"max_write,omitempty"`
-	PrivilegedPort     bool          `json:"privileged_port,omitempty"`
+	PrivilegedPort     bool          `json:"privileged_port"`
 	ExportPath         string        `json:"export_path,omitempty"`
 	Permissions        []Permissions `json:"permissions,omitempty"`
+	SnapdirVisible     bool          `json:"snapdir_visible"`
 }
 
 type Metadata struct {
