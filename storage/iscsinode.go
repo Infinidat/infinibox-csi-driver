@@ -257,6 +257,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		klog.V(4).Infof("AttachDisk succeeded")
 	}
 
+	// Chown
 	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
 	gid := req.GetVolumeContext()["gid"]
 	targetPath := req.GetTargetPath()
@@ -265,6 +266,16 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		msg := fmt.Sprintf("Failed to chown path '%s' : %s", targetPath, err.Error())
 		klog.Errorf(msg)
 		return nil, status.Error(codes.Internal, msg)
+	}
+
+	// Chmod
+	unixPermissions := req.GetVolumeContext()["unix_permissions"] // Returns an empty string if key not found
+	klog.V(4).Infof("unixPermissions: %s", unixPermissions)
+	err = iscsi.osHelper.ChmodVolume(unixPermissions, targetPath)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to chmod path '%s': %s", targetPath, err)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.Internal, msg)
 	}
 
 	klog.V(4).Infof("NodePublishVolume succeeded.")
@@ -462,8 +473,6 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 	klog.V(2).Infof("NodeUnstageVolume is removing %s", req.GetVolumeId())
 	volumeIdCache = ""
-
-	klog.V(2).Infof("NodeUnstageVolume returned")
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 

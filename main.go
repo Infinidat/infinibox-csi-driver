@@ -13,13 +13,14 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/rexray/gocsi"
-	csictx "github.com/rexray/gocsi/context"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
-	"k8s.io/klog"
 	"os"
+
+	"github.com/rexray/gocsi"
+	csictx "github.com/rexray/gocsi/context"
+	"k8s.io/klog"
 )
 
 //starting method of CSI-Driver
@@ -48,7 +49,7 @@ func main() {
 	flag.Set("v", verbosity)
 	flag.Parse()
 
-	klog.V(2).Infof("Infinidat CSI Driver is Starting - v2.1.0-rc1")
+	klog.V(2).Infof("Infinidat CSI Driver is Starting")
 	klog.V(2).Infof("Log level: %s", appLogLevel)
 
 	// Check ALLOW_XFS_UUID_REGENERATION
