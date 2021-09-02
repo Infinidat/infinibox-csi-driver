@@ -76,6 +76,7 @@ type nfsstorage struct {
 	fileSystemID       int64
 	exportpath         string
 	usePrivilegedPorts bool
+	snapdirVisible     bool
 	exportID           int64
 	exportBlock        string
 	ipAddress          string
