@@ -115,19 +115,19 @@ func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]i
 			err = errors.New("AttachMetadataToObject Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(2).Infof("Attach metadata to object with ID %d", objectID)
+	klog.V(2).Infof("Attach metadata: %v to object id: %d", body, objectID)
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &metadata)
 	if err != nil {
-		klog.Errorf("Error occured while attaching metadata to object : %s", err)
+		klog.Errorf("Error occured while attaching metadata to object id: %d, %s", objectID, err)
 		return nil, err
 	}
 	if len(metadata) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.([]Metadata)
 	}
-	klog.V(2).Infof("Attached metadata to object with ID %d", objectID)
+	klog.V(4).Infof("Attached metadata to object id: %d", objectID)
 	return &metadata, nil
 }
 

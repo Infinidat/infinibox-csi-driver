@@ -34,22 +34,24 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	configparams["nodeid"] = s.nodeID
 	configparams["driverversion"] = s.driverVersion
 
+	volName := req.GetName()
 	storageprotocol := req.GetParameters()["storage_protocol"]
 
-	klog.V(2).Infof("In CreateVolume method nodeid: %s, storageprotocols %s", s.nodeID, storageprotocol)
+	klog.V(2).Infof("CreateVolume called, vol-name: %s controller nodeid: %s storage_protocol: %s capacity-range: %v params: %v",
+		volName, s.nodeID, storageprotocol, req.GetCapacityRange(), req.GetParameters())
 	if storageprotocol == "" {
-		return nil, status.Error(codes.Internal, "storage protocol is not found, 'storage_protocol' is required field")
+		return nil, status.Error(codes.Internal, "'storage_protocol' is a required field, not found")
 	}
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {
-		klog.Errorf("In CreateVolume method : %v", err)
-		err = errors.New("fail to initialise storage controller while create volume " + storageprotocol)
+		klog.Errorf("CreateVolume error: %v", err)
+		err = errors.New("failed to initialise storage controller while create volume " + storageprotocol)
 		return nil, err
 	}
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err == nil && createVolResp != nil && createVolResp.Volume != nil && createVolResp.Volume.VolumeId != "" {
 		createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
-		klog.V(2).Infof("CreateVolume success, volume name: %s Id: %s", storageprotocol, createVolResp.Volume.VolumeId)
+		klog.V(2).Infof("CreateVolume success, volume name: %s id: %s", volName, createVolResp.Volume.VolumeId)
 	}
 	return
 }
