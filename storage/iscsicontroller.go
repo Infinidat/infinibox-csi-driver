@@ -518,7 +518,7 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 	if err != nil {
 		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
 			log.WithFields(log.Fields{"id": volumeID}).Debug("volume is already deleted", volumeID)
-			return nil
+			return status.Errorf(codes.NotFound, "volume not found")
 		}
 		return status.Errorf(codes.Internal,
 			"error while validating volume status : %s",
