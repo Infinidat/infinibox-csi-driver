@@ -934,13 +934,40 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	klog.V(4).Infof("Called getISCSIInfo")
 	initiatorName := getInitiatorName()
 
-	useChap := req.GetVolumeContext()["useCHAP"]
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0]
+
+	volContext := req.GetVolumeContext()
+	publishContext := req.GetPublishContext()
+	klog.V(4).Infof("volume: %s context: %v publish context: %v", volName, volContext, publishContext)
+
+	iqn := volContext["iqn"]
+	if iqn == "" {
+		return nil, fmt.Errorf("iscsi: target iqn is missing")
+	}
+
+	portals := volContext["portals"]
+	portalList := strings.Split(portals, ",")
+	if len(portalList) == 0 {
+		return nil, fmt.Errorf("iscsi: target portals list is missing")
+	}
+	bkportal := []string{}
+	for _, portal := range portalList {
+		bkportal = append(bkportal, portalMounter(string(portal)))
+	}
+
+	lun := publishContext["lun"]
+	if lun == "" {
+		return nil, fmt.Errorf("iscsi: LUN is missing")
+	}
+
+	useChap := volContext["useCHAP"]
 	chapSession := false
 	if useChap != "none" {
 		chapSession = true
 	}
 	chapDiscovery := false
-	if req.GetVolumeContext()["discoveryCHAPAuth"] == "true" {
+	if volContext["discoveryCHAPAuth"] == "true" {
 		chapDiscovery = true
 	}
 	secret := req.GetSecrets()
@@ -948,24 +975,11 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
 		// secret["node.session.auth.username"] = initiatorName
 		if err != nil {
+			klog.V(4).Infof("iscsi.parseSessionSecret failed")
 			return nil, err
 		}
 	}
 
-	volproto := strings.Split(req.GetVolumeId(), "$$")
-	volName := volproto[0]
-	iqn := req.GetVolumeContext()["iqn"]
-	lun := req.GetPublishContext()["lun"]
-	portals := req.GetVolumeContext()["portals"]
-	portalList := strings.Split(portals, ",")
-
-	if len(portalList) == 0 || iqn == "" || lun == "" {
-		return nil, fmt.Errorf("iscsi: iSCSI target information is missing")
-	}
-	bkportal := []string{}
-	for _, portal := range portalList {
-		bkportal = append(bkportal, portalMounter(string(portal)))
-	}
 	return &iscsiDisk{
 		VolName:        volName,
 		Portals:        bkportal,
