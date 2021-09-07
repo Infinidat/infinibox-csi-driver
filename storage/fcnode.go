@@ -317,7 +317,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			klog.V(4).Infof("Mount point does not exist. Creating mount point.")
 			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execFc.Command(fmt.Sprintf("mkdir --parents --mode 0750 '%s'", mountPoint))
+			_, err := execFc.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", mountPoint))
 			if err != nil {
 				klog.Errorf("Failed to mkdir '%s': %s", mountPoint, err)
 				return err

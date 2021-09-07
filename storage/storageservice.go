@@ -374,7 +374,7 @@ func removeFromScsiSubsystem(deviceName string) {
 	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
 	klog.V(4).Infof("Run: echo 1 > %s", deletePath)
 	// _, deleteErr := exec.Command("echo", "1", ">", deletePath).Output()
-	_, deleteErr := execScsi.Command(fmt.Sprintf("echo 1 > %s", deletePath))
+	_, deleteErr := execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if deleteErr != nil {
 		klog.Errorf("Failed to delete device '%s' with error %v", deletePath, deleteErr.Error())
 	}
