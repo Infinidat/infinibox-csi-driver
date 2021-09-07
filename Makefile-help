@@ -1,0 +1,35 @@
+# Use _make to execute make with consistent options
+_make = make --no-print-directory
+
+# Other vars
+_LEADER =   "================ ["
+_FOLLOWER = "] ================"
+_begin = echo "$(_LEADER) Begin $@ $(_FOLLOWER)"
+_finish = echo "$(_LEADER) Completed $@ $(_FOLLOWER); echo"
+
+# ##@ Help Group Name
+# .PHONY: recipe_name
+# To pick up the recipe name, use:
+# recipe_name:  ## Recipe help.
+#   @eval $(_begin)
+#   ...works...
+#   @eval $(_finish)
+
+# Color vars
+_help_padding = 30
+_escape = \033
+_red    = $(_escape)[0;31m
+_green  = $(_escape)[0;32m
+_yellow = $(_escape)[0;33m
+_blue   = $(_escape)[0;34m
+_purple = $(_escape)[0;35m
+_cyan   = $(_escape)[0;36m
+_white  = $(_escape)[0;37m
+
+_recipe = $(_green)
+
+##@ General
+.PHONY: help
+help:  ## Display this help.
+	@echo "$(_purpose)"
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "$(_recipe)%-$(_help_padding)s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
