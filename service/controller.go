@@ -14,10 +14,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"infinibox-csi-driver/storage"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"infinibox-csi-driver/storage"
 	"k8s.io/klog"
 )
 
@@ -75,9 +77,12 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	klog.V(2).Infof("DeleteVolume method called with volume name %s", voltype)
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		klog.Errorf("fail to validate storage type %v", err)
-		err = status.Errorf(codes.NotFound, "fail to validate storage type %v", err)
-		return
+		if status.Code(err) == codes.NotFound {
+			klog.Errorf("DeleteVolume success, volume not found")
+		} else {
+			klog.Errorf("DeleteVolume success, no such volume - invalid storage type")
+		}
+		return &csi.DeleteVolumeResponse{}, nil
 	}
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
