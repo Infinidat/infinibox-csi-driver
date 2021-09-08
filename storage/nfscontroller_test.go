@@ -284,6 +284,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_invalidSize() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(1, nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
 	assert.NotNil(suite.T(), err.Error(), "invalid snapshot size")

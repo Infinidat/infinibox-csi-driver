@@ -109,6 +109,17 @@ func (s *service) getNodeFQDN() string {
 	return nodeFQDN
 }
 
+func (s *service) validateNodeID(nodeID string) error {
+	if nodeID == "" {
+		return status.Error(codes.InvalidArgument, "node ID empty")
+	}
+	nodeSplit := strings.Split(nodeID, "$$")
+	if len(nodeSplit) != 2 {
+		return status.Error(codes.NotFound, "node Id does not follow '<fqdn>$$<id>' pattern")
+	}
+	return nil
+}
+
 func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	if str == "" {
 		return volprotoconf, status.Error(codes.InvalidArgument, "volume Id empty")

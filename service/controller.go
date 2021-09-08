@@ -117,6 +117,13 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 		err = status.Errorf(codes.NotFound, "ControllerPublishVolume failed: %v", err)
 		return
 	}
+
+	err = s.validateNodeID(req.GetNodeId())
+	if err != nil {
+		klog.Errorf("ControllerPublishVolume failed to validate request: %v", err)
+		return nil, err
+	}
+
 	config := make(map[string]string)
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
@@ -146,6 +153,16 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 		err = status.Errorf(codes.NotFound, "ControllerUnpublishVolume failed: %v", err)
 		return
 	}
+
+	nodeID := req.GetNodeId()
+	if nodeID != "" { // NodeId is optional, when empty we should unpublish the volume from any nodes it is published to
+		err = s.validateNodeID(nodeID)
+		if err != nil {
+			klog.Errorf("ControllerUnpublishVolume failed to validate request: %v", err)
+			return nil, err
+		}
+	}
+
 	config := make(map[string]string)
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {

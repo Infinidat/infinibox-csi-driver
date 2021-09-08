@@ -73,12 +73,11 @@ func (suite *ControllerTestSuite) Test_CreateVolme_success() {
 }
 
 func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidID() {
-
 	deleteVolumeReq := getCtrDeleteVolumeRequest()
 	deleteVolumeReq.VolumeId = "100"
 	s := getService()
 	_, err := s.DeleteVolume(context.Background(), deleteVolumeReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "DeleteVolume with invalid volume ID should be success")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteVolume_invalidProtocol() {
@@ -127,7 +126,7 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_Invalid_protocol(
 	assert.NotNil(suite.T(), err, "Invalid volume protocol")
 }
 
-func (suite *ControllerTestSuite) Test_ControllerPublishVolume_succsss() {
+func (suite *ControllerTestSuite) Test_ControllerPublishVolume_success() {
 	crtPublishVolumeReq := getCrtControllerPublishVolumeRequest()
 	crtPublishVolumeReq.VolumeId = "100$$nfs"
 
@@ -159,7 +158,7 @@ func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_InvalidProtocol
 
 func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_success() {
 	crtUnPublishReq := getCrtControllerUnpublishVolume()
-	crtUnPublishReq.VolumeId = "100$$unknown"
+	crtUnPublishReq.VolumeId = "100$$nfs"
 	s := getService()
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
 		return &ControllerMock{}, nil
@@ -205,7 +204,7 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_InvalidID() {
 	crtDeleteSnapshotReq.SnapshotId = "100"
 	s := getService()
 	_, err := s.DeleteSnapshot(context.Background(), crtDeleteSnapshotReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "DeleteSnapshot with invalid snapshot ID should be success")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_Invalid_protocol() {
@@ -266,8 +265,9 @@ func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_() {
 }
 
 func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
+	crtValidateVolumeCapabilitiesReq := getCtrValidateVolumeCapabilitiesRequest()
 	s := getService()
-	_, err := s.ValidateVolumeCapabilities(context.Background(), &csi.ValidateVolumeCapabilitiesRequest{})
+	_, err := s.ValidateVolumeCapabilities(context.Background(), crtValidateVolumeCapabilitiesReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
@@ -298,8 +298,8 @@ func getCrtControllerExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{
 		VolumeId:      "100$$nfs",
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 10000},
+		Secrets:       getSecret(),
 	}
-
 }
 
 func getCtrDeleteSnapshotRequest() *csi.DeleteSnapshotRequest {
@@ -317,11 +317,13 @@ func getCtrCreateSnapshotRequest() *csi.CreateSnapshotRequest {
 func getCrtControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
 	return &csi.ControllerUnpublishVolumeRequest{
 		VolumeId: "100$$nfs",
+		Secrets:  getSecret(),
 	}
 }
 func getCrtControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeId: "100$$nfs",
+		NodeId:   "test$$10.20.30.50",
 		Secrets:  getSecret(),
 	}
 }
@@ -331,10 +333,18 @@ func getCtrDeleteVolumeRequest() *csi.DeleteVolumeRequest {
 		Secrets:  getSecret(),
 	}
 }
+func getCtrValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabilitiesRequest {
+	return &csi.ValidateVolumeCapabilitiesRequest{
+		VolumeId: "100$$nfs",
+		Secrets:  getSecret(),
+	}
+}
+
 func getContrCreateVolumeParamter() map[string]string {
 	return map[string]string{"storage_protocol": "nfs", "pool_name": "pool_name1", "network_space": "network_space1", "nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
 
 }
+
 func getSecret() map[string]string {
 	secretMap := make(map[string]string)
 	secretMap["username"] = "admin"

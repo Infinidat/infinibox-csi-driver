@@ -292,7 +292,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError(
 	assert.NotNil(suite.T(), err, "Fail to storage class for iscsi protocol")
 }
 
-func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume() {
+func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 	service := iscsistorage{cs: *suite.cs}
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
@@ -304,7 +304,7 @@ func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume() {
 	assert.Nil(suite.T(), err, "controller unpublish for iscsi protocol")
 }
 
-func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_hostNameErr() {
+func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_hostNameErr() {
 	service := iscsistorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
@@ -313,7 +313,7 @@ func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_hostNameErr() 
 	assert.NotNil(suite.T(), err, "Fail to hostname for iscsi protocol")
 }
 
-func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_StorageErr() {
+func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_StorageErr() {
 	service := iscsistorage{cs: *suite.cs}
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	ctrUnPublishValReq.VolumeId = "1$"
@@ -321,7 +321,7 @@ func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_StorageErr() {
 	assert.NotNil(suite.T(), err, "Error should be notnil")
 }
 
-func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_UnMapVolumeErr() {
+func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
 	service := iscsistorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
@@ -331,7 +331,7 @@ func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_UnMapVolumeErr
 	assert.NotNil(suite.T(), err, "Error should be notnil")
 }
 
-func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_DeleteHostErr() {
+func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
 	service := iscsistorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
@@ -345,9 +345,10 @@ func (suite *ISCSIControllerSuite) Test_UnControllerPublishVolume_DeleteHostErr(
 
 func (suite *ISCSIControllerSuite) Test_CreateSnapshot() {
 	service := iscsistorage{cs: *suite.cs}
+	expectedErr := errors.New("some Error")
 	//	var parameterMap map[string]string
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
-	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
+	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
 	_, err := service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
@@ -390,7 +391,11 @@ func (suite *ISCSIControllerSuite) Test_ControllerExpandVolume() {
 
 func (suite *ISCSIControllerSuite) Test_ValidateVolumeCapabilities() {
 	service := iscsistorage{cs: *suite.cs}
-	_, err := service.ValidateVolumeCapabilities(context.Background(), &csi.ValidateVolumeCapabilitiesRequest{})
+	var parameterMap map[string]string
+	crtValidateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
+
+	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	_, err := service.ValidateVolumeCapabilities(context.Background(), crtValidateVolCapsReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
@@ -544,6 +549,21 @@ func getISCSICreateValumeRequest(pvName string, parameterMap map[string]string) 
 	arr = append(arr, &capa)
 	return &csi.CreateVolumeRequest{
 		Name:               pvName,
+		Parameters:         parameterMap,
+		VolumeCapabilities: arr,
+	}
+}
+
+func getISCSIValidateVolumeCapabilitiesRequest(pvName string, parameterMap map[string]string) *csi.ValidateVolumeCapabilitiesRequest {
+	capa := csi.VolumeCapability{
+		AccessMode: &csi.VolumeCapability_AccessMode{
+			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+		},
+	}
+	var arr []*csi.VolumeCapability
+	arr = append(arr, &capa)
+	return &csi.ValidateVolumeCapabilitiesRequest{
+		VolumeId:           "1$$iscsi",
 		Parameters:         parameterMap,
 		VolumeCapabilities: arr,
 	}

@@ -36,7 +36,7 @@ func (suite *NodeTestSuite) Test_NodePublishVolume_success() {
 	defer patch.Unpatch()
 
 	_, err := s.NodePublishVolume(context.Background(), nodePublishReq)
-	assert.Nil(suite.T(), err, "success")
+	assert.Nil(suite.T(), err, "NodePublishVolume expected to succede")
 }
 
 func (suite *NodeTestSuite) Test_NodeUnpublishVolume_invalid_protocol() {
@@ -101,19 +101,19 @@ func (suite *NodeTestSuite) Test_NodeGetVolumeStats() {
 	assert.NotNil(suite.T(), err)
 }
 
-func (suite *NodeTestSuite) Test_NodeExpandVolume_invalid_ID() {
-	nodeNodeExpandReq := getNodeExpandVolumeRequest()
-	nodeNodeExpandReq.VolumeId = ""
-	s := getService()
-	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
-	assert.NotNil(suite.T(), err, "Invalid ID")
-}
+// func (suite *NodeTestSuite) Test_NodeExpandVolume_invalid_ID() {
+// 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
+// 	nodeNodeExpandReq.VolumeId = ""
+// 	s := getService()
+// 	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
+// 	assert.NotNil(suite.T(), err, "Invalid ID")
+// }
 
-func (suite *NodeTestSuite) Test_NodeExpandVolume_success() {
+func (suite *NodeTestSuite) Test_NodeExpandVolume_unimplemented() {
 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
 	s := getService()
 	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
-	assert.Nil(suite.T(), err)
+	assert.Error(suite.T(), err)
 }
 
 //======================Data generator
