@@ -58,6 +58,10 @@ clean:  ## Clean source.
 build:  ## Build source.
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
 
+.PHONY: rebuild
+rebuild: ## Rebuild source (all packages)
+	$(_GOBUILD) -o $(_BINARY_NAME) -v -a
+
 .PHONY: test
 test:  ## Unit test source.
 	$(_GOTEST) -v ./...
