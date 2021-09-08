@@ -62,7 +62,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	for _, volCap := range volCaps {
 		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
 			klog.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
-			return nil, fmt.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			return nil, status.Error(codes.Unavailable, fmt.Sprintf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String()))
 		}
 	}
 
@@ -82,10 +82,10 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if targetVol != nil {
 		klog.V(2).Infof("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
 		if targetVol.Size == sizeBytes {
-			existingVolResp := iscsi.cs.getCSIResponse(targetVol, req)
-			copyRequestParameters(req.GetParameters(), existingVolResp.VolumeContext)
+			existingVolumeInfo := iscsi.cs.getCSIResponse(targetVol, req)
+			copyRequestParameters(req.GetParameters(), existingVolumeInfo.VolumeContext)
 			return &csi.CreateVolumeResponse{
-				Volume: existingVolResp,
+				Volume: existingVolumeInfo,
 			}, nil
 		}
 		err = status.Errorf(codes.AlreadyExists, "CreateVolume failed: volume exists but has different size")
@@ -180,18 +180,16 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	}()
 	klog.V(4).Infof("Called DeleteVolume")
 	if req.GetVolumeId() == "" {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
-			"error parsing volume id : %s", errors.New("Volume id not found"))
+		return nil, status.Error(codes.InvalidArgument, "Volume id empty")
 	}
 	id, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
-			"error parsing volume id : %s", err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, "error parsing volume id: %s", err.Error())
 	}
 	err = iscsi.ValidateDeleteVolume(id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return &csi.DeleteVolumeResponse{}, nil
+			return nil, nil
 		} else {
 			return nil, status.Errorf(codes.Internal, "failed to delete volume: %s", err.Error())
 		}
@@ -290,10 +288,15 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerPublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
-	volproto, err := validateStorageType(req.GetVolumeId())
+
+	volIdStr := req.GetVolumeId()
+	if volIdStr == "" {
+		status.Error(codes.InvalidArgument, "Volume ID empty")
+	}
+	volproto, err := validateStorageType(volIdStr)
 	if err != nil {
-		klog.Errorf("Failed to validate storage type %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume id")
+		klog.Errorf("Failed to validate storage type for volume ID: %s, err: %v", volIdStr, err)
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("Volume ID: %s not found, err:%s", volIdStr, err))
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
 
@@ -301,7 +304,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	v, err := iscsi.cs.api.GetVolume(volID)
 	if err != nil {
 		klog.Errorf("Failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("Volume ID: %d not found, err:%s", volID, err))
 	}
 	// helper.PrettyKlogDebug("volume:", v)
 	// klog.V(4).Infof("write protected: %v", v.WriteProtected)
@@ -310,19 +313,24 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	_, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	nodeID := req.GetNodeId()
+	if nodeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "Node ID empty")
+	}
+	nodeNameIP := strings.Split(nodeID, "$$")
 	if len(nodeNameIP) != 2 {
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("Node ID not found")
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("Node ID: %s not found", nodeID))
 	}
 	hostName := nodeNameIP[0]
 
 	host, err := iscsi.cs.validateHost(hostName)
 	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
+	klog.V(4).Infof("host: %s found, host id: %d", hostName, host.ID)
 
 	ports := ""
 	if len(host.Ports) > 0 {
@@ -338,48 +346,53 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	lunList, err := iscsi.cs.api.GetAllLunByHost(host.ID)
 	if err != nil {
-		klog.Errorf("ControllerPublishVolume failed to GetAllLunByHost(), error: %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, err
+		klog.Errorf("failed to GetAllLunByHost() for host: %s, error: %v", hostName, err)
+		return nil, err
 	}
 	for _, lun := range lunList {
 		if lun.VolumeID == volID {
-			volCtx := make(map[string]string)
-			volCtx["lun"] = strconv.Itoa(lun.Lun)
-			volCtx["hostID"] = strconv.Itoa(host.ID)
-			volCtx["hostPorts"] = ports
-			klog.V(4).Infof("vol: %d already mapped to host:%s id:%d as LUN: %s at ports: %s", volID, host.Name, host.ID, lun.Lun, ports)
+			publishVolCtxt := make(map[string]string)
+			publishVolCtxt["lun"] = strconv.Itoa(lun.Lun)
+			publishVolCtxt["hostID"] = strconv.Itoa(host.ID)
+			publishVolCtxt["hostPorts"] = ports
+			klog.V(4).Infof("vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", volID, host.Name, host.ID, lun.Lun, ports)
 			return &csi.ControllerPublishVolumeResponse{
-				PublishContext: volCtx,
+				PublishContext: publishVolCtxt,
 			}, nil
 		}
 	}
-	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
-	if err != nil {
-		klog.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, err
+
+	maxVolsPerHostStr := req.GetVolumeContext()["max_vols_per_host"]
+	if maxVolsPerHostStr != "" {
+		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
+		if err != nil {
+			klog.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
+			return nil, err
+		}
+		klog.V(4).Infof("host can have maximum %d volume mapped", maxAllowedVol)
+		klog.V(4).Infof("host %s id: %d has %d volumes mapped", host.Name, host.ID, len(lunList))
+		if len(lunList) >= maxAllowedVol {
+			klog.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+			return nil, status.Error(codes.ResourceExhausted, "Unable to publish volume as max allowed volume (per host) limit reached")
+		}
 	}
-	klog.V(4).Infof("host can have maximum %d volume mapped", maxAllowedVol)
-	klog.V(4).Infof("host %s id: %d has %d volumes mapped", host.Name, host.ID, len(lunList))
-	if len(lunList) >= maxAllowedVol {
-		klog.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
-	}
+
 	// map volume to host
 	klog.V(4).Infof("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := iscsi.cs.mapVolumeTohost(volID, host.ID)
 	if err != nil {
 		klog.Errorf("Failed to map volume to host with error %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	volCtx := make(map[string]string)
-	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
-	volCtx["hostID"] = strconv.Itoa(host.ID)
-	volCtx["hostPorts"] = ports
-	volCtx["securityMethod"] = host.SecurityMethod
-	klog.V(4).Infof("mapped volume %d, publish context: %v", volID, volCtx)
+	publishVolCtxt := make(map[string]string)
+	publishVolCtxt["lun"] = strconv.Itoa(luninfo.Lun)
+	publishVolCtxt["hostID"] = strconv.Itoa(host.ID)
+	publishVolCtxt["hostPorts"] = ports
+	publishVolCtxt["securityMethod"] = host.SecurityMethod
+	klog.V(4).Infof("mapped volume %d, publish context: %v", volID, publishVolCtxt)
 	return &csi.ControllerPublishVolumeResponse{
-		PublishContext: volCtx,
+		PublishContext: publishVolCtxt,
 	}, nil
 }
 
@@ -388,11 +401,11 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 	volproto, err := validateStorageType(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("failed to validate storage type %v", err)
-		return nil, errors.New("error getting volume id")
+		return nil, status.Error(codes.Internal, "error getting volume id")
 	}
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
-		return &csi.ControllerUnpublishVolumeResponse{}, errors.New("Node ID not found")
+		return nil, status.Error(codes.NotFound, "Node ID not found")
 	}
 	hostName := nodeNameIP[0]
 	host, err := iscsi.cs.api.GetHostByName(hostName)
@@ -409,7 +422,7 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		err = iscsi.cs.unmapVolumeFromHost(host.ID, volID)
 		if err != nil {
 			klog.Errorf("failed to unmap volume %d from host %d with error %v", volID, host.ID, err)
-			return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if len(host.Luns) < 2 {
@@ -421,7 +434,7 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 			err = iscsi.cs.api.DeleteHost(host.ID)
 			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 				klog.Errorf("failed to delete host with error %v", err)
-				return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}

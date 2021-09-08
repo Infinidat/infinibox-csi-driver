@@ -237,14 +237,14 @@ func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
 	host, err := cs.api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 		klog.Errorf("failed to get host with error %v", err)
-		return nil, err
+		return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
 	}
 	if host.ID == 0 {
 		klog.V(2).Infof("Creating host with name: %s", hostName)
 		host, err = cs.api.CreateHost(hostName)
 		if err != nil {
 			klog.Errorf("failed to create host with error %v", err)
-			return nil, err
+			return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
 		}
 	}
 	return &host, nil
