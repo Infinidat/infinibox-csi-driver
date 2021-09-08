@@ -299,14 +299,15 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 
 	snapshotID := req.GetSnapshotId()
 	klog.V(2).Infof("Delete Snapshot called with snapshot Id %s", snapshotID)
-	if snapshotID == "" {
-		klog.Errorf("Delete Snapshot called with empty snapshot Id")
-		return nil, errors.New("Delete Snapshot called with empty snapshot Id")
-	}
 	volproto, err := s.validateStorageType(snapshotID)
 	if err != nil {
-		klog.Errorf("fail to validate storage type %v", err)
-		return nil, status.Errorf(codes.InvalidArgument, "Failed to validate snapshot Id: %s", err.Error())
+		if status.Code(err) == codes.NotFound {
+			klog.Errorf("snapshot ID: '%s' not found, err: %v - return success", snapshotID, err)
+			return &csi.DeleteSnapshotResponse{}, nil
+		} else {
+			klog.Errorf("snapshot ID: '%s' invalid, err: %v", snapshotID, err)
+			return nil, err
+		}
 	}
 
 	config := make(map[string]string)

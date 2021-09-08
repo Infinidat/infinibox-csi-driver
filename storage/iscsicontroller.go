@@ -115,7 +115,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
-		return iscsi.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
+		return iscsi.createVolumeFromContentSource(req, name, sizeBytes, poolName)
 	}
 	ssd := req.GetParameters()["ssd_enabled"]
 	if ssd == "" {
@@ -190,13 +190,16 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	}
 	err = iscsi.ValidateDeleteVolume(id)
 	if err != nil {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
-			"error deleting volume : %s", err.Error())
+		if status.Code(err) == codes.NotFound {
+			return &csi.DeleteVolumeResponse{}, nil
+		} else {
+			return nil, status.Errorf(codes.Internal, "failed to delete volume: %s", err.Error())
+		}
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest, name string, sizeInKbytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
+func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRequest, name string, sizeInKbytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -211,14 +214,14 @@ func (iscsi *iscsistorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRe
 		restoreType = "Snapshot"
 		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
 	} else if volumecontent.GetVolume() != nil {
-		volumeContentID = volumecontent.GetVolume().GetVolumeId()
 		restoreType = "Volume"
+		volumeContentID = volumecontent.GetVolume().GetVolumeId()
 	}
 
 	// Lookup the snapshot source volume.
 	volproto, err := validateStorageType(volumeContentID)
 	if err != nil {
-		klog.Errorf("Failed to validate storage type %v", err)
+		klog.Errorf("Failed to validate storage type for source id: %s, err: %v", volumeContentID, err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
 
@@ -538,8 +541,11 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	err = iscsi.ValidateDeleteVolume(snapshotID)
 	if err != nil {
-		klog.Errorf("fail to delete snapshot %v", err)
-		return &csi.DeleteSnapshotResponse{}, err
+		if status.Code(err) == codes.NotFound {
+			return &csi.DeleteSnapshotResponse{}, nil
+		} else {
+			return nil, status.Errorf(codes.Internal, "failed to delete snapshot: %s", err.Error())
+		}
 	}
 	return &csi.DeleteSnapshotResponse{}, nil
 }
@@ -553,12 +559,10 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 	vol, err := iscsi.cs.api.GetVolume(volumeID)
 	if err != nil {
 		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			log.WithFields(log.Fields{"id": volumeID}).Debug("volume is already deleted", volumeID)
+			klog.V(4).Infof("volume: %d is already deleted", volumeID)
 			return status.Errorf(codes.NotFound, "volume not found")
 		}
-		return status.Errorf(codes.Internal,
-			"error while validating volume status : %s",
-			err.Error())
+		return status.Errorf(codes.Internal, "failed to get volume: %d, err: %s", volumeID, err.Error())
 	}
 	childVolumes, err := iscsi.cs.api.GetVolumeSnapshotByParentID(vol.ID)
 	if len(*childVolumes) > 0 {

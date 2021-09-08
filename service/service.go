@@ -14,15 +14,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
+	"net"
+	"os/exec"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"infinibox-csi-driver/api"
 	"k8s.io/klog"
-	"net"
-	"os/exec"
-	"strings"
 )
 
 const (
@@ -110,11 +111,11 @@ func (s *service) getNodeFQDN() string {
 
 func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	if str == "" {
-		return volprotoconf, errors.New("volume Id empty - invalid")
+		return volprotoconf, status.Error(codes.InvalidArgument, "volume Id empty")
 	}
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
-		return volprotoconf, errors.New("volume Id invalid")
+		return volprotoconf, status.Error(codes.NotFound, "volume Id does not follow '<id>$$<proto>' pattern")
 	}
 	klog.V(2).Infof("volproto: %s", volproto)
 	volprotoconf.VolumeID = volproto[0]
