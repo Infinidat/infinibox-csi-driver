@@ -559,6 +559,11 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	iscsiTransport = iscsi.extractTransportName(string(out))
 	klog.V(4).Infof("iscsiTransport: %s", iscsiTransport)
+	if iscsiTransport == "" {
+		klog.Errorf("Could not find transport name in iface %s", b.Iface) // TODO - b.Iface here realy should be newIface...or does it matter?
+		return "", fmt.Errorf("iscsi: Could not parse iface file for %s", b.Iface)
+	}
+
 	bkpPortal := b.Portals
 	newIface := bkpPortal[0] // Do not append ':$volume_id'
 
@@ -598,60 +603,58 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		return "", fmt.Errorf(msg)
 	}
 
+	if !b.chap_session {
+		klog.V(4).Infof("target iqn: %s - Not using CHAP", b.Iqn)
+	} else {
+		// Loop over portals:
+		// - Set CHAP usage and update discoverydb with CHAP secret
+		for _, tp := range bkpPortal {
+			klog.V(4).Infof("target iqn: %s - use CHAP at portal: %s", b.Iqn, tp)
+			err = iscsi.updateISCSINode(b, tp)
+			if err != nil {
+				// failure to update node db is rare. But deleting record will likely impact those who already start using it.
+				lastErr = fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", tp, err)
+				continue
+			}
+		}
+	}
+
+	klog.V(4).Infof("Login to iscsi target iqn: %s at all portals", b.Iqn)
+	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --interface %s --login", b.Iqn, b.Iface))
+	if err != nil {
+		if status.Code(err) != codes.AlreadyExists {
+			msg := fmt.Sprintf("iscsi login failed to target iqn: %s, err: %s", b.Iqn, err)
+			klog.Errorf(msg)
+			return "", err
+		} else {
+			err = nil
+			klog.Infof("already logged in to target iqn: %s", b.Iqn)
+		}
+	}
+
+	klog.V(4).Infof("List sessions to target iqn: %s", b.Iqn)
+	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode session | grep '%s'", b.Iqn))
+	if err != nil {
+		klog.V(4).Infof("Session list failed, err: %s", err)
+		return "", err
+	}
+
+	klog.V(4).Infof("Rescan target iqn: %s", b.Iqn)
+	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --target %s --rescan", b.Iqn))
+	if err != nil {
+		klog.V(4).Infof("failed to rescan iscsi target iqn: %s, err: %s", b.Iqn, err)
+		return "", err
+	}
+
 	for _, tp := range bkpPortal {
 		// Loop over portals:
-		// - Wait for iSCSI transport paths to appear.
-		// - Set CHAP usage.
-		// - Login.
+		// - generate expected iscsi block device path
+		// - wait for the iscsi block device path to appear
 
-		if iscsiTransport == "" {
-			klog.Errorf("Could not find transport name in iface %s", b.Iface) // TODO - b.Iface here realy should be newIface...or does it matter?
-			err = errors.New(fmt.Sprintf("Could not parse iface file for %s", b.Iface))
-			return "", fmt.Errorf("iscsi: Could not parse iface file for %s", b.Iface)
-		}
 		if iscsiTransport == "tcp" {
 			devicePath = strings.Join([]string{"/host/dev/disk/by-path/ip", tp, "iscsi", b.Iqn, "lun", b.lun}, "-")
 		} else {
 			devicePath = strings.Join([]string{"/host/dev/disk/by-path/pci", "*", "ip", tp, "iscsi", b.Iqn, "lun", b.lun}, "-")
-		}
-
-		if exist := iscsi.waitForPathToExist(&devicePath, 1, iscsiTransport); exist {
-			klog.V(2).Infof("devicepath (%s) exists", devicePath)
-			devicePaths = append(devicePaths, devicePath)
-			continue
-		}
-
-		// update discoverydb with CHAP secret
-		if b.chap_session {
-			klog.V(4).Infof("Do session auth with chap")
-			err = iscsi.updateISCSINode(b, tp)
-			if err != nil {
-				// failure to update node db is rare. But deleting record will likely impact those who already start using it.
-				lastErr = fmt.Errorf("iscsi: Failed to update iscsi node to portal %s error: %v", tp, err)
-				continue
-			}
-		} else {
-			klog.V(4).Infof("Not using CHAP")
-		}
-
-		klog.V(4).Infof("Login to iscsi target")
-		_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --login", tp, b.Iqn, b.Iface))
-		if err != nil {
-			msg := fmt.Sprintf("Login failed: %s", err)
-			if status.Code(err) != codes.AlreadyExists {
-				klog.Errorf(msg)
-				lastErr = errors.New(msg)
-				continue
-			} else {
-				klog.Infof("%s - already logged in", msg)
-			}
-		}
-
-		klog.V(4).Infof("List sessions")
-		out, err = execScsi.Command("iscsiadm", "--mode session")
-		if err != nil {
-			klog.V(4).Infof("Session list failed")
-			return "", err
 		}
 
 		// klog.V(4).Infof("Wait for iscsi device path: %s to appear", devicePath)
@@ -670,15 +673,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	helper.PrettyKlogDebug("Found devicePaths:", devicePaths)
 
-	klog.V(4).Infof("Rescan sessions")
-	out, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode session --rescan"))
-	if err != nil {
-		klog.V(4).Infof("Session rescan failed")
-		return "", fmt.Errorf("Session rescan failed: %s", err)
-	}
-
 	if len(devicePaths) == 0 {
-		msg := fmt.Sprintf("Failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
+		msg := fmt.Sprintf("failed to get any path for iscsi disk, last err seen:\n%v", lastErr)
 		klog.Errorf(msg)
 		err = errors.New(msg)
 		return "", fmt.Errorf(msg)
