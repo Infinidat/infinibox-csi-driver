@@ -189,7 +189,7 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	err = iscsi.ValidateDeleteVolume(id)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return nil, nil
+			return &csi.DeleteVolumeResponse{}, nil
 		} else {
 			return nil, status.Errorf(codes.Internal, "failed to delete volume: %s", err.Error())
 		}
