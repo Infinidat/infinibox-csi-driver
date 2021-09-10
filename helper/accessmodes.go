@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-//AccessModesHelper interface
+// AccessModesHelper interface
 type AccessModesHelper interface {
 	IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
 	IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
@@ -34,7 +34,7 @@ func _accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName stri
 	// TODO - Use the name map defined in csi.pb.go.
 	switch mode {
 	case 0:
-		return "", errors.New("Invalid CSI AccessMode: 'UNKNOWN'")
+		return "", errors.New("invalid CSI AccessMode: 'UNKNOWN'")
 	case 1:
 		return "SINGLE_NODE_WRITER", nil
 	case 2:
@@ -46,13 +46,12 @@ func _accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName stri
 	case 5:
 		return "MULTI_NODE_MULTI_WRITER", nil
 	default:
-		return "", errors.New(fmt.Sprintf("Invalid CSI AccessMode: %d", mode))
+		return "", fmt.Errorf("invalid CSI AccessMode: %d", mode)
 	}
 }
 
-//AcessMode service struct
-type AccessMode struct {
-}
+// AcessMode service struct
+type AccessMode struct{}
 
 func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
 	// Compare the volume's write protected state on IBox to the requested access mode. Return an error if incompatible.
@@ -62,7 +61,7 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
 	modeName, err := _accessModeToName(reqAccessMode)
 	if err != nil {
-		return false, errors.New(fmt.Sprintf("For volume '%s' (%s), an error occurred: %s", volName, volId, err))
+		return false, fmt.Errorf("for volume '%s' (%s), an error occurred: %s", volName, volId, err)
 	}
 
 	switch reqAccessMode {
@@ -70,15 +69,14 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
 		if isIboxVolWriteProtected {
-			return false, errors.New(fmt.Sprintf("IBox Volume name '%s' (%s) is write protected, but the requested access mode is '%s'", volName, volId, modeName))
-		} else {
-			return true, nil
+			return false, fmt.Errorf("IBox Volume name '%s' (%s) is write protected, but the requested access mode is '%s'", volName, volId, modeName)
 		}
+		return true, nil
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
 		return true, nil
 	}
-	return false, errors.New(fmt.Sprintf("Unsupported access mode for volume '%s' (%s): '%s'", volName, volId, modeName))
+	return false, fmt.Errorf("unsupported access mode for volume '%s' (%s): '%s'", volName, volId, modeName)
 }
 
 func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
@@ -91,7 +89,7 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
 	modeName, err := _accessModeToName(reqAccessMode)
 	if err != nil {
-		return false, errors.New(fmt.Sprintf("For NFS export '%s' (%s), an error occurred: %s", exportVolPathd, exportID, err))
+		return false, fmt.Errorf("for NFS export '%s' (%s), an error occurred: %s", exportVolPathd, exportID, err)
 	}
 
 	switch reqAccessMode {
@@ -99,7 +97,7 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
 		if isIboxExportReadonly {
-			return false, errors.New(fmt.Sprintf("IBox NFS export name '%s' (%s) is write protected, but the requested access mode is '%s'", exportVolPathd, exportID, modeName))
+			return false, fmt.Errorf("IBox NFS export name '%s' (%s) is write protected, but the requested access mode is '%s'", exportVolPathd, exportID, modeName)
 		} else {
 			return true, nil
 		}
@@ -107,10 +105,10 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
 		return true, nil
 	}
-	return false, errors.New(fmt.Sprintf("Unsupported access mode for NFS export '%s' (%s): '%s'", exportVolPathd, exportID, modeName))
+	return false, fmt.Errorf("unsupported access mode for NFS export '%s' (%s): '%s'", exportVolPathd, exportID, modeName)
 }
 
-//MockAccessModesHelper -- mock method
+// MockAccessModesHelper -- mock method
 type MockAccessModesHelper struct {
 	mock.Mock
 	AccessModesHelper

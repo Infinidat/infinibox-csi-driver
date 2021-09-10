@@ -12,7 +12,6 @@ package service
 
 import (
 	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/api/client"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -23,8 +22,8 @@ type MockService struct {
 }
 
 type MockClient struct {
-	api client.RestClient
 	mock.Mock
+	// api client.RestClient
 }
 
 func (m *MockClient) CreateVolume(volume *api.VolumeParam, storagePoolName string) (*api.Volume, error) {
@@ -33,11 +32,13 @@ func (m *MockClient) CreateVolume(volume *api.VolumeParam, storagePoolName strin
 	err, _ := args.Get(1).(error)
 	return csiresp, err
 }
+
 func (m *MockClient) DeleteVolume(volumeId int) error {
 	args := m.Called()
 	err, _ := args.Get(0).(error)
 	return err
 }
+
 func (m *MockClient) GetStoragePoolIDByName(name string) (id int64, err error) {
 	args := m.Called()
 	resp, _ := args.Get(0).(int64)
@@ -57,7 +58,6 @@ func (m *MockClient) FindVolumeID(volumename string) (int, error) {
 	resp, _ := args.Get(0).(int)
 	err, _ := args.Get(1).(error)
 	return resp, err
-
 }
 
 func (m *MockClient) GetStoragePool(poolId int64,
@@ -73,7 +73,6 @@ func (m *MockClient) FindStoragePool(id int64, name string) (api.StoragePool, er
 	resp, _ := args.Get(0).(api.StoragePool)
 	err, _ := args.Get(1).(error)
 	return resp, err
-
 }
 
 func (m *MockClient) NewClient() (*api.ClientService, error) {
@@ -111,18 +110,18 @@ func (m *MockClient) GetHostByName(hostName string) (api.Host, error) {
 	return resp, err
 }
 
-func (m *MockClient) getJSONResponse(method, apiuri string, body, expectedResp interface{}) error {
-	args := m.Called()
-	err, _ := args.Get(0).(error)
-	return err
-}
+// func (m *MockClient) getJSONResponse(method, apiuri string, body, expectedResp interface{}) error {
+// 	args := m.Called()
+// 	err, _ := args.Get(0).(error)
+// 	return err
+// }
 
-func (m *MockClient) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (interface{}, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(interface{})
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
+// func (m *MockClient) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (interface{}, error) {
+// 	args := m.Called()
+// 	resp, _ := args.Get(0).(interface{})
+// 	err, _ := args.Get(1).(error)
+// 	return resp, err
+// }
 
 func (m *MockClient) MapVolumeToHost(hostID, volumeID int) (api.LunInfo, error) {
 	args := m.Called()

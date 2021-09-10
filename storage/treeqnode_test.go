@@ -13,9 +13,8 @@ package storage
 import (
 	"context"
 	"errors"
-	"testing"
-
 	"infinibox-csi-driver/helper"
+	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
@@ -190,7 +189,6 @@ func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_unmount_sucess() {
 }
 
 func (suite *TreeqNodeSuite) Test_NodeStageVolume() {
-
 	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 
 	_, err := service.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{})
@@ -198,7 +196,6 @@ func (suite *TreeqNodeSuite) Test_NodeStageVolume() {
 }
 
 func (suite *TreeqNodeSuite) Test_NodeUnstageVolume() {
-
 	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 
 	_, err := service.NodeUnstageVolume(context.Background(), &csi.NodeUnstageVolumeRequest{})

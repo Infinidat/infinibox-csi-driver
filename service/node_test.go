@@ -69,6 +69,7 @@ func (suite *NodeTestSuite) Test_NodeGetInfo() {
 	_, err := s.NodeGetInfo(context.Background(), &csi.NodeGetInfoRequest{})
 	assert.Nil(suite.T(), err)
 }
+
 func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 	nodeStageReq := getNodeStageVolumeRequest()
 	nodeStageReq.VolumeContext = map[string]string{"storage_protocol": "unknown"}
@@ -123,6 +124,7 @@ func getNodeExpandVolumeRequest() *csi.NodeExpandVolumeRequest {
 		VolumeId: "100$$nfs",
 	}
 }
+
 func getNodeStageVolumeRequest() *csi.NodeStageVolumeRequest {
 	return &csi.NodeStageVolumeRequest{
 		VolumeId:      "100$$nfs",
@@ -136,6 +138,7 @@ func getNodeUnpublishVolumeRequest() *csi.NodeUnpublishVolumeRequest {
 		VolumeId: "100$$nfs",
 	}
 }
+
 func getNodeNodePublishVolumeRequest() *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		VolumeId:      "100$$nfs",

@@ -36,7 +36,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_paramerValidation_Fail() {
 	delete(parameterMap, "pool_name")
 	crtValReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "Fail to validate parameter for nfs protocol")
+	assert.NotNil(suite.T(), err, "failed to validate parameter for nfs protocol")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_NetworkSpaceIP_Error() {
@@ -48,7 +48,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_NetworkSpaceIP_Error() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, networkSpaceErr)
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "fail to get IP address from  networkspace")
+	assert.NotNil(suite.T(), err, "failed to get IP address from  networkspace")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
@@ -65,7 +65,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "fail to get filesystem name")
+	assert.NotNil(suite.T(), err, "failed to get filesystem name")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportError() {
@@ -124,7 +124,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
 	assert.NotNil(suite.T(), err, "file to validat the pool and networkspace")
-
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_fail() {
@@ -160,7 +159,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	crtValReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-	expectedError := errors.New("fail to create volume Some error")
+	expectedError := errors.New("failed to create volume Some error")
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
@@ -169,15 +168,15 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "fail to get poolID by poolName")
-	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "fail to get poolID")
+	assert.NotNil(suite.T(), err, "failed to get poolID by poolName")
+	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "failed to get poolID")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	crtValReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-	expectedError := errors.New("fail to create volume Some error")
+	expectedError := errors.New("failed to create volume Some error")
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
@@ -187,15 +186,15 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 	suite.api.On("CreateFilesystem", mock.Anything).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "fail to create the file system")
-	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "fail to create the file system")
+	assert.NotNil(suite.T(), err, "failed to create the file system")
+	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "failed to create the file system")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	crtValReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-	expectedError := errors.New("fail to create volume Some error")
+	expectedError := errors.New("failed to create volume Some error")
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
@@ -206,8 +205,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "fail to create the file system")
-	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "fail to create the file system")
+	assert.NotNil(suite.T(), err, "failed to create the file system")
+	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "failed to create the file system")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_success() {
@@ -227,9 +226,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
 	resp, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.Nil(suite.T(), err, "fail to create the file system")
+	assert.Nil(suite.T(), err, "failed to create the file system")
 	assert.Equal(suite.T(), resp.GetVolume().GetVolumeId(), "1", "successfully created volume ID")
-
 }
 
 //=================================================Create Volume END=================================//
@@ -244,7 +242,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID() {
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to get filesystem name")
+	assert.NotNil(suite.T(), err.Error(), "failed to get filesystem name")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID2() {
@@ -272,7 +270,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetFileSystemByID_Er
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, filesystemErr)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to get filesystemID")
+	assert.NotNil(suite.T(), err.Error(), "failed to get filesystemID")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_invalidSize() {
@@ -303,7 +301,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetStoragePoolIDByNa
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(nil, filesystemErr)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to storage pool name")
+	assert.NotNil(suite.T(), err.Error(), "failed to storage pool name")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_poolID_name_invalid() {
@@ -319,7 +317,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_poolID_name_invalid(
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to get PooldID by  storage pool name")
+	assert.NotNil(suite.T(), err.Error(), "failed to get PooldID by  storage pool name")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_failed() {
@@ -337,7 +335,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_faile
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, filesystemErr)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to create snapshot")
+	assert.NotNil(suite.T(), err.Error(), "failed to create snapshot")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() {
@@ -356,7 +354,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() 
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, filesystemErr)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to get export path")
+	assert.NotNil(suite.T(), err.Error(), "failed to get export path")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
@@ -376,7 +374,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, filesystemErr)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err.Error(), "fail to update metadata")
+	assert.NotNil(suite.T(), err.Error(), "failed to update metadata")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
@@ -516,7 +514,6 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_Success() {
-
 	var fileSysSnapshotResp api.FileSystemSnapshotResponce
 	fileSysSnapshotResp.SnapshotID = 1
 	fileSysSnapshotResp.Name = "snapshot"
@@ -543,7 +540,6 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_Error(
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_success() {
-
 	var fileSysSnapshotRespArry []api.FileSystemSnapshotResponce
 	var filesystem api.FileSystemSnapshot
 	filesystem.ParentID = 10
@@ -638,7 +634,6 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_InvalidaID() {
 	delValReq.VolumeId = "a$$1234"
 	_, err = service.DeleteVolume(context.Background(), delValReq)
 	assert.NotNil(suite.T(), err, "invalid volume ID")
-
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_fileNotFound() {
@@ -648,8 +643,8 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_fileNotFound() {
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, expectedErr)
 	_, err := service.DeleteVolume(context.Background(), delValReq)
 	assert.Nil(suite.T(), err, "FILESYSTEM_NOT_FOUND")
-
 }
+
 func (suite *NFSControllerSuite) Test_DeleteVolume_Error() {
 	service := nfsstorage{cs: *suite.cs}
 	delValReq := getNFSDeletRequest()
@@ -664,7 +659,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Metadata_failed() {
 	delValReq := getNFSDeletRequest()
 	expectedErr := errors.New("some Error")
 
-	//var filsystemID int64 = 1
+	// var filsystemID int64 = 1
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.api.On("FileSystemHasChild", mock.Anything).Return(true)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
@@ -722,7 +717,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_success() {
 	assert.Nil(suite.T(), err, "error occured while delete metadata")
 }
 
-//ControllerPublishVolume=============
+// ControllerPublishVolume=============
 func (suite *NFSControllerSuite) Test_ControllerPublishVolume_InvalidaNodeID() {
 	service := nfsstorage{cs: *suite.cs}
 	publishParameter := getPublishVolumeParameter()
@@ -756,6 +751,7 @@ func (suite *NFSControllerSuite) Test_ControllerPublishVolume_success() {
 	_, err := service.ControllerPublishVolume(context.Background(), publishVolReq)
 	assert.Nil(suite.T(), err, "expected no error")
 }
+
 func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule_error() {
 	service := nfsstorage{cs: *suite.cs}
 	unpublishVolReq := getNFSControllerUnpublishVolume()
@@ -788,13 +784,14 @@ func getNFSControllerPublishVolume(parameterMap map[string]string) *csi.Controll
 		NodeId:        "10.20.20.50$$nfs",
 	}
 }
+
 func getNFSDeletRequest() *csi.DeleteVolumeRequest {
 	return &csi.DeleteVolumeRequest{
 		VolumeId: "1",
 	}
 }
 
-//Test case Data Generation
+// Test case Data Generation
 func getExportResponseValue() api.ExportResponse {
 	response := api.ExportResponse{ID: 1, ExportPath: "/exportPath/"}
 	return response
@@ -819,8 +816,8 @@ func getFileSystem() api.FileSystem {
 func getNetworkSpace() api.NetworkSpace {
 	portalArry := []api.Portal{{IpAdress: "10.20.20.50"}}
 	return api.NetworkSpace{Portals: portalArry}
-
 }
+
 func getNfsCreateSnapshotRequest(vID string) *csi.CreateSnapshotRequest {
 	return &csi.CreateSnapshotRequest{
 		SourceVolumeId: vID,
@@ -843,14 +840,14 @@ func getNFSCreateVolumeRequest(name string, parameterMap map[string]string) *csi
 	return &csi.CreateVolumeRequest{
 		Name:          name,
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * gib},
-		//VolumeCapabilities []*VolumeCapability
+		// VolumeCapabilities []*VolumeCapability
 		Parameters: parameterMap,
-		//Secrets map[string]string
+		// Secrets map[string]string
 		VolumeContentSource: nil,
 	}
 }
 
-//getCreateVolumeRequestByType - method return the snapshot or clone createVallume request
+// getCreateVolumeRequestByType - method return the snapshot or clone createVallume request
 func getCreateVolumeSnapshotRequest(name string, parameterMap map[string]string) *csi.CreateVolumeRequest {
 	createVolume := &csi.CreateVolumeRequest{
 		Name:          name,
@@ -867,7 +864,7 @@ func getCreateVolumeSnapshotRequest(name string, parameterMap map[string]string)
 	return createVolume
 }
 
-//getCreateVolumeRequestByType - method return the snapshot or clone createVallume request
+// getCreateVolumeRequestByType - method return the snapshot or clone createVallume request
 func getCreateVolumeCloneRequest(name string, parameterMap map[string]string) *csi.CreateVolumeRequest {
 	createVolume := &csi.CreateVolumeRequest{
 		Name:          name,
@@ -888,11 +885,13 @@ func getCreateVolumeParameter() map[string]string {
 	return map[string]string{
 		"pool_name":              "pool_name1",
 		"network_space":          "network_space1",
-		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
+		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+	}
 }
 
 func getPublishVolumeParameter() map[string]string {
 	return map[string]string{
 		"exportID":               "1",
-		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
+		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+	}
 }

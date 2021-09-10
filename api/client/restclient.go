@@ -30,12 +30,14 @@ type HostConfig struct {
 	UserName string
 	Password string
 }
+
 type Resultmetadata struct {
 	NoOfObject int `json:"number_of_objects,omitempty"`
 	TotalPages int `json:"pages_total,omitempty"`
 	Page       int `json:"page,omitempty"`
 	PageSize   int `json:"page_size,omitempty"`
 }
+
 type ApiResponse struct {
 	Result   interface{}    `json:"result,omitempty"`
 	MetaData Resultmetadata `json:"metadata,omitempty"`
@@ -44,7 +46,7 @@ type ApiResponse struct {
 
 var rClient *resty.Client
 
-//NewRestClient : Initialize http client
+// NewRestClient : Initialize http client
 func NewRestClient() (*restclient, error) {
 	if rClient == nil {
 		rClient = resty.New()
@@ -56,7 +58,7 @@ func NewRestClient() (*restclient, error) {
 	return &restclient{}, nil
 }
 
-//RestClient : implement to make rest client
+// RestClient : implement to make rest client
 type RestClient interface {
 	Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error)
 	Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error)
@@ -207,7 +209,7 @@ func checkHttpClient() error {
 	return nil
 }
 
-//Method to check the response is valid or not
+// Method to check the response is valid or not
 func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct interface{}) (apiresp ApiResponse, retErr error) {
 	defer func() {
 		if recovered := recover(); recovered != nil && retErr == nil {
@@ -277,14 +279,13 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 	}
 }
 
-//Method to check error response from management api
+// Method to check error response from management api
 func (rc *restclient) parseError(responseinmap interface{}) (str string, iserr bool) {
 	defer func() {
 		if res := recover(); res != nil {
 			str = "recovered in parseError  " + fmt.Sprint(res)
 			iserr = true
 		}
-
 	}()
 
 	if responseinmap != nil {

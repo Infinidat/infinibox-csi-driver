@@ -87,13 +87,13 @@ type Client interface {
 	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 }
 
-//ClientService : struct having reference of rest client and will host methods which need rest operations
+// ClientService : struct having reference of rest client and will host methods which need rest operations
 type ClientService struct {
 	api        client.RestClient
 	SecretsMap map[string]string
 }
 
-//NewClient : Create New Client
+// NewClient : Create New Client
 func (c *ClientService) NewClient() (*ClientService, error) {
 	var err error
 	defer func() {
@@ -109,7 +109,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 	return c, nil
 }
 
-//DeleteVolume : Delete volume by volume id
+// DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	klog.V(2).Infof("Delete Volume : %d", volumeID)
 	defer func() {
@@ -122,7 +122,7 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		} else {
-			klog.Errorf("fail to delete metadata %v", err)
+			klog.Errorf("failed to delete metadata %v", err)
 			return
 		}
 	}
@@ -136,7 +136,7 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	return
 }
 
-//AddHostSecurity - add chap security for host with given details
+// AddHostSecurity - add chap security for host with given details
 func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -158,7 +158,7 @@ func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int)
 	return host, nil
 }
 
-//AddHostPort - add port for host with given details
+// AddHostPort - add port for host with given details
 func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -184,7 +184,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 	return hostPort, nil
 }
 
-//CreateVolume : create volume with volume details provided in storage pool provided
+// CreateVolume : create volume with volume details provided in storage pool provided
 func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
 	var err error
 	defer func() {
@@ -220,7 +220,7 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 	return &vol, nil
 }
 
-//FindStoragePool : Find storage pool either by id or name
+// FindStoragePool : Find storage pool either by id or name
 func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, error) {
 	var err error
 	defer func() {
@@ -243,7 +243,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 	return StoragePool{}, errors.New("Couldn't find storage pool")
 }
 
-//GetStoragePool : Get storage pool(s) either by id or name
+// GetStoragePool : Get storage pool(s) either by id or name
 func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error) {
 	var err error
 	defer func() {
@@ -288,7 +288,7 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 	return storagePools, nil
 }
 
-//GetStoragePoolIDByName : Returns poolID of provided pool name
+// GetStoragePoolIDByName : Returns poolID of provided pool name
 func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -297,14 +297,14 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 	}()
 	klog.V(2).Infof("Get ID of a storage pool by Name : %s", name)
 	storagePools := []StoragePool{}
-	//To get the pool_id for corresponding poolname
+	// To get the pool_id for corresponding poolname
 	var poolID int64 = -1
 	urlpool := "api/rest/pools"
 	queryParam := make(map[string]interface{})
 	queryParam["name"] = name
 	resp, err := c.getResponseWithQueryString(urlpool, queryParam, &storagePools)
 	if err != nil {
-		return -1, fmt.Errorf("fail to get pool ID from pool Name: %s", name)
+		return -1, fmt.Errorf("failed to get pool ID from pool Name: %s", name)
 	}
 	if len(storagePools) == 0 {
 		apiresp := resp.(client.ApiResponse)
@@ -352,7 +352,7 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 	return nil, errors.New("volume with given name not found")
 }
 
-//GetVolume : get volume by id
+// GetVolume : get volume by id
 func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 	var err error
 	defer func() {
@@ -374,7 +374,7 @@ func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 	return &volume, nil
 }
 
-//CreateSnapshotVolume : Create volume from snapshot
+// CreateSnapshotVolume : Create volume from snapshot
 func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
 	var err error
 	defer func() {
@@ -402,7 +402,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 	return &snapResp, nil
 }
 
-//GetNetworkSpaceByName - Get networkspace by name
+// GetNetworkSpaceByName - Get networkspace by name
 func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -429,7 +429,7 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	return nspace, nil
 }
 
-//DeleteHost - delete host by given host ID
+// DeleteHost - delete host by given host ID
 func (c *ClientService) DeleteHost(hostID int) (err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -449,7 +449,7 @@ func (c *ClientService) DeleteHost(hostID int) (err error) {
 	return nil
 }
 
-//CreateHost - create host  with given details
+// CreateHost - create host  with given details
 func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -473,7 +473,7 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	return host, nil
 }
 
-//GetHostPort - get host port details
+// GetHostPort - get host port details
 func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -505,7 +505,7 @@ func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort Ho
 	return hostPort, nil
 }
 
-//GetHostByName - get host details for given hostname
+// GetHostByName - get host details for given hostname
 func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -536,7 +536,7 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	return host, nil
 }
 
-//GetFCPorts - get fc ports details
+// GetFCPorts - get fc ports details
 func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -661,7 +661,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 	return luninfo, nil
 }
 
-//GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
+// GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
 func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
 	var err error
 	defer func() {
@@ -675,7 +675,7 @@ func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, er
 	queryParam["parent_id"] = volumeID
 	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
 	if err != nil {
-		klog.Errorf("fail to check GetVolumeSnapshotByParentID %v", err)
+		klog.Errorf("failed to check GetVolumeSnapshotByParentID %v", err)
 		return &volumes, err
 	}
 	if len(volumes) == 0 {
@@ -685,7 +685,7 @@ func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, er
 	return &volumes, err
 }
 
-//UpdateVolume : update volume
+// UpdateVolume : update volume
 func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
 	var err error
 	defer func() {
@@ -741,9 +741,6 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 		klog.Errorf("Error occured: %v ", err)
 		return
 	}
-	if expectedResp == nil {
-		expectedResp = resp
-	}
 	return
 }
 
@@ -761,12 +758,12 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 		return nil, err
 	}
 
-	queryString := ""
+	var queryString string
 	for key, val := range queryParam {
 		if queryString != "" {
-			queryString = queryString + ","
+			queryString += ","
 		}
-		queryString = key + "=" + fmt.Sprintf("%v", val)
+		queryString += key + "=" + fmt.Sprintf("%v", val)
 	}
 	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
 	return resp, err

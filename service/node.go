@@ -34,8 +34,6 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	klog.V(2).Infof("NodePublishVolume called with volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
-	config["nodeIPAddress"] = s.nodeIPAddress
-	klog.V(4).Infof("NodePublishVolume nodeIPAddress '%s'", s.nodeIPAddress)
 
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
@@ -98,10 +96,11 @@ func (s *service) NodeGetCapabilities(
 }
 
 func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	klog.V(2).Infof("Setting NodeId %s", s.nodeID)
 	nodeFQDN := s.getNodeFQDN()
+	k8sNodeID := nodeFQDN + "$$" + s.nodeID
+	klog.V(2).Infof("NodeGetInfo NodeId: %s", k8sNodeID)
 	return &csi.NodeGetInfoResponse{
-		NodeId: nodeFQDN + "$$" + s.nodeID,
+		NodeId: k8sNodeID,
 	}, nil
 }
 
@@ -116,7 +115,6 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
-	config["nodeIPAddress"] = s.nodeIPAddress
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {

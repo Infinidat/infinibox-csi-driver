@@ -45,7 +45,6 @@ func (suite *ControllerTestSuite) Test_storageController_Fail() {
 	s := getService()
 	_, err := s.CreateVolume(context.Background(), createVolumeReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
-
 }
 
 func (suite *ControllerTestSuite) Test_CreateVolme_fail() {
@@ -294,6 +293,7 @@ func (suite *ControllerTestSuite) Test_GetCapacity() {
 func getCtrControllerGetCapabilitiesRequest() *csi.ControllerGetCapabilitiesRequest {
 	return &csi.ControllerGetCapabilitiesRequest{}
 }
+
 func getCrtControllerExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{
 		VolumeId:      "100$$nfs",
@@ -308,18 +308,21 @@ func getCtrDeleteSnapshotRequest() *csi.DeleteSnapshotRequest {
 		Secrets:    getSecret(),
 	}
 }
+
 func getCtrCreateSnapshotRequest() *csi.CreateSnapshotRequest {
 	return &csi.CreateSnapshotRequest{
 		SourceVolumeId: "100$$nfs",
 		Secrets:        getSecret(),
 	}
 }
+
 func getCrtControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
 	return &csi.ControllerUnpublishVolumeRequest{
 		VolumeId: "100$$nfs",
 		Secrets:  getSecret(),
 	}
 }
+
 func getCrtControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeId: "100$$nfs",
@@ -327,12 +330,14 @@ func getCrtControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest 
 		Secrets:  getSecret(),
 	}
 }
+
 func getCtrDeleteVolumeRequest() *csi.DeleteVolumeRequest {
 	return &csi.DeleteVolumeRequest{
 		VolumeId: "100$$nfs",
 		Secrets:  getSecret(),
 	}
 }
+
 func getCtrValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabilitiesRequest {
 	return &csi.ValidateVolumeCapabilitiesRequest{
 		VolumeId: "100$$nfs",
@@ -342,7 +347,6 @@ func getCtrValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabilitiesRe
 
 func getContrCreateVolumeParamter() map[string]string {
 	return map[string]string{"storage_protocol": "nfs", "pool_name": "pool_name1", "network_space": "network_space1", "nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
-
 }
 
 func getSecret() map[string]string {
@@ -357,28 +361,18 @@ func getControllerCreateVolumeRequest(name string, parameterMap map[string]strin
 	return &csi.CreateVolumeRequest{
 		Name:          "volumeName",
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 1000},
-		//VolumeCapabilities []*VolumeCapability
+		// VolumeCapabilities []*VolumeCapability
 		Parameters:          parameterMap,
 		Secrets:             getSecret(),
 		VolumeContentSource: nil,
-	}
-}
-func getControllerCreateVolumeReqonse() *csi.CreateVolumeResponse {
-	return &csi.CreateVolumeResponse{
-		Volume: &csi.Volume{
-			VolumeId: "100",
-		},
 	}
 }
 
 func getService() Service {
 	configParam := make(map[string]string)
 	configParam["nodeid"] = "10.20.30.50"
-	configParam["drivername"] = "csi-driver"
-	configParam["nodeIPAddress"] = "10.20.30.50"
 	configParam["nodeName"] = "ubuntu"
-	configParam["initiatorPrefix"] = "iscsi"
-	configParam["hostclustername"] = "clusterName"
+	configParam["drivername"] = "csi-driver"
 	configParam["driverversion"] = "1.1.0.5s"
 	return New(configParam)
 }

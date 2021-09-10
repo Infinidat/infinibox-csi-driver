@@ -20,18 +20,18 @@ import (
 	log "infinibox-csi-driver/helper/logger"
 )
 
-//TREEQCOUNT
+// TREEQCOUNT
 const (
 	TREEQCOUNT = "host.k8s.treeqs"
 )
 
-//FSMetadata struct
+// FSMetadata struct
 type FSMetadata struct {
 	FileSystemArry []FileSystem
 	Filemetadata   FileSystemMetaData
 }
 
-//Treeq struct
+// Treeq struct
 type Treeq struct {
 	ID           int64  `json:"id,omitempty"`
 	FilesystemID int64  `json:"filesystem_id,omitempty"`
@@ -41,7 +41,7 @@ type Treeq struct {
 	UsedCapacity int64  `json:"used_capacity,omitempty"`
 }
 
-//GetFileSystemsByPoolID get filesystem by poolID
+// GetFileSystemsByPoolID get filesystem by poolID
 func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetadata *FSMetadata, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -74,7 +74,7 @@ func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetada
 	return
 }
 
-//GetFilesytemTreeqCount method return the treeq count
+// GetFilesytemTreeqCount method return the treeq count
 func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -98,10 +98,9 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 
 	log.Info("Total number of Treeq : ", treeqCnt)
 	return
-
 }
 
-//CreateTreeq method create treeq
+// CreateTreeq method create treeq
 func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error) {
 	var err error
 	defer func() {
@@ -125,7 +124,7 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 	return &treeq, nil
 }
 
-//getTreeqSizeByFileSystemID method return the sum of size
+// getTreeqSizeByFileSystemID method return the sum of size
 func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error) {
 	var err error
 	var size int64
@@ -170,7 +169,7 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	return &treeq, nil
 }
 
-//GetTreeq
+// GetTreeq
 func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 	var err error
 	defer func() {
@@ -214,7 +213,7 @@ func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string
 	return &treeq, nil
 }
 
-//GetFileSystemByName :
+// GetFileSystemByName :
 func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error) {
 	var err error
 	defer func() {

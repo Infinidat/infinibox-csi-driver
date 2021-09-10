@@ -15,31 +15,31 @@ import (
 	"fmt"
 	log "infinibox-csi-driver/helper/logger"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
-
 	//"strconv"
-	"strings"
-	"time"
 )
 
 func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-
 	return &csi.NodeStageVolumeResponse{}, nil
 }
+
 func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
+
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).Infof("NodePublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
+			if err := nfs.osHelper.MkdirAll(targetPath, 0o750); err != nil {
 				klog.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
@@ -139,12 +139,10 @@ func (nfs *nfsstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGet
 
 func (nfs *nfsstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return nil, nil
-
 }
 
 func (nfs *nfsstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodePublishVolume not implemented")
-
 }
 
 func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {

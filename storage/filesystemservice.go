@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-//treeq constants
+// treeq constants
 const (
 	PROVISIONTYPE          = "provision_type"
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
@@ -36,7 +36,7 @@ const (
 	//	UNIXPERMISSION         = "nfs_unix_permissions"
 	FSPREFIX = "fs_prefix"
 
-	//Treeq count
+	// Treeq count
 	TREEQCOUNT = "host.k8s.treeqs"
 )
 
@@ -47,20 +47,19 @@ const (
 	TreeqUnixPermissions = "750"
 )
 
-//Operation declare for treeq count operation
+// Operation declare for treeq count operation
 type ACTION int
 
 const (
-	//Increment operation
+	// Increment operation
 	IncrementTreeqCount ACTION = 1 + iota
-	//decrement operation
+	// decrement operation
 	DecrementTreeqCount
 	NONE
 )
 
-//FilesystemService file system services
+// FilesystemService file system services
 type FilesystemService struct {
-	uniqueID  int64
 	configmap map[string]string // values from storage class
 	pVName    string
 	capacity  int64
@@ -88,7 +87,7 @@ func getFilesystemService(serviceType string, c commonservice) *FilesystemServic
 	return nil
 }
 
-//FileSystemInterface interface
+// FileSystemInterface interface
 type FileSystemInterface interface {
 	validateTreeqParameters(config map[string]string) (bool, map[string]string)
 	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
@@ -124,12 +123,12 @@ func (filesystem *FilesystemService) checkTreeqName(FileSystemArry []api.FileSys
 	return
 }
 
-//IsTreeqAlreadyExist check the treeq exist or not
+// IsTreeqAlreadyExist check the treeq exist or not
 func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_space, pVName string) (treeqVolume map[string]string, err error) {
 	treeqVolume = make(map[string]string)
 	poolID, err := filesystem.cs.api.GetStoragePoolIDByName(pool_name)
 	if err != nil {
-		klog.Errorf("fail to get poolID from poolName %s", pool_name)
+		klog.Errorf("failed to get poolID from poolName %s", pool_name)
 		return
 	}
 	filesystem.poolID = poolID
@@ -137,8 +136,8 @@ func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_spac
 	for {
 		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(poolID, page)
 		if poolErr != nil {
-			klog.Errorf("fail to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
-			err = errors.New("fail to get filesystems from poolName " + pool_name)
+			klog.Errorf("failed to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
+			err = errors.New("failed to get filesystems from poolName " + pool_name)
 			return
 		}
 		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
@@ -146,13 +145,13 @@ func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_spac
 		}
 		treeqData := filesystem.checkTreeqName(fsMetaData.FileSystemArry, pVName)
 		if treeqData != nil {
-			exportErr := filesystem.getExportPath(treeqData.FilesystemID) //fetch export path and set to filesystem exportPath
+			exportErr := filesystem.getExportPath(treeqData.FilesystemID) // fetch export path and set to filesystem exportPath
 			if exportErr != nil {
 				err = exportErr
 			}
 			ipAddress, networkErr := filesystem.cs.getNetworkSpaceIP(network_space)
 			if networkErr != nil {
-				klog.Errorf("fail to get networkspace ipaddress %v", networkErr)
+				klog.Errorf("failed to get networkspace ipaddress %v", networkErr)
 				err = exportErr
 				return
 			}
@@ -163,17 +162,16 @@ func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_spac
 			treeqVolume["volumePath"] = path.Join(filesystem.exportpath, treeqData.Path)
 			return
 		}
-		//inner for loop closed
+		// inner for loop closed
 		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
 			break
 		}
-		page++ //check the file system on next page
-	} //outer for loop closed
+		page++ // check the file system on next page
+	} // outer for loop closed
 	return
 }
 
 func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize int64) (filesys *api.FileSystem, err error) {
-
 	if filesystem.capacity > maxFileSystemSize {
 		klog.Errorf("Can't allowed to create treeq of size %d", filesystem.capacity)
 		klog.Errorf("Max allowed filesytem size %d", maxFileSystemSize)
@@ -184,8 +182,8 @@ func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize i
 	for {
 		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(filesystem.poolID, page)
 		if poolErr != nil {
-			klog.Errorf("fail to get filesystems from poolID %d and page no %d error %v", filesystem.poolID, page, err)
-			err = errors.New("fail to get filesystems from poolName " + filesystem.configmap["pool_name"])
+			klog.Errorf("failed to get filesystems from poolID %d and page no %d error %v", filesystem.poolID, page, err)
+			err = errors.New("failed to get filesystems from poolName " + filesystem.configmap["pool_name"])
 			return
 		}
 		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
@@ -196,14 +194,14 @@ func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize i
 			if fs.Size+filesystem.capacity < maxFileSystemSize {
 				treeqCnt, treeqCnterr := filesystem.cs.api.GetFilesytemTreeqCount(fs.ID)
 				if treeqCnterr != nil {
-					klog.Errorf("fail to get treeq count of filesystemID %d error %v", fs.ID, err)
-					err = errors.New("fail to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
+					klog.Errorf("failed to get treeq count of filesystemID %d error %v", fs.ID, err)
+					err = errors.New("failed to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
 					return
 				}
 				if treeqCnt < filesystem.getAllowedCount(MAXTREEQSPERFILESYSTEM) {
 					filesystem.treeqCnt = treeqCnt
 					klog.V(4).Infof("filesystem found to create treeQ,filesystemID %d", fs.ID)
-					exportErr := filesystem.getExportPath(fs.ID) //fetch export path and set to filesystem exportPath
+					exportErr := filesystem.getExportPath(fs.ID) // fetch export path and set to filesystem exportPath
 					if exportErr != nil {
 						err = exportErr
 					}
@@ -211,12 +209,12 @@ func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize i
 					return
 				}
 			}
-		} //inner for loop closed
+		} // inner for loop closed
 		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
 			break
 		}
-		page++ //check the file system on next page
-	} //outer for loop closed
+		page++ // check the file system on next page
+	} // outer for loop closed
 	klog.V(4).Infof("NO filesystem found to create treeQ")
 	return
 }
@@ -228,11 +226,8 @@ func (filesystem *FilesystemService) setParameter(config map[string]string, capa
 	filesystem.exportpath = "/" + filesystem.pVName
 }
 
-var createMutex sync.Mutex
-
-//CreateTreeqVolume create volumne method
+// CreateTreeqVolume create volumne method
 func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (treeqVolume map[string]string, err error) {
-
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while creating treeq method " + fmt.Sprint(res))
@@ -245,7 +240,7 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 
 	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
-		klog.Errorf("fail to get networkspace ipaddress %v", err)
+		klog.Errorf("failed to get networkspace ipaddress %v", err)
 		return
 	}
 	filesystem.ipAddress = ipAddress
@@ -253,7 +248,7 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	var poolID int64
 	poolID, err = filesystem.cs.api.GetStoragePoolIDByName(filesystem.configmap["pool_name"])
 	if err != nil {
-		klog.Errorf("fail to get poolID from poolName %s", filesystem.configmap["pool_name"])
+		klog.Errorf("failed to get poolID from poolName %s", filesystem.configmap["pool_name"])
 		return
 	}
 	filesystem.poolID = poolID
@@ -270,19 +265,19 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 
 	filesys, err = filesystem.getExpectedFileSystemID(maxFileSystemSize)
 	if err != nil {
-		klog.Errorf("fail to getExpectedFileSystemID  %v", err)
+		klog.Errorf("failed to getExpectedFileSystemID  %v", err)
 		return
 	}
 	var filesystemID int64
 	if filesys == nil { // if pool is empty or no file system found to createTreeq
 		err = filesystem.createFileSystem()
 		if err != nil {
-			klog.Errorf("fail to create fileSystem %v", err)
+			klog.Errorf("failed to create fileSystem %v", err)
 			return
 		}
 		err = filesystem.createExportPathAndAddMetadata()
 		if err != nil {
-			klog.Errorf("fail to create export and metadata %v", err)
+			klog.Errorf("failed to create export and metadata %v", err)
 			return
 		}
 		filesystemID = filesystem.fileSystemID
@@ -290,17 +285,17 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 		filesystemID = filesys.ID
 	}
 
-	//create treeq
+	// create treeq
 	treeqResponse, createTreeqerr := filesystem.cs.api.CreateTreeq(filesystemID, filesystem.getTreeParameters())
 	if createTreeqerr != nil {
-		klog.Errorf("fail to create treeq  %s error %v", filesystem.pVName, err)
-		if filesys == nil { //if the file system created at the time of creating first treeq ,then delete the complete filesystem with export and metata
+		klog.Errorf("failed to create treeq  %s error %v", filesystem.pVName, err)
+		if filesys == nil { // if the file system created at the time of creating first treeq ,then delete the complete filesystem with export and metata
 			deleteFilesystemErr := filesystem.cs.api.DeleteFileSystemComplete(filesystemID)
 			if deleteFilesystemErr != nil {
-				klog.Errorf("fail to delete filesystem ,filesystemID = %d", filesystemID)
+				klog.Errorf("failed to delete filesystem ,filesystemID = %d", filesystemID)
 			}
 		}
-		err = errors.New("fail to Create Treeq")
+		err = errors.New("failed to create Treeq")
 		return
 	}
 	treeqVolume["ID"] = strconv.FormatInt(filesystemID, 10)
@@ -308,32 +303,38 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	treeqVolume["ipAddress"] = filesystem.ipAddress
 	treeqVolume["volumePath"] = path.Join(filesystem.exportpath, treeqResponse.Path)
 
-	//if AttachMetadataToObject - fail to add metadata then delete the created treeq
+	// if AttachMetadataToObject - failed to add metadata then delete the created treeq
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while update metadata" + fmt.Sprint(res))
 		}
 		if err != nil && filesystem.fileSystemID != 0 {
 			klog.V(2).Infof("Seemes to be some problem reverting treeq: %s", filesystem.pVName)
-			filesystem.cs.api.DeleteTreeq(filesystem.fileSystemID, treeqResponse.ID)
+			_, errDelTreeq := filesystem.cs.api.DeleteTreeq(filesystem.fileSystemID, treeqResponse.ID)
+			if errDelTreeq != nil {
+				klog.Errorf("failed to delete treeq: %s", filesystem.pVName)
+			}
 		}
 	}()
 
 	treeqCount := filesystem.treeqCnt + 1
 	_, updateTreeqErr := filesystem.UpdateTreeqCnt(filesystemID, NONE, treeqCount)
 	if updateTreeqErr != nil {
-		err = errors.New("fail to increment treeq count as metadata")
+		err = errors.New("failed to increment treeq count as metadata")
 		return
 	}
 
-	//if UpdateFilesystem - is fail then descrement the tree count from metadata
+	// if UpdateFilesystem fails, descrement the metadata tree count
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while update file size" + fmt.Sprint(res))
 		}
 		if err != nil && filesystemID != 0 {
 			klog.V(2).Infof("Seemes to be some problem reverting treeqcount")
-			filesystem.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
+			_, errUpdTreeq := filesystem.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
+			if errUpdTreeq != nil {
+				klog.Errorf("failed to update count for treeq: %s", filesystem.pVName)
+			}
 		}
 	}()
 
@@ -343,8 +344,8 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 		updateFileSys.Size = filesys.Size + filesystem.capacity
 		_, updateFileSizeErr := filesystem.cs.api.UpdateFilesystem(filesystemID, updateFileSys)
 		if updateFileSizeErr != nil {
-			klog.Errorf("fail to update File Size %v", err)
-			err = errors.New("fail to update files size")
+			klog.Errorf("failed to update File Size %v", err)
+			err = errors.New("failed to update files size")
 			return
 		}
 	}
@@ -358,13 +359,15 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 		}
 		if err != nil && filesystem.fileSystemID != 0 {
 			klog.V(2).Infof("Seemes to be some problem reverting filesystem: %s", filesystem.pVName)
-			filesystem.cs.api.DeleteFileSystem(filesystem.fileSystemID)
+			if _, errDelFS := filesystem.cs.api.DeleteFileSystem(filesystem.fileSystemID); errDelFS != nil {
+				klog.Errorf("failed to delete filesystem: %s", filesystem.pVName)
+			}
 		}
 	}()
 
 	err = filesystem.createExportPath()
 	if err != nil {
-		klog.Errorf("fail to export path %v", err)
+		klog.Errorf("failed to export path %v", err)
 		return
 	}
 	klog.V(4).Infof("export path created for filesystem: %s", filesystem.pVName)
@@ -375,7 +378,9 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 		}
 		if err != nil && filesystem.exportID != 0 {
 			log.Infoln("Seemes to be some problem reverting created export id:", filesystem.exportID)
-			filesystem.cs.api.DeleteExportPath(filesystem.exportID)
+			if _, errDelExport := filesystem.cs.api.DeleteExportPath(filesystem.exportID); errDelExport != nil {
+				klog.Errorf("failed to delete export path: %s", filesystem.pVName)
+			}
 		}
 	}()
 	metadata := make(map[string]interface{})
@@ -384,7 +389,7 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 
 	_, err = filesystem.cs.api.AttachMetadataToObject(filesystem.fileSystemID, metadata)
 	if err != nil {
-		klog.Errorf("fail to attach metadata for fileSystem : %s", filesystem.pVName)
+		klog.Errorf("failed to attach metadata for fileSystem : %s", filesystem.pVName)
 		klog.Errorf("error to attach metadata %v", err)
 		return
 	}
@@ -395,7 +400,7 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 func (filesystem *FilesystemService) createFileSystem() (err error) {
 	fileSystemCnt, err := filesystem.cs.api.GetFileSystemCountByPoolID(filesystem.poolID)
 	if err != nil {
-		klog.Errorf("fail to get the filesystem count from Ibox %v", err)
+		klog.Errorf("failed to get the filesystem count from Ibox %v", err)
 		return
 	}
 	if fileSystemCnt >= filesystem.getAllowedCount(MAXFILESYSTEMS) {
@@ -428,7 +433,7 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 	mapRequest["size"] = filesystem.capacity
 	fileSystem, err := filesystem.cs.api.CreateFilesystem(mapRequest)
 	if err != nil {
-		klog.Errorf("fail to create filesystem %s", filesystem.pVName)
+		klog.Errorf("failed to create filesystem %s", filesystem.pVName)
 		return
 	}
 	filesystem.fileSystemID = fileSystem.ID
@@ -450,7 +455,7 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	exportResp, err := filesystem.cs.api.ExportFileSystem(exportFileSystem)
 	if err != nil {
-		klog.Errorf("fail to create export path of filesystem %s", filesystem.pVName)
+		klog.Errorf("failed to create export path of filesystem %s", filesystem.pVName)
 		return
 	}
 	filesystem.exportID = exportResp.ID
@@ -478,12 +483,12 @@ func getDefaultValues() map[string]string {
 	defaultConfigMap[MAXTREEQSPERFILESYSTEM] = "1000"
 	defaultConfigMap[MAXFILESYSTEMS] = "1000"
 	defaultConfigMap[MAXFILESYSTEMSIZE] = "100tib"
-	//defaultConfigMap[UNIXPERMISSION] = "750"
+	// defaultConfigMap[UNIXPERMISSION] = "750"
 	return defaultConfigMap
 }
 
 func (filesystem *FilesystemService) getAllowedCount(key string) int {
-	var allowedCnt int = 0
+	var allowedCnt int
 	if _, ok := filesystem.configmap[key]; ok {
 		allowedCnt, err := strconv.Atoi(filesystem.configmap[key])
 		if err == nil {
@@ -494,14 +499,13 @@ func (filesystem *FilesystemService) getAllowedCount(key string) int {
 	val := defaultConfigMap[key]
 	allowedCnt, _ = strconv.Atoi(val)
 	return allowedCnt
-
 }
 
 func (filesystem *FilesystemService) maxFileSize() (sizeInByte int64, err error) {
 	if maxfilesize, ok := filesystem.configmap[MAXFILESYSTEMSIZE]; ok {
 		sizeInByte, err = convertToByte(maxfilesize)
 		if err != nil {
-			klog.Errorf("fail to convert MAXFILESYSTEMSIZE %s to byte", maxfilesize)
+			klog.Errorf("failed to convert MAXFILESYSTEMSIZE %s to byte", maxfilesize)
 		}
 		return
 	}
@@ -519,14 +523,14 @@ func convertToByte(size string) (bytes int64, err error) {
 			arg := strings.Split(size, key)
 			sizeUnit, errConvert := strconv.ParseInt(arg[0], 10, 64)
 			if errConvert != nil {
-				klog.Errorf("fail to convert the %s to bytes", size)
+				klog.Errorf("failed to convert the %s to bytes", size)
 				return
 			}
 			bytes = sizeUnit * unit
 			return
 		}
 	}
-	err = errors.New("Unexpected maxfilesystemsize .Expected size formate shoude be in formate of gib,tib")
+	err = errors.New("unexpected maxfilesystemsize, expected format: gib,tib")
 	return
 }
 
@@ -538,20 +542,18 @@ func (filesystem *FilesystemService) getTreeParameters() map[string]interface{} 
 	return treeqParameter
 }
 
-/*
-func (filesystem *FilesystemService) getTreeModePermission() string {
-	if unixPermission, ok := filesystem.configmap[UNIXPERMISSION]; ok {
-		return unixPermission
-	}
-	values := getDefaultValues()
-	return values[UNIXPERMISSION]
-}
-*/
+// func (filesystem *FilesystemService) getTreeModePermission() string {
+// 	if unixPermission, ok := filesystem.configmap[UNIXPERMISSION]; ok {
+// 		return unixPermission
+// 	}
+// 	values := getDefaultValues()
+// 	return values[UNIXPERMISSION]
+// }
 
 func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 	exportResponse, exportErr := filesystem.cs.api.GetExportByFileSystem(filesystemID)
 	if exportErr != nil {
-		klog.Errorf("fail to create export path of filesystem %d", filesystemID)
+		klog.Errorf("failed to create export path of filesystem %d", filesystemID)
 		return exportErr
 	}
 	for _, export := range *exportResponse {
@@ -562,65 +564,63 @@ func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 }
 
 func isTreeQEmpty(treeq api.Treeq) bool {
-	if treeq.UsedCapacity > 0 {
-		return false
-	}
-	return true
+	return treeq.UsedCapacity <= 0
 }
 
 var deleteMutex sync.Mutex
 
-//DeleteNFSVolume delete volume method
+// DeleteNFSVolume delete volume method
 func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
-
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while deleting treeq " + fmt.Sprint(res))
 			return
 		}
 	}()
-	//1.treeq exist or not checked
+	// 1.treeq exist or not checked
 	var treeq *api.Treeq
 	treeq, err = filesystem.cs.api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
-			err = errors.New("Treeq does not exist on infinibox")
+			err = errors.New("treeq does not exist on infinibox")
 			return nil
 		}
 		klog.Errorf("Error occured while getting treeq: %s", err)
 		return
 	}
 
-	//2.if treeq has usedcapacity >0 then..
+	// 2.if treeq has usedcapacity >0 then..
 	if !isTreeQEmpty(*treeq) {
 		klog.Errorf("Can't delete NFS-treeq PV with data")
-		err = errors.New("Can't delete NFS-treeq PV with data")
+		err = errors.New("can't delete NFS-treeq PV with data")
 		return
 	}
 
-	//3 first decremnt the treeq count to recover
+	// 3 first decremnt the treeq count to recover
 	// In case of 1 - we are deleting the file system,
 	deleteMutex.Lock()
 	defer deleteMutex.Unlock()
 
 	treeqCnt, err := filesystem.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
 	if err != nil {
-		klog.Errorf("fail to update treeq count")
+		klog.Errorf("failed to update treeq count, filesystem: %s", filesystem.pVName)
 		return
 	}
-	//4.delete the treeq
+	// 4.delete the treeq
 	_, err = filesystem.cs.api.DeleteTreeq(filesystemID, treeqID)
 	if err != nil {
-		klog.Errorf("fail to delete treeq")
-		filesystem.UpdateTreeqCnt(filesystemID, IncrementTreeqCount, 0)
+		klog.Errorf("failed to delete treeq")
+		if _, errUpdTreeq := filesystem.UpdateTreeqCnt(filesystemID, IncrementTreeqCount, 0); errUpdTreeq != nil {
+			klog.Errorf("failed to update treeq count, filesystem: %s", filesystem.pVName)
+		}
 		return
 	}
 
-	//5.Delete file system if all treeq are delete
+	// 5.Delete file system if all treeq are delete
 	if treeqCnt == 0 { // measn all tree are delete. then delete the complete filesystem with exportPath ,metadata..etc
 		err = filesystem.cs.api.DeleteFileSystemComplete(filesystemID)
 		if err != nil {
-			klog.Errorf("fail to delete filesystem filesystemID %d error %v", filesystemID, err)
+			klog.Errorf("failed to delete filesystem filesystemID %d error %v", filesystemID, err)
 			return
 		}
 	}
@@ -628,7 +628,7 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 	return
 }
 
-//UpdateTreeqCnt method
+// UpdateTreeqCnt method
 func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqCnt int) (treeqCount int, err error) {
 	if treeqCnt == 0 {
 		treeqCnt, err = filesystem.cs.api.GetFilesytemTreeqCount(fileSystemID)
@@ -648,7 +648,7 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 	metadataParamter[TREEQCOUNT] = treeqCnt
 	_, err = filesystem.cs.api.AttachMetadataToObject(fileSystemID, metadataParamter)
 	if err != nil {
-		klog.Errorf("Error occured updating treeq count to filesystemID : %d error %v", fileSystemID, err)
+		klog.Errorf("failed to update treeq count for filesystemID : %d error %v", fileSystemID, err)
 		return
 	}
 
@@ -657,37 +657,37 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 	return
 }
 
-//UpdateTreeqVolume Upadate volume size method
+// UpdateTreeqVolume Upadate volume size method
 func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) (err error) {
 	defer func() {
 		if res := recover(); res != nil {
-			err = errors.New("Error while updating treeq " + fmt.Sprint(res))
+			err = errors.New("failed to update treeq " + fmt.Sprint(res))
 			return
 		}
 	}()
 
-	//Get Filesystem
+	// Get Filesystem
 	fileSystemResponse, err := filesystem.cs.api.GetFileSystemByID(filesystemID)
 	if err != nil {
-		klog.Errorf("Failed to get file system %v", err)
+		klog.Errorf("failed to get file system %v", err)
 		return
 	}
 
-	//Get a treeq
+	// Get a treeq
 	treeq, err := filesystem.cs.api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
-			err = errors.New("Treeq does not exist on infinibox")
+			err = errors.New("treeq not found")
 			return nil
 		}
-		klog.Errorf("Error occured while getting treeq: %s", err)
+		klog.Errorf("failed to get treeq: %s", err)
 		return
 	}
 
 	// Get sum of all the treeq size of filesystem
 	totalTreeqSize, err := filesystem.cs.api.GetTreeqSizeByFileSystemID(filesystemID)
 	if err != nil {
-		klog.Errorf("Failed to get sum of all the treeq size of a filesystem")
+		klog.Errorf("failed to get sum of all the treeq sizes in a filesystem")
 		return
 	}
 
@@ -696,7 +696,7 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 		configMap := make(map[string]string)
 		configMap[MAXFILESYSTEMSIZE] = maxSize
 		filesystem.configmap = configMap
-		//Get Maximum filesystem size
+		// Get Maximum filesystem size
 		maxFileSystemSize, err := filesystem.maxFileSize()
 		if err != nil {
 			klog.Errorf(err.Error())
@@ -708,13 +708,13 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 		increaseFileSizeBy := needToIncreaseSize - freeSpace
 		fileSys.Size = fileSystemResponse.Size + increaseFileSizeBy
 		if fileSys.Size > maxFileSystemSize {
-			return status.Error(codes.PermissionDenied, "Given capacity for expansion is not allowed")
+			return status.Error(codes.PermissionDenied, "expansion capacity not allowed")
 		}
 
 		// Expand file system size
 		_, err = filesystem.cs.api.UpdateFilesystem(filesystemID, fileSys)
 		if err != nil {
-			klog.Errorf("Failed to update file system %v", err)
+			klog.Errorf("failed to update file system %v", err)
 			return err
 		}
 	}
@@ -723,7 +723,7 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 	body := map[string]interface{}{"hard_capacity": capacity}
 	_, err = filesystem.cs.api.UpdateTreeq(filesystemID, treeqID, body)
 	if err != nil {
-		klog.Errorf("Failed to update treeq size %v", err)
+		klog.Errorf("failed to update treeq size %v", err)
 		return
 	}
 

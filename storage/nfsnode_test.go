@@ -91,6 +91,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
+
 func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	mountErr := errors.New("mount error")
 	service := nfsstorage{mounter: suite.nfsMountMock}
@@ -198,7 +199,7 @@ func getNodeUnPublishVolumeRequest(tagetPath string, volumeID string) *csi.NodeU
 	}
 }
 
-//OS package -- mock method
+// OS package -- mock method
 type mockOS struct {
 	mock.Mock
 }
@@ -220,7 +221,7 @@ func (m *mockOS) Remove(path string) bool {
 	return st
 }
 
-//MockNfsMounter - mount mock
+// MockNfsMounter - mount mock
 type MockNfsMounter struct {
 	mount.Interface
 	mock.Mock

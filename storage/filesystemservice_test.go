@@ -73,7 +73,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeq
 	expectedErr := errors.New("some error")
 	fsMetada := getfsMetadata2()
 	var poolID int64 = 10
-	//var fsID int64 = 11
+	// var fsID int64 = 11
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
@@ -110,7 +110,6 @@ func getnetworkspace() api.NetworkSpace {
 	p1.IpAdress = "10.20.30.40"
 	networkSpace.Portals = append(networkSpace.Portals, p1)
 	return networkSpace
-
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
@@ -142,7 +141,6 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.Nil(suite.T(), err, "empty object")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Error() {
@@ -163,7 +161,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Erro
 	configMap := make(map[string]string)
 	configMap["network_space"] = "networkspace"
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
-	assert.NotNil(suite.T(), err, "fail to get filecount")
+	assert.NotNil(suite.T(), err, "failed to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowed() {
@@ -182,7 +180,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notA
 	configMap := getCreateTreeqVolumeParameter()
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
-	assert.NotNil(suite.T(), err, "fail to get filecount")
+	assert.NotNil(suite.T(), err, "failed to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Error() {
@@ -204,7 +202,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Err
 	configMap["fs_prefix"] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
-	assert.NotNil(suite.T(), err, "fail to get filecount")
+	assert.NotNil(suite.T(), err, "failed to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Error() {
@@ -227,7 +225,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Err
 	configMap["fs_prefix"] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
-	assert.NotNil(suite.T(), err, "fail to get filecount")
+	assert.NotNil(suite.T(), err, "failed to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
@@ -251,7 +249,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
 	configMap["fs_prefix"] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
-	assert.NotNil(suite.T(), err, "fail to get filecount")
+	assert.NotNil(suite.T(), err, "failed to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() {
@@ -277,7 +275,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() 
 	configMap["fs_prefix"] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
-	assert.NotNil(suite.T(), err, "fail to get filecount")
+	assert.NotNil(suite.T(), err, "failed to get filecount")
 }
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqCnt_Success1() {
@@ -307,25 +305,24 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqCnt_Success2() {
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqCnt_Error1() {
 	var fsID int64 = 11
-	//expectedCnt := 10
+	// expectedCnt := 10
 	currentTreeqCnt := 9
 	expectedErr := errors.New("some error")
 	suite.api.On("AttachMetadataToObject", fsID, mock.Anything).Return(nil, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.UpdateTreeqCnt(fsID, IncrementTreeqCount, currentTreeqCnt)
 	assert.NotNil(suite.T(), err, "err should not be nil")
-
 }
+
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqCnt_Error2() {
 	var fsID int64 = 11
-	//expectedCnt := 10
-	//currentTreeqCnt := 9
+	// expectedCnt := 10
+	// currentTreeqCnt := 9
 	expectedErr := errors.New("some error")
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(nil, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.UpdateTreeqCnt(fsID, IncrementTreeqCount, 0)
 	assert.NotNil(suite.T(), err, "err should not be nil")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error() {
@@ -336,7 +333,6 @@ func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error() {
 	service := FilesystemService{cs: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.Nil(suite.T(), err, "empty object")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error2() {
@@ -357,7 +353,7 @@ func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_GetTreeq_treeqNotEmp
 	service := FilesystemService{cs: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
-	assert.Equal(suite.T(), err.Error(), "Can't delete NFS-treeq PV with data", "error must be as per expection")
+	assert.Equal(suite.T(), err.Error(), "can't delete NFS-treeq PV with data", "unexpected error message")
 }
 
 func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_TreeqCount_fail() {
@@ -437,18 +433,18 @@ func (suite *FileSystemServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_errorToD
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetFileSystemByID_error() {
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
-	var maxSize = ""
+	maxSize := ""
 	expectedErr := errors.New("FILESYSTEM_ID_DOES_NOT_EXIST")
 	suite.api.On("GetFileSystemByID", filesytemID).Return(nil, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
-	//assert.Nil(suite.T(), err, "empty object")
-	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+	// assert.Nil(suite.T(), err, "empty object")
+	assert.Equal(suite.T(), expectedErr, err, "Unexpected error")
 }
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeqSizeByFileSystemID_error() {
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
-	var maxSize = "3gib"
+	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
 	expectedResponse.UsedCapacity = 0
@@ -458,12 +454,12 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeqSizeByFileSy
 	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(0, expectedErr)
 	service := FilesystemService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
-	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
+	assert.Equal(suite.T(), expectedErr, err, "Unexpected error")
 }
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error() {
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
-	var maxSize = "3gib"
+	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
 	expectedResponse.UsedCapacity = 0
@@ -477,7 +473,7 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_e
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() {
 	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
-	var maxSize = "3gib"
+	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
 	expectedResponse.UsedCapacity = 0
@@ -493,7 +489,7 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_err
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() {
 	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
-	var maxSize = "3gib"
+	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
 	expectedResponse.UsedCapacity = 0
@@ -511,7 +507,7 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() 
 
 func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_Success() {
 	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
-	var maxSize = "3gib"
+	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
 	expectedResponse.UsedCapacity = 0
@@ -539,22 +535,21 @@ func (suite *FileSystemServiceSuite) Test_validateTreeqParameters() {
 
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_Error() {
 	var poolID int64 = 10
-	//var fsID int64 = 11
+	// var fsID int64 = 11
 
 	expectedErr := errors.New("some error")
 
-	//suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, expectedErr)
+	// suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, expectedErr)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, expectedErr)
 
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
 	assert.NotNil(suite.T(), err, "err should not be nil")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_StoragePoolIDByName_Error() {
-	//var poolID int64 = 10
-	//var fsID int64 = 11
+	// var poolID int64 = 10
+	// var fsID int64 = 11
 
 	expectedErr := errors.New("some error")
 
@@ -564,12 +559,11 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_StoragePoolIDByNam
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
 	assert.NotNil(suite.T(), err, "err should not be nil")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolID_Error() {
 	var poolID int64 = 10
-	//var fsID int64 = 11
+	// var fsID int64 = 11
 
 	expectedErr := errors.New("some error")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
@@ -579,7 +573,6 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolI
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
 	assert.NotNil(suite.T(), err, "err should not be nil")
-
 }
 
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_Error() {
@@ -587,7 +580,7 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSys
 	var fsID int64 = 0
 	fsMetada := getfsMetadata2()
 
-	//expectedErr := errors.New("some error")
+	// expectedErr := errors.New("some error")
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
@@ -600,7 +593,6 @@ func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSys
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
 	assert.Nil(suite.T(), err, "err should not be nil")
-
 }
 
 //*****Test case Data Generation
@@ -612,10 +604,12 @@ func getExportResponse() *[]api.ExportResponse {
 	exportResp.ExportPath = "/exportPath"
 	return &exportRespArry
 }
+
 func getMetadaResponse() *[]api.Metadata {
 	metadataArry := []api.Metadata{}
 	return &metadataArry
 }
+
 func getTreeQResponse(fileSysID int64) *api.Treeq {
 	var treeq api.Treeq
 	treeq.FilesystemID = fileSysID
@@ -673,5 +667,6 @@ func getCreateTreeqVolumeParameter() map[string]string {
 	return map[string]string{
 		"pool_name":              "pool_name1",
 		"network_space":          "network_space1",
-		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
+		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+	}
 }

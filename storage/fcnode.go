@@ -36,7 +36,6 @@ import (
 
 type fcDevice struct {
 	connector *Connector
-	disk      string
 	isBlock   bool
 }
 
@@ -115,7 +114,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	hstID, _ := strconv.Atoi(hostID)
 	klog.V(4).Infof("publishing volume to host id is %s", hostID)
-	//validate host exists
+	// validate host exists
 	if hstID < 1 {
 		klog.Errorf("hostID %d is not valid host ID", hstID)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
@@ -143,6 +142,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	klog.V(4).Infof("NodeStageVolume completed")
 	return &csi.NodeStageVolumeResponse{}, nil
 }
+
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	klog.V(2).Infof("Called FC NodeUnstageVolume")
 	var err error
@@ -258,7 +258,6 @@ func (fc *fcstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 func (fc *fcstorage) NodeGetVolumeStats(
 	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
-
 }
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
@@ -356,6 +355,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	}
 	return nil
 }
+
 func getPortName() []string {
 	var err error
 	defer func() {
@@ -414,11 +414,10 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 		WWIDs:      wwidList,
 		Lun:        lun,
 	}
-	//Only pass the connector
+	// Only pass the connector
 	return &fcDevice{
 		connector: fcConnector,
 	}, nil
-
 }
 
 func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) FCMounter {
@@ -444,34 +443,33 @@ type ioHandler interface {
 	WriteFile(filename string, data []byte, perm os.FileMode) error
 }
 
-//Connector provides a struct to hold all of the needed parameters to make our Fibre Channel connection
+// Connector provides a struct to hold all of the needed parameters to make our Fibre Channel connection
 type Connector struct {
 	VolumeName string
 	TargetWWNs []string
 	Lun        string
 	WWIDs      []string
-	io         ioHandler
 }
 
-//OSioHandler is a wrapper that includes all the necessary io functions used for (Should be used as default io handler)
+// OSioHandler is a wrapper that includes all the necessary io functions used for (Should be used as default io handler)
 type OSioHandler struct{}
 
-//ReadDir calls the ReadDir function from ioutil package
+// ReadDir calls the ReadDir function from ioutil package
 func (handler *OSioHandler) ReadDir(dirname string) ([]os.FileInfo, error) {
 	return ioutil.ReadDir(dirname)
 }
 
-//Lstat calls the Lstat function from os package
+// Lstat calls the Lstat function from os package
 func (handler *OSioHandler) Lstat(name string) (os.FileInfo, error) {
 	return os.Lstat(name)
 }
 
-//EvalSymlinks calls EvalSymlinks from filepath package
+// EvalSymlinks calls EvalSymlinks from filepath package
 func (handler *OSioHandler) EvalSymlinks(path string) (string, error) {
 	return filepath.EvalSymlinks(path)
 }
 
-//WriteFile calls WriteFile from ioutil package
+// WriteFile calls WriteFile from ioutil package
 func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.FileMode) error {
 	return ioutil.WriteFile(filename, data, perm)
 }
@@ -520,11 +518,13 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 
 func scsiHostRescan(io ioHandler) {
 	scsiPath := "/sys/class/scsi_host/"
-	if dirs, err := io.ReadDir(scsiPath); err == nil {
+	if dirs, errRead := io.ReadDir(scsiPath); errRead == nil {
 		for _, f := range dirs {
 			name := scsiPath + f.Name() + "/scan"
 			data := []byte("- - -")
-			io.WriteFile(name, data, 0666)
+			if errWrite := io.WriteFile(name, data, 0o666); errWrite != nil {
+				klog.Errorf("failed to write rescan cmd to %s", name)
+			}
 		}
 	}
 }
@@ -542,8 +542,7 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	}
 
 	rescaned := false
-	for true {
-
+	for {
 		for _, diskID := range diskIds {
 			if len(c.TargetWWNs) != 0 {
 				disk, dm = fc.findFcDisk(diskID, c.Lun, io)
@@ -598,7 +597,6 @@ func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) 
 				} else {
 					klog.Errorf("could not find disk with error %v", err1)
 				}
-
 			}
 		}
 	} else {
@@ -662,7 +660,7 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	mntPath := path.Join("/host", targetPath)
 	// unmount volume
 	if pathExist, pathErr := fc.cs.pathExists(targetPath); pathErr != nil {
-		return fmt.Errorf("Error checking if path exists: %v", pathErr)
+		return fmt.Errorf("error checking if path exists: %v", pathErr)
 	} else if !pathExist {
 		if pathExist, _ = fc.cs.pathExists(mntPath); pathErr == nil {
 			if !pathExist {

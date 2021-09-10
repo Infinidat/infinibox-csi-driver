@@ -3,14 +3,10 @@ package helper
 import (
 	"errors"
 	"fmt"
-	"k8s.io/klog"
 	"strings"
-)
 
-func getYamlBoolsAll() (bools []string) {
-	bools = strings.Split("y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF", "|")
-	return bools
-}
+	"k8s.io/klog"
+)
 
 func getYamlBoolsFalse() (bools []string) {
 	bools = strings.Split("n|N|no|No|NO|false|False|FALSE|off|Off|OFF", "|")
@@ -27,7 +23,8 @@ func getYamlBoolsTrue() (bools []string) {
 func YamlBoolToBool(b string) (myBool bool, err error) {
 	if Contains(getYamlBoolsTrue(), b) {
 		return true, nil
-	} else if Contains(getYamlBoolsAll(), b) {
+	}
+	if Contains(getYamlBoolsFalse(), b) {
 		return false, nil
 	}
 	msg := fmt.Sprintf("'%s' is not a valid YAML boolean", b)

@@ -31,17 +31,13 @@ const (
 )
 
 type service struct {
-	//service
+	// service
 	apiclient api.Client
 	// parameters
-	mode                string
-	storagePoolIDToName map[int64]string
-	nodeID              string
-	maxVolumesPerNode   int64
-	driverName          string
-	driverVersion       string
-	nodeIPAddress       string
-	nodeName            string
+	nodeID        string
+	nodeName      string
+	driverName    string
+	driverVersion string
 }
 
 // Service is the CSI Mock service provider.
@@ -56,19 +52,17 @@ type Service interface {
 // New returns a new Service.
 func New(configParam map[string]string) Service {
 	return &service{
-		nodeID:              configParam["nodeid"],
-		driverName:          configParam["drivername"],
-		nodeIPAddress:       configParam["nodeIPAddress"],
-		nodeName:            configParam["nodeName"],
-		driverVersion:       configParam["driverversion"],
-		storagePoolIDToName: map[int64]string{},
-		apiclient:           &api.ClientService{},
+		apiclient: &api.ClientService{},
+		// parameters
+		nodeID:        configParam["nodeid"],
+		nodeName:      configParam["nodeName"],
+		driverName:    configParam["drivername"],
+		driverVersion: configParam["driverversion"],
 	}
 }
 
-func (s *service) BeforeServe(ctx context.Context, sp *gocsi.StoragePlugin, listner net.Listener) error {
-	s.verifyController()
-	return nil
+func (s *service) BeforeServe(ctx context.Context, sp *gocsi.StoragePlugin, listener net.Listener) error {
+	return s.verifyController()
 }
 
 func (s *service) verifyController() error {

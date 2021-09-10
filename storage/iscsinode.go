@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/helper"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,8 +26,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"infinibox-csi-driver/helper"
 
 	"k8s.io/klog"
 
@@ -47,8 +46,9 @@ const (
 type iscsiDiskUnmounter struct {
 	*iscsiDisk
 	mounter mount.Interface
-	exec    utilexec.Interface //mount.Exec
+	exec    utilexec.Interface // mount.Exec
 }
+
 type iscsiDiskMounter struct {
 	*iscsiDisk
 	readOnly     bool
@@ -60,6 +60,7 @@ type iscsiDiskMounter struct {
 	targetPath   string
 	stagePath    string
 }
+
 type iscsiDisk struct {
 	Portals        []string
 	Iqn            string
@@ -79,12 +80,14 @@ var (
 		"discovery.sendtargets.auth.username",
 		"discovery.sendtargets.auth.password",
 		"discovery.sendtargets.auth.username_in",
-		"discovery.sendtargets.auth.password_in"}
+		"discovery.sendtargets.auth.password_in",
+	}
 	chap_sess = []string{
 		"node.session.auth.username",
 		"node.session.auth.password",
 		"node.session.auth.username_in",
-		"node.session.auth.password_in"}
+		"node.session.auth.password_in",
+	}
 	ifaceTransportNameRe = regexp.MustCompile(`iface.transport_name = (.*)\n`)
 )
 
@@ -146,7 +149,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	useChap := req.GetVolumeContext()["useCHAP"]
 	klog.V(4).Infof("Publishing volume to host with hostID %d", hostID)
 
-	//validate host exists
+	// validate host exists
 	if hostID < 1 {
 		klog.Errorf("hostID %d is not valid host ID", hostID)
 		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
@@ -229,7 +232,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}()
 
 	klog.V(4).Infof("NodePublishVolume called, volume ID '%s'", req.GetVolumeId())
-	//helper.PrettyKlogDebug("NodePublishVolume req: ", req)
+	// helper.PrettyKlogDebug("NodePublishVolume req: ", req)
 
 	iscsiInfo, err := iscsi.getISCSIInfo(req)
 	if err != nil {
@@ -251,7 +254,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
 		klog.Errorf("AttachDisk failed")
-		//rescanDeviceMap(req.VolumeId)
+		// rescanDeviceMap(req.VolumeId)
 		return nil, status.Error(codes.Internal, err.Error())
 	} else {
 		klog.V(4).Infof("AttachDisk succeeded")
@@ -278,9 +281,8 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return nil, status.Errorf(codes.Internal, msg)
 	}
 
-	klog.V(4).Infof("NodePublishVolume succeeded.")
+	klog.V(4).Infof("NodePublishVolume succeeded")
 	helper.PrettyKlogDebug("NodePublishVolume returning csi.NodePublishVolumeResponse:", csi.NodePublishVolumeResponse{})
-
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -335,8 +337,12 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Load iscsi disk config from json file
 	diskConfigFound := true
 	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
-		bkpPortal, iqn, iface, volName, initiatorName, mpathDevice = diskUnmounter.iscsiDisk.Portals, diskUnmounter.iscsiDisk.Iqn, diskUnmounter.iscsiDisk.Iface,
-			diskUnmounter.iscsiDisk.VolName, diskUnmounter.iscsiDisk.InitiatorName, diskUnmounter.iscsiDisk.MpathDevice
+		bkpPortal = diskUnmounter.iscsiDisk.Portals
+		iqn = diskUnmounter.iscsiDisk.Iqn
+		// iface = diskUnmounter.iscsiDisk.Iface
+		// volName = diskUnmounter.iscsiDisk.VolName
+		// initiatorName = diskUnmounter.iscsiDisk.InitiatorName
+		mpathDevice = diskUnmounter.iscsiDisk.MpathDevice
 	} else {
 		confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
 		klog.V(4).Infof("Check if config file exists")
@@ -370,7 +376,6 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --rescan", portal, iqn))
 			if err != nil {
 				klog.Errorf("Failed to rescan node with portal '%s' and targetname '%s': %s", portal, iqn, err)
-				err = nil
 			}
 		}
 		klog.V(4).Infof("Successfully Rescanned disk")
@@ -418,7 +423,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			klog.V(4).Infof("deleteMultipathDevices failed: %s", err)
 			return res, err
 		}
-		//deleteMultipathMap(dstPath)
+		// deleteMultipathMap(dstPath)
 
 		var lastErr error
 		for _, device := range devices {
@@ -496,7 +501,6 @@ func (iscsi *iscsistorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfo
 
 func (iscsi *iscsistorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
-
 }
 
 func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
@@ -650,17 +654,17 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", err
 		}
 
-		// time.Sleep(15)
-		klog.V(4).Infof("Wait for path '%s' to exist", devicePath)
-		if exist := iscsi.waitForPathToExist(&devicePath, 10, iscsiTransport); !exist {
-			msg := "Could not attach disk: Timeout after 10s"
+		// klog.V(4).Infof("Wait for iscsi device path: %s to appear", devicePath)
+		timeout := 10
+		if devExists := iscsi.waitForPathToExist(&devicePath, timeout, iscsiTransport); devExists {
+			klog.V(2).Infof("iscsi device path found: %s", devicePath)
+			devicePaths = append(devicePaths, devicePath)
+		} else {
+			msg := fmt.Sprintf("failed to attach iqn: %s lun: %s at portal: %s - Timeout after %ds", b.Iqn, b.lun, tp, timeout)
 			klog.Errorf(msg)
 			// update last error
 			lastErr = fmt.Errorf("iscsi: " + msg)
 			continue
-		} else {
-			klog.Infof("Found path '%s', adding to devicePaths", devicePath)
-			devicePaths = append(devicePaths, devicePath)
 		}
 	}
 
@@ -717,7 +721,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", status.Error(codes.Internal, "iscsi: Read-only is not supported for Block Volume")
 		}
 
-		if err := os.MkdirAll(filepath.Dir(mntPath), 0750); err != nil {
+		if err := os.MkdirAll(filepath.Dir(mntPath), 0o750); err != nil {
 			klog.Errorf("Failed to mkdir %s, error", filepath.Dir(mntPath))
 			return "", err
 		}
@@ -808,7 +812,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		klog.V(4).Infof("FormatAndMount returned: %s", err)
 		if err != nil {
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			searchBadSuperBlock := fmt.Sprintf("wrong fs type, bad option, bad superblock")
+			searchBadSuperBlock := "wrong fs type, bad option, bad superblock"
 			klog.V(4).Infof("Search error for matches to handle: %s", err)
 
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
@@ -824,7 +828,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				}
 			} else {
 				klog.Errorf("Failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, mountPoint, err)
-				mountPathExists(mountPoint)
+				_, _ = mountPathExists(mountPoint)
 				return "", err
 			}
 		} else {
@@ -942,7 +946,7 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	secret := req.GetSecrets()
 	if chapSession {
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
-		//secret["node.session.auth.username"] = initiatorName
+		// secret["node.session.auth.username"] = initiatorName
 		if err != nil {
 			return nil, err
 		}
@@ -971,7 +975,8 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 		chap_discovery: chapDiscovery,
 		chap_session:   chapSession,
 		secret:         secret,
-		InitiatorName:  initiatorName}, nil
+		InitiatorName:  initiatorName,
+	}, nil
 }
 
 func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter {
@@ -1361,17 +1366,17 @@ func deleteMultipathDevices(devices []string) (err error) {
 	return nil
 }
 
-func deleteMultipathMap(multipathMap string) (err error) {
-	multipathMap = strings.Replace(multipathMap, "/dev/", "", 1)
-	klog.V(4).Infof("Delete multipath map '%s'", multipathMap)
-	out, err := execScsi.Command("multipathd", fmt.Sprintf("-k\"del map %s\"", multipathMap))
-	if err != nil {
-		klog.V(4).Infof("Delete multipath map '%s' failed: %s", multipathMap, err)
-		return err
-	}
-	klog.V(4).Infof("Delete map '%s' output: %s", multipathMap, out)
-	return nil
-}
+// func deleteMultipathMap(multipathMap string) (err error) {
+// 	multipathMap = strings.Replace(multipathMap, "/dev/", "", 1)
+// 	klog.V(4).Infof("Delete multipath map '%s'", multipathMap)
+// 	out, err := execScsi.Command("multipathd", fmt.Sprintf("-k\"del map %s\"", multipathMap))
+// 	if err != nil {
+// 		klog.V(4).Infof("Delete multipath map '%s' failed: %s", multipathMap, err)
+// 		return err
+// 	}
+// 	klog.V(4).Infof("Delete map '%s' output: %s", multipathMap, out)
+// 	return nil
+// }
 
 // // Find returns the smallest index i at which x == a[i],
 // // or len(a) if there is no such index.

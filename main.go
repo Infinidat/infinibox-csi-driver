@@ -23,7 +23,7 @@ import (
 	"k8s.io/klog"
 )
 
-//starting method of CSI-Driver
+// starting method of CSI-Driver
 func main() {
 	klog.InitFlags(nil)
 	flag.Set("logtostderr", "true")
@@ -75,7 +75,6 @@ func main() {
 func getConfigParams() map[string]string {
 	configParams := make(map[string]string)
 	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
-		configParams["nodeip"] = nodeip
 		configParams["nodeid"] = nodeip
 	}
 	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {

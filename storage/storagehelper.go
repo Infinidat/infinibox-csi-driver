@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	//StoragePoolKey : pool to be used
+	// StoragePoolKey : pool to be used
 	StoragePoolKey = "pool_name"
 
-	//MinVolumeSize : volume will be created with this size if requested volume size is less than this values
+	// MinVolumeSize : volume will be created with this size if requested volume size is less than this values
 	MinVolumeSize = 1 * bytesofGiB
 
 	bytesofKiB = 1024
@@ -147,7 +147,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 		if ok {
 			rootsq, err := strconv.ParseBool(no_root_squash_str)
 			if err != nil {
-				klog.V(4).Infof("fail to cast no_root_squash value in export permission - setting default value 'true'")
+				klog.V(4).Infof("failed to cast no_root_squash value in export permission - setting default value 'true'")
 				rootsq = true
 			}
 			pass["no_root_squash"] = rootsq

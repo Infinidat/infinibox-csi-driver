@@ -246,7 +246,7 @@ type FileSystem struct {
 	CreatedAt  int    `json:"created_at,omitempty"`
 }
 
-//FileSystemMetaData
+// FileSystemMetaData
 type FileSystemMetaData struct {
 	Ready           bool `json:"ready,omitempty"`
 	NumberOfObjects int  `json:"number_of_objects,omitempty"`
@@ -278,14 +278,14 @@ type Metadata struct {
 	ObjectType string `json:"object_type,omitempty"`
 }
 
-//FileSystemSnapshot file system snapshot request parameter
+// FileSystemSnapshot file system snapshot request parameter
 type FileSystemSnapshot struct {
 	ParentID       int64  `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
 }
 
-//FileSystemSnapshotResponce file system snapshot Response
+// FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
 	SnapshotID  int64  `json:"id"`
 	Name        string `json:"name,omitempty"`
@@ -301,7 +301,7 @@ type VolumeProtocolConfig struct {
 	ChildVolumeID string
 }
 
-//VolumeSnapshot volume snapshot request parameter
+// VolumeSnapshot volume snapshot request parameter
 type VolumeSnapshot struct {
 	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`

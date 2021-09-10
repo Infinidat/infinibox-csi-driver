@@ -411,7 +411,7 @@ func (suite *FCControllerSuite) Test_GetCapacity() {
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
 
-//Test data ===========
+// Test data ===========
 
 func getFCCreateVolumeParamter() map[string]string {
 	return map[string]string{"fstype": "fstype1", "pool_name": "pool_name1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host"}

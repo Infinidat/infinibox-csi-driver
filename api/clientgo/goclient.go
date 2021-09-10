@@ -12,6 +12,7 @@ package clientgo
 
 import (
 	"context"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +31,7 @@ type kubeclient struct {
 
 var clientapi kubeclient
 
-//BuildClient
+// BuildClient
 func BuildClient() (kc *kubeclient, err error) {
 	klog.V(4).Infof("BuildClient called.")
 	if clientapi.client == nil {

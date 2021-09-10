@@ -91,7 +91,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
 		return fc.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
-
 	}
 	ssd := req.GetParameters()["ssd_enabled"]
 	if ssd == "" {
@@ -122,7 +121,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	metadata["host.filesystem_type"] = fstype
 	_, err = fc.cs.api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
 	if err != nil {
-		klog.Errorf("fail to attach metadata for volume : %s", volumeResp.Name)
+		klog.Errorf("failed to attach metadata for volume : %s", volumeResp.Name)
 		klog.Errorf("error to attach metadata %v", err)
 		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
 	}
@@ -238,9 +237,8 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
 	_, err = fc.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
-		klog.Errorf("fail to attach metadata for volume : %s", dstVol.Name)
-		klog.Errorf("error to attach metadata %v", err)
-		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
+		klog.Errorf("failed to attach metadata for volume : %s, err: %v", dstVol.Name, err)
+		return &csi.CreateVolumeResponse{}, errors.New("failed to attach metadata")
 	}
 	klog.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
@@ -390,12 +388,15 @@ func (fc *fcstorage) ListVolumes(ctx context.Context, req *csi.ListVolumesReques
 func (fc *fcstorage) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (resp *csi.ListSnapshotsResponse, err error) {
 	return &csi.ListSnapshotsResponse{}, nil
 }
+
 func (fc *fcstorage) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (resp *csi.GetCapacityResponse, err error) {
 	return &csi.GetCapacityResponse{}, nil
 }
+
 func (fc *fcstorage) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (resp *csi.ControllerGetCapabilitiesResponse, err error) {
 	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
+
 func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -408,7 +409,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	klog.V(4).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
-		klog.Errorf("fail to validate storage type %v", err)
+		klog.Errorf("failed to validate storage type %v", err)
 		return
 	}
 
@@ -464,7 +465,7 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	err = fc.ValidateDeleteVolume(snapshotID)
 	if err != nil {
-		klog.Errorf("fail to delete snapshot %v", err)
+		klog.Errorf("failed to delete snapshot %v", err)
 		return &csi.DeleteSnapshotResponse{}, err
 	}
 	return &csi.DeleteSnapshotResponse{}, nil
@@ -492,7 +493,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata[TOBEDELETED] = true
 		_, err = fc.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
 		if err != nil {
-			klog.Errorf("fail to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
+			klog.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
 		}
 		return

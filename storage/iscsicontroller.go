@@ -291,7 +291,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	volIdStr := req.GetVolumeId()
 	if volIdStr == "" {
-		status.Error(codes.InvalidArgument, "Volume ID empty")
+		return nil, status.Error(codes.InvalidArgument, "Volume ID empty")
 	}
 	volproto, err := validateStorageType(volIdStr)
 	if err != nil {
@@ -330,7 +330,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	if err != nil {
 		return nil, err
 	}
-	klog.V(4).Infof("host: %s found, host id: %d", hostName, host.ID)
+	klog.V(4).Infof("found host name: %s id: %d ports: %v LUNs: %v", host.Name, host.ID, host.Ports, host.Luns)
 
 	ports := ""
 	if len(host.Ports) > 0 {
@@ -349,6 +349,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		klog.Errorf("failed to GetAllLunByHost() for host: %s, error: %v", hostName, err)
 		return nil, err
 	}
+	klog.V(4).Infof("got LUNs for host: %s, LUNs: %v", host.Name, lunList)
 	for _, lun := range lunList {
 		if lun.VolumeID == volID {
 			publishVolCtxt := make(map[string]string)
@@ -413,27 +414,28 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
-		klog.Errorf("failed to get host details with error %v", err)
+		klog.Errorf("failed to get host: %s, err: %v", hostName, err)
 		return nil, err
 	}
+	klog.V(4).Infof("host id: %d Name: %s LUNs: %v", host.ID, host.Name, host.Luns)
 	if len(host.Luns) > 0 {
 		volID, _ := strconv.Atoi(volproto.VolumeID)
 		klog.V(4).Infof("unmap volume %d from host %d", volID, host.ID)
 		err = iscsi.cs.unmapVolumeFromHost(host.ID, volID)
 		if err != nil {
-			klog.Errorf("failed to unmap volume %d from host %d with error %v", volID, host.ID, err)
+			klog.Errorf("failed to unmap volume: %d from host: %d, err: %v", volID, host.ID, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if len(host.Luns) < 2 {
 		luns, err := iscsi.cs.api.GetAllLunByHost(host.ID)
 		if err != nil {
-			klog.Errorf("failed to retrive luns for host %d with error %v", host.ID, err)
+			klog.Errorf("failed to get LUNs for host: %d, err: %v", host.ID, err)
 		}
 		if len(luns) == 0 {
 			err = iscsi.cs.api.DeleteHost(host.ID)
 			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-				klog.Errorf("failed to delete host with error %v", err)
+				klog.Errorf("failed to delete host: %d, err: %v", host.ID, err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
@@ -478,12 +480,15 @@ func (iscsi *iscsistorage) ListVolumes(ctx context.Context, req *csi.ListVolumes
 func (iscsi *iscsistorage) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (resp *csi.ListSnapshotsResponse, err error) {
 	return &csi.ListSnapshotsResponse{}, nil
 }
+
 func (iscsi *iscsistorage) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (resp *csi.GetCapacityResponse, err error) {
 	return &csi.GetCapacityResponse{}, nil
 }
+
 func (iscsi *iscsistorage) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (resp *csi.ControllerGetCapabilitiesResponse, err error) {
 	return &csi.ControllerGetCapabilitiesResponse{}, nil
 }
+
 func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -496,7 +501,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	klog.V(4).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := validateStorageType(req.GetSourceVolumeId())
 	if err != nil {
-		klog.Errorf("fail to validate storage type %v", err)
+		klog.Errorf("failed to validate storage type %v", err)
 		return
 	}
 
@@ -583,7 +588,7 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata[TOBEDELETED] = true
 		_, err = iscsi.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
 		if err != nil {
-			klog.Errorf("fail to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
+			klog.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
 		}
 		return

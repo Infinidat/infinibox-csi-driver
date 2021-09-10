@@ -13,16 +13,16 @@ import (
 	"k8s.io/klog"
 )
 
-const (
-	pf string = "set -o pipefail; "
-)
+// const (
+// 	pf string = "set -o pipefail; "
+// )
 
 // TestExecScsiCommand tests that commands run, errors are handled,
 // and may be executed concurrently.
 func TestExecScsiCommand(t *testing.T) {
 	t.Run("testing that sequential commands execute and errors are returned", func(t *testing.T) {
 		execScsi := ExecScsi{}
-		var tests = []struct {
+		tests := []struct {
 			cmd     string
 			args    string
 			want    string // Escapes like \\n do not work
@@ -69,9 +69,9 @@ func TestExecScsiCommand(t *testing.T) {
 
 		klog.V(4).Infof("here")
 
-		for i := 0; i < wantedCount; i++ {
-
-			go func(w *sync.WaitGroup) {
+		var i int
+		for i = 0; i < wantedCount; i++ {
+			go func(w *sync.WaitGroup, i int) {
 				klog.V(4).Infof("i: %d", i)
 				r := fmt.Sprintf("%d", rand.Int())
 				cmd := "echo"
@@ -84,7 +84,7 @@ func TestExecScsiCommand(t *testing.T) {
 					t.Errorf(`ExecScsiCommand("%s") != %s, result: %s`, r, r, answer)
 				}
 				w.Done()
-			}(&wg)
+			}(&wg, i)
 		}
 		wg.Wait()
 	})
