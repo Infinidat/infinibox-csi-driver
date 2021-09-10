@@ -59,19 +59,19 @@ build:  ## Build source.
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
 
 .PHONY: rebuild
-rebuild: ## Rebuild source (all packages)
+rebuild: clean ## Rebuild source (all packages)
 	$(_GOBUILD) -o $(_BINARY_NAME) -v -a
 
 .PHONY: test
-test:  ## Unit test source.
+test: build  ## Unit test source.
 	$(_GOTEST) -v ./...
 
 .PHONY: lint
-lint:  ## Lint source.
+lint: build ## Lint source.
 	$(_GOLINT) run
 
 .PHONY: run
-run:  ## Run source
+run: build ## Run source
 	$(_GOBUILD) -o $(_BINARY_NAME) -v ./...
 	./$(_BINARY_NAME)
 
