@@ -330,14 +330,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	}()
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
-	var bkpPortal []string
+	//var bkpPortal []string
 	var volName, iqn, iface, initiatorName, mpathDevice string
 	klog.V(2).Infof("%s %s %s %s %s", volName, iqn, iface, initiatorName, mpathDevice)
 
 	// Load iscsi disk config from json file
-	diskConfigFound := true
+	//diskConfigFound := true
 	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
-		bkpPortal = diskUnmounter.iscsiDisk.Portals
+		//bkpPortal = diskUnmounter.iscsiDisk.Portals
 		iqn = diskUnmounter.iscsiDisk.Iqn
 		// iface = diskUnmounter.iscsiDisk.Iface
 		// volName = diskUnmounter.iscsiDisk.VolName
@@ -359,27 +359,11 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			}
 		}
 		klog.Warningf("detach disk: failed to get iscsi config from path %s Error: %v", stagePath, err)
-		diskConfigFound = false
+		//diskConfigFound = false
 	}
 	err = nil
 
-	if diskConfigFound {
-		// Disconnecting iscsi session
-		klog.V(4).Infof("Logout session")
-		portals := iscsi.removeDuplicate(bkpPortal)
-		klog.V(4).Infof("Detach Disk Successfully!")
-
-		// rescan disks
-		klog.V(4).Infof("Rescan sessions to discover newly mapped LUNs")
-		for _, portal := range portals {
-			klog.V(4).Infof("Rescan node")
-			_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --rescan", portal, iqn))
-			if err != nil {
-				klog.Errorf("Failed to rescan node with portal '%s' and targetname '%s': %s", portal, iqn, err)
-			}
-		}
-		klog.V(4).Infof("Successfully Rescanned disk")
-	}
+	//_ = diskConfigFound
 
 	// remove multipath
 	var devices []string
@@ -399,6 +383,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			devices = append(devices, dstPath)
 		}
 		helper.PrettyKlogDebug("multipath devices", devices)
+
+		// rescan target to get LUN updates for multipath
+		klog.V(4).Infof("Rescan target %s before unstaging", iqn)
+		_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --rescan", iqn))
+		if err != nil {
+			klog.Errorf("Failed to rescan target: %s, err: %v", iqn, err)
+		}
+		klog.V(4).Infof("Successfully rescanned target %s", iqn)
 
 		// blockdev --flushbufs
 		if multiPath {
@@ -476,8 +468,25 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		return nil, err
 	}
 
-	klog.V(2).Infof("NodeUnstageVolume is removing %s", req.GetVolumeId())
+	// Disconnecting iscsi session
+	klog.V(4).Infof("Logout from target iqn: %s at all portals", iqn)
+	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --logout", iqn))
+	if err != nil {
+		klog.Errorf("Failed to logout from target: '%s', err: %s", iqn, err)
+		return nil, err
+	}
+
+	// delete iscsi target
+	klog.V(4).Infof("Delete target: %s", iqn)
+	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s -o delete", iqn))
+	if err != nil {
+		klog.Errorf("Failed to delete target: '%s', err: %s", iqn, err)
+	}
+	klog.V(4).Infof("Successfully deleted target %s", iqn)
+
 	volumeIdCache = ""
+
+	klog.V(2).Infof("NodeUnstageVolume complete for volume id: %s", req.GetVolumeId())
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
