@@ -14,6 +14,7 @@ _GOBUILD					= $(_GOCMD) build
 _GOCLEAN					= $(_GOCMD) clean
 _GOTEST						= $(_SUDO) $(_GOCMD) test
 _GOMOD						= $(_GOCMD) mod
+_GOFMT						= gofumpt
 _GOLINT						= golangci-lint
 
 _REDHAT_REPO				= scan.connect.redhat.com
@@ -69,6 +70,10 @@ test: build  ## Unit test source.
 .PHONY: lint
 lint: build ## Lint source.
 	$(_GOLINT) run
+
+.PHONY: fmt
+fmt: build ## Auto-format source
+	$(_GOFMT) -w -l .
 
 .PHONY: run
 run: build ## Run source

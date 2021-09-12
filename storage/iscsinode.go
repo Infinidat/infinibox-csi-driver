@@ -330,14 +330,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	}()
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
-	//var bkpPortal []string
+	// var bkpPortal []string
 	var volName, iqn, iface, initiatorName, mpathDevice string
 	klog.V(2).Infof("%s %s %s %s %s", volName, iqn, iface, initiatorName, mpathDevice)
 
 	// Load iscsi disk config from json file
-	//diskConfigFound := true
+	// diskConfigFound := true
 	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
-		//bkpPortal = diskUnmounter.iscsiDisk.Portals
+		// bkpPortal = diskUnmounter.iscsiDisk.Portals
 		iqn = diskUnmounter.iscsiDisk.Iqn
 		// iface = diskUnmounter.iscsiDisk.Iface
 		// volName = diskUnmounter.iscsiDisk.VolName
@@ -359,7 +359,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			}
 		}
 		klog.Warningf("detach disk: failed to get iscsi config from path %s Error: %v", stagePath, err)
-		//diskConfigFound = false
+		// diskConfigFound = false
 	}
 	err = nil
 
