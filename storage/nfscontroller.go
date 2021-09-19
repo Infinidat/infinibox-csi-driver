@@ -549,8 +549,38 @@ func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.C
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return nil, nil
+func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
+	klog.V(2).Infof("ValidateVolumeCapabilities called with volumeId %s", req.GetVolumeId())
+	volproto, err := validateStorageType(req.GetVolumeId())
+	if err != nil {
+		klog.Errorf("Failed to validate storage type: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid volume id format: %s", req.GetVolumeId())
+	}
+	volID, err := strconv.ParseInt(volproto.VolumeID, 10, 64)
+	if err != nil {
+		klog.Errorf("Failed to validate volume id: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid volume id (non-numeric): %s", req.GetVolumeId())
+	}
+
+	klog.V(4).Infof("volID: %d", volID)
+	fs, err := nfs.cs.api.GetFileSystemByID(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume ID: %d, %v", volID, err)
+		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
+	}
+	klog.V(4).Infof("volID: %d volume: %v", volID, fs)
+
+	// _, err = nfs.cs.accessModesHelper.IsValidAccessMode(fs, req)
+	// if err != nil {
+	//     return nil, status.Error(codes.InvalidArgument, err.Error())
+	// }
+
+	resp = &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: req.GetVolumeCapabilities(),
+		},
+	}
+	return
 }
 
 func (nfs *nfsstorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {

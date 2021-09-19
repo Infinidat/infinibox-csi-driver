@@ -128,8 +128,8 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_Invalid_protocol(
 func (suite *ControllerTestSuite) Test_ControllerPublishVolume_success() {
 	crtPublishVolumeReq := getCrtControllerPublishVolumeRequest()
 	crtPublishVolumeReq.VolumeId = "100$$nfs"
-
 	s := getService()
+
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
 		return &ControllerMock{}, nil
 	})
@@ -159,6 +159,7 @@ func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_success() {
 	crtUnPublishReq := getCrtControllerUnpublishVolume()
 	crtUnPublishReq.VolumeId = "100$$nfs"
 	s := getService()
+
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
 		return &ControllerMock{}, nil
 	})
@@ -216,8 +217,8 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_Invalid_protocol() {
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_success() {
 	crtDeleteSnapshotReq := getCtrDeleteSnapshotRequest()
-
 	s := getService()
+
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
 		return &ControllerMock{}, nil
 	})
@@ -245,13 +246,13 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_Invalid_protocol()
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 	crtexpandReq := getCrtControllerExpandVolumeRequest()
+	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
 		return &ControllerMock{}, nil
 	})
 	defer patch.Unpatch()
 
-	s := getService()
 	_, err := s.ControllerExpandVolume(context.Background(), crtexpandReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
@@ -259,6 +260,7 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_() {
 	crtCapabilitiesReqReq := getCtrControllerGetCapabilitiesRequest()
 	s := getService()
+
 	_, err := s.ControllerGetCapabilities(context.Background(), crtCapabilitiesReqReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
@@ -266,6 +268,12 @@ func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_() {
 func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
 	crtValidateVolumeCapabilitiesReq := getCtrValidateVolumeCapabilitiesRequest()
 	s := getService()
+
+	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
+		return &ControllerMock{}, nil
+	})
+	defer patch.Unpatch()
+
 	_, err := s.ValidateVolumeCapabilities(context.Background(), crtValidateVolumeCapabilitiesReq)
 	assert.Nil(suite.T(), err, "Invalid volume ID")
 }
