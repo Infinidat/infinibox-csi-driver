@@ -112,7 +112,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	if err != nil {
 		msg := fmt.Sprintf("Invalid NFS privileged_ports_only value: %s, error: %s", usePrivilegedPortsString, err)
 		klog.Errorf(msg)
-		return nil, errors.New(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 	klog.V(2).Infof("Using priviledged ports only: %t", usePrivilegedPorts)
 
@@ -137,8 +137,9 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	nfs.exportpath = "/" + pvName
 	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
 	if err != nil {
-		klog.Errorf("failed to get networkspace ipaddress, %v", err)
-		return nil, err
+		msg := fmt.Sprintf("failed to get networkspace ipaddress, %v", err)
+		klog.Errorf(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 	nfs.ipAddress = ipAddress
 	klog.V(4).Infof("getNetworkSpaceIP ipAddress %s", nfs.ipAddress)
@@ -182,21 +183,21 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"], snapshot.GetSnapshotId())
 			if err != nil {
 				klog.Errorf("failed to create volume from snapshot with error: %v", err)
-				return &csi.CreateVolumeResponse{}, err
+				return nil, err
 			}
 		} else if contentSource.GetVolume() != nil {
 			volume := req.GetVolumeContentSource().GetVolume()
 			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"], volume.GetVolumeId())
 			if err != nil {
 				klog.Errorf("failed to create volume from pvc with error: %v", err)
-				return &csi.CreateVolumeResponse{}, err
+				return nil, err
 			}
 		}
 	} else {
 		csiResp, err = nfs.CreateNFSVolume(req)
 		if err != nil {
 			klog.Errorf("failed to create volume, %v", err)
-			return &csi.CreateVolumeResponse{}, err
+			return nil, err
 		}
 	}
 	return csiResp, nil
@@ -212,33 +213,36 @@ func (nfs *nfsstorage) createVolumeFrmPVCSource(req *csi.CreateVolumeRequest, si
 
 	volproto, err := validateStorageType(srcVolumeID)
 	if err != nil || volproto.VolumeID == "" {
-		return nil, errors.New("error getting volume id")
+		klog.Errorf("Failed to validate volume id: %s, err: %v", srcVolumeID, err)
+		return nil, status.Errorf(codes.NotFound, "invalid source volume id format: %s", srcVolumeID)
 	}
 	sourceVolumeID, err := strconv.ParseInt(volproto.VolumeID, 10, 64)
 	if err != nil {
-		return nil, errors.New("invalid volume id " + volproto.VolumeID)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid source volume volume id (non-numeric): %s", volproto.VolumeID)
 	}
-	// Lookup the VolumeSource source.
+
+	// Look up the source volume
 	srcfsys, err := nfs.cs.api.GetFileSystemByID(sourceVolumeID)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "volume not found: %d", sourceVolumeID)
 	}
 
-	// Validate the size is the same.
+	// Check that the requested volume size matches the size of source volume
 	if srcfsys.Size != size {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"volume %d has not valid size %d with requested %d ",
 			sourceVolumeID, srcfsys.Size, size)
 	}
-	// Validate the storagePool is the same.
+
+	// Check that the requested storagePool matches the source
 	storagePoolID, err := nfs.cs.api.GetStoragePoolIDByName(storagePool)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal,
-			"error while getting storagepoolid with name %s ", storagePool)
+		return nil, status.Errorf(codes.InvalidArgument,
+			"failed to get storagepool id by name: %s", storagePool)
 	}
 	if storagePoolID != srcfsys.PoolID {
 		return nil, status.Errorf(codes.InvalidArgument,
-			"volume storage pool is different than the requested storage pool %s", storagePool)
+			"source storagepool id differs from requested: %s", storagePool)
 	}
 
 	newSnapshotName := req.GetName() // create snapshot using the original CreateVolumeRequest
