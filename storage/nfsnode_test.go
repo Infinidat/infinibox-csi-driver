@@ -138,34 +138,35 @@ func (suite *NodeSuite) Test_NodeUnpublishVolume_unmount_error() {
 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
 	volumeID := "1234"
 	mountErr := errors.New("some error")
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
+	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
+	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(mountErr)
+	suite.osmock.On("Remove", mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-	assert.NotNil(suite.T(), err, " error should be nil")
+	assert.NotNil(suite.T(), err, " error should not be nil")
 }
 
 func (suite *NodeSuite) Test_NodeUnpublishVolume_remove_error() {
 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
 	volumeID := "1234"
-	mountErr := errors.New("some error")
+	removeErr := errors.New("some error")
 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"
-	suite.osmock.On("Remove", targetPath).Return(mountErr)
-	suite.osmock.On("IsNotExist", mountErr).Return(false)
+	suite.osmock.On("Remove", targetPath).Return(removeErr)
+	suite.osmock.On("IsNotExist", removeErr).Return(false)
 
 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-	assert.NotNil(suite.T(), err, " error should be nil")
+	assert.NotNil(suite.T(), err, " error should not be nil")
 }
 
 func (suite *NodeSuite) Test_NodeUnpublishVolume_Success() {
 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
 	volumeID := "1234"
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
+	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
 	targetPath := "/var/lib/kublet/"

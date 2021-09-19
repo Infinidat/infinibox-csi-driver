@@ -72,6 +72,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
 
 	// Create mount point
+	klog.V(4).Infof("Mount point doesn't exist, create: mkdir --parents --mode 0750 '%s'", targetPath)
 	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 	// MkdirAll() will cause hard-to-grok mount errors.
 	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
@@ -117,18 +118,24 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			klog.Warningf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
+			klog.Warningf("target path: %s doesn't exist, return OK", targetPath)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
+		klog.Errorf("failed to check if target path: %s is a mount point, err: %s", targetPath, err)
 		return nil, err
 	}
-	if notMnt {
+	if !notMnt {
+		klog.V(4).Infof("unmount target path: %s", targetPath)
 		if err := nfs.mounter.Unmount(targetPath); err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
+			return nil, status.Errorf(codes.Internal, "failed to unmount target path: %s, err: %s", targetPath, err)
 		}
+	} else {
+		klog.V(4).Infof("target path: %s is not a mount point", targetPath)
 	}
+
+	klog.V(4).Infof("remove target path: %s", targetPath)
 	if err := nfs.osHelper.Remove(targetPath); err != nil && !nfs.osHelper.IsNotExist(err) {
-		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
+		return nil, status.Errorf(codes.Internal, "failed to remove target path: %s, err: %s", targetPath, err)
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
