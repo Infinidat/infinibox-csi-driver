@@ -18,6 +18,7 @@ import (
 	log "infinibox-csi-driver/helper/logger"
 	"strconv"
 	"strings"
+	"time"
 
 	"k8s.io/klog"
 
@@ -37,14 +38,14 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	cr := req.GetCapacityRange()
 	sizeBytes, err := verifyVolumeSize(cr)
 	if err != nil {
-		return &csi.CreateVolumeResponse{}, err
+		return nil, err
 	}
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
 	err = validateParametersFC(params)
 	if err != nil {
-		return &csi.CreateVolumeResponse{}, status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Get Volume Provision Type
 	volType := "THIN"
@@ -59,32 +60,42 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 	for _, volCap := range volCaps {
 		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			klog.Errorf("volume cpability %s for FC is not supported", volCap.GetAccessMode().GetMode().String())
-			return &csi.CreateVolumeResponse{}, fmt.Errorf("volume cpability %s for FC is not supported", volCap.GetAccessMode().GetMode().String())
+			klog.Errorf("volume capability %s for FC is not supported", volCap.GetAccessMode().GetMode().String())
+			return nil, status.Error(codes.Unavailable, fmt.Sprintf("Volume capability %s for FC is not supported", volCap.GetAccessMode().GetMode().String()))
 		}
 	}
 
 	// Volume name to be created
 	name := req.GetName()
-	klog.V(2).Infof("csi voume name from request is %s", name)
+	klog.V(2).Infof("csi volume name from request: %s", name)
 	if name == "" {
-		return &csi.CreateVolumeResponse{}, errors.New("Name cannot be empty")
+		return nil, status.Error(codes.InvalidArgument, "Name cannot be empty")
 	}
 
 	targetVol, err := fc.cs.api.GetVolumeByName(name)
 	if err != nil {
 		if !strings.Contains(err.Error(), "volume with given name not found") {
-			return &csi.CreateVolumeResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Errorf(codes.NotFound, "CreateVolume failed: %v", err)
 		}
 	}
 	if targetVol != nil {
-		return &csi.CreateVolumeResponse{}, nil
+		klog.V(2).Infof("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
+		if targetVol.Size == sizeBytes {
+			existingVolumeInfo := fc.cs.getCSIResponse(targetVol, req)
+			copyRequestParameters(req.GetParameters(), existingVolumeInfo.VolumeContext)
+			return &csi.CreateVolumeResponse{
+				Volume: existingVolumeInfo,
+			}, nil
+		}
+		err = status.Errorf(codes.AlreadyExists, "CreateVolume failed: volume exists but has different size")
+		klog.Errorf("Volume: %s already exists with a different size, %v", name, err)
+		return nil, err
 	}
 
 	// We require the storagePool name for creation
 	poolName, ok := req.GetParameters()["pool_name"]
 	if !ok {
-		return &csi.CreateVolumeResponse{}, errors.New("pool_name is a required parameter")
+		return nil, status.Error(codes.InvalidArgument, "pool_name is a required parameter")
 	}
 	fstype := req.GetParameters()["fstype"]
 	// Volume content source support volume and snapshots
@@ -106,25 +117,44 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	volumeResp, err := fc.cs.api.CreateVolume(volumeParam, poolName)
 	if err != nil {
 		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
-		return &csi.CreateVolumeResponse{}, status.Errorf(codes.Internal,
-			"error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
-
+		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
 	}
 	vi := fc.cs.getCSIResponse(volumeResp, req)
+
+	// check volume id format
+	volID, err := strconv.Atoi(vi.VolumeId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error getting volume id")
+	}
+
+	// confirm volume creation
+	var vol *api.Volume
+	var counter int
+	vol, err = fc.cs.api.GetVolume(volID)
+	for vol == nil && counter < 100 {
+		time.Sleep(3 * time.Millisecond)
+		vol, err = fc.cs.api.GetVolume(volID)
+		counter = counter + 1
+	}
+
+	// Prepare response struct
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
 
+	// attach metadata to volume object
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = volumeResp.Name
 	metadata["host.filesystem_type"] = fstype
 	_, err = fc.cs.api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
 	if err != nil {
-		klog.Errorf("failed to attach metadata for volume : %s", volumeResp.Name)
-		klog.Errorf("error to attach metadata %v", err)
-		return &csi.CreateVolumeResponse{}, errors.New("error attach metadata")
+		klog.Errorf("failed to attach metadata for volume: %s, err: %v", name, err)
+		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
 	}
+
+	klog.V(2).Infof("CreateVolume resp: %v", *csiResp)
+	klog.Infof("created volume: %s id: %d", name, volID)
 	return csiResp, err
 }
 
