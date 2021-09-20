@@ -585,20 +585,26 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 
 	sourceFilesystemID, _ := strconv.ParseInt(volproto.VolumeID, 10, 64)
 	snapshotArray, err := nfs.cs.api.GetSnapshotByName(snapshotName)
-	for _, snap := range *snapshotArray {
-		if snap.ParentId == sourceFilesystemID {
-			snapshotID = strconv.FormatInt(snap.SnapshotID, 10) + "$$" + volproto.StorageType
-			klog.V(4).Infof("Got snapshot so returning nil")
-			return &csi.CreateSnapshotResponse{
-				Snapshot: &csi.Snapshot{
-					SizeBytes:      snap.Size,
-					SnapshotId:     snapshotID,
-					SourceVolumeId: srcVolumeId,
-					CreationTime:   ptypes.TimestampNow(),
-					ReadyToUse:     true,
-				},
-			}, nil
+	if len(*snapshotArray) > 0 {
+		for _, snap := range *snapshotArray {
+			if snap.ParentId == sourceFilesystemID {
+				snapshotID = strconv.FormatInt(snap.SnapshotID, 10) + "$$" + volproto.StorageType
+				klog.V(4).Infof("Snapshot: %s src fs id: %d exists, snapshot id: %d", snapshotName, snap.ParentId, snap.SnapshotID)
+				return &csi.CreateSnapshotResponse{
+					Snapshot: &csi.Snapshot{
+						SizeBytes:      snap.Size,
+						SnapshotId:     snapshotID,
+						SourceVolumeId: srcVolumeId,
+						CreationTime:   ptypes.TimestampNow(),
+						ReadyToUse:     true,
+					},
+				}, nil
+			} else {
+				klog.V(4).Infof("Snapshot: %s snapshot id: %d src fs id: %d (requested: %d)",
+					snapshotName, snap.ParentId, snap.SnapshotID, sourceFilesystemID)
+			}
 		}
+		return nil, status.Error(codes.AlreadyExists, "snapshot with already existing name and different source volume ID")
 	}
 
 	fileSystemSnapshot := &api.FileSystemSnapshot{
