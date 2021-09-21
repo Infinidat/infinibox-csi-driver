@@ -646,8 +646,7 @@ func (fc *fcstorage) AttachFCDisk(c Connector, io ioHandler) (string, error) {
 
 // Detach performs a detach operation on a volume
 func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
-	klog.V(2).Infof("Detaching fibre channel volume")
-	klog.V(4).Infof("Called DetachDisk targetpath: %s", targetPath)
+	klog.V(2).Infof("Detaching FC volume, targetpath: %s", targetPath)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from FC DetachFCDisk  " + fmt.Sprint(res))
@@ -656,36 +655,38 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	if io == nil {
 		io = &OSioHandler{}
 	}
+
 	mounter := mount.New("")
 	mntPath := path.Join("/host", targetPath)
+	mntPathParent := filepath.Dir(mntPath)
+
 	// unmount volume
 	if pathExist, pathErr := fc.cs.pathExists(targetPath); pathErr != nil {
-		return fmt.Errorf("error checking if path exists: %v", pathErr)
+		return fmt.Errorf("failed to check if target path path exists: %s, err: %v", targetPath, pathErr)
 	} else if !pathExist {
 		if pathExist, _ = fc.cs.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
-				klog.Warningf("Warning: Unmount skipped because path does not exist: %v", targetPath)
+				klog.Warningf("unmount skipped because target path does not exist: %s", targetPath)
 				return nil
 			}
 		}
-	}
-	if err := mounter.Unmount(targetPath); err != nil {
-		if strings.Contains(err.Error(), "not mounted") {
-			klog.V(4).Infof("volume not mounted, while trying to unmount: %s", targetPath)
-			if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
-				klog.Errorf("fc: failed to unmount path Error: %v", err)
+	} else {
+		klog.V(4).Infof("umount targetPath: %s", targetPath)
+		if err := mounter.Unmount(targetPath); err != nil {
+			if strings.Contains(err.Error(), "not mounted") {
+				klog.V(4).Infof("target path not mounted, while trying to unmount: %s", targetPath)
+			} else {
+				klog.Errorf("failed to unmount target path: %s, err: %v", targetPath, err)
+				return err
 			}
-			return nil
 		}
-		klog.Errorf("fc detach disk: failed to unmount: %s\nError: %v", targetPath, err)
-		return err
 	}
-	if err := os.RemoveAll(filepath.Dir("/host" + targetPath)); err != nil {
-		klog.Errorf("fc: failed to remove mount path Error: %v", err)
-		return err
-	}
-	klog.V(4).Infof("Unmouted volume successfully!")
 
+	if err := os.RemoveAll(mntPathParent); err != nil {
+		klog.Errorf("failed to remove target path: %s, err: %v", targetPath, err)
+		return err
+	}
+	klog.V(4).Infof("volume unmounted successfully, targetpath: %s", targetPath)
 	return nil
 }
 
