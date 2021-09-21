@@ -408,7 +408,33 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 }
 
 func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	return &csi.ValidateVolumeCapabilitiesResponse{}, nil
+	klog.V(2).Infof("ValidateVolumeCapabilities called with volumeId %s", req.GetVolumeId())
+	volproto, err := validateStorageType(req.GetVolumeId())
+	if err != nil {
+		klog.Errorf("Failed to validate storage type %v", err)
+		return nil, errors.New("error getting volume id")
+	}
+	volID, _ := strconv.Atoi(volproto.VolumeID)
+
+	klog.V(4).Infof("volID: %d", volID)
+	v, err := fc.cs.api.GetVolume(volID)
+	if err != nil {
+		klog.Errorf("Failed to find volume ID: %d, %v", volID, err)
+		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
+	}
+	klog.V(4).Infof("volID: %d colume: %v", volID, v)
+
+	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
+	// if err != nil {
+	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// }
+
+	resp = &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: req.GetVolumeCapabilities(),
+		},
+	}
+	return
 }
 
 func (fc *fcstorage) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (resp *csi.ListVolumesResponse, err error) {
