@@ -201,20 +201,20 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		restoreType = "Volume"
 	}
 
-	// Lookup the snapshot source volume.
+	// Validate the source content id
 	volproto, err := validateStorageType(volumeContentID)
 	if err != nil {
-		klog.Errorf("Failed to validate storage type %v", err)
-		return nil, errors.New("error getting volume id")
+		klog.Errorf("Failed to validate storage type for source id: %s, err: %v", volumeContentID, err)
+		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
 
 	ID, err := strconv.Atoi(volproto.VolumeID)
 	if err != nil {
-		return nil, errors.New("error getting volume id")
+		return nil, status.Errorf(codes.InvalidArgument, restoreType+" invalid: %s", volumeContentID)
 	}
 	srcVol, err := fc.cs.api.GetVolume(ID)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
+		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", ID)
 	}
 
 	// Validate the size is the same.
@@ -267,8 +267,8 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
 	_, err = fc.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
-		klog.Errorf("failed to attach metadata for volume : %s, err: %v", dstVol.Name, err)
-		return &csi.CreateVolumeResponse{}, errors.New("failed to attach metadata")
+		klog.Errorf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
+		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
 	}
 	klog.Errorf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
