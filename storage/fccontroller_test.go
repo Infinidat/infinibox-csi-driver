@@ -344,9 +344,10 @@ func (suite *FCControllerSuite) Test_UnControllerPublishVolume_DeleteHostErr() {
 
 func (suite *FCControllerSuite) Test_CreateSnapshot() {
 	service := fcstorage{cs: *suite.cs}
+	expectedErr := errors.New("some Error")
 	//	var parameterMap map[string]string
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
-	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
+	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
 	_, err := service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
@@ -389,8 +390,12 @@ func (suite *FCControllerSuite) Test_ControllerExpandVolume() {
 
 func (suite *FCControllerSuite) Test_ValidateVolumeCapabilities() {
 	service := fcstorage{cs: *suite.cs}
-	_, err := service.ValidateVolumeCapabilities(context.Background(), &csi.ValidateVolumeCapabilitiesRequest{})
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	var parameterMap map[string]string
+	crtValidateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
+
+	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	_, err := service.ValidateVolumeCapabilities(context.Background(), crtValidateVolCapsReq)
+	assert.Nil(suite.T(), err, "FC ValidateVolumeCapabilities failed")
 }
 
 func (suite *FCControllerSuite) Test_ListVolumes() {
