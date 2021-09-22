@@ -268,13 +268,16 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	notMnt, err := fm.Mounter.IsLikelyNotMountPoint(fm.TargetPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("Heuristic determination of mount point failed: %v", err)
+	if err == nil {
+		if !notMnt {
+			// ToDo: check that it is mounted on the right directory
+			klog.V(2).Infof("fc: %s already mounted", fm.TargetPath)
+			return nil
+		}
+	} else if !os.IsNotExist(err) {
+		return status.Errorf(codes.Internal, "Heuristic determination of mount point failed: %v", err)
 	}
 
-	if !notMnt {
-		fmt.Printf("fc: %s already mounted", fm.TargetPath)
-	}
 	if fm.fcDisk.isBlock {
 		klog.V(2).Infof("Block volume will be mount at file %s", fm.TargetPath)
 		if fm.ReadOnly {
@@ -294,8 +297,8 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 
 		_, err = os.Create("/host/" + fm.TargetPath)
 		if err != nil {
-			klog.Errorf("failed to create target file %q: %v", fm.TargetPath, err)
-			return fmt.Errorf("failed to create target file for raw block bind mount: %v", err)
+			klog.Errorf("failed to create target path: %q, err: %v", fm.TargetPath, err)
+			return status.Errorf(codes.Internal, "failed to create target path for raw block bind mount: %v", err)
 		}
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 		options := []string{"bind"}
@@ -340,7 +343,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 
 		options = append(options, fm.MountOptions...)
 		if err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options); err != nil {
-			return fmt.Errorf("fc: failed to mount fc volume %s [%s] to %s, error %v", devicePath, fm.FsType, fm.TargetPath, err)
+			return status.Errorf(codes.Internal, "fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
 		}
 	}
 	dskinfo := diskInfo{}
