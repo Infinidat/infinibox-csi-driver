@@ -48,7 +48,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	if err != nil {
 		log.Errorf("failed to create volume %v", err)
-		return &csi.CreateVolumeResponse{}, err
+		return nil, err
 	}
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
@@ -92,7 +92,7 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			log.Error("treeq already delete from infinibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return &csi.DeleteVolumeResponse{}, nfsDeleteErr
+		return nil, nfsDeleteErr
 	}
 	log.Infof("treeq ID %s successfully deleted", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
@@ -107,11 +107,11 @@ func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *c
 }
 
 func (treeq *treeqstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	return &csi.CreateSnapshotResponse{}, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
+	return nil, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
 }
 
 func (treeq *treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return &csi.DeleteSnapshotResponse{}, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
+	return nil, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
 }
 
 func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {

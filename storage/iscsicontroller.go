@@ -462,7 +462,7 @@ func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *
 
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	// if err != nil {
-	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// 	   return nil, status.Error(codes.Internal, err.Error())
 	// }
 
 	resp = &csi.ValidateVolumeCapabilitiesResponse {

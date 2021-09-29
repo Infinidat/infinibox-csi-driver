@@ -166,17 +166,17 @@ func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequ
 	}()
 	klog.V(4).Infof("Called DeleteVolume")
 	if req.GetVolumeId() == "" {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
+		return nil, status.Errorf(codes.Internal,
 			"error parsing volume id : %s", errors.New("Volume id not found"))
 	}
 	id, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
+		return nil, status.Errorf(codes.Internal,
 			"error parsing volume id : %s", err.Error())
 	}
 	err = fc.ValidateDeleteVolume(id)
 	if err != nil {
-		return &csi.DeleteVolumeResponse{}, status.Errorf(codes.Internal,
+		return nil, status.Errorf(codes.Internal,
 			"error deleting volume : %s", err.Error())
 	}
 	return &csi.DeleteVolumeResponse{}, nil
@@ -280,35 +280,35 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	volproto, err := validateStorageType(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("Failed to validate storage type %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume id")
+		return nil, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
 
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("not found Node ID")
+		return nil, errors.New("not found Node ID")
 	}
 	hostName := nodeNameIP[0]
 
 	host, err := fc.cs.validateHost(hostName)
 	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	v, err := fc.cs.api.GetVolume(volID)
 	if err != nil {
 		klog.Errorf("Failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("error getting volume by id")
+		return nil, errors.New("error getting volume by id")
 	}
 
 	_, err = fc.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	lunList, err := fc.cs.api.GetAllLunByHost(host.ID)
 	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, err
+		return nil, err
 	}
 	ports := ""
 	if len(host.Ports) > 0 {
@@ -337,20 +337,20 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
 	if err != nil {
 		klog.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, err
+		return nil, err
 	}
 	klog.V(4).Infof("host can have maximum %d volume mapped", maxAllowedVol)
 	klog.V(4).Infof("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		klog.Errorf("unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
+		return nil, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
 	}
 	// map volume to host
 	klog.V(4).Infof("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := fc.cs.mapVolumeTohost(volID, host.ID)
 	if err != nil {
 		klog.Errorf("Failed to map volume to host with error %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	volCtx := make(map[string]string)
@@ -371,7 +371,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 	}
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
-		return &csi.ControllerUnpublishVolumeResponse{}, errors.New("Node ID not found")
+		return nil, errors.New("Node ID not found")
 	}
 	hostName := nodeNameIP[0]
 	host, err := fc.cs.api.GetHostByName(hostName)
@@ -388,7 +388,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		err = fc.cs.unmapVolumeFromHost(host.ID, volID)
 		if err != nil {
 			klog.Errorf("failed to unmap volume %d from host %d with error %v", volID, host.ID, err)
-			return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if len(host.Luns) < 2 {
@@ -400,7 +400,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 			err = fc.cs.api.DeleteHost(host.ID)
 			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 				klog.Errorf("failed to delete host with error %v", err)
-				return &csi.ControllerUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
@@ -426,7 +426,7 @@ func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.Va
 
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	// if err != nil {
-	// 	return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	// 	   return nil, status.Error(codes.Internal, err.Error())
 	// }
 
 	resp = &csi.ValidateVolumeCapabilitiesResponse{
@@ -524,7 +524,7 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 	err = fc.ValidateDeleteVolume(snapshotID)
 	if err != nil {
 		klog.Errorf("failed to delete snapshot %v", err)
-		return &csi.DeleteSnapshotResponse{}, err
+		return nil, err
 	}
 	return &csi.DeleteSnapshotResponse{}, nil
 }

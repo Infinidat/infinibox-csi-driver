@@ -117,12 +117,12 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	// validate host exists
 	if hstID < 1 {
 		klog.Errorf("hostID %d is not valid host ID", hstID)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
+		return nil, status.Error(codes.Internal, "not a valid host")
 	}
 	fcPorts := getPortName()
 	if len(fcPorts) == 0 {
 		klog.Errorf("port name not found on worker")
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "Port name not found")
+		return nil, status.Error(codes.Internal, "Port name not found")
 	}
 	for _, fcp := range fcPorts {
 		if !strings.Contains(ports, fcp) {
@@ -130,12 +130,12 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			err = fc.cs.AddPortForHost(hstID, "FC", fcp)
 			if err != nil {
 				klog.Errorf("error creating host port %v", err)
-				return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			_, err := fc.cs.api.GetHostPort(hstID, fcp)
 			if err != nil {
 				klog.Errorf("failed to get host port %s with error %v", fcp, err)
-				return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
@@ -257,11 +257,11 @@ func (fc *fcstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 
 func (fc *fcstorage) NodeGetVolumeStats(
 	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
+		return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return &csi.NodeExpandVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String())
+	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
 // ------------------------------------ Supporting methods  ---------------------------

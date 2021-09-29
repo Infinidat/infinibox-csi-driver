@@ -200,15 +200,15 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 }
 
 func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return &csi.ListVolumesResponse{}, status.Error(codes.Unimplemented, "")
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	return &csi.ListSnapshotsResponse{}, status.Error(codes.Unimplemented, "")
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (s *service) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	return &csi.GetCapacityResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {

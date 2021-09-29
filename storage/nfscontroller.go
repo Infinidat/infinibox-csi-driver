@@ -447,7 +447,7 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 		klog.Errorf("failed to delete NFS Volume ID %s, %v", volumeID, nfsDeleteErr)
-		return &csi.DeleteVolumeResponse{}, nfsDeleteErr
+		return nil, nfsDeleteErr
 	}
 	klog.V(2).Infof("volume %s successfully deleted", volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
@@ -508,13 +508,13 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 
 	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	exportPermissionMapArray, err := getPermissionMaps(req.GetVolumeContext()["nfs_export_permissions"])
 	if err != nil {
 		klog.Errorf("failed to retrieve permission maps, %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	access := ""
 	if len(exportPermissionMapArray) > 0 {
@@ -525,14 +525,14 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	noRootSquash := true // default value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
-		return &csi.ControllerPublishVolumeResponse{}, errors.New("not found Node ID")
+		return nil, errors.New("not found Node ID")
 	}
 	nodeIP := nodeNameIP[1]
 	eportid, _ := strconv.Atoi(exportID)
 	_, err = nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nodeIP)
 	if err != nil {
 		klog.Errorf("failed to add export rule, %v", err)
-		return &csi.ControllerPublishVolumeResponse{}, status.Errorf(codes.Internal, "failed to add export rule  %s", err)
+		return nil, status.Errorf(codes.Internal, "failed to add export rule  %s", err)
 	}
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
@@ -544,7 +544,7 @@ func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.C
 	err := nfs.cs.api.DeleteExportRule(fileID, req.GetNodeId())
 	if err != nil {
 		klog.Errorf("failed to delete Export Rule fileystemID %d error %v", fileID, err)
-		return &csi.ControllerUnpublishVolumeResponse{}, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }

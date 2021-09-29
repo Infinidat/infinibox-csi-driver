@@ -41,7 +41,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 		return storageNode.NodePublishVolume(ctx, req)
 	}
 	klog.Errorf("NodePublishVolume failed: %s", err)
-	return &csi.NodePublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	return nil, status.Error(codes.Internal, err.Error())
 }
 
 func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -54,11 +54,11 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	klog.V(2).Infof("NodeUnpublishVolume called with volume name %s", req.GetVolumeId())
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		return &csi.NodeUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
 	if err != nil {
-		return &csi.NodeUnpublishVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	resp, err := protocolOperation.NodeUnpublishVolume(ctx, req)
 	return resp, err
@@ -121,7 +121,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 		return storageNode.NodeStageVolume(ctx, req)
 	}
 	klog.Errorf("NodeStateVolume failed: %s", err)
-	return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+	return nil, status.Error(codes.Internal, err.Error())
 }
 
 func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
@@ -134,20 +134,20 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 	klog.V(2).Infof("NodeUnstageVolume called with volume name %s", req.GetVolumeId())
 	volproto, err := s.validateStorageType(req.GetVolumeId())
 	if err != nil {
-		return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
 	if err != nil {
-		return &csi.NodeUnstageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	resp, err := protocolOperation.NodeUnstageVolume(ctx, req)
 	return resp, err
 }
 
 func (s *service) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
+	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
 func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return &csi.NodeExpandVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String())
+	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }

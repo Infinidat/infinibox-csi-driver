@@ -130,7 +130,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	if len(volumeIdCache) != 0 && volumeIdCache != req.GetVolumeId() {
 		msg := fmt.Sprintf("NodeStageVolume ABORT: volume '%s'. Volume '%s' is in progress", req.GetVolumeId(), volumeIdCache)
 		klog.V(2).Infof(msg)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, msg)
+		return nil, status.Error(codes.Internal, msg)
 	} else if len(volumeIdCache) != 0 {
 		klog.V(2).Infof("NodeStageVolume volume '%s' is being serviced (again)", req.GetVolumeId())
 	} else {
@@ -142,7 +142,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	hostID, err := strconv.Atoi(hostIDString)
 	if err != nil {
 		klog.Errorf("hostID string %s is not valid host ID: %s", hostIDString, err)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
+		return nil, status.Error(codes.Internal, "not a valid host")
 	}
 	ports := req.GetPublishContext()["hostPorts"]
 	hostSecurity := req.GetPublishContext()["securityMethod"]
@@ -152,20 +152,20 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	// validate host exists
 	if hostID < 1 {
 		klog.Errorf("hostID %d is not valid host ID", hostID)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "not a valid host")
+		return nil, status.Error(codes.Internal, "not a valid host")
 	}
 	initiatorName := getInitiatorName()
 	if initiatorName == "" {
 		msg := "Initiator name not found"
 		klog.Errorf(msg)
-		return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
+		return nil, status.Error(codes.Internal, "iscsi: "+msg)
 	}
 	if !strings.Contains(ports, initiatorName) {
 		klog.V(4).Infof("Host port is not created, creating one")
 		err = iscsi.cs.AddPortForHost(hostID, "ISCSI", initiatorName)
 		if err != nil {
 			klog.Errorf("Error creating host port %v", err)
-			return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	klog.V(4).Infof("Setup chap auth as '%s'", useChap)
@@ -181,7 +181,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
+					return nil, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
 			if useChap == "mutual_chap" {
@@ -192,14 +192,14 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				} else {
 					msg := "Mutual chap credentials not provided"
 					klog.V(4).Infof(msg)
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, "iscsi: "+msg)
+					return nil, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
 			if len(chapCreds) > 1 {
 				klog.V(4).Infof("Create chap authentication for host %d", hostID)
 				err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 				if err != nil {
-					return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
 		} else if hostSecurity != "NONE" {
@@ -207,7 +207,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 			chapCreds["security_method"] = "NONE"
 			err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 			if err != nil {
-				return &csi.NodeStageVolumeResponse{}, status.Error(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
@@ -509,11 +509,11 @@ func (iscsi *iscsistorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfo
 }
 
 func (iscsi *iscsistorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return &csi.NodeGetVolumeStatsResponse{}, status.Error(codes.Unimplemented, time.Now().String())
+	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
 func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return &csi.NodeExpandVolumeResponse{}, status.Error(codes.Unimplemented, time.Now().String())
+	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
 // ------------------------------------ Supporting methods  ---------------------------
