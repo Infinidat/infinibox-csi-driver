@@ -228,13 +228,15 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 			// 		},
 			// 	},
 			// },
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_GET_CAPACITY,
-					},
-				},
-			},
+
+			// {
+			// 	Type: &csi.ControllerServiceCapability_Rpc{
+			// 		Rpc: &csi.ControllerServiceCapability_RPC{
+			// 			Type: csi.ControllerServiceCapability_RPC_GET_CAPACITY,
+			// 		},
+			// 	},
+			// },
+
 			{
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{

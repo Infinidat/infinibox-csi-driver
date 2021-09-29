@@ -275,25 +275,25 @@ func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
 	defer patch.Unpatch()
 
 	_, err := s.ValidateVolumeCapabilities(context.Background(), crtValidateVolumeCapabilitiesReq)
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "ValidateVolumeCapabilities should succeed")
 }
 
 func (suite *ControllerTestSuite) Test_ListVolumes() {
 	s := getService()
 	_, err := s.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	assert.NotNil(suite.T(), err, "ListVolumes unimplemented")
 }
 
 func (suite *ControllerTestSuite) Test_ListSnapshots() {
 	s := getService()
 	_, err := s.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	assert.NotNil(suite.T(), err, "ListSnapshots unimplemented")
 }
 
 func (suite *ControllerTestSuite) Test_GetCapacity() {
 	s := getService()
 	_, err := s.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.NotNil(suite.T(), err, "GetCapacity unimplemented")
 }
 
 //=============================
