@@ -30,7 +30,7 @@ func TestExecScsiCommand(t *testing.T) {
 		}{
 			{"echo", "foo", "foo\n", ""},
 			{"true", "", "", ""},
-			//{"false", "", "rpc error: code = Unknown desc = false error, exit status 1", "error, exit status"},
+			{"false", "", "", "exit status 1"},
 
 			{"bash", "-c \"[ '1' == '1' ] && echo 'success' || echo 'fail'\"", "success\n", ""},
 			{"bash", "-c \"[ '1' == '2' ] && echo 'success' || echo 'fail'\"", "fail\n", ""},
