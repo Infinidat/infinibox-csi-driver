@@ -92,14 +92,13 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	config["nodeid"] = s.nodeID
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("failed to initialise storage controller while delete volume " + volproto.StorageType)
+		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume " + volproto.StorageType)
 		return
 	}
 	req.VolumeId = volproto.VolumeID
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
 		klog.Errorf("failed to delete volume %v", err)
-		err = errors.New("failed to delete volume of type " + volproto.StorageType)
 		return
 	}
 	req.VolumeId = voltype
