@@ -27,7 +27,7 @@ import (
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI CreateVolume  " + fmt.Sprint(res))
+			err = status.Error(codes.Internal, "Recovered from CSI CreateVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -47,14 +47,25 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {
 		klog.Errorf("CreateVolume error: %v", err)
-		err = errors.New("failed to initialise storage controller while create volume " + storageprotocol)
+		err = status.Error(codes.Internal, "failed to initialize storage controller while creating volume " + storageprotocol)
 		return nil, err
 	}
 	createVolResp, err = storageController.CreateVolume(ctx, req)
-	if err == nil && createVolResp != nil && createVolResp.Volume != nil && createVolResp.Volume.VolumeId != "" {
-		createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
-		klog.V(2).Infof("CreateVolume success, resp: %v", createVolResp)
+	if err != nil {
+		err = status.Errorf(codes.Internal, "failed to create volume %s, err: %v", storageprotocol, err)
+		return nil, err
+	} else if createVolResp == nil {
+		err = status.Errorf(codes.Internal, "failed to create volume %s, empty response", storageprotocol)
+		return nil, err
+	} else if createVolResp.Volume == nil {
+		err = status.Errorf(codes.Internal, "failed to create volume %s, resp: %v, no volume struct", storageprotocol, createVolResp)
+		return nil, err
+	} else if createVolResp.Volume.VolumeId == "" {
+		err = status.Errorf(codes.Internal, "failed to create volume %s, resp: %v, no volumeID", storageprotocol, createVolResp)
+		return nil, err
 	}
+	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
+	klog.V(2).Infof("CreateVolume success, resp: %v", createVolResp)
 	return
 }
 
