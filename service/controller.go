@@ -27,7 +27,7 @@ import (
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = status.Error(codes.Internal, "Recovered from CSI CreateVolume  " + fmt.Sprint(res))
+			err = errors.New("Recovered from CSI CreateVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -47,12 +47,13 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {
 		klog.Errorf("CreateVolume error: %v", err)
-		err = status.Error(codes.Internal, "failed to initialize storage controller while creating volume " + storageprotocol)
+		err = status.Error(codes.Internal, "failed to initialize storage controller while creating volume "+storageprotocol)
 		return nil, err
 	}
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err != nil {
-		err = status.Errorf(codes.Internal, "failed to create volume %s, err: %v", storageprotocol, err)
+		klog.Errorf("CreateVolume error: %v", err)
+		// it's important to return the original error, because it matches K8s expectations
 		return nil, err
 	} else if createVolResp == nil {
 		err = status.Errorf(codes.Internal, "failed to create volume %s, empty response", storageprotocol)
@@ -133,7 +134,8 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("ControllerPublishVolume failed to initialise storage controller: " + volproto.StorageType)
+		klog.Errorf("failed to create storage controller: %s", volproto.StorageType)
+		err = status.Errorf(codes.Internal, "ControllerPublishVolume failed to initialise storage controller: %s", volproto.StorageType)
 		return
 	}
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
