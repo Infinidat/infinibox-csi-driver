@@ -150,6 +150,9 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		vol, err = iscsi.cs.api.GetVolume(volID)
 		counter = counter + 1
 	}
+	if vol == nil {
+		return nil, status.Errorf(codes.Internal, "failed to create volume name: %s volume not retrieved for id: %d", name, volID)
+	}
 
 	// Prepare response struct
 	copyRequestParameters(req.GetParameters(), vi.VolumeContext)

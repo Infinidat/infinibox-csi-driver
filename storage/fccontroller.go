@@ -133,8 +133,11 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	vol, err = fc.cs.api.GetVolume(volID)
 	for vol == nil && counter < 100 {
 		time.Sleep(3 * time.Millisecond)
-		vol, err = fc.cs.api.GetVolume(volID)
+		vol, err = fc.cs.api.GetVolume(volID)		
 		counter = counter + 1
+	}
+	if vol == nil {
+		return nil, status.Errorf(codes.Internal, "failed to create volume name: %s volume not retrieved for id: %d", name, volID)
 	}
 
 	// Prepare response struct
