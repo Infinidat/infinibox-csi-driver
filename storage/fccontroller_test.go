@@ -291,54 +291,54 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
 	assert.NotNil(suite.T(), err, "Fail to storage class for fc protocol")
 }
 
-func (suite *FCControllerSuite) Test_UnControllerPublishVolume() {
+func (suite *FCControllerSuite) Test_ControllerUnpublishVolume() {
 	service := fcstorage{cs: *suite.cs}
 	//	var parameterMap map[string]string
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	unpublishVolReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(nil)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.Nil(suite.T(), err, "controller unpublish for fc protocol")
 }
 
-func (suite *FCControllerSuite) Test_UnControllerPublishVolume_hostNameErr() {
+func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_hostNameErr() {
 	service := fcstorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	unpublishVolReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(nil, expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "Fail to hostname for fc protocol")
 }
 
-func (suite *FCControllerSuite) Test_UnControllerPublishVolume_StorageErr() {
+func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_StorageErr() {
 	service := fcstorage{cs: *suite.cs}
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	ctrUnPublishValReq.VolumeId = "1$"
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	unpublishVolReq := getISCSIControllerUnpublishVolume()
+	unpublishVolReq.VolumeId = "1$"
+	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "Error should be notnil")
 }
 
-func (suite *FCControllerSuite) Test_UnControllerPublishVolume_UnMapVolumeErr() {
+func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
 	service := fcstorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	unpublishVolReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "Error should be notnil")
 }
 
-func (suite *FCControllerSuite) Test_UnControllerPublishVolume_DeleteHostErr() {
+func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
 	service := fcstorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	unpublishVolReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "Error should be notnil")
 }
 
@@ -346,24 +346,24 @@ func (suite *FCControllerSuite) Test_CreateSnapshot() {
 	service := fcstorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	//	var parameterMap map[string]string
-	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
+	unpublishVolReq := getISCSICreateSnapshotRequest()
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
-	_, err := service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
-	assert.Nil(suite.T(), err, "Error should be notnil")
+	_, err := service.CreateSnapshot(context.Background(), unpublishVolReq)
+	assert.Nil(suite.T(), err, "CreateSnapshot should not fail")
 }
 
 func (suite *FCControllerSuite) Test_CreateSnapshot_already_Created() {
 	service := fcstorage{cs: *suite.cs}
 	//	var parameterMap map[string]string
-	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
-	ctrUnPublishValReq.SourceVolumeId = "1001$$iscsi"
+	unpublishVolReq := getISCSICreateSnapshotRequest()
+	unpublishVolReq.SourceVolumeId = "1001$$iscsi"
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
-	_, err := service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
-	assert.Nil(suite.T(), err, "Error should be notnil")
+	_, err := service.CreateSnapshot(context.Background(), unpublishVolReq)
+	assert.Nil(suite.T(), err, "CreateSnapshot should not fail")
 }
 
 func (suite *FCControllerSuite) Test_DeleteSnapshot() {
@@ -376,7 +376,7 @@ func (suite *FCControllerSuite) Test_DeleteSnapshot() {
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)
 
 	_, err := service.DeleteSnapshot(context.Background(), ctrdeleteSnapValReq)
-	assert.Nil(suite.T(), err, "Error should be nil")
+	assert.Nil(suite.T(), err, "DeleteSnapshot should not fail")
 }
 
 func (suite *FCControllerSuite) Test_ControllerExpandVolume() {
@@ -385,7 +385,7 @@ func (suite *FCControllerSuite) Test_ControllerExpandVolume() {
 	ctrExpandValReq := getISCSIExpandVolumeRequest()
 	suite.api.On("UpdateVolume", mock.Anything, mock.Anything).Return(nil, nil)
 	_, err := service.ControllerExpandVolume(context.Background(), ctrExpandValReq)
-	assert.Nil(suite.T(), err, "Error should be nil")
+	assert.Nil(suite.T(), err, "ControllerExpandVolume should be nil")
 }
 
 func (suite *FCControllerSuite) Test_ValidateVolumeCapabilities() {
@@ -395,7 +395,7 @@ func (suite *FCControllerSuite) Test_ValidateVolumeCapabilities() {
 
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := service.ValidateVolumeCapabilities(context.Background(), crtValidateVolCapsReq)
-	assert.Nil(suite.T(), err, "FC ValidateVolumeCapabilities failed")
+	assert.Nil(suite.T(), err, "ValidateVolumeCapabilities should not fail")
 }
 
 func (suite *FCControllerSuite) Test_ListVolumes() {
