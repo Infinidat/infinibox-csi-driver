@@ -396,25 +396,25 @@ func (suite *ISCSIControllerSuite) Test_ValidateVolumeCapabilities() {
 
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := service.ValidateVolumeCapabilities(context.Background(), crtValidateVolCapsReq)
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "ValidateVolumeCapabilities should not fail")
 }
 
 func (suite *ISCSIControllerSuite) Test_ListVolumes() {
 	service := iscsistorage{cs: *suite.cs}
 	_, err := service.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "ListVolumes should not fail")
 }
 
 func (suite *ISCSIControllerSuite) Test_ListSnapshots() {
 	service := iscsistorage{cs: *suite.cs}
 	_, err := service.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "ListSnapshots should not fail")
 }
 
 func (suite *ISCSIControllerSuite) Test_GetCapacity() {
 	service := iscsistorage{cs: *suite.cs}
 	_, err := service.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "GetCapacity should not fail")
 }
 
 // TEST data=============================================
