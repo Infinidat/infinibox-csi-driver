@@ -461,7 +461,7 @@ func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *
 		klog.Errorf("Failed to find volume ID: %d, %v", volID, err)
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
 	}
-	klog.V(4).Infof("volID: %d colume: %v", volID, v)
+	klog.V(4).Infof("volID: %d volume: %v", volID, v)
 
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	// if err != nil {
@@ -524,6 +524,8 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 			},
 		}, nil
 	} else {
+		klog.Errorf("snapshot: %s id: %d exists, different source volume ID: %d requested",
+			snapshotName, volumeSnapshot.ParentId, sourceVolumeID)
 		return nil, status.Error(codes.AlreadyExists, "snapshot with already existing name and different source volume ID")
 	}
 
