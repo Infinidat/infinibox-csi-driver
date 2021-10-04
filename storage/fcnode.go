@@ -275,7 +275,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return nil
 		}
 	} else if !os.IsNotExist(err) {
-		return status.Errorf(codes.Internal, "Heuristic determination of mount point failed: %v", err)
+		return status.Errorf(codes.Internal, "%s exists but IsLikelyNotMountPoint failed: %v", fm.TargetPath, err)
 	}
 
 	if fm.fcDisk.isBlock {
@@ -525,7 +525,7 @@ func scsiHostRescan(io ioHandler) {
 		for _, f := range dirs {
 			name := scsiPath + f.Name() + "/scan"
 			data := []byte("- - -")
-			if errWrite := io.WriteFile(name, data, 0o666); errWrite != nil {
+			if errWrite := io.WriteFile(name, data, 0666); errWrite != nil {
 				klog.Errorf("failed to write rescan cmd to %s", name)
 			}
 		}
@@ -667,13 +667,13 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	if pathExist, pathErr := fc.cs.pathExists(targetPath); pathErr != nil {
 		return fmt.Errorf("failed to check if target path path exists: %s, err: %v", targetPath, pathErr)
 	} else if !pathExist {
-		if pathExist, _ = fc.cs.pathExists(mntPath); pathErr == nil {
+		if pathExist, pathErr = fc.cs.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
 				klog.Warningf("unmount skipped because target path does not exist: %s", targetPath)
 				return nil
 			}
 		}
-	} else {
+	} else { // targetPath exists
 		klog.V(4).Infof("umount targetPath: %s", targetPath)
 		if err := mounter.Unmount(targetPath); err != nil {
 			if strings.Contains(err.Error(), "not mounted") {
