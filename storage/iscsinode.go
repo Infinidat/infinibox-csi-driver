@@ -234,11 +234,11 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	klog.V(4).Infof("NodePublishVolume called, volume ID '%s'", req.GetVolumeId())
 	// helper.PrettyKlogDebug("NodePublishVolume req: ", req)
 
-	iscsiInfo, err := iscsi.getISCSIInfo(req)
+	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	klog.V(4).Infof("iscsiDisk: %v", iscsiInfo)
+	klog.V(4).Infof("iscsiDisk: %v", iscsiDisk)
 
 	volCap := req.GetVolumeCapability()
 	if volCap == nil {
@@ -247,9 +247,9 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	switch volCap.GetAccessType().(type) {
 	case *csi.VolumeCapability_Block:
-		iscsiInfo.isBlock = true
+		iscsiDisk.isBlock = true
 	}
-	diskMounter := iscsi.getISCSIDiskMounter(iscsiInfo, req)
+	diskMounter := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
@@ -699,12 +699,13 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	mntPath = b.targetPath
 	// Mount device
 	notMnt, err := b.mounter.IsLikelyNotMountPoint(mntPath)
-	if err != nil && !os.IsNotExist(err) {
-		return "", fmt.Errorf("iscsi: Heuristic determination of mount point failed: %v", err)
-	}
-	if !notMnt {
-		klog.V(2).Infof("%s already mounted", mntPath)
-		return "", nil
+	if err == nil {
+		if !notMnt {
+			klog.V(2).Infof("%s already mounted", mntPath)
+			return "", nil
+		}
+	} else if !os.IsNotExist(err) {
+		return "", status.Errorf(codes.Internal, "%s exists but IsLikelyNotMountPoint failed: %v", mntPath, err)
 	}
 
 	for _, path := range devicePaths {
@@ -929,14 +930,14 @@ func getInitiatorName() string {
 	return arr[1]
 }
 
-func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
+func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from ISCSI getISCSIInfo  " + fmt.Sprint(res))
+			err = errors.New("iscsi: Recovered from ISCSI getISCSIDisk  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(4).Infof("Called getISCSIInfo")
+	klog.V(4).Infof("Called getISCSIDisk")
 	initiatorName := getInitiatorName()
 
 	volproto := strings.Split(req.GetVolumeId(), "$$")
@@ -998,11 +999,11 @@ func (iscsi *iscsistorage) getISCSIInfo(req *csi.NodePublishVolumeRequest) (*isc
 	}, nil
 }
 
-func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiInfo *iscsiDisk, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter {
+func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter {
 	fstype := req.GetVolumeContext()["fstype"]
 	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
 	return &iscsiDiskMounter{
-		iscsiDisk:    iscsiInfo,
+		iscsiDisk:    iscsiDisk,
 		fsType:       fstype,
 		readOnly:     false,
 		mountOptions: mountOptions,
