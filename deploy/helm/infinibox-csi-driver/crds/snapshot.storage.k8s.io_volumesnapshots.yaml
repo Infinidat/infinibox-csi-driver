@@ -1,3 +1,4 @@
+# Ref: https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-4.0/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -223,4 +224,3 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
-
