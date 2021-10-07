@@ -13,6 +13,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	goodIBoxFSCount = 40
+)
+
 func (suite *NFSControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
@@ -36,7 +40,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_paramerValidation_Fail() {
 	delete(parameterMap, "pool_name")
 	crtValReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "failed to validate parameter for nfs protocol")
+	assert.NotNil(suite.T(), err, "expected to fail: parameter validation ")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_NetworkSpaceIP_Error() {
@@ -48,7 +52,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_NetworkSpaceIP_Error() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, networkSpaceErr)
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "failed to get IP address from  networkspace")
+	assert.NotNil(suite.T(), err, "expected to fail: get IP address from networkspace")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
@@ -65,7 +69,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "failed to get filesystem name")
+	assert.NotNil(suite.T(), err, "expected to fail: get filesystem by name")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportError() {
@@ -79,7 +83,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportError() {
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(nil, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "error while fetching export details")
+	assert.NotNil(suite.T(), err, "expected to fail: get export by filesystem")
 }
 
 /*
@@ -94,7 +98,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportArryEmpty
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "error while fetching export details")
+	assert.NotNil(suite.T(), err, "expected to fail: fetching export details")
 }
 */
 
@@ -108,8 +112,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_sucess() {
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(getExportPath(), nil)
 
 	resp, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.Nil(suite.T(), err, "file system exist success")
-	assert.NotNil(suite.T(), resp, "use existing created filesystem volume")
+	assert.Nil(suite.T(), err, "expected to succeed: CreateVolume when file system exists")
+	assert.NotNil(suite.T(), resp, "CreateVolume ok response should be non-empty")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
@@ -123,7 +127,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "file to validat the pool and networkspace")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume validate the pool and networkspace")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_fail() {
@@ -138,7 +142,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_fail() {
 	suite.api.On("GetFileSystemCount").Return(nil, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "file to validate the pool and networkspace")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume get filesystem count")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_MaxThanIbox() {
@@ -149,10 +153,10 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_MaxThanIbo
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(4001, nil)
+	suite.api.On("GetFileSystemCount").Return(MaxFileSystemAllowed + 1, nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "Ibox not allowed to create new file system")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume get more file systems than allowed")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
@@ -164,12 +168,12 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(40, nil)
+	suite.api.On("GetFileSystemCount").Return(goodIBoxFSCount, nil)
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "failed to get poolID by poolName")
-	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "failed to get poolID")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume get poolID by poolName")
+	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "expected to get the mocked err")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
@@ -186,8 +190,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 	suite.api.On("CreateFilesystem", mock.Anything).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "failed to create the file system")
-	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "failed to create the file system")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume create the file system")
+	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "expected to get the mocked err")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
@@ -205,8 +209,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "failed to create the file system")
-	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "failed to create the file system")
+	assert.NotNil(suite.T(), err, "expected to fail: create export path")
+	assert.Equal(suite.T(), err.Error(), expectedError.Error(), "expected to get the mocked err")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_success() {
@@ -226,8 +230,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
 	resp, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.Nil(suite.T(), err, "failed to create the file system")
-	assert.Equal(suite.T(), resp.GetVolume().GetVolumeId(), "1", "successfully created volume ID")
+	assert.Nil(suite.T(), err, "expected succeed: CreateVolume create the file system")
+	assert.Equal(suite.T(), resp.GetVolume().GetVolumeId(), "1", "expected to get volume ID")
 }
 
 //=================================================Create Volume END=================================//
@@ -393,7 +397,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
 	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.Nil(suite.T(), err, "expected snapshot sucsess")
+	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot")
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Clone_Success() {
@@ -439,14 +443,14 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_VolumeID_empty() {
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(""))
-	assert.NotNil(suite.T(), err, "Volume ID missing in request")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume Volume ID missing in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_InvalidVolumeID() {
 	volumeID := "100"
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(volumeID))
-	assert.NotNil(suite.T(), err, "Volume ID missing in request")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume invalid Volume ID in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error() {
@@ -456,7 +460,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error() {
 	suite.api.On("UpdateFilesystem", fileSystemID, fileSystem).Return(expectedErr)
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.NotNil(suite.T(), err, "error expected")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume update file system")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error_filenotfound() {
@@ -466,7 +470,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error_filenotfou
 	expectedErr := errors.New("Some error")
 	suite.api.On("UpdateVolume", fileSystemID, fileSystem).Return(expectedErr)
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.NotNil(suite.T(), err, "error expected")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume update volume")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success() {
@@ -475,7 +479,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success() {
 	fileSystem := api.FileSystem{}
 	suite.api.On("UpdateVolume", fileSystemID, fileSystem).Return(nil)
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.NotNil(suite.T(), err, "error expected")
+	assert.NotNil(suite.T(), err, "expected to succeed: NfsControllerExpandVolume UpdateVolume")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_UpdateVolume_Error() {
@@ -484,7 +488,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_UpdateVolume_Err
 	fileSystemID := "100"
 	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(nil, expectedErr)
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.NotNil(suite.T(), err, "error expected")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume UpdateFilesystem")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success_expand() {
@@ -492,7 +496,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success_expand()
 	fileSystemID := "100"
 	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(nil, nil)
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.Nil(suite.T(), err, "error expected")
+	assert.Nil(suite.T(), err, "expected to succeed: NfsControllerExpandVolume UpdateFilesystem")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_GetSnapshot_Error() {
@@ -500,7 +504,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_GetSnapshot_Error() {
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(nil, expectedErr)
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))
-	assert.NotNil(suite.T(), err, "empty error")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot get snapshot by name")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
@@ -510,7 +514,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, expectedErr)
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))
-	assert.NotNil(suite.T(), err, "empty error")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot create snapshot by name")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_Success() {
@@ -526,7 +530,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_Success() {
 
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
-	assert.Nil(suite.T(), err, "empty error")
+	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_Error() {
@@ -536,7 +540,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_Error(
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, expectedErr)
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
-	assert.NotNil(suite.T(), err, "empty error")
+	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot create file system snapshot")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_success() {
@@ -550,7 +554,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_succes
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(filesystem, nil)
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
-	assert.Nil(suite.T(), err, "empty error")
+	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot CreateFileSystemSnapshot")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_SourceVolumeID_empty() {
@@ -559,7 +563,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_SourceVolumeID_empty() {
 	expectedErr := errors.New("Invalid Source ID")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest(""))
-	assert.NotNil(suite.T(), err, "Source Volume ID missing in request")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsDeleteSnapshot GetFileSystemByID Source Volume ID missing in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_InvalidSourceVolumeID() {
@@ -568,7 +572,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_InvalidSourceVolumeID() 
 	expectedErr := errors.New("Invalid Source ID")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest("1000000000000000000"))
-	assert.NotNil(suite.T(), err, "Invalid Snapshot ID in request")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsDeleteSnapshot GetFileSystemByID Invalid Snapshot ID in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_Error() {
@@ -577,7 +581,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_Error() {
 	expectedErr := errors.New("some error")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest("100"))
-	assert.NotNil(suite.T(), err, "error expected")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsDeleteSnapshot GetFileSystemByID")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_file_not_found() {
@@ -586,7 +590,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_file_not_found() {
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest("100"))
-	assert.Nil(suite.T(), err, "error expected")
+	assert.Nil(suite.T(), err, "expected to fail: NfsDeleteSnapshot GetFileSystemByID fs not found")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_error() {
@@ -595,7 +599,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_error
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	err := service.DeleteNFSVolume()
-	assert.NotNil(suite.T(), err, "Error should not be nil")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteNFSVolume GetFileSystemByID fs not found")
 	assert.Equal(suite.T(), expectedErr, err, "Error not returned as expected")
 }
 
@@ -605,7 +609,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_Inval
 	expectedErr := errors.New("Invalid_ID")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	err := service.DeleteNFSVolume()
-	assert.NotNil(suite.T(), err, "Error should not be nil")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteNFSVolume GetFileSystemByID invalid ID")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_Success() {
@@ -621,7 +625,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_Success() {
 	suite.api.On("DeleteFileSystemComplete", snapshotID).Return(nil)
 	suite.api.On("DeleteParentFileSystem", parentID).Return(nil)
 	err := service.DeleteNFSVolume()
-	assert.Nil(suite.T(), err, "Error should be nil")
+	assert.Nil(suite.T(), err, "expected to succeed: DeleteNFSVolume")
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_InvalidaID() {
@@ -629,20 +633,20 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_InvalidaID() {
 	delValReq := getNFSDeletRequest()
 	delValReq.VolumeId = ""
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.NotNil(suite.T(), err, "invalid volume ID")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume empty volume ID")
 
 	delValReq.VolumeId = "a$$1234"
 	_, err = service.DeleteVolume(context.Background(), delValReq)
-	assert.NotNil(suite.T(), err, "invalid volume ID")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume invalid volume ID")
 }
 
-func (suite *NFSControllerSuite) Test_DeleteVolume_fileNotFound() {
+func (suite *NFSControllerSuite) Test_DeleteVolume_fileNotFound_success() {
 	service := nfsstorage{cs: *suite.cs}
 	delValReq := getNFSDeletRequest()
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND")
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, expectedErr)
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.Nil(suite.T(), err, "FILESYSTEM_NOT_FOUND")
+	assert.Nil(suite.T(), err, "expected to succeed: DeleteVolume when fs not found")
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_Error() {
@@ -651,7 +655,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Error() {
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, expectedErr)
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.NotNil(suite.T(), err, "error occured while delete volume")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume")
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_Metadata_failed() {
@@ -665,7 +669,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Metadata_failed() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.NotNil(suite.T(), err, "error occured while delete metadata")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume delete metadata")
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_delete_Error() {
@@ -681,7 +685,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_delete_Error() {
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(expectedErr)
 
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.NotNil(suite.T(), err, "error occured while delete metadata")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume delete fs complete")
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_Err2() {
@@ -698,7 +702,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Err2() {
 	suite.api.On("DeleteParentFileSystem", mock.Anything).Return(expectedErr)
 
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.NotNil(suite.T(), err, "error occured while delete metadata")
+	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume delete parent fs")
 }
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_success() {
@@ -714,7 +718,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_success() {
 	suite.api.On("DeleteParentFileSystem", mock.Anything).Return(nil)
 
 	_, err := service.DeleteVolume(context.Background(), delValReq)
-	assert.Nil(suite.T(), err, "error occured while delete metadata")
+	assert.Nil(suite.T(), err, "expected to succeed: DeleteVolume")
 }
 
 // ControllerPublishVolume=============
@@ -726,7 +730,7 @@ func (suite *NFSControllerSuite) Test_ControllerPublishVolume_InvalidaNodeID() {
 	suite.accessMock.On("IsValidAccessModeNfs", mock.Anything).Return(true, nil)
 
 	_, err := service.ControllerPublishVolume(context.Background(), publishVolReq)
-	assert.NotNil(suite.T(), err, "invalid nodeID ID")
+	assert.NotNil(suite.T(), err, "expected to fail: ControllerPublishVolume invalid node ID")
 }
 
 func (suite *NFSControllerSuite) Test_ControllerPublishVolume_AddNodeInExport_Error() {
@@ -738,7 +742,7 @@ func (suite *NFSControllerSuite) Test_ControllerPublishVolume_AddNodeInExport_Er
 	suite.api.On("AddNodeInExport", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, expectedErr)
 
 	_, err := service.ControllerPublishVolume(context.Background(), publishVolReq)
-	assert.NotNil(suite.T(), err, "invalid nodeID ID")
+	assert.NotNil(suite.T(), err, "expected to fail: ControllerPublishVolume add node in export")
 }
 
 func (suite *NFSControllerSuite) Test_ControllerPublishVolume_success() {
@@ -749,7 +753,7 @@ func (suite *NFSControllerSuite) Test_ControllerPublishVolume_success() {
 	suite.api.On("AddNodeInExport", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
 
 	_, err := service.ControllerPublishVolume(context.Background(), publishVolReq)
-	assert.Nil(suite.T(), err, "expected no error")
+	assert.Nil(suite.T(), err, "expected to succeed: ControllerPublishVolume")
 }
 
 func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule_error() {
@@ -758,7 +762,7 @@ func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule
 	expectedErr := errors.New("some Error")
 	suite.api.On("DeleteExportRule", mock.Anything, mock.Anything).Return(expectedErr)
 	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
-	assert.NotNil(suite.T(), err, "invalid nodeID ID")
+	assert.NotNil(suite.T(), err, "expected to fail: ControllerUnpublishVolume when DeleteExportRule fails")
 }
 
 func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule_success() {
@@ -766,7 +770,7 @@ func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule
 	unpublishVolReq := getNFSControllerUnpublishVolume()
 	suite.api.On("DeleteExportRule", mock.Anything, mock.Anything).Return(nil)
 	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
-	assert.Nil(suite.T(), err, "expected no error")
+	assert.Nil(suite.T(), err, "expected to succeed: ControllerUnpublishVolume when DeleteExportRule succeeds")
 }
 
 //============================================================
