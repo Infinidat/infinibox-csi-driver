@@ -7,21 +7,21 @@ endif
 
 include Makefile-help
 
+_GOCMD					?= $(shell which go)
+
 # Go parameters
-# Set a special via '_GOCMD=/usr/local/go/bin/go make test'
-_GOCMD						?= go
-_GOBUILD					= $(_GOCMD) build
-_GOCLEAN					= $(_GOCMD) clean
-_GOTEST						= $(_SUDO) $(_GOCMD) test
-_GOMOD						= $(_GOCMD) mod
-_GOFMT						= gofumpt
-_GOLINT						= golangci-lint
+_GOBUILD				= $(_GOCMD) build
+_GOCLEAN				= $(_GOCMD) clean
+_GOTEST					= $(_SUDO) $(_GOCMD) test
+_GOMOD					= $(_GOCMD) mod
+_GOFMT					= gofumpt
+_GOLINT					= golangci-lint
 
 _REDHAT_REPO				= scan.connect.redhat.com
 _GITLAB_REPO				= git.infinidat.com:4567
 _BINARY_NAME				= infinibox-csi-driver
 _DOCKER_IMAGE				= infinidat-csi-driver
-_art_dir					= artifact
+_art_dir				= artifact
 
 # For Development Build #################################################################
 # Docker.io username and tag
@@ -31,7 +31,7 @@ _DOCKER_IMAGE_TAG  		 	= v2.1.0-rc1
 
 # redhat username and tag
 _REDHAT_DOCKER_USER			= user1
-_REDHAT_DOCKER_IMAGE_TAG	= $(_DOCKER_IMAGE_TAG)
+_REDHAT_DOCKER_IMAGE_TAG		= $(_DOCKER_IMAGE_TAG)
 
 # For Production Build ##################################################################
 ifeq ($(env),prod)
