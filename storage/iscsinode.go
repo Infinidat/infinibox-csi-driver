@@ -468,21 +468,25 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		return nil, err
 	}
 
-	// Disconnecting iscsi session
-	klog.V(4).Infof("Logout from target iqn: %s at all portals", iqn)
-	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --logout", iqn))
-	if err != nil {
-		klog.Errorf("Failed to logout from target: '%s', err: %s", iqn, err)
-		return nil, err
-	}
+	// ToDo: implement a mechanism for detecting unused iscsi sessions/targets
+	// we can't just logout and delete targets because their sessions are shared by multiple volumes,
+	// thus we just leave them dangling for now
 
-	// delete iscsi target
-	klog.V(4).Infof("Delete target: %s", iqn)
-	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s -o delete", iqn))
-	if err != nil {
-		klog.Errorf("Failed to delete target: '%s', err: %s", iqn, err)
-	}
-	klog.V(4).Infof("Successfully deleted target %s", iqn)
+	// // Disconnecting iscsi session
+	// klog.V(4).Infof("Logout from target iqn: %s at all portals", iqn)
+	// _, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --logout", iqn))
+	// if err != nil {
+	// 	klog.Errorf("Failed to logout from target: '%s', err: %s", iqn, err)
+	// 	return nil, err
+	// }
+
+	// // delete iscsi target
+	// klog.V(4).Infof("Delete target: %s", iqn)
+	// _, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s -o delete", iqn))
+	// if err != nil {
+	// 	klog.Errorf("Failed to delete target: '%s', err: %s", iqn, err)
+	// }
+	// klog.V(4).Infof("Successfully deleted target %s", iqn)
 
 	volumeIdCache = ""
 
