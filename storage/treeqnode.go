@@ -28,7 +28,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.osHelper.IsNotExist(err) {
-			if err := treeq.osHelper.MkdirAll(targetPath, 0o750); err != nil {
+			if err := treeq.osHelper.MkdirAll(targetPath, 0750); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}

@@ -16,13 +16,11 @@ import (
 	log "infinibox-csi-driver/helper/logger"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
-	//"strconv"
 )
 
 func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
@@ -39,7 +37,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			if err := nfs.osHelper.MkdirAll(targetPath, 0o750); err != nil {
+			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
 				klog.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
@@ -141,17 +139,19 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 }
 
 func (nfs *nfsstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	return &csi.NodeGetCapabilitiesResponse{}, nil
+	// should never be called
+	return nil, status.Error(codes.Unimplemented, "nfs NodeGetCapabilities not implemented")
 }
 
 func (nfs *nfsstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	return nil, nil
+	// should never be called
+	return nil, status.Error(codes.Unimplemented, "nfs NodeGetInfo not implemented")
 }
 
 func (nfs *nfsstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodePublishVolume not implemented")
+	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats not implemented")
 }
 
 func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodePublishVolume not implemented")
+	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not implemented")
 }
