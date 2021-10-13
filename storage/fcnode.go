@@ -257,7 +257,7 @@ func (fc *fcstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 
 func (fc *fcstorage) NodeGetVolumeStats(
 	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-		return nil, status.Error(codes.Unimplemented, time.Now().String())
+	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
@@ -525,7 +525,7 @@ func scsiHostRescan(io ioHandler) {
 		for _, f := range dirs {
 			name := scsiPath + f.Name() + "/scan"
 			data := []byte("- - -")
-			if errWrite := io.WriteFile(name, data, 0666); errWrite != nil {
+			if errWrite := io.WriteFile(name, data, 0o666); errWrite != nil {
 				klog.Errorf("failed to write rescan cmd to %s", name)
 			}
 		}

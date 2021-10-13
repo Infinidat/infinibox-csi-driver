@@ -37,7 +37,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
+			if err := nfs.osHelper.MkdirAll(targetPath, 0o750); err != nil {
 				klog.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}

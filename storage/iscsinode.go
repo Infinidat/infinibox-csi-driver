@@ -731,7 +731,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", status.Error(codes.Internal, "iscsi: Read-only is not supported for Block Volume")
 		}
 
-		if err := os.MkdirAll(filepath.Dir(mntPath), 0750); err != nil {
+		if err := os.MkdirAll(filepath.Dir(mntPath), 0o750); err != nil {
 			klog.Errorf("Failed to mkdir %s, error", filepath.Dir(mntPath))
 			return "", err
 		}

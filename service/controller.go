@@ -14,7 +14,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"infinibox-csi-driver/storage"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -93,7 +92,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	config["nodeid"] = s.nodeID
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume " + volproto.StorageType)
+		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)
 		return
 	}
 	req.VolumeId = volproto.VolumeID
