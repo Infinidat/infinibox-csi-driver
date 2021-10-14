@@ -9,7 +9,7 @@ instanceCount: 1
 volumeNamePrefix: csi
 
 # log level of driver
-logLevel: "info"
+logLevel: "debug"
 
 # name of the driver
 # note same name will be used for provisioner name
@@ -31,33 +31,32 @@ images:
   imagePullSecret: private-docker-reg-secret
 
   # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar
-  attachersidecar: quay.io/k8scsi/csi-attacher:v2.0.0
-  attachersidecar_pull_policy: Always
+  attachersidecar: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
+  attachersidecar_pull_policy: IfNotPresent
 
   # "images.provisioner-sidercar" defines the container image used for the csi provisioner sidecar
-  provisionersidecar: quay.io/k8scsi/csi-provisioner:v1.4.0
-  provisionersidecar_pull_policy: Always
+  provisionersidecar: k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2
+  provisionersidecar_pull_policy: IfNotPresent
 
   # "images.snapshotter-sidercar" defines the container image used for the csi snapshotter sidercar
-  snapshottersidecar: quay.io/k8scsi/csi-snapshotter:v3.0.3
-  snapshottersidecar_pull_policy: Always
+  snapshottersidecar: k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0
+  snapshottersidecar_pull_policy: IfNotPresent
 
   # "images.registrar-sidercar" defines the container images used for the csi registrar sidercar
-  registrarsidecar: quay.io/k8scsi/csi-node-driver-registrar:v1.3.0
-  registrarsidecar_pull_policy: Always
+  registrarsidecar: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v1.3.0
+  registrarsidecar_pull_policy: IfNotPresent
 
   # "images.resizer-sidercar" defines the container image used for the csi provisioner sidecar
-  resizersidecar: quay.io/k8scsi/csi-resizer:v0.3.0
-  resizersidecar_pull_policy: Always
+  resizersidecar: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
+  resizersidecar_pull_policy: IfNotPresent
 
   # "images.csidriver" defines csidriver image used for external provisioning
   csidriver: docker.io/infinidat/infinidat-csi-driver:v2.1.0-rc1
   csidriver_pull_policy: Always
 
-# Infinibox secrets temp: will create secret for testing purpose
 Infinibox_Cred:
-  SecretName: "csi-infinibox-creds"
-  username: "k3s-pool-admin"
+  SecretName: "infinibox-creds"
+  username: "k8s-pool-admin"
   password: "000000"
   hostname: "ibox0000"
   inbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout"
