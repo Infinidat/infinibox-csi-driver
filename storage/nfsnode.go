@@ -14,8 +14,12 @@ import (
 	"context"
 	"fmt"
 	log "infinibox-csi-driver/helper/logger"
+	"os"
 	"os/exec"
 	"strings"
+	"syscall"
+	"path"
+	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -43,7 +47,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			}
 			notMnt = true
 		} else {
-			klog.Errorf("IsLikelyNotMountPoint method error  %v", err)
+			klog.Errorf("IsLikelyNotMountPoint error  %v", err)
 			return nil, err
 		}
 	}
@@ -110,8 +114,45 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+func (nfs *nfsstorage) isCorruptedMnt(err error) bool {
+	if err == nil {
+		return false
+	}
+	var underlyingError error
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *os.PathError:
+		underlyingError = pe.Err
+	case *os.LinkError:
+		underlyingError = pe.Err
+	case *os.SyscallError:
+		underlyingError = pe.Err
+	}
+
+	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
+}
+
+func (nfs *nfsstorage) pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		klog.V(4).Infof("Path exists: %s", path)
+		return true, nil
+	} else if os.IsNotExist(err) {
+		klog.V(4).Infof("Path does not exist: %s", path)
+		return false, nil
+	} else if nfs.isCorruptedMnt(err) {
+		klog.V(4).Infof("Path is corrupted: %s", path)
+		return true, err
+	} else {
+		klog.V(4).Infof("Path cannot be validated: %s", path)
+		return false, err
+	}
+}
+
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume")
+
 	targetPath := req.GetTargetPath()
 
 	mntPath := path.Join("/host", targetPath)
@@ -136,22 +177,17 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 				return nil, err
 			}
 		}
-		klog.Errorf("failed to check if target path: %s is a mount point, err: %s", targetPath, err)
-		return nil, err
-	}
-	if !notMnt {
-		klog.V(4).Infof("unmount target path: %s", targetPath)
-		if err := nfs.mounter.Unmount(targetPath); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to unmount target path: %s, err: %s", targetPath, err)
-		}
-	} else {
-		klog.V(4).Infof("target path: %s is not a mount point", targetPath)
 	}
 
-	klog.V(4).Infof("remove target path: %s", targetPath)
-	if err := nfs.osHelper.Remove(targetPath); err != nil && !nfs.osHelper.IsNotExist(err) {
-		return nil, status.Errorf(codes.Internal, "failed to remove target path: %s, err: %s", targetPath, err)
+	if err := os.RemoveAll(mntPathParent); err != nil {
+		klog.Errorf("failed to remove mount path parent: %s, err: %v", mntPathParent, err)
+		return nil, err
 	}
+	if err := os.RemoveAll(targetPath); err != nil {
+		klog.Errorf("failed to remove target path: %s, err: %v", targetPath, err)
+		return nil, err
+	}
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

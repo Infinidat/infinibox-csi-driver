@@ -90,6 +90,9 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	}
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
+
+    klog.V(4).Infof("DEBUG: req: %v", req)
+
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)

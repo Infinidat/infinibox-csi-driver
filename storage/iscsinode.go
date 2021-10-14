@@ -875,11 +875,11 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	mntPathParent := filepath.Dir(mntPath)
 
 	if pathExist, pathErr := iscsi.pathExists(targetPath); pathErr != nil {
-		return fmt.Errorf("faied to check if target path path exists: %s, err: %v", targetPath, pathErr)
+		return fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, pathErr)
 	} else if !pathExist {
 		if pathExist, _ = iscsi.pathExists(mntPath); pathErr == nil {
 			if !pathExist {
-				klog.Warningf("unmount skipped because target path does not exist: %s", targetPath)
+				klog.Warningf("unmount skipped because host mount path does not exist: %s", mntPath)
 				return nil
 			}
 		}
