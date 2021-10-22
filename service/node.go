@@ -52,7 +52,7 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 		}
 	}()
 	klog.V(2).Infof("NodeUnpublishVolume called with volume name %s", req.GetVolumeId())
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -132,7 +132,7 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 		}
 	}()
 	klog.V(2).Infof("NodeUnstageVolume called with volume name %s", req.GetVolumeId())
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

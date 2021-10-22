@@ -79,7 +79,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 
 	voltype := req.GetVolumeId()
 	klog.V(2).Infof("DeleteVolume method called with volume name %s", voltype)
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			klog.Errorf("DeleteVolume success, volume not found")
@@ -116,7 +116,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 		}
 	}()
 
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ControllerPublishVolume failed: %v", err)
@@ -153,7 +153,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 		}
 	}()
 
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ControllerUnpublishVolume failed: %v", err)
@@ -190,7 +190,7 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 		}
 	}()
 
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ValidateVolumeCapabilities failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed: %v", err)
@@ -295,7 +295,7 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	}()
 
 	klog.V(2).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
-	volproto, err := s.validateStorageType(req.GetSourceVolumeId())
+	volproto, err := s.validateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
 		klog.Errorf("failed to validate storage type %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to validate source Vol Id: %s", err.Error())
@@ -323,7 +323,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 
 	snapshotID := req.GetSnapshotId()
 	klog.V(2).Infof("Delete Snapshot called with snapshot Id %s", snapshotID)
-	volproto, err := s.validateStorageType(snapshotID)
+	volproto, err := s.validateVolumeID(snapshotID)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			klog.Errorf("snapshot ID: '%s' not found, err: %v - return success", snapshotID, err)
@@ -363,7 +363,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
-	volproto, err := s.validateStorageType(req.GetVolumeId())
+	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		return
 	}

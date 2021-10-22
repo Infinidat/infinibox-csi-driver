@@ -113,11 +113,28 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
-	if err != nil {
-		if nfs.osHelper.IsNotExist(err) {
-			klog.Warningf("target path: %s doesn't exist, return OK", targetPath)
-			return &csi.NodeUnpublishVolumeResponse{}, nil
+
+	mntPath := path.Join("/host", targetPath)
+	mntPathParent := filepath.Dir(mntPath)
+
+	if pathExist, pathErr := nfs.pathExists(targetPath); pathErr != nil {
+		return nil, fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, pathErr)
+	} else if !pathExist {
+		if pathExist, _ = nfs.pathExists(mntPath); pathErr != nil {
+			if !pathExist {
+				klog.Warningf("unmount skipped because host mount path does not exist: %s", mntPath)
+				return &csi.NodeUnpublishVolumeResponse{}, nil
+			}
+		}
+	} else {
+		klog.V(4).Infof("umount targetPath: %s", targetPath)
+		if err := nfs.mounter.Unmount(targetPath); err != nil {
+			if strings.Contains(err.Error(), "not mounted") {
+				klog.V(4).Infof("target path not mounted, while trying to unmount: %s", targetPath)
+			} else {
+				klog.Errorf("failed to unmount target path: %s, err: %v", targetPath, err)
+				return nil, err
+			}
 		}
 		klog.Errorf("failed to check if target path: %s is a mount point, err: %s", targetPath, err)
 		return nil, err

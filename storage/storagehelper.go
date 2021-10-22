@@ -127,7 +127,7 @@ func copyRequestParameters(parameters, out map[string]string) {
 	}
 }
 
-func validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+func validateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")

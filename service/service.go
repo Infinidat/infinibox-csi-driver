@@ -114,7 +114,7 @@ func (s *service) validateNodeID(nodeID string) error {
 	return nil
 }
 
-func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+func (s *service) validateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	if str == "" {
 		return volprotoconf, status.Error(codes.InvalidArgument, "volume Id empty")
 	}

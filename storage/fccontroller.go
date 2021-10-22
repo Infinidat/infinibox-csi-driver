@@ -205,7 +205,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 
 	// Validate the source content id
-	volproto, err := validateStorageType(volumeContentID)
+	volproto, err := validateVolumeID(volumeContentID)
 	if err != nil {
 		klog.Errorf("Failed to validate storage type for source id: %s, err: %v", volumeContentID, err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
@@ -280,7 +280,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 
 func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerPublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
-	volproto, err := validateStorageType(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("Failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
@@ -367,7 +367,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 
 func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerUnpublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
-	volproto, err := validateStorageType(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
@@ -412,7 +412,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 
 func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
 	klog.V(2).Infof("ValidateVolumeCapabilities called with volumeId %s", req.GetVolumeId())
-	volproto, err := validateStorageType(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("Failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
@@ -466,7 +466,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	snapshotName := req.GetName()
 	klog.V(4).Infof("Create Snapshot of name %s", snapshotName)
 	klog.V(4).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
-	volproto, err := validateStorageType(req.GetSourceVolumeId())
+	volproto, err := validateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
 		klog.Errorf("failed to validate storage type %v", err)
 		return
