@@ -28,47 +28,47 @@ type MockApiClient struct {
 	mock.Mock
 }
 
-//Get : mock for get request
+// Get : mock for get request
 func (m *MockApiClient) Get(ctx context.Context, url string, hostconfig client.HostConfig, expectedResp interface{}) (interface{}, error) {
 	args := m.Called()
-	resp, _ := args.Get(0).(interface{})
+	resp := args.Get(0) //.(interface{})
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
 
-//Post : mock for post request
+// Post : mock for post request
 func (m *MockApiClient) Post(ctx context.Context, url string, hostconfig client.HostConfig, body, expectedResp interface{}) (interface{}, error) {
 	args := m.Called()
-	resp, _ := args.Get(0).(interface{})
+	resp := args.Get(0) //.(interface{})
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
 
-//Put : mock for put request
+// Put : mock for put request
 func (m *MockApiClient) Put(ctx context.Context, url string, hostconfig client.HostConfig, body, expectedResp interface{}) (interface{}, error) {
 	args := m.Called()
-	response, _ := args.Get(0).(interface{})
+	response := args.Get(0) //.(interface{})
 	err, _ := args.Get(1).(error)
 	return response, err
 }
 
-//Delete : mock for Delete request
+// Delete : mock for Delete request
 func (m *MockApiClient) Delete(ctx context.Context, url string, hostconfig client.HostConfig) (interface{}, error) {
 	args := m.Called()
-	resp, _ := args.Get(0).(interface{})
+	resp := args.Get(0) //.(interface{})
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
 
-//GetWithQueryString : mock for GetWithQueryString request
+// GetWithQueryString : mock for GetWithQueryString request
 func (m *MockApiClient) GetWithQueryString(ctx context.Context, url string, hostconfig client.HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
 	args := m.Called()
-	resp, _ := args.Get(0).(interface{})
+	resp := args.Get(0) //.(interface{})
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
 
-//GetStoragePoolIDByName mock
+// GetStoragePoolIDByName mock
 func (m *MockApiService) GetStoragePoolIDByName(poolName string) (int64, error) {
 	args := m.Called(poolName)
 	resp, _ := args.Get(0).(int64)
@@ -76,7 +76,7 @@ func (m *MockApiService) GetStoragePoolIDByName(poolName string) (int64, error) 
 	return resp, err
 }
 
-//GetFileSystemsByPoolID mock
+// GetFileSystemsByPoolID mock
 func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int) (*FSMetadata, error) {
 	args := m.Called(poolID, page)
 	resp, _ := args.Get(0).(FSMetadata)
@@ -84,7 +84,7 @@ func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int) (*FSMeta
 	return &resp, err
 }
 
-//GetFilesytemTreeqCount mock
+// GetFilesytemTreeqCount mock
 func (m *MockApiService) GetFilesytemTreeqCount(filesystemID int64) (int, error) {
 	args := m.Called(filesystemID)
 	resp, _ := args.Get(0).(int)
@@ -92,7 +92,7 @@ func (m *MockApiService) GetFilesytemTreeqCount(filesystemID int64) (int, error)
 	return resp, err
 }
 
-//CreateTreeq mock
+// CreateTreeq mock
 func (m *MockApiService) CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error) {
 	args := m.Called(filesystemID, treeqParameter)
 	resp, _ := args.Get(0).(Treeq)
@@ -100,7 +100,7 @@ func (m *MockApiService) CreateTreeq(filesystemID int64, treeqParameter map[stri
 	return &resp, err
 }
 
-//AttachMetadataToObject mock
+// AttachMetadataToObject mock
 func (m *MockApiService) AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error) {
 	args := m.Called(objectID, body)
 	resp, _ := args.Get(0).([]Metadata)
@@ -108,7 +108,7 @@ func (m *MockApiService) AttachMetadataToObject(objectID int64, body map[string]
 	return &resp, err
 }
 
-//UpdateFilesystem
+// UpdateFilesystem
 func (m *MockApiService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
 	args := m.Called(fileSystemID, fileSystem)
 	var filessy FileSystem
@@ -123,7 +123,7 @@ func (m *MockApiService) UpdateFilesystem(fileSystemID int64, fileSystem FileSys
 	return &filessy, err
 }
 
-//GetExportByFileSystem
+// GetExportByFileSystem
 func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
 	args := m.Called(fileSystemID)
 	resp, _ := args.Get(0).([]ExportResponse)
@@ -131,7 +131,7 @@ func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportRes
 	return &resp, err
 }
 
-//GetTreeq
+// GetTreeq
 func (m *MockApiService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 	args := m.Called(fileSystemID, treeqID)
 	resp, _ := args.Get(0).(Treeq)
@@ -139,7 +139,7 @@ func (m *MockApiService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 	return &resp, err
 }
 
-//DeleteTreeq
+// DeleteTreeq
 func (m *MockApiService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 	args := m.Called(fileSystemID, treeqID)
 	resp, _ := args.Get(0).(Treeq)
@@ -147,7 +147,7 @@ func (m *MockApiService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error
 	return &resp, err
 }
 
-//GetNetworkSpaceByName
+// GetNetworkSpaceByName
 func (m *MockApiService) GetNetworkSpaceByName(networkSpaceName string) (NetworkSpace, error) {
 	args := m.Called(networkSpaceName)
 	resp, _ := args.Get(0).(NetworkSpace)
@@ -155,7 +155,7 @@ func (m *MockApiService) GetNetworkSpaceByName(networkSpaceName string) (Network
 	return resp, err
 }
 
-//UpdateTreeq
+// UpdateTreeq
 func (m *MockApiService) UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error) {
 	args := m.Called(fileSystemID, treeqID, body)
 	resp, _ := args.Get(0).(Treeq)
@@ -163,7 +163,7 @@ func (m *MockApiService) UpdateTreeq(fileSystemID, treeqID int64, body map[strin
 	return &resp, err
 }
 
-//GetFileSystemByID
+// GetFileSystemByID
 func (m *MockApiService) GetFileSystemByID(fileSystemID int64) (*FileSystem, error) {
 	args := m.Called(fileSystemID)
 	resp, _ := args.Get(0).(FileSystem)
@@ -171,7 +171,7 @@ func (m *MockApiService) GetFileSystemByID(fileSystemID int64) (*FileSystem, err
 	return &resp, err
 }
 
-//GetTreeqSizeByFileSystemID
+// GetTreeqSizeByFileSystemID
 func (m *MockApiService) GetTreeqSizeByFileSystemID(fileSystemID int64) (int64, error) {
 	args := m.Called(fileSystemID)
 	resp, _ := args.Get(0).(int64)
@@ -179,7 +179,7 @@ func (m *MockApiService) GetTreeqSizeByFileSystemID(fileSystemID int64) (int64, 
 	return resp, err
 }
 
-//GetFileSystemByName
+// GetFileSystemByName
 func (m *MockApiService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
 	args := m.Called(fileSystemName)
 	resp, _ := args.Get(0).(FileSystem)
@@ -190,7 +190,7 @@ func (m *MockApiService) GetFileSystemByName(fileSystemName string) (*FileSystem
 	return &resp, err
 }
 
-//GetFileSystemCount
+// GetFileSystemCount
 func (m *MockApiService) GetFileSystemCount() (int, error) {
 	args := m.Called()
 	resp, _ := args.Get(0).(int)
@@ -198,7 +198,7 @@ func (m *MockApiService) GetFileSystemCount() (int, error) {
 	return resp, err
 }
 
-//OneTimeValidation
+// OneTimeValidation
 func (m *MockApiService) OneTimeValidation(poolname string, networkspace string) (string, error) {
 	args := m.Called(poolname, networkspace)
 	resp, _ := args.Get(0).(string)
@@ -206,7 +206,7 @@ func (m *MockApiService) OneTimeValidation(poolname string, networkspace string)
 	return resp, err
 }
 
-//CreateFilesystem
+// CreateFilesystem
 func (m *MockApiService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
 	args := m.Called(fileSysparameter)
 	var resp FileSystem
@@ -220,7 +220,7 @@ func (m *MockApiService) CreateFilesystem(fileSysparameter map[string]interface{
 	return &resp, err
 }
 
-//ExportFileSystem
+// ExportFileSystem
 func (m *MockApiService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
 	argsArray := m.Called(export)
 	args := argsArray[0]
@@ -235,7 +235,7 @@ func (m *MockApiService) ExportFileSystem(export ExportFileSys) (*ExportResponse
 	return &resp, err
 }
 
-//CreateFileSystemSnapshot
+// CreateFileSystemSnapshot
 func (m *MockApiService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
 	args := m.Called(snapshotParam)
 	resp, _ := args.Get(0).(FileSystemSnapshotResponce)
@@ -243,35 +243,35 @@ func (m *MockApiService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnaps
 	return &resp, err
 }
 
-//FileSystemHasChild
+// FileSystemHasChild
 func (m *MockApiService) FileSystemHasChild(fileSystemID int64) bool {
 	args := m.Called(fileSystemID)
 	err, _ := args.Get(0).(bool)
 	return err
 }
 
-//GetParentID
+// GetParentID
 func (m *MockApiService) GetParentID(fileSystemID int64) int64 {
 	args := m.Called(fileSystemID)
 	resp, _ := args.Get(0).(int64)
 	return resp
 }
 
-//DeleteFileSystemComplete
+// DeleteFileSystemComplete
 func (m *MockApiService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
 	args := m.Called(fileSystemID)
 	err, _ = args.Get(0).(error)
 	return err
 }
 
-//DeleteParentFileSystem
+// DeleteParentFileSystem
 func (m *MockApiService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 	args := m.Called(fileSystemID)
 	err, _ = args.Get(0).(error)
 	return err
 }
 
-//GetVolume
+// GetVolume
 func (m *MockApiService) GetVolume(volumeid int) (*Volume, error) {
 	args := m.Called(volumeid)
 	resp, _ := args.Get(0).(Volume)
@@ -279,7 +279,7 @@ func (m *MockApiService) GetVolume(volumeid int) (*Volume, error) {
 	return &resp, err
 }
 
-//GetVolumeSnapshotByParentID
+// GetVolumeSnapshotByParentID
 func (m *MockApiService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
 	args := m.Called(volumeID)
 	resp, _ := args.Get(0).([]Volume)
@@ -287,21 +287,21 @@ func (m *MockApiService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, e
 	return &resp, err
 }
 
-//DeleteVolume
+// DeleteVolume
 func (m *MockApiService) DeleteVolume(volumeID int) (err error) {
 	args := m.Called(volumeID)
 	err, _ = args.Get(0).(error)
 	return err
 }
 
-//GetMetadataStatus
+// GetMetadataStatus
 func (m *MockApiService) GetMetadataStatus(fileSystemID int64) bool {
 	args := m.Called(fileSystemID)
 	err, _ := args.Get(0).(bool)
 	return err
 }
 
-//GetSnapshotByName
+// GetSnapshotByName
 func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
 	args := m.Called(snapshotName)
 	resp, _ := args.Get(0).([]FileSystemSnapshotResponce)
@@ -309,7 +309,7 @@ func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSn
 	return &resp, err
 }
 
-//AddNodeInExport
+// AddNodeInExport
 func (m *MockApiService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
 	argsArray := m.Called(exportID, access, noRootSquash, ip)
 	args := argsArray[0]
@@ -324,14 +324,14 @@ func (m *MockApiService) AddNodeInExport(exportID int, access string, noRootSqua
 	return &resp, err
 }
 
-//DeleteExportRule
+// DeleteExportRule
 func (m *MockApiService) DeleteExportRule(fileSystemID int64, ipAddress string) error {
 	args := m.Called(fileSystemID, ipAddress)
 	err, _ := args.Get(0).(error)
 	return err
 }
 
-//DeleteExportRule
+// DeleteExportRule
 func (m *MockApiService) GetFileSystemCountByPoolID(poolID int64) (int, error) {
 	args := m.Called(poolID)
 	cnt, _ := args.Get(0).(int)
@@ -339,7 +339,7 @@ func (m *MockApiService) GetFileSystemCountByPoolID(poolID int64) (int, error) {
 	return cnt, err
 }
 
-//GetTreeqByName
+// GetTreeqByName
 func (m *MockApiService) GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error) {
 	args := m.Called(fileSystemID, treeqName)
 	trq, _ := args.Get(0).(Treeq)
@@ -347,7 +347,7 @@ func (m *MockApiService) GetTreeqByName(fileSystemID int64, treeqName string) (*
 	return &trq, err
 }
 
-//GetVolumeByName
+// GetVolumeByName
 func (m *MockApiService) GetVolumeByName(volumename string) (*Volume, error) {
 	args := m.Called(volumename)
 	vol, _ := args.Get(0).(Volume)
@@ -358,7 +358,7 @@ func (m *MockApiService) GetVolumeByName(volumename string) (*Volume, error) {
 	return &vol, err
 }
 
-//CreateVolume
+// CreateVolume
 func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
 	args := m.Called(volume, storagePoolName)
 	var vol Volume
@@ -369,7 +369,7 @@ func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolName strin
 	return &vol, err
 }
 
-//FindStoragePool
+// FindStoragePool
 func (m *MockApiService) FindStoragePool(id int64, name string) (StoragePool, error) {
 	args := m.Called(id, name)
 	var storage StoragePool
@@ -380,7 +380,7 @@ func (m *MockApiService) FindStoragePool(id int64, name string) (StoragePool, er
 	return storage, err
 }
 
-//GetStoragePool
+// GetStoragePool
 func (m *MockApiService) GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error) {
 	args := m.Called(poolID, storagepoolname)
 	storageArry, _ := args.Get(0).([]StoragePool)
@@ -388,7 +388,7 @@ func (m *MockApiService) GetStoragePool(poolID int64, storagepoolname string) ([
 	return storageArry, err
 }
 
-//CreateSnapshotVolume
+// CreateSnapshotVolume
 func (m *MockApiService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
 	args := m.Called(snapshotParam)
 	snapshotVolumesResp, _ := args.Get(0).(SnapshotVolumesResp)
@@ -396,7 +396,7 @@ func (m *MockApiService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*S
 	return &snapshotVolumesResp, err
 }
 
-//GetHostByName
+// GetHostByName
 func (m *MockApiService) GetHostByName(hostName string) (Host, error) {
 	args := m.Called(hostName)
 	host, _ := args.Get(0).(Host)
@@ -404,7 +404,7 @@ func (m *MockApiService) GetHostByName(hostName string) (Host, error) {
 	return host, err
 }
 
-//GetAllLunByHost
+// GetAllLunByHost
 func (m *MockApiService) GetAllLunByHost(hostID int) ([]LunInfo, error) {
 	args := m.Called(hostID)
 	lunInfo, _ := args.Get(0).([]LunInfo)
@@ -412,7 +412,7 @@ func (m *MockApiService) GetAllLunByHost(hostID int) ([]LunInfo, error) {
 	return lunInfo, err
 }
 
-//MapVolumeToHost
+// MapVolumeToHost
 func (m *MockApiService) MapVolumeToHost(hostID, volumeID, lun int) (LunInfo, error) {
 	args := m.Called(hostID)
 	lunInfo, _ := args.Get(0).(LunInfo)
@@ -420,7 +420,7 @@ func (m *MockApiService) MapVolumeToHost(hostID, volumeID, lun int) (LunInfo, er
 	return lunInfo, err
 }
 
-//GetLunByHostVolume
+// GetLunByHostVolume
 func (m *MockApiService) GetLunByHostVolume(hostID, volumeID int) (LunInfo, error) {
 	args := m.Called(hostID)
 	lunInfo, _ := args.Get(0).(LunInfo)
@@ -428,21 +428,21 @@ func (m *MockApiService) GetLunByHostVolume(hostID, volumeID int) (LunInfo, erro
 	return lunInfo, err
 }
 
-//UnMapVolumeFromHost
+// UnMapVolumeFromHost
 func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) error {
 	args := m.Called(hostID, volumeID)
 	err, _ := args.Get(0).(error)
 	return err
 }
 
-//DeleteHost
+// DeleteHost
 func (m *MockApiService) DeleteHost(hostID int) error {
 	args := m.Called(hostID)
 	err, _ := args.Get(0).(error)
 	return err
 }
 
-//UpdateVolume
+// UpdateVolume
 func (m *MockApiService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
 	args := m.Called(volumeID, volume)
 	vol, _ := args.Get(0).(Volume)

@@ -21,7 +21,7 @@ import (
 	"k8s.io/klog"
 )
 
-//OsHelper interface
+// OsHelper interface
 type OsHelper interface {
 	MkdirAll(path string, perm os.FileMode) error
 	IsNotExist(err error) bool
@@ -32,26 +32,25 @@ type OsHelper interface {
 	ChmodVolumeExec(unixPermissions string, targetPath string) error
 }
 
-//Service service struct
-type Service struct {
-}
+// Service service struct
+type Service struct{}
 
-//MkdirAll method create dir
+// MkdirAll method create dir
 func (h Service) MkdirAll(path string, perm os.FileMode) error {
 	return os.MkdirAll(path, perm)
 }
 
-//IsNotExist method check the error type
+// IsNotExist method check the error type
 func (h Service) IsNotExist(err error) bool {
 	return os.IsNotExist(err)
 }
 
-//Remove method delete the dir
+// Remove method delete the dir
 func (h Service) Remove(name string) error {
 	return os.Remove(name)
 }
 
-//ChownVolume method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
+// ChownVolume method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
 func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 	// Sanity check values.
 	if uid != "" {
@@ -74,7 +73,7 @@ func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 	return h.ChownVolumeExec(uid, gid, targetPath)
 }
 
-//ChownVolumeExec method Execute chown.
+// ChownVolumeExec method Execute chown.
 func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) error {
 	if uid != "" || gid != "" {
 		klog.V(4).Infof("Specified UID: '%s', GID: '%s'", uid, gid)
@@ -97,12 +96,12 @@ func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) erro
 	return nil
 }
 
-//ChmodVolume method If unixPermissions key is found in req, chmod recursively for target path ommitting a toplevel .snapshot/.
+// ChmodVolume method If unixPermissions key is found in req, chmod recursively for target path ommitting a toplevel .snapshot/.
 func (h Service) ChmodVolume(unixPermissions string, targetPath string) error {
 	return h.ChmodVolumeExec(unixPermissions, targetPath)
 }
 
-//ChmodVolumeExec method Execute chmod.
+// ChmodVolumeExec method Execute chmod.
 func (h Service) ChmodVolumeExec(unixPermissions string, targetPath string) error {
 	if unixPermissions != "" {
 		klog.V(4).Infof("Specified unix permissions: '%s'", unixPermissions)
@@ -126,7 +125,7 @@ func (h Service) ChmodVolumeExec(unixPermissions string, targetPath string) erro
 
 /*OsHelper method mock services */
 
-//MockOsHelper -- mock method
+// MockOsHelper -- mock method
 type MockOsHelper struct {
 	mock.Mock
 	OsHelper

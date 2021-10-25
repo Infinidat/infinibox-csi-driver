@@ -14,15 +14,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
+	"net"
+	"os/exec"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/rexray/gocsi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"infinibox-csi-driver/api"
 	"k8s.io/klog"
-	"net"
-	"os/exec"
-	"strings"
 )
 
 const (
@@ -30,17 +31,13 @@ const (
 )
 
 type service struct {
-	//service
+	// service
 	apiclient api.Client
 	// parameters
-	mode                string
-	storagePoolIDToName map[int64]string
-	nodeID              string
-	maxVolumesPerNode   int64
-	driverName          string
-	driverVersion       string
-	nodeIPAddress       string
-	nodeName            string
+	nodeID        string
+	nodeName      string
+	driverName    string
+	driverVersion string
 }
 
 // Service is the CSI Mock service provider.
@@ -55,19 +52,17 @@ type Service interface {
 // New returns a new Service.
 func New(configParam map[string]string) Service {
 	return &service{
-		nodeID:              configParam["nodeid"],
-		driverName:          configParam["drivername"],
-		nodeIPAddress:       configParam["nodeIPAddress"],
-		nodeName:            configParam["nodeName"],
-		driverVersion:       configParam["driverversion"],
-		storagePoolIDToName: map[int64]string{},
-		apiclient:           &api.ClientService{},
+		apiclient: &api.ClientService{},
+		// parameters
+		nodeID:        configParam["nodeid"],
+		nodeName:      configParam["nodeName"],
+		driverName:    configParam["drivername"],
+		driverVersion: configParam["driverversion"],
 	}
 }
 
-func (s *service) BeforeServe(ctx context.Context, sp *gocsi.StoragePlugin, listner net.Listener) error {
-	s.verifyController()
-	return nil
+func (s *service) BeforeServe(ctx context.Context, sp *gocsi.StoragePlugin, listener net.Listener) error {
+	return s.verifyController()
 }
 
 func (s *service) verifyController() error {
@@ -108,10 +103,24 @@ func (s *service) getNodeFQDN() string {
 	return nodeFQDN
 }
 
-func (s *service) validateStorageType(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+func (s *service) validateNodeID(nodeID string) error {
+	if nodeID == "" {
+		return status.Error(codes.InvalidArgument, "node ID empty")
+	}
+	nodeSplit := strings.Split(nodeID, "$$")
+	if len(nodeSplit) != 2 {
+		return status.Error(codes.NotFound, "node Id does not follow '<fqdn>$$<id>' pattern")
+	}
+	return nil
+}
+
+func (s *service) validateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+	if str == "" {
+		return volprotoconf, status.Error(codes.InvalidArgument, "volume Id empty")
+	}
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
-		return volprotoconf, errors.New("volume Id and other details not found")
+		return volprotoconf, status.Error(codes.NotFound, "volume Id does not follow '<id>$$<proto>' pattern")
 	}
 	klog.V(2).Infof("volproto: %s", volproto)
 	volprotoconf.VolumeID = volproto[0]

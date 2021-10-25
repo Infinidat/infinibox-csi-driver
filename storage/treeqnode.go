@@ -28,7 +28,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.osHelper.IsNotExist(err) {
-			if err := treeq.osHelper.MkdirAll(targetPath, 0750); err != nil {
+			if err := treeq.osHelper.MkdirAll(targetPath, 0o750); err != nil {
 				log.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
@@ -60,12 +60,13 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
 	err = treeq.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		log.Errorf("fail to mount source path '%s' : %s", source, err)
+		log.Errorf("failed to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
 	log.Debugf("pod successfully mounted to volumeID %s", req.GetVolumeId())
 	return &csi.NodePublishVolumeResponse{}, nil
 }
+
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	log.Debug("treeq NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
@@ -90,9 +91,9 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 }
 
 func (treeq *treeqstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-
 	return &csi.NodeStageVolumeResponse{}, nil
 }
+
 func (treeq *treeqstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }

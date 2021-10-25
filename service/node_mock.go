@@ -17,10 +17,12 @@ func (m *NodeMock) NodePublishVolume(ctx context.Context, req *csi.NodePublishVo
 	m.Called(ctx, req)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
+
 func (m *NodeMock) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	m.Called(ctx, req)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
+
 func (m *NodeMock) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	m.Called(ctx, req)
 	return &csi.NodeStageVolumeResponse{}, nil

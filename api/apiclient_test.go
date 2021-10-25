@@ -37,7 +37,7 @@ func TestServiceTestSuite(t *testing.T) {
 
 func (suite *ApiTestSuite) Test_CreateVolumeGetStoragePoolIDByName_Fail() {
 	// Configure
-	expectedError := errors.New("fail to get pool ID from pool Name: test_storage_pool")
+	expectedError := errors.New("failed to get pool ID from pool Name: test_storage_pool")
 
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -61,7 +61,8 @@ func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
 	// Act
-	volume := VolumeParam{Name: "test_volume",
+	volume := VolumeParam{
+		Name:       "test_volume",
 		PoolId:     1000,
 		VolumeSize: 1000000000,
 	}
@@ -121,7 +122,7 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 }
 
 func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Fail() {
-	expectedError := errors.New("fail to get pool ID from pool Name: test_storage_pool")
+	expectedError := errors.New("failed to get pool ID from pool Name: test_storage_pool")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
@@ -191,7 +192,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 	// Test volume snapshot will be created
-	//expectedResponse := &SnapshotVolumesResp{}
+	// expectedResponse := &SnapshotVolumesResp{}
 	expectedResponse := client.ApiResponse{Result: &SnapshotVolumesResp{}}
 	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -245,10 +246,10 @@ func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
-	//networks := []NetworkSpace{}
+	// networks := []NetworkSpace{}
 	expectedResponse := client.ApiResponse{Result: NetworkSpace{}}
 
-	//networks = append(networks, network)
+	// networks = append(networks, network)
 	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 
@@ -396,6 +397,7 @@ func (suite *ApiTestSuite) Test_DeleteFileSystem_Fail() {
 	assert.NotNil(suite.T(), err, "Error should not be nil")
 	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
 }
+
 func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
 	expectedResponse := client.ApiResponse{Result: &FileSystem{ID: 0, PoolID: 0, Name: "", SsdEnabled: false, Provtype: "", Size: 0, ParentID: 0, PoolName: "", CreatedAt: 0}}
 	suite.clientMock.On("Delete").Return(expectedResponse, nil)
@@ -441,7 +443,6 @@ func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_panic() {
 
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
-
 }
 
 func (suite *ApiTestSuite) Test_CreateTreeq_success() {
@@ -468,7 +469,7 @@ func (suite *ApiTestSuite) Test_CreateTreeq_success() {
 
 func (suite *ApiTestSuite) Test_CreateTreeq_Error() {
 	var fileSysID int64 = 100
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: 1, FilesystemID: fileSysID, Name: "treeq", Path: "\treeq", HardCapacity: 100}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: 1, FilesystemID: fileSysID, Name: "treeq", Path: "\treeq", HardCapacity: 100}}
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Post").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -483,7 +484,6 @@ func (suite *ApiTestSuite) Test_CreateTreeq_Error() {
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
 	assert.Nil(suite.T(), response, "response should be nil")
-
 }
 
 func (suite *ApiTestSuite) Test_GetFileSystemsByPoolID_success() {
@@ -500,7 +500,7 @@ func (suite *ApiTestSuite) Test_GetFileSystemsByPoolID_success() {
 }
 
 func (suite *ApiTestSuite) Test_GetFileSystemsByPoolID_Error() {
-	//expectedResponse := client.ApiResponse{Result: getFilesystemArry(), MetaData: getMetaData()}
+	// expectedResponse := client.ApiResponse{Result: getFilesystemArry(), MetaData: getMetaData()}
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -737,7 +737,7 @@ func (suite *ApiTestSuite) Test_GetTreeq_Success() {
 func (suite *ApiTestSuite) Test_GetTreeq_fail() {
 	var FilesystemID int64 = 3111
 	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -745,7 +745,6 @@ func (suite *ApiTestSuite) Test_GetTreeq_fail() {
 	_, err := service.GetTreeq(FilesystemID, treeqID)
 	// Assert
 	assert.NotNil(suite.T(), err, "err should  nil")
-
 }
 
 func (suite *ApiTestSuite) Test_UpdateTreeq_Success() {
@@ -765,7 +764,7 @@ func (suite *ApiTestSuite) Test_UpdateTreeq_Success() {
 func (suite *ApiTestSuite) Test_UpdateTreeq_fail() {
 	var FilesystemID int64 = 3111
 	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Put").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -775,17 +774,17 @@ func (suite *ApiTestSuite) Test_UpdateTreeq_fail() {
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
 	assert.Equal(suite.T(), expectedErr, err, "Error not returned as expected")
-
 }
+
 func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_fail() {
 	var FilesystemID int64 = 3111
 	//	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	//body := map[string]interface{}{"hard_capacity": 1000000}
+	// body := map[string]interface{}{"hard_capacity": 1000000}
 	err := service.DeleteFileSystemComplete(FilesystemID)
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -794,13 +793,13 @@ func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_fail() {
 func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_export_delete_fail() {
 	var FilesystemID int64 = 3111
 	//	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Get").Return(getExportResponse(), nil)
 	suite.clientMock.On("Delete").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	//body := map[string]interface{}{"hard_capacity": 1000000}
+	// body := map[string]interface{}{"hard_capacity": 1000000}
 	err := service.DeleteFileSystemComplete(FilesystemID)
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -809,14 +808,14 @@ func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_export_delete_fail() {
 func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_metadata_delete_fail() {
 	var FilesystemID int64 = 3111
 	//	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
 	expectedErr := errors.New("EXPORT_NOT_FOUND")
 	suite.clientMock.On("Get").Return(nil, expectedErr)
-	//suite.clientMock.On("Delete").Return(nil, nil)
+	// suite.clientMock.On("Delete").Return(nil, nil)
 	suite.clientMock.On("Delete").Return([]Metadata{}, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	//body := map[string]interface{}{"hard_capacity": 1000000}
+	// body := map[string]interface{}{"hard_capacity": 1000000}
 	err := service.DeleteFileSystemComplete(FilesystemID)
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -825,17 +824,17 @@ func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_metadata_delete_fail() 
 func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_delete_fail1() {
 	var FilesystemID int64 = 3111
 	//	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
 	exportNotFoundErr := errors.New("EXPORT_NOT_FOUND")
 	suite.clientMock.On("Get").Return(nil, exportNotFoundErr)
-	//suite.clientMock.On("Delete").Return(nil, nil)
+	// suite.clientMock.On("Delete").Return(nil, nil)
 	metaDataErr := errors.New("METADATA_IS_NOT_SUPPORTED_FOR_ENTITY")
 	suite.clientMock.On("Delete").Return([]Metadata{}, metaDataErr)
 	expectedErr := errors.New("some Error")
 	suite.clientMock.On("Delete").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	//body := map[string]interface{}{"hard_capacity": 1000000}
+	// body := map[string]interface{}{"hard_capacity": 1000000}
 	err := service.DeleteFileSystemComplete(FilesystemID)
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -856,15 +855,15 @@ func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_delete_success() {
 func (suite *ApiTestSuite) Test_DeleteFileSystemComplete_deletes() {
 	var FilesystemID int64 = 3111
 	//	var treeqID int64 = 20000
-	//expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
-	//expectedErr := errors.New("some error")
+	// expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
+	// expectedErr := errors.New("some error")
 	suite.clientMock.On("Get").Return(getExportResponse(), nil)
 	suite.clientMock.On("Delete").Return(nil, nil)
 	suite.clientMock.On("Delete").Return(nil, nil)
 	suite.clientMock.On("Delete").Return(nil, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	//body := map[string]interface{}{"hard_capacity": 1000000}
+	// body := map[string]interface{}{"hard_capacity": 1000000}
 	err := service.DeleteFileSystemComplete(FilesystemID)
 	// Assert
 	assert.Nil(suite.T(), err, "Error should not be nil")
@@ -905,7 +904,7 @@ func (suite *ApiTestSuite) Test_GetParentID() {
 
 func (suite *ApiTestSuite) Test_GetParentID_success() {
 	var FilesystemID int64 = 3111
-	//expectedErr := errors.New("some error")
+	// expectedErr := errors.New("some error")
 	expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -931,7 +930,7 @@ func (suite *ApiTestSuite) Test_GetFileSystemByID_Error() {
 	var FilesystemID int64 = 3111
 	expectedErr := errors.New("some error")
 
-	//expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
+	// expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
 	suite.clientMock.On("Get").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	_, err := service.GetFileSystemByID(FilesystemID)
@@ -984,7 +983,7 @@ func (suite *ApiTestSuite) Test_FileSystemHasChild_Error() {
 }
 
 func (suite *ApiTestSuite) Test_GetFileSystemCount_success() {
-	//var FilesystemID int64 = 3111
+	// var FilesystemID int64 = 3111
 	metadata := client.Resultmetadata{NoOfObject: 10}
 	expectedResponse := client.ApiResponse{MetaData: metadata}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
@@ -996,7 +995,7 @@ func (suite *ApiTestSuite) Test_GetFileSystemCount_success() {
 }
 
 func (suite *ApiTestSuite) Test_GetFileSystemCount_Error() {
-	//var FilesystemID int64 = 3111
+	// var FilesystemID int64 = 3111
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -1007,7 +1006,7 @@ func (suite *ApiTestSuite) Test_GetFileSystemCount_Error() {
 }
 
 func (suite *ApiTestSuite) Test_CreateFilesystem_success() {
-	//var FilesystemID int64 = 3111
+	// var FilesystemID int64 = 3111
 	fileSys := FileSystem{ID: 3111}
 	expectedResponse := client.ApiResponse{Result: fileSys}
 	suite.clientMock.On("Post").Return(expectedResponse, nil)
@@ -1020,7 +1019,7 @@ func (suite *ApiTestSuite) Test_CreateFilesystem_success() {
 }
 
 func (suite *ApiTestSuite) Test_CreateFilesystem_Error() {
-	//var FilesystemID int64 = 3111
+	// var FilesystemID int64 = 3111
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("Post").Return(nil, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -1106,7 +1105,6 @@ func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_Error() {
 }
 
 func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_notmatch() {
-
 	var poolArry []StoragePool
 	var pool StoragePool
 	pool.ID = 123
@@ -1127,6 +1125,7 @@ func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_notmatch() 
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
 }
+
 func (suite *ApiTestSuite) Test_GetFileSystemByName_Error() {
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)
@@ -1209,7 +1208,7 @@ func (suite *ApiTestSuite) Test_AddNodeInExport_Error() {
 }
 
 func (suite *ApiTestSuite) Test_AddNodeInExport_IPAddress_exist_success() {
-	//expectedErr := errors.New("some error")
+	// expectedErr := errors.New("some error")
 	exportResp := ExportResponse{}
 	exportResp.ID = 1009
 
@@ -1231,7 +1230,7 @@ func (suite *ApiTestSuite) Test_AddNodeInExport_IPAddress_exist_success() {
 }
 
 func (suite *ApiTestSuite) Test_AddNodeInExport_IP_not_exist_success() {
-	//expectedErr := errors.New("some error")
+	// expectedErr := errors.New("some error")
 	exportResp := ExportResponse{}
 	exportResp.ID = 1009
 
@@ -1259,7 +1258,7 @@ func (suite *ApiTestSuite) Test_AddNodeInExport_IP_not_exist_success() {
 }
 
 func (suite *ApiTestSuite) Test_AddNodeInExport_update_error() {
-	//expectedErr := errors.New("some error")
+	// expectedErr := errors.New("some error")
 	exportResp := ExportResponse{}
 	exportResp.ID = 1009
 
@@ -1415,6 +1414,7 @@ func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Error() {
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
 }
+
 func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Panic() {
 	suite.clientMock.On("Get").Return(nil, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -1441,12 +1441,11 @@ func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_success() {
 	_, err := service.GetTreeqSizeByFileSystemID(filesystemID)
 	// Assert
 	assert.Nil(suite.T(), err, "Response should not be nil")
-	//assert.Equal(suite.T(), 100, response, "response should be nil")
+	// assert.Equal(suite.T(), 100, response, "response should be nil")
 }
 
 func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_Error() {
-
-	//expectedResponse := client.ApiResponse{Result: treeqArr}
+	// expectedResponse := client.ApiResponse{Result: treeqArr}
 	expecteErr := errors.New("some Error")
 	suite.clientMock.On("Get").Return(nil, expecteErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -1455,7 +1454,7 @@ func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_Error() {
 	_, err := service.GetTreeqSizeByFileSystemID(filesystemID)
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
-	//assert.Equal(suite.T(), 100, response, "response should be nil")
+	// assert.Equal(suite.T(), 100, response, "response should be nil")
 }
 
 func (suite *ApiTestSuite) Test_GetTreeqByName_Error() {
@@ -1467,7 +1466,6 @@ func (suite *ApiTestSuite) Test_GetTreeqByName_Error() {
 	_, err := service.GetTreeqByName(filesystemID, "treeqName")
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
-
 }
 
 func (suite *ApiTestSuite) Test_GetTreeqByName_success() {
@@ -1486,14 +1484,11 @@ func (suite *ApiTestSuite) Test_GetTreeqByName_success() {
 	_, err := service.GetTreeqByName(filesystemID, "treeqName")
 	// Assert
 	assert.Nil(suite.T(), err, "Response should not be nil")
-	//assert.Equal(suite.T(), 100, response, "response should be nil")
+	// assert.Equal(suite.T(), 100, response, "response should be nil")
 }
 
 //=============
 
-func getFilesystem() *FileSystem {
-	return &FileSystem{ParentID: 100}
-}
 func getExportResponse() *[]ExportResponse {
 	exportRespArry := []ExportResponse{}
 

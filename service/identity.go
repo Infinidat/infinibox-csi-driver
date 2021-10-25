@@ -12,18 +12,11 @@ package service
 
 import (
 	"context"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"k8s.io/klog"
 )
-
-// Manifest is the SP's manifest.
-var Manifest = map[string]string{
-	"url":    "http://github.com/infinidat/csi-infinidat-driver",
-	"semver": "1.0.0",
-	"commit": "",
-	"formed": "",
-}
 
 func (s *service) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	return &csi.GetPluginInfoResponse{
@@ -42,13 +35,14 @@ func (s *service) GetPluginCapabilities(ctx context.Context, req *csi.GetPluginC
 					},
 				},
 			},
-			{
-				Type: &csi.PluginCapability_Service_{
-					Service: &csi.PluginCapability_Service{
-						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
-					},
-				},
-			},
+			// To be reported when topology contstraints are supported
+			// {
+			// 	Type: &csi.PluginCapability_Service_{
+			// 		Service: &csi.PluginCapability_Service{
+			// 			Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
+			// 		},
+			// 	},
+			// },
 		},
 	}, nil
 }

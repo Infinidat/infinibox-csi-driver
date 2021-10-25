@@ -30,12 +30,14 @@ type HostConfig struct {
 	UserName string
 	Password string
 }
+
 type Resultmetadata struct {
 	NoOfObject int `json:"number_of_objects,omitempty"`
 	TotalPages int `json:"pages_total,omitempty"`
 	Page       int `json:"page,omitempty"`
 	PageSize   int `json:"page_size,omitempty"`
 }
+
 type ApiResponse struct {
 	Result   interface{}    `json:"result,omitempty"`
 	MetaData Resultmetadata `json:"metadata,omitempty"`
@@ -44,7 +46,7 @@ type ApiResponse struct {
 
 var rClient *resty.Client
 
-//NewRestClient : Initialize http client
+// NewRestClient : Initialize http client
 func NewRestClient() (*restclient, error) {
 	if rClient == nil {
 		rClient = resty.New()
@@ -56,7 +58,7 @@ func NewRestClient() (*restclient, error) {
 	return &restclient{}, nil
 }
 
-//RestClient : implement to make rest client
+// RestClient : implement to make rest client
 type RestClient interface {
 	Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error)
 	Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error)
@@ -207,85 +209,83 @@ func checkHttpClient() error {
 	return nil
 }
 
-//Method to check the response is valid or not
-func (rc *restclient) checkResponse(res *resty.Response, err error, resptpye interface{}) (result ApiResponse, er error) {
+// Method to check the response is valid or not
+func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct interface{}) (apiresp ApiResponse, retErr error) {
 	defer func() {
-		if recovered := recover(); recovered != nil && er == nil {
-			er = errors.New("error while parsing management api response " + fmt.Sprint(recovered) + "for request " + res.Request.URL)
+		if recovered := recover(); recovered != nil && retErr == nil {
+			retErr = errors.New("error while parsing management api response " + fmt.Sprint(recovered) + "for request " + res.Request.URL)
 		}
 	}()
 
 	if res.StatusCode() == http.StatusUnauthorized {
-		return result, errors.New("Request authentication failed for : " + res.Request.URL)
+		return apiresp, errors.New("Request authentication failed for: " + res.Request.URL)
 	}
 
 	if res.StatusCode() == http.StatusServiceUnavailable {
-		return result, errors.New(res.Status())
+		return apiresp, errors.New(res.Status() + " for: " + res.Request.URL)
 	}
 
 	if err != nil {
-		klog.Errorf("Error While Resty call for request " + res.Request.URL + err.Error())
-		return result, err
+		klog.Errorf("Error in Resty call: " + err.Error() + " for " + res.Request.URL)
+		return apiresp, err
 	}
-	if resptpye != nil {
+	if respStruct != nil {
 		// start: bind to given struct type
-		apiresp := ApiResponse{}
-		apiresp.Result = resptpye
+		apiresp.Result = respStruct
 		if err := json.Unmarshal(res.Body(), &apiresp); err != nil {
-			klog.Errorf("checkResponse expected type provided case. err %v", err)
-			return result, er
+			klog.Errorf("checkResponse with expected response struct provided, err: %v", err)
+			return apiresp, err
 		}
 		if res != nil {
 			if str, iserr := rc.parseError(apiresp.Error); iserr {
-				return result, errors.New(str)
+				klog.Errorf("checkResponse: %s", res)
+				klog.Errorf("checkResponse parseError, err: %s", str)
+				return apiresp, errors.New(str)
 			}
-			if apiresp.Result != nil {
-				return apiresp, nil
-			} else {
-				return result, errors.New("result part of response is nil for request " + res.Request.URL)
+			if apiresp.Result == nil {
+				return apiresp, errors.New("result part of response is nil for request " + res.Request.URL)
 			}
+			return apiresp, nil
 		} else {
-			return result, errors.New("empty response for " + res.Request.URL)
+			return apiresp, errors.New("empty response for " + res.Request.URL)
 		}
 		// end: bind to given struct
 	} else {
-		klog.V(2).Infof("checkResponse resptpye nil case: %s", resptpye)
+		klog.V(2).Infof("checkResponse with no expected response struct")
 		var response interface{}
-		if er := json.Unmarshal(res.Body(), &response); er != nil {
-			klog.Errorf("checkResponse expected type provided case. error %v", er)
-			return result, er
+		if err := json.Unmarshal(res.Body(), &response); err != nil {
+			klog.Errorf("checkResponse with no expected response struct, err: %v", err)
+			return apiresp, err
 		}
-
 		if res != nil {
 			responseinmap := response.(map[string]interface{})
 			if responseinmap != nil {
 				if str, iserr := rc.parseError(responseinmap["error"]); iserr {
-					return result, errors.New(str)
+					klog.Errorf("checkResponse parseError, err: %s", str)
+					return apiresp, errors.New(str)
 				}
-				result.Result = responseinmap["result"]
-				result.Error = responseinmap["error"]
-				if result.Result != nil {
-					return result, nil
-				} else {
-					return result, errors.New("result part of response is nil for request " + res.Request.URL)
+				apiresp.Result = responseinmap["result"]
+				if apiresp.Result == nil {
+					return apiresp, errors.New("result part of response is nil for request " + res.Request.URL)
 				}
+				apiresp.Error = responseinmap["error"]
+				return apiresp, nil
 			} else {
-				return result, errors.New("empty response for " + res.Request.URL)
+				return apiresp, errors.New("empty response for " + res.Request.URL)
 			}
 		} else {
-			return result, errors.New("empty response for " + res.Request.URL)
+			return apiresp, errors.New("empty response for " + res.Request.URL)
 		}
 	}
 }
 
-//Method to check error response from management api
+// Method to check error response from management api
 func (rc *restclient) parseError(responseinmap interface{}) (str string, iserr bool) {
 	defer func() {
 		if res := recover(); res != nil {
 			str = "recovered in parseError  " + fmt.Sprint(res)
 			iserr = true
 		}
-
 	}()
 
 	if responseinmap != nil {

@@ -13,24 +13,22 @@ package logger
 
 import (
 	"context"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
 
 	csictx "github.com/rexray/gocsi/context"
 	"github.com/sirupsen/logrus"
 )
 
-var logInstance *logrus.Logger
-var logLevel string
+var (
+	logInstance *logrus.Logger
+	logLevel    string
+)
 
 type Fields map[string]interface{}
 
 func getLoggerInstance() *logrus.Logger {
 	if logInstance == nil {
 		logInstance = logrus.New()
-		//logInstance.SetReportCaller(true)
+		// logInstance.SetReportCaller(true)
 		logLevel, _ = csictx.LookupEnv(context.Background(), "APP_LOG_LEVEL")
 
 		// set global log level
@@ -44,24 +42,6 @@ func getLoggerInstance() *logrus.Logger {
 
 	}
 	return logInstance
-}
-
-func logrusEntry() *logrus.Entry {
-	var logEntry *logrus.Entry
-	if strings.EqualFold(logLevel, "error") {
-		_, file, no, ok := runtime.Caller(2)
-		source := "undefined"
-		if ok {
-			source = filepath.Base(file) + ":" + strconv.Itoa(no)
-		}
-		logEntry = getLoggerInstance().WithFields(
-			logrus.Fields{
-				"source": source})
-	} else {
-		logEntry = getLoggerInstance().WithFields(
-			logrus.Fields{})
-	}
-	return logEntry
 }
 
 func GetLevel() string {

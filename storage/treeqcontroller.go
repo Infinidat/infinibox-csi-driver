@@ -30,11 +30,11 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	pvName := req.GetName()
 	log.Debugf("Creating fileystem %s of nfs_treeq protocol ", pvName)
 
-	//Validating the reqired parameters
+	// Validating the reqired parameters
 	validationStatus, validationStatusMap := treeq.filesysService.validateTreeqParameters(config)
 	if !validationStatus {
-		log.Errorf("Fail to validate parameter for nfs_treeq protocol %v ", validationStatusMap)
-		return nil, status.Error(codes.InvalidArgument, "Fail to validate parameter for nfs_treeq protocol")
+		log.Errorf("failed to validate parameter for nfs_treeq protocol %v ", validationStatusMap)
+		return nil, status.Error(codes.InvalidArgument, "failed to validate parameter for nfs_treeq protocol")
 	}
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
@@ -47,8 +47,8 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
 	}
 	if err != nil {
-		log.Errorf("fail to create volume %v", err)
-		return &csi.CreateVolumeResponse{}, err
+		log.Errorf("failed to create volume %v", err)
+		return nil, err
 	}
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
@@ -66,8 +66,12 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, size string, er
 		err = errors.New("volume Id and other details not found")
 		return
 	}
-	filesystemID, err = strconv.ParseInt(volproto[0], 10, 64)
-	treeqID, err = strconv.ParseInt(volproto[1], 10, 64)
+	if filesystemID, err = strconv.ParseInt(volproto[0], 10, 64); err != nil {
+		return
+	}
+	if treeqID, err = strconv.ParseInt(volproto[1], 10, 64); err != nil {
+		return
+	}
 	size = volproto[2]
 	return
 }
@@ -88,7 +92,7 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			log.Error("treeq already delete from infinibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return &csi.DeleteVolumeResponse{}, nfsDeleteErr
+		return nil, nfsDeleteErr
 	}
 	log.Infof("treeq ID %s successfully deleted", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
@@ -96,7 +100,6 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 func (treeq *treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	return &csi.ControllerPublishVolumeResponse{}, nil
-
 }
 
 func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
@@ -104,12 +107,11 @@ func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *c
 }
 
 func (treeq *treeqstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	return &csi.CreateSnapshotResponse{}, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
+	return nil, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
 }
 
 func (treeq *treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return &csi.DeleteSnapshotResponse{}, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
-
+	return nil, status.Error(codes.Unimplemented, "Unsupported operation for treeq")
 }
 
 func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {

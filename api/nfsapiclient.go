@@ -29,11 +29,10 @@ func (c *ClientService) OneTimeValidation(poolname string, networkspace string) 
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("error while One Time Validation   " + fmt.Sprint(res))
-
 		}
 	}()
-	//validating pool
-	var validList = ""
+	// validating pool
+	validList := ""
 	_, err = c.GetStoragePoolIDByName(poolname)
 	if err != nil {
 		return validList, err
@@ -115,19 +114,19 @@ func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]i
 			err = errors.New("AttachMetadataToObject Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(2).Infof("Attach metadata to object with ID %d", objectID)
+	klog.V(2).Infof("Attach metadata: %v to object id: %d", body, objectID)
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &metadata)
 	if err != nil {
-		klog.Errorf("Error occured while attaching metadata to object : %s", err)
+		klog.Errorf("Error occured while attaching metadata to object id: %d, %s", objectID, err)
 		return nil, err
 	}
 	if len(metadata) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.([]Metadata)
 	}
-	klog.V(2).Infof("Attached metadata to object with ID %d", objectID)
+	klog.V(4).Infof("Attached metadata to object id: %d", objectID)
 	return &metadata, nil
 }
 
@@ -274,7 +273,7 @@ func compareClientIP(permissionIP, ip string) bool {
 	return flag
 }
 
-//AddNodeInExport : Export should be updated in case of node addition in k8s cluster
+// AddNodeInExport : Export should be updated in case of node addition in k8s cluster
 func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
 	var err error
 	defer func() {
@@ -289,7 +288,6 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	eResp := ExportResponse{}
 
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-
 	if err != nil {
 		klog.Errorf("Error occured while getting export path : %s", err)
 		return nil, err
@@ -313,7 +311,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	if index != -1 {
 		permissionList = removeIndex(permissionList, index)
 	}
-	if flag == false {
+	if !flag {
 		newPermission := Permissions{
 			Access:       access,
 			NoRootSquash: noRootSquash,
@@ -335,7 +333,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	return &eResp, nil
 }
 
-//DeleteExportRule method
+// DeleteExportRule method
 func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) error {
 	var err error
 	defer func() {
@@ -407,7 +405,7 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 		}
 	}
 
-	if flag == true {
+	if flag {
 		permissionList = removeIndex(permissionList, index)
 		if len(permissionList) == 0 {
 			defaultPermission := Permissions{}
@@ -432,7 +430,7 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 	return &eResp, nil
 }
 
-//CreateFileSystemSnapshot method create the filesystem snapshot
+// CreateFileSystemSnapshot method create the filesystem snapshot
 func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
 	var err error
 	defer func() {
@@ -445,7 +443,7 @@ func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapsh
 	snapShotResponse := FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
 	if err != nil {
-		klog.Errorf("fail to create %v", err)
+		klog.Errorf("failed to create %v", err)
 		return nil, err
 	}
 	if (FileSystemSnapshotResponce{}) == snapShotResponse {
@@ -456,7 +454,7 @@ func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapsh
 	return &snapShotResponse, nil
 }
 
-//FileSystemHasChild method return true is the filesystemID has child else false
+// FileSystemHasChild method return true is the filesystemID has child else false
 func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
 	var err error
 	defer func() {
@@ -471,7 +469,7 @@ func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
 	queryParam["parent_id"] = fileSystemID
 	resp, err := c.getResponseWithQueryString(voluri, queryParam, &filesystem)
 	if err != nil {
-		klog.Errorf("fail to check FileSystemHasChild %v", err)
+		klog.Errorf("failed to check FileSystemHasChild %v", err)
 		return hasChild
 	}
 	if len(filesystem) == 0 {
@@ -484,13 +482,12 @@ func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
 	return hasChild
 }
 
-//
 const (
-	//TOBEDELETED status
+	// TOBEDELETED status
 	TOBEDELETED = "host.k8s.to_be_deleted"
 )
 
-//GetMetadataStatus :
+// GetMetadataStatus :
 func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 	var err error
 	defer func() {
@@ -517,10 +514,9 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 	}
 	klog.V(2).Infof("Got metadata status of filesystem with ID %d", fileSystemID)
 	return status
-
 }
 
-//GetFileSystemByName :
+// GetFileSystemByName :
 func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
 	var err error
 	defer func() {
@@ -575,7 +571,7 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 	return &eResp, nil
 }
 
-//GetParentID method return the
+// GetParentID method return the
 func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 	var err error
 	defer func() {
@@ -593,18 +589,18 @@ func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 	return fileSystem.ParentID
 }
 
-//DeleteParentFileSystem method delete the ascenders of fileystem
-func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { //delete fileystem's parent ID
+// DeleteParentFileSystem method delete the ascenders of fileystem
+func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { // delete fileystem's parent ID
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("DeleteParentFileSystem Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	//first check .. hasChild ...
+	// first check .. hasChild ...
 	hasChild := c.FileSystemHasChild(fileSystemID)
-	if !hasChild && c.GetMetadataStatus(fileSystemID) { //If No child and to_be_delete_status =true in metadata then
+	if !hasChild && c.GetMetadataStatus(fileSystemID) { // If No child and to_be_delete_status =true in metadata then
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
-		err = c.DeleteFileSystemComplete(fileSystemID) //delete the filesystem
+		err = c.DeleteFileSystemComplete(fileSystemID) // delete the filesystem
 		if err != nil {
 			klog.Errorf("Failed to delete filesystem, filesystemID:%d error:%v", fileSystemID, err)
 			return
@@ -616,22 +612,21 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 	return
 }
 
-//DeleteFileSystemComplete method delete the fileystem
+// DeleteFileSystemComplete method delete the fileystem
 func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
-
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("DeleteFileSystemComplete panic error " + fmt.Sprint(res))
 		}
 	}()
 
-	//1. Delete export path
+	// 1. Delete export path
 	exportResp, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
 		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 			err = nil
 		} else {
-			klog.Errorf("fail to delete export path %v", err)
+			klog.Errorf("failed to delete export path %v", err)
 			return
 		}
 	}
@@ -642,7 +637,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 				if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 					err = nil
 				} else {
-					klog.Errorf("fail to delete export path %v", err)
+					klog.Errorf("failed to delete export path %v", err)
 					return
 				}
 			}
@@ -651,28 +646,28 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 
 	klog.V(4).Infof("Export path deleted successfully")
 
-	//2.delete metadata
+	// 2.delete metadata
 	_, err = c.DetachMetadataFromObject(fileSystemID)
 	if err != nil {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		} else {
-			klog.Errorf("fail to delete metadata %v", err)
+			klog.Errorf("failed to delete metadata %v", err)
 			return
 		}
 	}
 
-	//3. delete file system
+	// 3. delete file system
 	klog.V(2).Infof("delete FileSystem FileSystemID %d", fileSystemID)
 	_, err = c.DeleteFileSystem(fileSystemID)
 	if err != nil {
-		klog.Errorf("fail to delete filesystem %v", err)
+		klog.Errorf("failed to delete filesystem %v", err)
 		return
 	}
 	return
 }
 
-//UpdateFilesystem : update file system
+// UpdateFilesystem : update file system
 func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
 	var err error
 	defer func() {
@@ -692,7 +687,7 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSyst
 
 	if fileSystem == (FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
-		fileSystem, _ = apiresp.Result.(FileSystem)
+		fileSystemResp, _ = apiresp.Result.(FileSystem)
 	}
 	klog.V(2).Infof("Updated filesystem with ID %d", fileSystemID)
 	return &fileSystemResp, nil
@@ -728,7 +723,7 @@ func removeIndex(s []Permissions, index int) []Permissions {
 	return append(s[:index], s[index+1:]...)
 }
 
-//GetSnapshotByName :
+// GetSnapshotByName :
 func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
 	var err error
 	defer func() {

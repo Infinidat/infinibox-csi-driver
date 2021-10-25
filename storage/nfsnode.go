@@ -14,38 +14,40 @@ import (
 	"context"
 	"fmt"
 	log "infinibox-csi-driver/helper/logger"
+	"os"
 	"os/exec"
+	"strings"
+	"syscall"
+	"path"
+	"path/filepath"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
-
-	//"strconv"
-	"strings"
-	"time"
 )
 
 func (nfs *nfsstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-
 	return &csi.NodeStageVolumeResponse{}, nil
 }
+
 func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
+
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(4).Infof("NodePublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			if err := nfs.osHelper.MkdirAll(targetPath, 0750); err != nil {
+			if err := nfs.osHelper.MkdirAll(targetPath, 0o750); err != nil {
 				klog.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
 			notMnt = true
 		} else {
-			klog.Errorf("IsLikelyNotMountPoint method error  %v", err)
+			klog.Errorf("IsLikelyNotMountPoint error  %v", err)
 			return nil, err
 		}
 	}
@@ -72,6 +74,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
 
 	// Create mount point
+	klog.V(4).Infof("Mount point doesn't exist, create: mkdir --parents --mode 0750 '%s'", targetPath)
 	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 	// MkdirAll() will cause hard-to-grok mount errors.
 	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
@@ -111,42 +114,97 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+func (nfs *nfsstorage) isCorruptedMnt(err error) bool {
+	if err == nil {
+		return false
+	}
+	var underlyingError error
+	switch pe := err.(type) {
+	case nil:
+		return false
+	case *os.PathError:
+		underlyingError = pe.Err
+	case *os.LinkError:
+		underlyingError = pe.Err
+	case *os.SyscallError:
+		underlyingError = pe.Err
+	}
+
+	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
+}
+
+func (nfs *nfsstorage) pathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		klog.V(4).Infof("Path exists: %s", path)
+		return true, nil
+	} else if os.IsNotExist(err) {
+		klog.V(4).Infof("Path does not exist: %s", path)
+		return false, nil
+	} else if nfs.isCorruptedMnt(err) {
+		klog.V(4).Infof("Path is corrupted: %s", path)
+		return true, err
+	} else {
+		klog.V(4).Infof("Path cannot be validated: %s", path)
+		return false, err
+	}
+}
+
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume")
+
 	targetPath := req.GetTargetPath()
-	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
-	if err != nil {
-		if nfs.osHelper.IsNotExist(err) {
-			klog.Warningf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
-			return &csi.NodeUnpublishVolumeResponse{}, nil
+
+	mntPath := path.Join("/host", targetPath)
+	mntPathParent := filepath.Dir(mntPath)
+
+	if pathExist, pathErr := nfs.pathExists(targetPath); pathErr != nil {
+		return nil, fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, pathErr)
+	} else if !pathExist {
+		if pathExist, _ = nfs.pathExists(mntPath); pathErr != nil {
+			if !pathExist {
+				klog.Warningf("unmount skipped because host mount path does not exist: %s", mntPath)
+				return &csi.NodeUnpublishVolumeResponse{}, nil
+			}
 		}
+	} else {
+		klog.V(4).Infof("umount targetPath: %s", targetPath)
+		if err := nfs.mounter.Unmount(targetPath); err != nil {
+			if strings.Contains(err.Error(), "not mounted") {
+				klog.V(4).Infof("target path not mounted, while trying to unmount: %s", targetPath)
+			} else {
+				klog.Errorf("failed to unmount target path: %s, err: %v", targetPath, err)
+				return nil, err
+			}
+		}
+	}
+
+	if err := os.RemoveAll(mntPathParent); err != nil {
+		klog.Errorf("failed to remove mount path parent: %s, err: %v", mntPathParent, err)
 		return nil, err
 	}
-	if notMnt {
-		if err := nfs.mounter.Unmount(targetPath); err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
-		}
+	if err := os.RemoveAll(targetPath); err != nil {
+		klog.Errorf("failed to remove target path: %s, err: %v", targetPath, err)
+		return nil, err
 	}
-	if err := nfs.osHelper.Remove(targetPath); err != nil && !nfs.osHelper.IsNotExist(err) {
-		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
-	}
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
 func (nfs *nfsstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	return &csi.NodeGetCapabilitiesResponse{}, nil
+	// should never be called
+	return nil, status.Error(codes.Unimplemented, "nfs NodeGetCapabilities not implemented")
 }
 
 func (nfs *nfsstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	return nil, nil
-
+	// should never be called
+	return nil, status.Error(codes.Unimplemented, "nfs NodeGetInfo not implemented")
 }
 
 func (nfs *nfsstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodePublishVolume not implemented")
-
+	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats not implemented")
 }
 
 func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String()+"---  NodePublishVolume not implemented")
+	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not implemented")
 }

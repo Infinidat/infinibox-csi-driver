@@ -36,7 +36,7 @@ func (suite *NodeTestSuite) Test_NodePublishVolume_success() {
 	defer patch.Unpatch()
 
 	_, err := s.NodePublishVolume(context.Background(), nodePublishReq)
-	assert.Nil(suite.T(), err, "success")
+	assert.Nil(suite.T(), err, "NodePublishVolume expected to succede")
 }
 
 func (suite *NodeTestSuite) Test_NodeUnpublishVolume_invalid_protocol() {
@@ -69,6 +69,7 @@ func (suite *NodeTestSuite) Test_NodeGetInfo() {
 	_, err := s.NodeGetInfo(context.Background(), &csi.NodeGetInfoRequest{})
 	assert.Nil(suite.T(), err)
 }
+
 func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 	nodeStageReq := getNodeStageVolumeRequest()
 	nodeStageReq.VolumeContext = map[string]string{"storage_protocol": "unknown"}
@@ -101,19 +102,19 @@ func (suite *NodeTestSuite) Test_NodeGetVolumeStats() {
 	assert.NotNil(suite.T(), err)
 }
 
-func (suite *NodeTestSuite) Test_NodeExpandVolume_invalid_ID() {
-	nodeNodeExpandReq := getNodeExpandVolumeRequest()
-	nodeNodeExpandReq.VolumeId = ""
-	s := getService()
-	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
-	assert.NotNil(suite.T(), err, "Invalid ID")
-}
+// func (suite *NodeTestSuite) Test_NodeExpandVolume_invalid_ID() {
+// 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
+// 	nodeNodeExpandReq.VolumeId = ""
+// 	s := getService()
+// 	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
+// 	assert.NotNil(suite.T(), err, "Invalid ID")
+// }
 
-func (suite *NodeTestSuite) Test_NodeExpandVolume_success() {
+func (suite *NodeTestSuite) Test_NodeExpandVolume_unimplemented() {
 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
 	s := getService()
 	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
-	assert.Nil(suite.T(), err)
+	assert.Error(suite.T(), err)
 }
 
 //======================Data generator
@@ -123,6 +124,7 @@ func getNodeExpandVolumeRequest() *csi.NodeExpandVolumeRequest {
 		VolumeId: "100$$nfs",
 	}
 }
+
 func getNodeStageVolumeRequest() *csi.NodeStageVolumeRequest {
 	return &csi.NodeStageVolumeRequest{
 		VolumeId:      "100$$nfs",
@@ -136,6 +138,7 @@ func getNodeUnpublishVolumeRequest() *csi.NodeUnpublishVolumeRequest {
 		VolumeId: "100$$nfs",
 	}
 }
+
 func getNodeNodePublishVolumeRequest() *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		VolumeId:      "100$$nfs",

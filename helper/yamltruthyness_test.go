@@ -22,7 +22,7 @@ func ErrorContains(err error, want string) bool {
 // TestYamlBoolToBool tests that YamlBoolToBool() generates bools.
 func TestYamlBoolToBool(t *testing.T) {
 	expected_err := "not a valid YAML boolean"
-	var tests = []struct {
+	tests := []struct {
 		input   string
 		want    bool
 		wanterr string

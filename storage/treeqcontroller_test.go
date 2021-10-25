@@ -76,6 +76,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
+
 func (suite *TreeqControllerSuite) Test_DeleteVolume_InvalidVolumeID() {
 	service := treeqstorage{filesysService: suite.filesystem}
 	volumeID := "100"
@@ -118,6 +119,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_VolumeID_empty() 
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
+
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_InvalidVolumeID() {
 	service := treeqstorage{filesysService: suite.filesystem}
 	volumeID := "100"
@@ -130,7 +132,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
-	var maxSize = ""
+	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(expectedErr)
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "error expected")
@@ -140,7 +142,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfoun
 	service := treeqstorage{filesysService: suite.filesystem}
 	volumeID := "100#200#"
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
-	var maxSize = ""
+	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
@@ -150,7 +152,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
 	service := treeqstorage{filesysService: suite.filesystem}
 	volumeID := "100#200#"
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
-	var maxSize = ""
+	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
 	resp, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
@@ -161,7 +163,7 @@ func TestTreeqControllerSuite(t *testing.T) {
 	suite.Run(t, new(TreeqControllerSuite))
 }
 
-//test data
+// test data
 
 func getExpandVolumeRequest(vID string) *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{
@@ -175,13 +177,14 @@ func getCreateVolumeResponse() map[string]string {
 	result["TREEQID"] = "200"
 	return result
 }
+
 func getDeleteVolumeRequest(vID string) *csi.DeleteVolumeRequest {
 	return &csi.DeleteVolumeRequest{
 		VolumeId: vID,
 	}
 }
 
-//mock method
+// mock method
 type FileSystemInterfaceMock struct {
 	mock.Mock
 }
@@ -192,12 +195,14 @@ func (m *FileSystemInterfaceMock) CreateTreeqVolume(config map[string]string, ca
 	err, _ := status.Get(1).(error)
 	return st, err
 }
+
 func (m *FileSystemInterfaceMock) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
 	status := m.Called(config)
 	st, _ := status.Get(0).(bool)
 	parameter, _ := status.Get(1).(map[string]string)
 	return st, parameter
 }
+
 func (m *FileSystemInterfaceMock) DeleteTreeqVolume(filesystemID, treeqID int64) error {
 	status := m.Called(filesystemID, treeqID)
 	st, _ := status.Get(0).(error)

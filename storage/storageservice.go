@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/helper"
 	"io/ioutil"
 	"math/rand"
@@ -25,8 +26,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"infinibox-csi-driver/api/clientgo"
 
 	log "infinibox-csi-driver/helper/logger"
 
@@ -39,12 +38,21 @@ import (
 )
 
 const (
-	Name                   = "infinibox-csi-driver"
-	bytesInKiB             = 1024
-	KeyThickProvisioning   = "thickprovisioning"
-	thinProvisioned        = "Thin"
-	thickProvisioned       = "Thick"
+	Name                 = "infinibox-csi-driver"
+	KeyThickProvisioning = "thickprovisioning"
+	// thinProvisioned        = "Thin"
+	// thickProvisioned       = "Thick"
 	KeyVolumeProvisionType = "provision_type"
+)
+
+const (
+	// for size conversion
+	kib int64 = 1024
+	mib int64 = kib * 1024
+	gib int64 = mib * 1024
+	// gib100 int64 = gib * 100
+	tib int64 = gib * 1024
+	// tib100 int64 = tib * 100
 )
 
 type Storageoperations interface {
@@ -55,10 +63,12 @@ type Storageoperations interface {
 type fcstorage struct {
 	cs commonservice
 }
+
 type iscsistorage struct {
 	cs       commonservice
 	osHelper helper.OsHelper
 }
+
 type treeqstorage struct {
 	csi.ControllerServer
 	csi.NodeServer
@@ -66,6 +76,7 @@ type treeqstorage struct {
 	osHelper       helper.OsHelper
 	mounter        mount.Interface
 }
+
 type nfsstorage struct {
 	uniqueID  int64
 	configmap map[string]string
@@ -92,7 +103,7 @@ type commonservice struct {
 	accessModesHelper helper.AccessModesHelper
 }
 
-//NewStorageController : To return specific implementation of storage
+// NewStorageController : To return specific implementation of storage
 func NewStorageController(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
@@ -111,7 +122,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 	return nil, err
 }
 
-//NewStorageNode : To return specific implementation of storage
+// NewStorageNode : To return specific implementation of storage
 func NewStorageNode(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
@@ -165,14 +176,15 @@ func (cs *commonservice) verifyApiClient() error {
 	klog.V(2).Infof("api client is verified.")
 	return nil
 }
+
 func (cs *commonservice) getIscsiInitiatorName() string {
 	if ep, ok := csictx.LookupEnv(context.Background(), "ISCSI_INITIATOR_NAME"); ok {
 		return ep
 	}
 	return ""
 }
-func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 
+func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
 	// The `GetVolume` API returns a slice of volumes, but when only passing
 	// in a volume ID, the response will be just the one volume
 	vols, err := cs.api.GetVolume(id)
@@ -237,14 +249,14 @@ func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
 	host, err := cs.api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 		klog.Errorf("failed to get host with error %v", err)
-		return nil, err
+		return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
 	}
 	if host.ID == 0 {
 		klog.V(2).Infof("Creating host with name: %s", hostName)
 		host, err = cs.api.CreateHost(hostName)
 		if err != nil {
 			klog.Errorf("failed to create host with error %v", err)
-			return nil, err
+			return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
 		}
 	}
 	return &host, nil
@@ -344,7 +356,7 @@ func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, e
 	}
 	i, err := strconv.ParseUint(unixPermission, 8, 32)
 	if err != nil {
-		klog.Errorf("fail to cast unixPermission %v", err)
+		klog.Errorf("failed to cast unixPermission %v", err)
 		return mode, err
 	}
 	mode = os.FileMode(i)
@@ -374,13 +386,13 @@ func removeFromScsiSubsystem(deviceName string) {
 	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
 	klog.V(4).Infof("Run: echo 1 > %s", deletePath)
 	// _, deleteErr := exec.Command("echo", "1", ">", deletePath).Output()
-	_, deleteErr := execScsi.Command(fmt.Sprintf("echo 1 > %s", deletePath))
+	_, deleteErr := execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if deleteErr != nil {
 		klog.Errorf("Failed to delete device '%s' with error %v", deletePath, deleteErr.Error())
 	}
 }
 
-//FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
+// FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
 func findSlaveDevicesOnMultipath(dm string) []string {
 	var devices []string
 	// Split path /dev/dm-1 into "", "dev", "dm-1"
@@ -445,6 +457,7 @@ func (cs *commonservice) pathExists(path string) (bool, error) {
 		return false, err
 	}
 }
+
 func (cs *commonservice) isCorruptedMnt(err error) bool {
 	if err == nil {
 		return false
