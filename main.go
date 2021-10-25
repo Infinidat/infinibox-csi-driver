@@ -49,7 +49,7 @@ func main() {
 	flag.Set("v", verbosity)
 	flag.Parse()
 
-	klog.V(2).Infof("Infinidat CSI Driver is Starting - DEBUG")
+	klog.V(2).Infof("Infinidat CSI Driver is Starting")
 	klog.V(2).Infof("Log level: %s", appLogLevel)
 
 	// Check ALLOW_XFS_UUID_REGENERATION
