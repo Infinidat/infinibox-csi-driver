@@ -460,7 +460,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			}
 			klog.V(4).Infof("Flush blockdev succeeded")
 		}
-		klog.V(4).Infof("Removed multipath sucessfully")
+		klog.V(4).Infof("Removed multipath successfully")
 
 	}
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
@@ -874,26 +874,14 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	mntPath := path.Join("/host", targetPath)
 	mntPathParent := filepath.Dir(mntPath)
 
-	if pathExist, pathErr := iscsi.pathExists(targetPath); pathErr != nil {
-		return fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, pathErr)
-	} else if !pathExist {
-		if pathExist, _ = iscsi.pathExists(mntPath); pathErr == nil {
-			if !pathExist {
-				klog.Warningf("unmount skipped because host mount path does not exist: %s", mntPath)
-				return nil
-			}
-		}
-	} else {
-		klog.V(4).Infof("umount targetPath: %s", targetPath)
-		if err := c.mounter.Unmount(targetPath); err != nil {
-			if strings.Contains(err.Error(), "not mounted") {
-				klog.V(4).Infof("target path not mounted, while trying to unmount: %s", targetPath)
-			} else {
-				klog.Errorf("failed to unmount target path: %s, err: %v", targetPath, err)
-				return err
-			}
-		}
-	}
+    if err := c.mounter.Unmount(targetPath); err != nil {
+        if strings.Contains(err.Error(), "not mounted") {
+            klog.V(4).Infof("mount target path not mounted, while trying to unmount: %s", targetPath)
+        } else {
+            klog.Errorf("failed to unmount mount target path: %s, err: %v", targetPath, err)
+            return err
+        }
+    }
 
 	if err := os.RemoveAll(mntPathParent); err != nil {
 		klog.Errorf("failed to remove mount path parent: %s, err: %v", mntPathParent, err)
