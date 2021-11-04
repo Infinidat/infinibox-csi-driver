@@ -101,9 +101,25 @@ func (h Service) ChmodVolume(unixPermissions string, targetPath string) error {
 	return h.ChmodVolumeExec(unixPermissions, targetPath)
 }
 
+// Check that permissions are convertable to a uint32 from a string represending an octal integer.
+func ValidateUnixPermissions(unixPermissions string) (err error) {
+	err = nil
+	if _, err8 := strconv.ParseUint(unixPermissions, 8, 32); err8 != nil {
+		msg := fmt.Sprintf("Unix permissions [%s] are invalid. Value must be uint32 in octal format. Error: %s", unixPermissions, err8)
+		klog.Errorf(msg)
+		err = errors.New(msg)
+	} else {
+		klog.V(4).Infof("Unix permissions [%s] is a valid octal value", unixPermissions)
+	}
+	return err
+}
+
 // ChmodVolumeExec method Execute chmod.
 func (h Service) ChmodVolumeExec(unixPermissions string, targetPath string) error {
 	if unixPermissions != "" {
+		if err := ValidateUnixPermissions(unixPermissions); err != nil {
+			return err
+		}
 		klog.V(4).Infof("Specified unix permissions: '%s'", unixPermissions)
 		// .snapshot within the mounted volume is readonly. Find will ignore.
 		chmod := fmt.Sprintf("find %s -maxdepth 1 -name '*' -exec chmod --recursive %s '{}' \\;", targetPath, unixPermissions)
