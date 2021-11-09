@@ -21,6 +21,9 @@ RUN chmod +x /setenv.sh
 COPY infinibox-csi-driver /infinibox-csi-driver
 RUN chmod +x /infinibox-csi-driver
 
+RUN yum -y install file lsof && \
+    yum -y clean all && rm -rf /var/cache
+
 RUN mkdir /ibox
 ADD host-chroot.sh /ibox
 RUN chmod 777 /ibox/host-chroot.sh
@@ -31,11 +34,13 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/chown \
     && ln -s /ibox/host-chroot.sh /ibox/chmod \
     && ln -s /ibox/host-chroot.sh /ibox/dmsetup \
+    && ln -s /ibox/host-chroot.sh /ibox/file \
     && ln -s /ibox/host-chroot.sh /ibox/find \
     && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/hostnamectl \
     && ln -s /ibox/host-chroot.sh /ibox/iscsiadm \
     && ln -s /ibox/host-chroot.sh /ibox/lsblk \
+    && ln -s /ibox/host-chroot.sh /ibox/lsof \
     && ln -s /ibox/host-chroot.sh /ibox/lsscsi \
     && ln -s /ibox/host-chroot.sh /ibox/mkdir \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.ext3 \

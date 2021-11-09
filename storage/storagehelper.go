@@ -102,14 +102,17 @@ func validateParametersiSCSI(storageClassParams map[string]string) error {
 		"storage_protocol",
 		"ssd_enabled",
 		"max_vols_per_host",
+		"uid",
+		"gid",
+		"unix_permissions",
 	}
 	if len(reqParams) != len(storageClassParams) {
-		log.Error("Mismatch in provided parameters and required params")
+		klog.Errorf("Mismatch in provided parameters (%v) and required params (%v)", storageClassParams, reqParams)
 		return errors.New("Mismatch in provided parameters and required params")
 	}
 	for _, param := range reqParams {
 		if storageClassParams[param] == "" {
-			log.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
+			klog.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
 			return fmt.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
 		}
 	}
