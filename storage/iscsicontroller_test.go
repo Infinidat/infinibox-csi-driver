@@ -599,5 +599,5 @@ func getISCSICreateVolumeCloneRequest(parameterMap map[string]string) *csi.Creat
 }
 
 func getISCSICreateVolumeParameters() map[string]string {
-	return map[string]string{"useCHAP": "useCHAP1", "fstype": "fstype1", "pool_name": "pool_name1", "network_space": "network_space1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host"}
+    return map[string]string{"useCHAP": "useCHAP1", "fstype": "fstype1", "pool_name": "pool_name1", "network_space": "network_space1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host", "uid": "1234", "gid": "2468", "unix_permissions": "0777"}
 }
