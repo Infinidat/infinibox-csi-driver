@@ -75,6 +75,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		fcDetails.isBlock = true
 	}
 
+    // Warning: AttachFCDisk attaches nothing. It only finds the device and returns it.
 	devicePath, err := fc.AttachFCDisk(*fcDetails.connector, &OSioHandler{})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -285,19 +286,20 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		}
 
 		klog.V(4).Infof("Mount point does not exist. Creating mount point.")
-		klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", fm.TargetPath)
+		klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(fm.TargetPath))
 		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 		// MkdirAll() will cause hard-to-grok mount errors.
-		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", fm.TargetPath)
+		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", filepath.Dir(fm.TargetPath))
 		err = cmd.Run()
 		if err != nil {
 			klog.Errorf("failed to mkdir '%s': %s", fm.TargetPath, err)
 			return err
 		}
 
+		klog.V(4).Infof("Creating file: /host/%s", fm.TargetPath)
 		_, err = os.Create("/host/" + fm.TargetPath)
 		if err != nil {
-			klog.Errorf("failed to create target path: %q, err: %v", fm.TargetPath, err)
+			klog.Errorf("failed to create target path for raw bind mount: %q, err: %v", fm.TargetPath, err)
 			return status.Errorf(codes.Internal, "failed to create target path for raw block bind mount: %v", err)
 		}
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
@@ -308,7 +310,6 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 		klog.V(4).Infof("Block volume mounted successfully")
-
 	} else {
 		klog.V(4).Infof("mount volume to given path %s", fm.TargetPath)
 
@@ -343,7 +344,9 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 
 		options = append(options, fm.MountOptions...)
 		if err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options); err != nil {
-			return status.Errorf(codes.Internal, "fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
+			msg := fmt.Sprintf("fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
+			klog.Errorf(msg)
+			return status.Errorf(codes.Internal, msg)
 		}
 	}
 	dskinfo := diskInfo{}
@@ -663,33 +666,22 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	mntPath := path.Join("/host", targetPath)
 	mntPathParent := filepath.Dir(mntPath)
 
-	// unmount volume
-	if pathExist, pathErr := fc.cs.pathExists(targetPath); pathErr != nil {
-		return fmt.Errorf("failed to check if target path path exists: %s, err: %v", targetPath, pathErr)
-	} else if !pathExist {
-		if pathExist, pathErr = fc.cs.pathExists(mntPath); pathErr == nil {
-			if !pathExist {
-				klog.Warningf("unmount skipped because target path does not exist: %s", targetPath)
-				return nil
-			}
-		}
-	} else { // targetPath exists
-		klog.V(4).Infof("umount targetPath: %s", targetPath)
-		if err := mounter.Unmount(targetPath); err != nil {
-			if strings.Contains(err.Error(), "not mounted") {
-				klog.V(4).Infof("target path not mounted, while trying to unmount: %s", targetPath)
-			} else {
-				klog.Errorf("failed to unmount target path: %s, err: %v", targetPath, err)
-				return err
-			}
+	// Unmount volume
+	klog.V(4).Infof("Unmounting volume mounted at %s", targetPath)
+	if err := mounter.Unmount(targetPath); err != nil {
+		if strings.Contains(err.Error(), "not mounted") {
+			klog.V(4).Infof("While unmounting, found volume was not mounted to %s", targetPath)
+		} else {
+			klog.Errorf("Failed unmounting volume from %s, Error: %v", targetPath, err)
+			return err
 		}
 	}
 
 	if err := os.RemoveAll(mntPathParent); err != nil {
-		klog.Errorf("failed to remove target path: %s, err: %v", targetPath, err)
+		klog.Errorf("Failed to remove mntPathParent %s, Error: %v", mntPathParent, err)
 		return err
 	}
-	klog.V(4).Infof("volume unmounted successfully, targetpath: %s", targetPath)
+	klog.V(2).Infof("Volume unmounted successfully")
 	return nil
 }
 
