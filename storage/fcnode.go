@@ -320,16 +320,16 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			klog.V(4).Infof("Mount point does not exist. Creating mount point.")
 			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execFc.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", mountPoint))
+			_, err := execFc.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", fm.TargetPath))
 			if err != nil {
-				klog.Errorf("Failed to mkdir '%s': %s", mountPoint, err)
+				klog.Errorf("Failed to mkdir '%s': %s", fm.TargetPath, err)
 				return err
 			}
 
-			// Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
-			util.SetReady(mountPoint)
-			is_ready := util.IsReady(mountPoint)
-			klog.V(2).Infof("Check that mountPoint is ready: %t", is_ready)
+            // // Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
+			// util.SetReady(mountPoint)
+			// is_ready := util.IsReady(mountPoint)
+			// klog.V(2).Infof("Check that mountPoint is ready: %t", is_ready)
 		} else {
 			klog.V(4).Infof("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
