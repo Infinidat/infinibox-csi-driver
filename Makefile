@@ -27,7 +27,7 @@ _art_dir            = artifact
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
 _GITLAB_USER        = dohlemacher
-_DOCKER_IMAGE_TAG   = v2.1.0-rc1
+_DOCKER_IMAGE_TAG   = v2.1.0-rc2
 
 # redhat username and tag
 _REDHAT_DOCKER_USER = user1

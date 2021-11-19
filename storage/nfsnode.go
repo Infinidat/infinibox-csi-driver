@@ -16,10 +16,10 @@ import (
 	log "infinibox-csi-driver/helper/logger"
 	"os"
 	"os/exec"
-	"strings"
-	"syscall"
 	"path"
 	"path/filepath"
+	"strings"
+	"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -90,7 +90,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		klog.Errorf("Failed to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
-	log.Infof("Successfully mounted nfs volume '%s' to mount point '%s'", source, targetPath)
+	log.Infof("Successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
 	// Chown
 	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
