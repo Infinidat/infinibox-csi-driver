@@ -30,7 +30,7 @@ _GITLAB_USER        = dohlemacher
 _DOCKER_IMAGE_TAG   = v2.1.0-rc2
 
 # redhat username and tag
-_REDHAT_DOCKER_USER = user1
+_REDHAT_DOCKER_USER = dohlemacher2
 _REDHAT_DOCKER_IMAGE_TAG = $(_DOCKER_IMAGE_TAG)
 
 # For Production Build ##################################################################
@@ -101,7 +101,7 @@ docker-build-docker: build  ## Build and tag CSI driver docker image.
 
 .PHONY: docker-build-redhat
 docker-build-redhat: build  ## Build and tag CSI driver for Red Hat docker repo.
-	docker build -t $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) -f Dockerfile-ubi .
+	docker build -t $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) -f Dockerfile .
 
 .PHONY: docker-build-all
 docker-build-all: docker-build-docker docker-build-redhat  ## Build upstream and Red Hat docker images.
@@ -121,7 +121,7 @@ docker-push-docker: docker-login-docker  # Tag and push to Dockerhub.
 docker-push-redhat:  ## Login, tag and push to Red Hat.
 	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
 	docker login -u unused scan.connect.redhat.com
-	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker tag $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 .PHONY: docker-push-all
