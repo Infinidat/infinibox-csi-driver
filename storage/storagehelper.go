@@ -73,12 +73,12 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 
 func validateParametersFC(storageClassParams map[string]string) error {
 	//TODO: refactor this away from calling functions - no longer needed
-	validateStorageClassParameters(storageClassParams)
+	return validateStorageClassParameters(storageClassParams)
 }
 
 func validateParametersiSCSI(storageClassParams map[string]string) error {
 	//TODO: refactor this away from calling functions - no longer needed
-	validateStorageClassParameters(storageClassParams)
+	return validateStorageClassParameters(storageClassParams)
 }
 
 func validateStorageClassParameters(storageClassParams map[string]string) error {
