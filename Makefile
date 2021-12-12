@@ -27,7 +27,7 @@ _art_dir            = artifact
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
 _GITLAB_USER        = dohlemacher
-_DOCKER_IMAGE_TAG   = v2.1.0-rc2
+_DOCKER_IMAGE_TAG   = v2.1.0-rc3
 
 # redhat username and tag
 _REDHAT_DOCKER_USER = dohlemacher2
@@ -66,6 +66,14 @@ rebuild: clean ## Rebuild source (all packages)
 .PHONY: test
 test: build  ## Unit test source.
 	$(_GOTEST) -v ./...
+
+.PHONY: test-one-thing
+test-one-thing: build  ## Unit test source, but just run one test.
+	@export testdir=storage && \
+	export onetest=TestFCControllerSuite/Test_CreateVolume_CreateVolume_content_succes && \
+	printf "\nFrom $$testdir, running test $$onetest\n\n" && \
+	cd "$$testdir" && \
+	$(_GOTEST) -v -run "$$onetest"
 
 .PHONY: lint
 lint: build ## Lint source.

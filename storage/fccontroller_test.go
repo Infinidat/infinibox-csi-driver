@@ -223,8 +223,13 @@ func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_succes() 
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+
 	_, err := service.CreateVolume(context.Background(), crtValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
+
+	crtValReq.Parameters["storage_protocol"] = "unsupported_protocol"
+	_, err = service.CreateVolume(context.Background(), crtValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: unrecognized storage_protocol in StorageClass Parameters")
 }
 
 func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_AttachMetadataToObject_err() {
@@ -419,5 +424,12 @@ func (suite *FCControllerSuite) Test_GetCapacity() {
 // Test data ===========
 
 func getFCCreateVolumeParameter() map[string]string {
-	return map[string]string{"fstype": "fstype1", "pool_name": "pool_name1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host"}
+	return map[string]string{
+		"fstype":            "fstype1",
+		"max_vols_per_host": "19",
+		"pool_name":         "pool_name1",
+		"provision_type":    "provision_type1",
+		"ssd_enabled":       "true",
+		"storage_protocol":  "fc",
+	}
 }

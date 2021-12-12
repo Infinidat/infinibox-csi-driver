@@ -61,7 +61,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	for _, volCap := range volCaps {
 		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			klog.Errorf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String())
+			klog.Errorf("Volume capability %s for ISCSI is not supported. Supported capabilities: %v", volCap.GetAccessMode().GetMode().String(), volCaps)
 			return nil, status.Error(codes.Unavailable, fmt.Sprintf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String()))
 		}
 	}

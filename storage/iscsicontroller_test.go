@@ -225,8 +225,13 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_content_succes
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+
 	_, err := service.CreateVolume(context.Background(), crtValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateVolume success")
+
+	crtValReq.Parameters["storage_protocol"] = "unsupported_protocol"
+	_, err = service.CreateVolume(context.Background(), crtValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: unrecognized storage_protocol in StorageClass parameters")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_content_AttachMetadataToObject_err() {
@@ -599,5 +604,17 @@ func getISCSICreateVolumeCloneRequest(parameterMap map[string]string) *csi.Creat
 }
 
 func getISCSICreateVolumeParameters() map[string]string {
-    return map[string]string{"useCHAP": "useCHAP1", "fstype": "fstype1", "pool_name": "pool_name1", "network_space": "network_space1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host", "uid": "1234", "gid": "2468", "unix_permissions": "0777"}
+	return map[string]string{
+        "fstype": "fstype1",
+        "gid": "2468",
+        "max_vols_per_host": "19",
+        "network_space": "network_space1",
+        "pool_name": "pool_name1",
+        "provision_type": "provision_type1",
+        "ssd_enabled": "true",
+        "storage_protocol": "iscsi",
+        "uid": "1234",
+        "unix_permissions": "0777",
+        "useCHAP": "none",
+    }
 }
