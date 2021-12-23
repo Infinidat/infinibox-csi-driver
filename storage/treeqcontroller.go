@@ -30,7 +30,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	pvName := req.GetName()
 	log.Debugf("Creating fileystem %s of nfs_treeq protocol ", pvName)
 
-	klog.V(2).Infof(" csi request parameters %v", config)
+	log.Debugf(" csi request parameters %v", config)
 	err := validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
