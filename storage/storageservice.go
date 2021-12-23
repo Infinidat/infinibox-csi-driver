@@ -39,10 +39,6 @@ import (
 
 const (
 	Name                 = "infinibox-csi-driver"
-	KeyThickProvisioning = "thickprovisioning"
-	// thinProvisioned        = "Thin"
-	// thickProvisioned       = "Thick"
-	KeyVolumeProvisionType = "provision_type"
 )
 
 const (
@@ -107,7 +103,7 @@ type commonservice struct {
 func NewStorageController(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
-		storageProtocol = strings.TrimSpace(storageProtocol)
+		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
 		} else if storageProtocol == "iscsi" {
@@ -126,7 +122,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 func NewStorageNode(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
-		storageProtocol = strings.TrimSpace(storageProtocol)
+		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 		if storageProtocol == "fc" {
 			return &fcstorage{cs: comnserv}, nil
 		} else if storageProtocol == "iscsi" {

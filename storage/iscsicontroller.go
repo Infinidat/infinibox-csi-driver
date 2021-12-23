@@ -42,16 +42,25 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
+
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
-	err = validateParametersiSCSI(params)
+	err = validateStorageClassParameters(map[string]string {
+		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		"provision_type": `(?i)\A.*\z`, // TODO: add more specific pattern
+		"ssd_enabled": `(?i)\A(true|false)\z`,
+		"max_vols_per_host": `(?i)\A\d+\z`,
+		"useCHAP" = `(?i)\A(none|chap|mutual_chap)\z`,
+		"network_space" = `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	// Get Volume Provision Type
-	volType := "THIN"
-	if provisionType, ok := params[KeyVolumeProvisionType]; ok {
-		volType = provisionType
+
+	// set default thin provisioning behavior
+	volType, provided := params["provision_type"]
+	if !provided {
+		volType = "THIN"
 	}
 
 	// Access Mode check

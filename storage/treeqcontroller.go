@@ -30,12 +30,18 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	pvName := req.GetName()
 	log.Debugf("Creating fileystem %s of nfs_treeq protocol ", pvName)
 
-	// Validating the reqired parameters
-	validationStatus, validationStatusMap := treeq.filesysService.validateTreeqParameters(config)
-	if !validationStatus {
-		log.Errorf("failed to validate parameter for nfs_treeq protocol %v ", validationStatusMap)
-		return nil, status.Error(codes.InvalidArgument, "failed to validate parameter for nfs_treeq protocol")
+	klog.V(2).Infof(" csi request parameters %v", config)
+	err := validateStorageClassParameters(map[string]string {
+		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		"network_space" = `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		"max_filesystems" = `\A\d+\z`,
+		"max_treeqs_per_filesystem" = `\A\d+\z`,
+		"max_filesystem_size" = `\A.*\z`, // TODO: add more specific pattern
+	}, config)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	// TODO: negative validation - fstype, possibly other params should NOT be specified for nfs_treeq
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {

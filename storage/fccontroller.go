@@ -41,16 +41,23 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, err
 	}
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
+	
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
-	err = validateParametersFC(params)
+	err = validateStorageClassParameters(map[string]string {
+		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		"provision_type": `(?i)\A.*\z`, // TODO: add more specific pattern
+		"ssd_enabled": `(?i)\A(true|false)\z`,
+		"max_vols_per_host": `(?i)\A\d+\z`,
+	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	// Get Volume Provision Type
-	volType := "THIN"
-	if prosiontype, ok := params[KeyVolumeProvisionType]; ok {
-		volType = prosiontype
+
+	// set default thin provisioning behavior
+	volType, provided := params["provision_type"]
+	if !provided {
+		volType = "THIN"
 	}
 
 	// Access Mode check

@@ -69,19 +69,6 @@ const (
 	NfsUnixPermissions   = "777"
 )
 
-func validateParameter(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "network_space", "nfs_export_permissions"} // TODO: add remaining paramters
-	validationStatus := true
-	validationStatusMap := make(map[string]string)
-	for _, param := range compulsaryFields {
-		if config[param] == "" {
-			validationStatusMap[param] = param + " value missing"
-			validationStatus = false
-		}
-	}
-	klog.V(4).Infof("parameter Validation completed")
-	return validationStatus, validationStatusMap
-}
 
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(4).Infof("Creating Volume of nfs protocol")
@@ -90,12 +77,17 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	pvName := req.GetName()
 
 	klog.V(4).Infof("Creating fileystem %s of nfs protocol ", pvName)
-	validationStatus, validationStatusMap := validateParameter(config)
-	if !validationStatus {
-		klog.Errorf("failed to validate parameter for nfs protocol, %v", validationStatusMap)
-		return nil, status.Error(codes.InvalidArgument, "failed to validate parameter for nfs protocol")
+
+	klog.V(2).Infof(" csi request parameters %v", config)
+	err := validateStorageClassParameters(map[string]string {
+		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		"network_space" = `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+	}, config)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	klog.V(4).Infof("fileystem %s ,parameter validation success", pvName)
+	// TODO: negative validation - fstype, possibly other params should NOT be specified for nfs
+
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib { // INF90

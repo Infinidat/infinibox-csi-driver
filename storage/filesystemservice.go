@@ -89,7 +89,6 @@ func getFilesystemService(serviceType string, c commonservice) *FilesystemServic
 
 // FileSystemInterface interface
 type FileSystemInterface interface {
-	validateTreeqParameters(config map[string]string) (bool, map[string]string)
 	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
 	DeleteTreeqVolume(filesystemID, treeqID int64) error
 	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error
@@ -461,20 +460,6 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 	filesystem.exportID = exportResp.ID
 	filesystem.exportBlock = exportResp.ExportPath
 	return
-}
-
-func (filesystem *FilesystemService) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "network_space", "nfs_export_permissions"}
-	validationStatus := true
-	validationStatusMap := make(map[string]string)
-	for _, param := range compulsaryFields {
-		if config[param] == "" {
-			validationStatusMap[param] = param + " value missing"
-			validationStatus = false
-		}
-	}
-	klog.V(4).Infof("parameter Validation completed")
-	return validationStatus, validationStatusMap
 }
 
 func getDefaultValues() map[string]string {

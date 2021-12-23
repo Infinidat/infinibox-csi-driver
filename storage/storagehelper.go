@@ -71,50 +71,11 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 	return sizeinByte, nil
 }
 
-func validateParametersFC(storageClassParams map[string]string) error {
-	//TODO: refactor this away from calling functions - no longer needed
-	return validateStorageClassParameters(storageClassParams)
-}
-
-func validateParametersiSCSI(storageClassParams map[string]string) error {
-	//TODO: refactor this away from calling functions - no longer needed
-	return validateStorageClassParameters(storageClassParams)
-}
-
-func validateStorageClassParameters(storageClassParams map[string]string) error {
-	requiredMap := map[string]string{  // params required for ALL protocols
-		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"provision_type": `(?i)\A.*\z`, // TODO: add more specific pattern
-		"ssd_enabled": `(?i)\A(true|false)\z`,		
-	}
-
-	// validate storage_protocol and add specific params depending on protocol
-	// because this checks storage_protocol already, we don't need to actually add it to requiredMap
-	switch (strings.ToLower(storageClassParams["storage_protocol"])) {
-		case "fc":
-			requiredMap["max_vols_per_host"] = `(?i)\A\d+\z`
-		case "iscsi":
-			requiredMap["useCHAP"] = `(?i)\A(none|chap|mutual_chap)\z`
-			requiredMap["max_vols_per_host"] = `(?i)\A\d+\z`
-			requiredMap["network_space"] = `\A.*\z` // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-		case "nfs":
-			requiredMap["nfs_export_permissions"] = `\A.*\z` // TODO: add more specific pattern
-			// TODO: negative validation - fstype, possibly other params should NOT be specified for nfs
-		case "nfs_treeq":
-			requiredMap["nfs_export_permissions"] = `\A.*\z` // TODO: add more specific pattern
-			requiredMap["max_filesystems"] = `\A\d+\z`
-			requiredMap["max_treeqs_per_filesystem"] = `\A\d+\z`
-			requiredMap["max_filesystem_size"] = `\A.*\z` // TODO: add more specific pattern
-			// TODO: negative validation - fstype, possibly other params should NOT be specified for nfs_treeq
-		default:
-			klog.Errorf("Unrecognized storage_protocol in StorageClass parameters: %s", storageClassParams["storage_protocol"])
-			return fmt.Errorf("Unrecognized storage_protocol in StorageClass parameters: %s", storageClassParams["storage_protocol"])
-	}
-
+func validateStorageClassParameters(requiredStorageClassParams map[string]string, providedStorageClassParams map[string]string) error {
 	// Loop through and check required parameters only, consciously ignore parameters that aren't required
 	badParamsMap := make(map[string]string)
-	for param, required_regex := range requiredMap {
-		if param_value, ok := storageClassParams[param]; ok {
+	for param, required_regex := range requiredStorageClassParams {
+		if param_value, ok := providedStorageClassParams[param]; ok {
 			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
 				badParamsMap[param] = "Required input parameter " + param_value + " didn't match expected pattern " + required_regex
 			}

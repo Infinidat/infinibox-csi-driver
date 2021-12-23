@@ -37,7 +37,6 @@ type TreeqControllerSuite struct {
 func (suite *TreeqControllerSuite) Test_CreateVolume_validation() {
 	mapParameter := make(map[string]string)
 	mapParameter["pool_name"] = "invalid poolName"
-	suite.filesystem.On("validateTreeqParameters", mock.Anything).Return(false, mapParameter)
 	service := treeqstorage{filesysService: suite.filesystem}
 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.NotNil(suite.T(), err, "empty error")
@@ -45,7 +44,6 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_validation() {
 
 func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	mapParameter := make(map[string]string)
-	suite.filesystem.On("validateTreeqParameters", mock.Anything).Return(true, mapParameter)
 	volumeRespoance := make(map[string]string)
 	expectedErr := errors.New("some error")
 
@@ -58,7 +56,6 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 
 func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	mapParameter := make(map[string]string)
-	suite.filesystem.On("validateTreeqParameters", mock.Anything).Return(true, mapParameter)
 	volumeResponse := getCreateVolumeResponse()
 	volumeRespoance := make(map[string]string)
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
@@ -194,13 +191,6 @@ func (m *FileSystemInterfaceMock) CreateTreeqVolume(config map[string]string, ca
 	st, _ := status.Get(0).(map[string]string)
 	err, _ := status.Get(1).(error)
 	return st, err
-}
-
-func (m *FileSystemInterfaceMock) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
-	status := m.Called(config)
-	st, _ := status.Get(0).(bool)
-	parameter, _ := status.Get(1).(map[string]string)
-	return st, parameter
 }
 
 func (m *FileSystemInterfaceMock) DeleteTreeqVolume(filesystemID, treeqID int64) error {

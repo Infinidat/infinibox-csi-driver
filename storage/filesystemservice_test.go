@@ -522,17 +522,6 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_Success() {
 	assert.Nil(suite.T(), err, "empty object")
 }
 
-func (suite *FileSystemServiceSuite) Test_validateTreeqParameters() {
-	expectedErr := errors.New("some error")
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
-	service := getFilesystemService(NFSTREEQ, *suite.cs)
-	configMap := map[string]string{"pool_name": "poolName", "network_space": "nws", "nfs_export_permissions": ""}
-
-	result, msgMap := service.validateTreeqParameters(configMap)
-	assert.False(suite.T(), result, "empty object")
-	assert.Equal(suite.T(), 1, len(msgMap))
-}
-
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_Error() {
 	var poolID int64 = 10
 	// var fsID int64 = 11
