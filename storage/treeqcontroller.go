@@ -26,13 +26,12 @@ import (
 
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	var treeqVolumeMap map[string]string
-	var err error
 	config := req.GetParameters()
 	pvName := req.GetName()
 	log.Debugf("Creating fileystem %s of nfs_treeq protocol ", pvName)
 
 	log.Debugf(" csi request parameters %v", config)
-	err := validateStorageClassParameters(map[string]string {
+	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 		"max_filesystems": `\A\d+\z`,
