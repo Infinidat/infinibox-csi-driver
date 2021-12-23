@@ -81,7 +81,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	klog.V(2).Infof(" csi request parameters %v", config)
 	err := validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"network_space" = `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, config)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

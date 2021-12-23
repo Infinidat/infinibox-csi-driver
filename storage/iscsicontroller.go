@@ -50,8 +50,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"provision_type": `(?i)\A.*\z`, // TODO: add more specific pattern
 		"ssd_enabled": `(?i)\A(true|false)\z`,
 		"max_vols_per_host": `(?i)\A\d+\z`,
-		"useCHAP" = `(?i)\A(none|chap|mutual_chap)\z`,
-		"network_space" = `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		"useCHAP": `(?i)\A(none|chap|mutual_chap)\z`,
+		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
