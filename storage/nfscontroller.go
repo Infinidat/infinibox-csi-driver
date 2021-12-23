@@ -72,13 +72,14 @@ const (
 
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(4).Infof("Creating Volume of nfs protocol")
+	var err error
 	// Adding the the request parameter into Map config
 	config := req.GetParameters()
 	pvName := req.GetName()
 
 	klog.V(4).Infof("Creating fileystem %s of nfs protocol ", pvName)
 
-	klog.V(2).Infof(" csi request parameters %v", config)
+	klog.V(4).Infof(" csi request parameters %v", config)
 	err := validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
