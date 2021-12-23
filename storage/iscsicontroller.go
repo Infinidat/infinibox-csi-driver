@@ -45,10 +45,10 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
+
+	// validate required parameters
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"provision_type": `(?i)\A.*\z`, // TODO: add more specific pattern
-		"ssd_enabled": `(?i)\A(true|false)\z`,
 		"max_vols_per_host": `(?i)\A\d+\z`,
 		"useCHAP": `(?i)\A(none|chap|mutual_chap)\z`,
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
@@ -57,13 +57,23 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// set default thin provisioning behavior
+	// validate optional parameters
 	volType, provided := params["provision_type"]
 	if !provided {
-		volType = "THIN"
+		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
+	}
+	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
+	ssdEnabledString, provided := params["ssd_enabled"]
+	if provided {
+		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
+	}
+	fstype, old_fstype_param_provided := params["fstype"]
+	if old_fstype_param_provided {
+		klog.Warningf("Deprecated 'fstype' parameter %s specified - please use 'csi.storage.k8s.io/fstype' in the future", fstype)
+		// TODO: this should be overwritten by standard parameter if present
 	}
 
-	// Access Mode check
+	// check volume capabilities - TODO: fix this validation CSIC-337 and set fstype accordingly CSIC-339
 	volCaps := req.GetVolumeCapabilities()
 	if volCaps == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
@@ -92,7 +102,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		klog.V(2).Infof("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
 		if targetVol.Size == sizeBytes {
 			existingVolumeInfo := iscsi.cs.getCSIResponse(targetVol, req)
-			copyRequestParameters(req.GetParameters(), existingVolumeInfo.VolumeContext)
+			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
 			return &csi.CreateVolumeResponse{
 				Volume: existingVolumeInfo,
 			}, nil
@@ -102,42 +112,31 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	networkSpace := req.GetParameters()["network_space"]
+	networkSpace := params["network_space"]
 	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting network space")
+		return nil, status.Errorf(codes.InvalidArgument, "Error getting network space %s", networkSpace)
 	}
 	portals := ""
 	for _, p := range nspace.Portals {
 		portals = portals + "," + p.IpAdress
 	}
 	portals = portals[1:]
-	req.GetParameters()["iqn"] = nspace.Properties.IscsiIqn
-	req.GetParameters()["portals"] = portals
+	req.GetParameters()["iqn"] = nspace.Properties.IscsiIqn // BUG or at least misleading? Wy are we assigning this in a Get...() call?
+	req.GetParameters()["portals"] = portals // BUG or at least misleading? Why are we assigning this in a Get...() call?
 
-	// We require the storagePool name for creation
-	poolName, ok := req.GetParameters()["pool_name"]
-	if !ok {
-		return nil, errors.New("pool_name is a required parameter")
-	}
-	fstype := req.GetParameters()["fstype"]
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
 		return iscsi.createVolumeFromContentSource(req, name, sizeBytes, poolName)
 	}
-	ssd := req.GetParameters()["ssd_enabled"]
-	if ssd == "" {
-		ssd = fmt.Sprint(false)
-	}
-	ssdEnabled, _ := strconv.ParseBool(ssd)
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
 		ProvisionType: volType,
 		SsdEnabled:    ssdEnabled,
 	}
-	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, poolName)
+	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, params["pool_name"])
 	if err != nil {
 		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s: %s", name, poolName, err.Error())

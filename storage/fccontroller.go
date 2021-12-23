@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -44,23 +44,33 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
+
+	// validate required parameters
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"provision_type": `(?i)\A.*\z`, // TODO: add more specific pattern
-		"ssd_enabled": `(?i)\A(true|false)\z`,
 		"max_vols_per_host": `(?i)\A\d+\z`,
 	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// set default thin provisioning behavior
+	// validate optional parameters
 	volType, provided := params["provision_type"]
 	if !provided {
-		volType = "THIN"
+		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
+	}
+	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
+	ssdEnabledString, provided := params["ssd_enabled"]
+	if provided {
+		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
+	}
+	fstype, old_fstype_param_provided := params["fstype"]
+	if old_fstype_param_provided {
+		klog.Warningf("Deprecated 'fstype' parameter %s specified - please use 'csi.storage.k8s.io/fstype' in the future", fstype)
+		// TODO: this should be overwritten by standard parameter if present
 	}
 
-	// Access Mode check
+	// check volume capabilities - TODO: fix this validation CSIC-337 and set fstype accordingly CSIC-339
 	volCaps := req.GetVolumeCapabilities()
 	if volCaps == nil {
 		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
@@ -89,7 +99,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		klog.V(2).Infof("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
 		if targetVol.Size == sizeBytes {
 			existingVolumeInfo := fc.cs.getCSIResponse(targetVol, req)
-			copyRequestParameters(req.GetParameters(), existingVolumeInfo.VolumeContext)
+			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
 			return &csi.CreateVolumeResponse{
 				Volume: existingVolumeInfo,
 			}, nil
@@ -99,29 +109,18 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, err
 	}
 
-	// We require the storagePool name for creation
-	poolName, ok := req.GetParameters()["pool_name"]
-	if !ok {
-		return nil, status.Error(codes.InvalidArgument, "pool_name is a required parameter")
-	}
-	fstype := req.GetParameters()["fstype"]
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
 		return fc.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
 	}
-	ssd := req.GetParameters()["ssd_enabled"]
-	if ssd == "" {
-		ssd = fmt.Sprint(false)
-	}
-	ssdEnabled, _ := strconv.ParseBool(ssd)
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
 		ProvisionType: volType,
 		SsdEnabled:    ssdEnabled,
 	}
-	volumeResp, err := fc.cs.api.CreateVolume(volumeParam, poolName)
+	volumeResp, err := fc.cs.api.CreateVolume(volumeParam, params["pool_name"])
 	if err != nil {
 		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
@@ -148,7 +147,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 
 	// Prepare response struct
-	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
+	copyRequestParameters(params, vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
