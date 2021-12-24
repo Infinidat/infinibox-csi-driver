@@ -51,6 +51,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"max_vols_per_host": `(?i)\A\d+\z`,
 		"useCHAP": `(?i)\A(none|chap|mutual_chap)\z`,
+        "storage_protocol": `(?i)\A(fc|iscsi|nfs)\z`,
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, params)
 	if err != nil {

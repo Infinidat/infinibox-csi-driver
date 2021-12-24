@@ -41,7 +41,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, err
 	}
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
-	
+
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
 
@@ -49,6 +49,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"max_vols_per_host": `(?i)\A\d+\z`,
+        "storage_protocol": `(?i)\A(fc|iscsi|nfs)\z`,
 	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())

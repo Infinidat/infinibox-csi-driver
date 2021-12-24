@@ -211,26 +211,26 @@ func (suite *FCControllerSuite) Test_DeleteVolume_DeleteVolume_AlreadyDelete() {
 	assert.Nil(suite.T(), err, "expected to succeed: fc DeleteVolume already deleted")
 }
 
-// func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_succes() {
-// 	service := fcstorage{cs: *suite.cs}
-// 	parameterMap := getFCCreateVolumeParameter()
-// 	crtValReq := getISCSICreateVolumeCloneRequest(parameterMap)
-// 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
-// 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-// 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-// 	var poolID int64 = 10
-// 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-// 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
-// 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-// 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
-// 
-// 	_, err := service.CreateVolume(context.Background(), crtValReq)
-// 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
-// 
-// 	crtValReq.Parameters["storage_protocol"] = "unsupported_protocol"
-// 	_, err = service.CreateVolume(context.Background(), crtValReq)
-// 	assert.NotNil(suite.T(), err, "expected to fail: unrecognized storage_protocol in StorageClass Parameters")
-// }
+func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_succes() {
+	service := fcstorage{cs: *suite.cs}
+	parameterMap := getFCCreateVolumeParameter()
+	crtValReq := getISCSICreateVolumeCloneRequest(parameterMap)
+	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	var poolID int64 = 10
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
+	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+
+	_, err := service.CreateVolume(context.Background(), crtValReq)
+	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
+
+	crtValReq.Parameters["storage_protocol"] = "unsupported_protocol"
+	_, err = service.CreateVolume(context.Background(), crtValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: unrecognized storage_protocol in StorageClass Parameters")
+}
 
 func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_AttachMetadataToObject_err() {
 	service := fcstorage{cs: *suite.cs}
