@@ -92,6 +92,10 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, "Name cannot be empty")
 	}
 
+	// Pool name - already verified earlier
+	poolName := params["pool_name"]
+
+
 	targetVol, err := iscsi.cs.api.GetVolumeByName(name)
 	if err != nil {
 		if !strings.Contains(err.Error(), "volume with given name not found") {
@@ -136,7 +140,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		ProvisionType: volType,
 		SsdEnabled:    ssdEnabled,
 	}
-	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, params["pool_name"])
+	volumeResp, err := iscsi.cs.api.CreateVolume(volumeParam, poolName)
 	if err != nil {
 		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s: %s", name, poolName, err.Error())
