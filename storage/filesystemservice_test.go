@@ -611,7 +611,18 @@ func getTreeQResponse(fileSysID int64) *api.Treeq {
 }
 
 func getCreateVolumeRequest() *csi.CreateVolumeRequest {
-	return &csi.CreateVolumeRequest{}
+	parameters := map[string]string{
+		"pool_name":                 "a_pool",
+		"max_filesystem_size":       "30gib",
+		"max_filesystems":           "20",
+		"max_treeqs_per_filesystem": "21",
+		"network_space":             "nas",
+	}
+	req := csi.CreateVolumeRequest{
+		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * gib},
+		Parameters:    parameters,
+	}
+	return &req
 }
 
 func getfsMetadata() *api.FSMetadata {

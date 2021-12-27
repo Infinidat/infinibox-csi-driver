@@ -25,6 +25,7 @@ import (
 
 // starting method of CSI-Driver
 func main() {
+	defer klog.Flush()  // Flush pending log IO
 	klog.InitFlags(nil)
 	flag.Set("logtostderr", "true")
 	flag.Set("stderrthreshold", "WARNING")

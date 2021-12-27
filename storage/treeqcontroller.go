@@ -17,20 +17,18 @@ import (
 	"strconv"
 	"strings"
 
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+    "k8s.io/klog"
 )
 
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	var treeqVolumeMap map[string]string
 	config := req.GetParameters()
 	pvName := req.GetName()
-	log.Debugf("Creating fileystem %s of nfs_treeq protocol ", pvName)
-
-	log.Debugf(" csi request parameters %v", config)
+	klog.V(4).Infof("Creating fileystem %s of nfs_treeq protocol ", pvName)
+	klog.V(4).Infof("CSI request parameters: %v", config)
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
@@ -46,19 +44,19 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
-		log.Warn("Volume Minimum capacity should be greater 1 GB")
+		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
 	}
 	treeqVolumeMap, err = treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), pvName)
 	if len(treeqVolumeMap) == 0 && err == nil {
 		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
 	}
 	if err != nil {
-		log.Errorf("failed to create volume %v", err)
+		klog.Errorf("failed to create volume %v", err)
 		return nil, err
 	}
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"] + "#" + config[MAXFILESYSTEMSIZE],
+			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"], // + "#" + config[MAXFILESYSTEMSIZE],
 			CapacityBytes: capacity,
 			VolumeContext: treeqVolumeMap,
 			ContentSource: req.GetVolumeContentSource(),
@@ -89,18 +87,18 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	filesystemID, treeqID, _, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("Invalid Volume ID %v", err)
+		klog.Errorf("Invalid Volume ID %v", err)
 		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
 	}
 	nfsDeleteErr := treeq.filesysService.DeleteTreeqVolume(filesystemID, treeqID)
 	if nfsDeleteErr != nil {
 		if strings.Contains(nfsDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
-			log.Error("treeq already delete from infinibox")
+			klog.Error("treeq already delete from infinibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 		return nil, nfsDeleteErr
 	}
-	log.Infof("treeq ID %s successfully deleted", req.GetVolumeId())
+	klog.V(2).Infof("treeq ID %s successfully deleted", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -129,14 +127,14 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	filesystemID, treeqID, maxSize, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
-		log.Errorf("Invalid Volume ID %v", err)
+		klog.Errorf("Invalid Volume ID %v", err)
 		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
 	}
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
-		log.Warn("Volume Minimum capacity should be greater 1 GB")
+		klog.Warning("Volume Minimum capacity should be greater 1 GB")
 	}
 
 	err = treeq.filesysService.UpdateTreeqVolume(filesystemID, treeqID, capacity, maxSize)

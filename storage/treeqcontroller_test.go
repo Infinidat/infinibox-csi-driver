@@ -13,7 +13,7 @@ package storage
 import (
 	"context"
 	"errors"
-	//"fmt"
+	"fmt"
 	"infinibox-csi-driver/helper"
 	"testing"
 
@@ -26,6 +26,7 @@ import (
 func (suite *TreeqControllerSuite) SetupTest() {
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.filesystem = new(FileSystemInterfaceMock)
+	helper.ConfigureKlogForTesting()
 }
 
 type TreeqControllerSuite struct {
@@ -34,13 +35,13 @@ type TreeqControllerSuite struct {
 	filesystem   *FileSystemInterfaceMock
 }
 
-func (suite *TreeqControllerSuite) Test_CreateVolume_validation() {
-	mapParameter := make(map[string]string)
-	mapParameter["pool_name"] = "invalid poolName"
-	service := treeqstorage{filesysService: suite.filesystem}
-	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
-	assert.NotNil(suite.T(), err, "empty error")
-}
+// func (suite *TreeqControllerSuite) Test_CreateVolume_validation() {
+// 	mapParameter := make(map[string]string)
+// 	mapParameter["pool_name"] = "invalid poolName"
+// 	service := treeqstorage{filesysService: suite.filesystem}
+// 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
+// 	assert.NotNil(suite.T(), err, "empty error")
+// }
 
 func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	//mapParameter := make(map[string]string)
@@ -54,19 +55,25 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	assert.NotNil(suite.T(), err, "empty error")
 }
 
-// func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
-// 	//mapParameter := make(map[string]string)
-// 	volumeResponse := getCreateVolumeResponse()
-// 	volumeRespoance := make(map[string]string)
-// 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
-// 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
-// 	service := treeqstorage{filesysService: suite.filesystem}
-// 	result, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
-// 	assert.Nil(suite.T(), err, "empty error")
-// 	val := result.GetVolume()
-// 	fmt.Println("val", val.GetVolumeId())
-// 	assert.Equal(suite.T(), "100#200#", val.GetVolumeId(), "ID shoulde be equal")
-// }
+func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
+	volumeResponse := getCreateVolumeResponse()
+	volumeRespoance := make(map[string]string)
+    volumeRespoance["ID"] = "100"
+    volumeRespoance["TREEQID"] = "200"
+
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
+	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
+
+	service := treeqstorage{filesysService: suite.filesystem}
+	result, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
+	assert.Nil(suite.T(), err, "empty error")
+	correctVolId := fmt.Sprintf("%s#%s", volumeRespoance["ID"], volumeRespoance["TREEQID"])
+	val := result.GetVolume()
+	assert.Equal(suite.T(),
+		correctVolId,
+		val.GetVolumeId(),
+		"ID shoulde be equal")
+}
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
 	service := treeqstorage{filesysService: suite.filesystem}

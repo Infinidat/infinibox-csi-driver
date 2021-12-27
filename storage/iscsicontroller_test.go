@@ -17,6 +17,8 @@ func (suite *ISCSIControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
+
+	helper.ConfigureKlogForTesting()
 }
 
 type ISCSIControllerSuite struct {
