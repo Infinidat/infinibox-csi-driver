@@ -49,7 +49,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"max_vols_per_host": `(?i)\A\d+\z`,
-        "storage_protocol": `(?i)\A(fc|iscsi|nfs)\z`,
 	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -71,24 +70,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		// TODO: this should be overwritten by standard parameter if present
 	}
 
-	// check volume capabilities - TODO: fix this validation CSIC-337 and set fstype accordingly CSIC-339
-	volCaps := req.GetVolumeCapabilities()
-	if volCaps == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-	for _, volCap := range volCaps {
-		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			klog.Errorf("volume capability %s for FC is not supported", volCap.GetAccessMode().GetMode().String())
-			return nil, status.Error(codes.Unavailable, fmt.Sprintf("Volume capability %s for FC is not supported", volCap.GetAccessMode().GetMode().String()))
-		}
-	}
-
-	// Volume name to be created
+	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
-	klog.V(2).Infof("csi volume name from request: %s", name)
-	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "Name cannot be empty")
-	}
 
 	// Pool name - already verified earlier
 	poolName := params["pool_name"]
@@ -314,6 +297,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, errors.New("error getting volume by id")
 	}
 
+	// TODO: revisit this as part of CSIC-337 and CSIC-339 fixes
 	_, err = fc.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -437,6 +421,7 @@ func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.Va
 	}
 	klog.V(4).Infof("volID: %d colume: %v", volID, v)
 
+	// TODO: revisit this as part of CSIC-337 and CSIC-339 fixes
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	// if err != nil {
 	// 	   return nil, status.Error(codes.Internal, err.Error())

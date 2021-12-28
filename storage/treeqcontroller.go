@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -27,7 +27,6 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	var treeqVolumeMap map[string]string
 	config := req.GetParameters()
 	pvName := req.GetName()
-	klog.V(4).Infof("Creating fileystem %s of nfs_treeq protocol ", pvName)
 	klog.V(4).Infof("CSI request parameters: %v", config)
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
@@ -41,6 +40,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	// TODO: negative validation - fstype, possibly other params should NOT be specified for nfs_treeq
 
+	// TODO: move this capacity validation into controller.go
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib

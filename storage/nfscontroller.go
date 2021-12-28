@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -77,8 +77,6 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	config := req.GetParameters()
 	pvName := req.GetName()
 
-	klog.V(4).Infof("Creating fileystem %s of nfs protocol ", pvName)
-
 	klog.V(4).Infof(" csi request parameters %v", config)
 	err = validateStorageClassParameters(map[string]string {
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
@@ -89,7 +87,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	}
 	// TODO: negative validation - fstype, possibly other params should NOT be specified for nfs
 
-
+	// TODO: roll this capacity validation into broader controller.go
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib { // INF90
 		capacity = gib
@@ -107,7 +105,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		klog.Errorf(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
-	klog.V(2).Infof("Using priviledged ports only: %t", usePrivilegedPorts)
+	klog.V(2).Infof("Using privileged ports only: %t", usePrivilegedPorts)
 
 	// Snapshot dir visible
 	snapdirVisibleString := config["snapdir_visible"]
@@ -258,7 +256,7 @@ func (nfs *nfsstorage) createVolumeFrmPVCSource(req *csi.CreateVolumeRequest, si
 	return nfs.getNfsCsiResponse(req), nil
 }
 
-// CreateNFSVolume create volumne method
+// CreateNFSVolume create volume method
 func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil {
@@ -499,6 +497,7 @@ type ExportPermission struct {
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	var err error
 
+	// TODO: revisit this as part of CSIC-337 and CSIC-339 fixes
 	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -563,6 +562,7 @@ func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.
 	}
 	klog.V(4).Infof("volID: %d volume: %v", volID, fs)
 
+	// TODO: revisit this as part of CSIC-337 and CSIC-339 fixes
 	// _, err = nfs.cs.accessModesHelper.IsValidAccessMode(fs, req)
 	// if err != nil {
 	//     return nil, status.Error(codes.InvalidArgument, err.Error())

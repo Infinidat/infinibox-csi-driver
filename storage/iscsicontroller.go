@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -51,7 +51,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"pool_name": `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"max_vols_per_host": `(?i)\A\d+\z`,
 		"useCHAP": `(?i)\A(none|chap|mutual_chap)\z`,
-        "storage_protocol": `(?i)\A(fc|iscsi|nfs)\z`,
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, params)
 	if err != nil {
@@ -74,24 +73,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		// TODO: this should be overwritten by standard parameter if present
 	}
 
-	// check volume capabilities - TODO: fix this validation CSIC-337 and set fstype accordingly CSIC-339
-	volCaps := req.GetVolumeCapabilities()
-	if volCaps == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-	for _, volCap := range volCaps {
-		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			klog.Errorf("Volume capability %s for ISCSI is not supported. Supported capabilities: %v", volCap.GetAccessMode().GetMode().String(), volCaps)
-			return nil, status.Error(codes.Unavailable, fmt.Sprintf("Volume capability %s for ISCSI is not supported", volCap.GetAccessMode().GetMode().String()))
-		}
-	}
-
-	// Volume name to be created
+	// Volume name to be created - already verified earlier
 	name := req.GetName()
-	klog.V(2).Infof("csi volume name from request is %s", name)
-	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "Name cannot be empty")
-	}
 
 	// Pool name - already verified earlier
 	poolName := params["pool_name"]
@@ -327,6 +310,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	// helper.PrettyKlogDebug("req:", req)
 	// klog.V(4).Infof("vol cap access mode: %v", req.VolumeCapability.AccessMode)
 
+	// TODO: revisit this as part of CSIC-337 and CSIC-339 fixes
 	_, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -476,6 +460,7 @@ func (iscsi *iscsistorage) ValidateVolumeCapabilities(ctx context.Context, req *
 	}
 	klog.V(4).Infof("volID: %d volume: %v", volID, v)
 
+	// TODO: revisit this as part of CSIC-337 and CSIC-339 fixes
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	// if err != nil {
 	// 	   return nil, status.Error(codes.Internal, err.Error())

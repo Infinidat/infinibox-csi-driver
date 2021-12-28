@@ -26,30 +26,6 @@ type AccessModesHelper interface {
 	IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
 }
 
-func _accessModeToName(mode csi.VolumeCapability_AccessMode_Mode) (modeName string, err error) {
-	// Given an access mode, return a human readable mode name.
-	// Ref:
-	// - https://github.com/container-storage-interface/spec/blob/master/csi.proto
-	// - https://github.com/container-storage-interface/spec/blob/master/lib/go/csi/csi.pb.go#L155
-	// TODO - Use the name map defined in csi.pb.go.
-	switch mode {
-	case 0:
-		return "", errors.New("invalid CSI AccessMode: 'UNKNOWN'")
-	case 1:
-		return "SINGLE_NODE_WRITER", nil
-	case 2:
-		return "SINGLE_NODE_READER_ONLY", nil
-	case 3:
-		return "MULTI_NODE_READER_ONLY", nil
-	case 4:
-		return "MULTI_NODE_SINGLE_WRITER", nil
-	case 5:
-		return "MULTI_NODE_MULTI_WRITER", nil
-	default:
-		return "", fmt.Errorf("invalid CSI AccessMode: %d", mode)
-	}
-}
-
 // AcessMode service struct
 type AccessMode struct{}
 
@@ -59,10 +35,6 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 	volName := volume.Name
 	volId := req.GetVolumeId()
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
-	modeName, err := _accessModeToName(reqAccessMode)
-	if err != nil {
-		return false, fmt.Errorf("for volume '%s' (%s), an error occurred: %s", volName, volId, err)
-	}
 
 	switch reqAccessMode {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
@@ -87,10 +59,6 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 	exportVolPathd := req.GetVolumeContext()["volPathd"]
 	exportID := req.GetVolumeContext()["exportID"]
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
-	modeName, err := _accessModeToName(reqAccessMode)
-	if err != nil {
-		return false, fmt.Errorf("for NFS export '%s' (%s), an error occurred: %s", exportVolPathd, exportID, err)
-	}
 
 	switch reqAccessMode {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
