@@ -90,14 +90,14 @@ func validateVolumeCapabilities(capabilities []*csi.VolumeCapability) error {
 		// there aren't any that we don't support yet, but some combinations are dumb?
 
 		// check block and file behavior
-		if block := vc.GetBlock(); block != nil {
+		if block := capability.GetBlock(); block != nil {
 			isBlock = true
 			if mode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 				klog.Warning("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
 			}
 			// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
 		}
-		if file := vc.GetMount(); file != nil {
+		if file := capability.GetMount(); file != nil {
 			isFile = true
 			// We should validate fs_type and []mount_flags parts of MountVolume message in NFS/TreeQ controllers - CSIC-339
 		}
