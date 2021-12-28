@@ -11,7 +11,6 @@ limitations under the License.*/
 package helper
 
 import (
-	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
 	"strings"
@@ -35,20 +34,21 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 	volName := volume.Name
 	volId := req.GetVolumeId()
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
+	friendlyModeName := csi.VolumeCapability_AccessMode_Mode_name[reqAccessMode]
 
 	switch reqAccessMode {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
 		if isIboxVolWriteProtected {
-			return false, fmt.Errorf("IBox Volume name '%s' (%s) is write protected, but the requested access mode is '%s'", volName, volId, modeName)
+			return false, fmt.Errorf("IBox Volume name '%s' (%s) is write protected, but the requested access mode is '%s'", volName, volId, friendlyModeName)
 		}
 		return true, nil
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
 		return true, nil
 	}
-	return false, fmt.Errorf("unsupported access mode for volume '%s' (%s): '%s'", volName, volId, modeName)
+	return false, fmt.Errorf("unsupported access mode for volume '%s' (%s): '%s'", volName, volId, friendlyModeName)
 }
 
 func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
@@ -59,13 +59,14 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 	exportVolPathd := req.GetVolumeContext()["volPathd"]
 	exportID := req.GetVolumeContext()["exportID"]
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
+	friendlyModeName := csi.VolumeCapability_AccessMode_Mode_name[reqAccessMode]
 
 	switch reqAccessMode {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
 		if isIboxExportReadonly {
-			return false, fmt.Errorf("IBox NFS export name '%s' (%s) is write protected, but the requested access mode is '%s'", exportVolPathd, exportID, modeName)
+			return false, fmt.Errorf("IBox NFS export name '%s' (%s) is write protected, but the requested access mode is '%s'", exportVolPathd, exportID, friendlyModeName)
 		} else {
 			return true, nil
 		}
@@ -73,7 +74,7 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
 		return true, nil
 	}
-	return false, fmt.Errorf("unsupported access mode for NFS export '%s' (%s): '%s'", exportVolPathd, exportID, modeName)
+	return false, fmt.Errorf("unsupported access mode for NFS export '%s' (%s): '%s'", exportVolPathd, exportID, friendlyModeName)
 }
 
 // MockAccessModesHelper -- mock method
