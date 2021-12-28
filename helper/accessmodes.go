@@ -34,7 +34,7 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 	volName := volume.Name
 	volId := req.GetVolumeId()
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
-	friendlyModeName := csi.VolumeCapability_AccessMode_Mode_name[reqAccessMode]
+	friendlyModeName := reqAccessMode.String()
 
 	switch reqAccessMode {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
@@ -59,7 +59,7 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 	exportVolPathd := req.GetVolumeContext()["volPathd"]
 	exportID := req.GetVolumeContext()["exportID"]
 	reqAccessMode := req.VolumeCapability.GetAccessMode().GetMode()
-	friendlyModeName := csi.VolumeCapability_AccessMode_Mode_name[reqAccessMode]
+	friendlyModeName := reqAccessMode.String()
 
 	switch reqAccessMode {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
