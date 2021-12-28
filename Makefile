@@ -69,8 +69,8 @@ test: build  ## Unit test source.
 
 .PHONY: test-one-thing
 test-one-thing: build  ## Unit test source, but just run one test.
-	@export testdir=storage && \
-	export onetest=TestFCControllerSuite/Test_CreateVolume_CreateVolume_content_succes && \
+	export testdir=storage && \
+	export onetest=TestTreeqControllerSuite/Test_CreateVolume_validation && \
 	printf "\nFrom $$testdir, running test $$onetest\n\n" && \
 	cd "$$testdir" && \
 	$(_GOTEST) -v -run "$$onetest"
@@ -129,7 +129,7 @@ docker-push-docker: docker-login-docker  # Tag and push to Dockerhub.
 docker-push-redhat:  ## Login, tag and push to Red Hat.
 	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
 	docker login -u unused scan.connect.redhat.com
-	docker tag $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 .PHONY: docker-push-all
