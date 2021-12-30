@@ -13,6 +13,7 @@ package service
 import (
 	"context"
 	"infinibox-csi-driver/storage"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"bou.ke/monkey"
@@ -29,36 +30,77 @@ func TestControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(ControllerTestSuite))
 }
 
-func (suite *ControllerTestSuite) Test_CreateVolume_Fail() {
-	parameterMap := getContrCreateVolumeParamter()
+func (suite *ControllerTestSuite) Test_CreateVolume_NoParameters_Fail() {
+	var parameterMap map[string]string
+	createVolumeReq := tests.GetCreateVolumeRequest("", parameterMap, "")
+	s := getService()
+	_, err := s.CreateVolume(context.Background(), createVolumeReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume no parameters")
+}
+
+func (suite *ControllerTestSuite) Test_CreateVolume_MissingStorageProtocol() {
+	parameterMap := getControllerCreateVolumeParameters()
 	delete(parameterMap, "storage_protocol")
-	createVolumeReq := getControllerCreateVolumeRequest("pvcName", parameterMap)
+	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 	s := getService()
 	_, err := s.CreateVolume(context.Background(), createVolumeReq)
-	assert.NotNil(suite.T(), err, "storage_protocol value missing")
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume storage protocol value missing")
 }
 
-func (suite *ControllerTestSuite) Test_storageController_Fail() {
-	parameterMap := getContrCreateVolumeParamter()
-	parameterMap["storage_protocol"] = "unknow"
-	createVolumeReq := getControllerCreateVolumeRequest("pvcName", parameterMap)
+func (suite *ControllerTestSuite) Test_CreateVolume_InvalidStorageProtocol() {
+	parameterMap := getControllerCreateVolumeParameters()
+	parameterMap["storage_protocol"] = "unknown"
+	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 	s := getService()
 	_, err := s.CreateVolume(context.Background(), createVolumeReq)
-	assert.NotNil(suite.T(), err, "storage_protocol value missing")
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume storage_protocol invalid")
 }
 
-func (suite *ControllerTestSuite) Test_CreateVolme_fail() {
-	parameterMap := getContrCreateVolumeParamter()
-	createVolumeReq := getControllerCreateVolumeRequest("pvcName", parameterMap)
+func (suite *ControllerTestSuite) Test_CreateVolume_No_VolumeCapabilities_fail() {
+	parameterMap := getControllerCreateVolumeParameters()
+	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
+	createVolumeReq.VolumeCapabilities = nil // force volume caps to be empty
+
 	s := getService()
+	_, err := s.CreateVolume(context.Background(), createVolumeReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume no VolumeCapabilities")
+}
+
+func (suite *ControllerTestSuite) Test_CreateVolume_VolumeCapabilities_MultiNodeReadAccess_success() {
+	parameterMap := getControllerCreateVolumeParameters()
+	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
+
+	// force volume caps with multi-node access
+	capa := csi.VolumeCapability{
+		AccessMode: &csi.VolumeCapability_AccessMode{
+			Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+		},
+	}
+	var arr []*csi.VolumeCapability
+	arr = append(arr, &capa)
+	createVolumeReq.VolumeCapabilities = arr
+
+	s := getService()
+	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
+		return &ControllerMock{}, nil
+	})
+	defer patch.Unpatch()
 
 	_, err := s.CreateVolume(context.Background(), createVolumeReq)
-	assert.NotNil(suite.T(), err, "nfs valume should ge fail")
+	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume VolumeCapabilities with MULTI_NODE_READER access")
 }
 
-func (suite *ControllerTestSuite) Test_CreateVolme_success() {
-	parameterMap := getContrCreateVolumeParamter()
-	createVolumeReq := getControllerCreateVolumeRequest("pvcName", parameterMap)
+func (suite *ControllerTestSuite) Test_CreateVolume_UnmockedFail() {
+	parameterMap := getControllerCreateVolumeParameters()
+	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
+	s := getService()
+	_, err := s.CreateVolume(context.Background(), createVolumeReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume with unmocked Controller")
+}
+
+func (suite *ControllerTestSuite) Test_CreateVolume_success() {
+	parameterMap := getControllerCreateVolumeParameters()
+	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -67,28 +109,28 @@ func (suite *ControllerTestSuite) Test_CreateVolme_success() {
 	defer patch.Unpatch()
 
 	resp, err := s.CreateVolume(context.Background(), createVolumeReq)
-	assert.Nil(suite.T(), err, "nfs valume should ge fail")
+	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume")
 	assert.NotNil(suite.T(), resp)
 }
 
-func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidID() {
-	deleteVolumeReq := getCtrDeleteVolumeRequest()
+func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidID_success() {
+	deleteVolumeReq := getControllerDeleteVolumeRequest()
 	deleteVolumeReq.VolumeId = "100"
 	s := getService()
 	_, err := s.DeleteVolume(context.Background(), deleteVolumeReq)
-	assert.Nil(suite.T(), err, "DeleteVolume with invalid volume ID should be success")
+	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteVolume with invalid volume ID")
 }
 
-func (suite *ControllerTestSuite) Test_DeleteVolume_invalidProtocol() {
-	deleteVolumeReq := getCtrDeleteVolumeRequest()
+func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidProtocol() {
+	deleteVolumeReq := getControllerDeleteVolumeRequest()
 	deleteVolumeReq.VolumeId = "100$$unknown"
 	s := getService()
 	_, err := s.DeleteVolume(context.Background(), deleteVolumeReq)
-	assert.NotNil(suite.T(), err, "Invalid Protocol")
+	assert.NotNil(suite.T(), err, "expected to fail: Controller DeleteVolume with Invalid Protocol")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteVolume_Success() {
-	deleteVolumeReq := getCtrDeleteVolumeRequest()
+	deleteVolumeReq := getControllerDeleteVolumeRequest()
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -97,37 +139,28 @@ func (suite *ControllerTestSuite) Test_DeleteVolume_Success() {
 	defer patch.Unpatch()
 
 	_, err := s.DeleteVolume(context.Background(), deleteVolumeReq)
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteVolume")
 }
-
-/*
-func (suite *ControllerTestSuite) Test_DeleteVolume_Error() {
-	deleteVolumeReq := getCtrDeleteVolumeRequest()
-	s := getService()
-	_, err := s.DeleteVolume(context.Background(), deleteVolumeReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
-}
-*/
 
 func (suite *ControllerTestSuite) Test_ControllerPublishVolume_InvalidID() {
-	crtPublishVolumeReq := getCrtControllerPublishVolumeRequest()
-	crtPublishVolumeReq.VolumeId = "100$$unknown$$123"
+	publishVolReq := getControllerPublishVolumeRequest()
+	publishVolReq.VolumeId = "100$$unknown$$123"
 	s := getService()
-	_, err := s.ControllerPublishVolume(context.Background(), crtPublishVolumeReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	_, err := s.ControllerPublishVolume(context.Background(), publishVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller PublishVolume Invalid volume ID format")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerPublishVolume_Invalid_protocol() {
-	crtPublishVolumeReq := getCrtControllerPublishVolumeRequest()
-	crtPublishVolumeReq.VolumeId = "100$$unknown"
+	publishVolReq := getControllerPublishVolumeRequest()
+	publishVolReq.VolumeId = "100$$unknown"
 	s := getService()
-	_, err := s.ControllerPublishVolume(context.Background(), crtPublishVolumeReq)
-	assert.NotNil(suite.T(), err, "Invalid volume protocol")
+	_, err := s.ControllerPublishVolume(context.Background(), publishVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller PublishVolume Invalid volume ID protocol")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerPublishVolume_success() {
-	crtPublishVolumeReq := getCrtControllerPublishVolumeRequest()
-	crtPublishVolumeReq.VolumeId = "100$$nfs"
+	publishVolReq := getControllerPublishVolumeRequest()
+	publishVolReq.VolumeId = "100$$nfs"
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -135,29 +168,29 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_success() {
 	})
 	defer patch.Unpatch()
 
-	_, err := s.ControllerPublishVolume(context.Background(), crtPublishVolumeReq)
-	assert.Nil(suite.T(), err, "Invalid volume protocol")
+	_, err := s.ControllerPublishVolume(context.Background(), publishVolReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller PublishVolume")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_InvalidID() {
-	crtUnPublishReq := getCrtControllerUnpublishVolume()
-	crtUnPublishReq.VolumeId = "100"
+	unpublishVolReq := getControllerUnpublishVolumeRequest()
+	unpublishVolReq.VolumeId = "100"
 	s := getService()
-	_, err := s.ControllerUnpublishVolume(context.Background(), crtUnPublishReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	_, err := s.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller UnpublishVolume Invalid volume ID format")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_InvalidProtocol() {
-	crtUnPublishReq := getCrtControllerUnpublishVolume()
-	crtUnPublishReq.VolumeId = "100$$unknown"
+	unpublishVolReq := getControllerUnpublishVolumeRequest()
+	unpublishVolReq.VolumeId = "100$$unknown"
 	s := getService()
-	_, err := s.ControllerUnpublishVolume(context.Background(), crtUnPublishReq)
-	assert.NotNil(suite.T(), err, "Invalid volume Protocol")
+	_, err := s.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller UnpublishVolume Invalid volume ID protocol")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_success() {
-	crtUnPublishReq := getCrtControllerUnpublishVolume()
-	crtUnPublishReq.VolumeId = "100$$nfs"
+	unpublishVolReq := getControllerUnpublishVolumeRequest()
+	unpublishVolReq.VolumeId = "100$$nfs"
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -165,29 +198,29 @@ func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_success() {
 	})
 	defer patch.Unpatch()
 
-	_, err := s.ControllerUnpublishVolume(context.Background(), crtUnPublishReq)
-	assert.Nil(suite.T(), err, "Invalid volume Protocol")
+	_, err := s.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller UnpublishVolume")
 }
 
 func (suite *ControllerTestSuite) Test_CreateSnapshot_InvalidID() {
-	crtCreateSnapshotReq := getCtrCreateSnapshotRequest()
-	crtCreateSnapshotReq.SourceVolumeId = "100"
+	createSnapshotReq := getControllerCreateSnapshotRequest()
+	createSnapshotReq.SourceVolumeId = "100"
 	s := getService()
-	_, err := s.CreateSnapshot(context.Background(), crtCreateSnapshotReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	_, err := s.CreateSnapshot(context.Background(), createSnapshotReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateSnapshot Invalid volume Id format")
 }
 
 func (suite *ControllerTestSuite) Test_CreateSnapshot_Invalid_protocol() {
-	crtCreateSnapshotReq := getCtrCreateSnapshotRequest()
-	crtCreateSnapshotReq.SourceVolumeId = "100$$unknown"
+	createSnapshotReq := getControllerCreateSnapshotRequest()
+	createSnapshotReq.SourceVolumeId = "100$$unknown"
 	s := getService()
-	_, err := s.CreateSnapshot(context.Background(), crtCreateSnapshotReq)
-	assert.NotNil(suite.T(), err, "Invalid protocol")
+	_, err := s.CreateSnapshot(context.Background(), createSnapshotReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateSnapshot invalid Volume Id protocol")
 }
 
 func (suite *ControllerTestSuite) Test_CreateSnapshot_success() {
-	crtCreateSnapshotReq := getCtrCreateSnapshotRequest()
-	crtCreateSnapshotReq.SourceVolumeId = "100$$nfs"
+	createSnapshotReq := getControllerCreateSnapshotRequest()
+	createSnapshotReq.SourceVolumeId = "100$$nfs"
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -195,28 +228,28 @@ func (suite *ControllerTestSuite) Test_CreateSnapshot_success() {
 	})
 	defer patch.Unpatch()
 
-	_, err := s.CreateSnapshot(context.Background(), crtCreateSnapshotReq)
-	assert.Nil(suite.T(), err, "success protocol")
+	_, err := s.CreateSnapshot(context.Background(), createSnapshotReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateSnapshot")
 }
 
-func (suite *ControllerTestSuite) Test_DeleteSnapshot_InvalidID() {
-	crtDeleteSnapshotReq := getCtrDeleteSnapshotRequest()
-	crtDeleteSnapshotReq.SnapshotId = "100"
+func (suite *ControllerTestSuite) Test_DeleteSnapshot_InvalidID_success() {
+	deleteSnapshotReq := getControllerDeleteSnapshotRequest()
+	deleteSnapshotReq.SnapshotId = "100"
 	s := getService()
-	_, err := s.DeleteSnapshot(context.Background(), crtDeleteSnapshotReq)
-	assert.Nil(suite.T(), err, "DeleteSnapshot with invalid snapshot ID should be success")
+	_, err := s.DeleteSnapshot(context.Background(), deleteSnapshotReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot invalid snapshot ID")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_Invalid_protocol() {
-	crtDeleteSnapshotReq := getCtrDeleteSnapshotRequest()
-	crtDeleteSnapshotReq.SnapshotId = "100$$unknown"
+	deleteSnapshotReq := getControllerDeleteSnapshotRequest()
+	deleteSnapshotReq.SnapshotId = "100$$unknown"
 	s := getService()
-	_, err := s.DeleteSnapshot(context.Background(), crtDeleteSnapshotReq)
-	assert.NotNil(suite.T(), err, "Invalid protocol")
+	_, err := s.DeleteSnapshot(context.Background(), deleteSnapshotReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller DeleteSnapshot Invalid SnapshotId protocol")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_success() {
-	crtDeleteSnapshotReq := getCtrDeleteSnapshotRequest()
+	deleteSnapshotReq := getControllerDeleteSnapshotRequest()
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -224,28 +257,28 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_success() {
 	})
 	defer patch.Unpatch()
 
-	_, err := s.DeleteSnapshot(context.Background(), crtDeleteSnapshotReq)
-	assert.Nil(suite.T(), err, "Invalid protocol")
+	_, err := s.DeleteSnapshot(context.Background(), deleteSnapshotReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_InvalidID() {
-	crtexpandReq := getCrtControllerExpandVolumeRequest()
-	crtexpandReq.VolumeId = "100"
+	expandVolReq := getControllerExpandVolumeRequest()
+	expandVolReq.VolumeId = "100"
 	s := getService()
-	_, err := s.ControllerExpandVolume(context.Background(), crtexpandReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	_, err := s.ControllerExpandVolume(context.Background(), expandVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller ExpandVolume volume ID invalid format")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_Invalid_protocol() {
-	crtexpandReq := getCrtControllerExpandVolumeRequest()
-	crtexpandReq.VolumeId = "100$$unknow"
+	expandVolReq := getControllerExpandVolumeRequest()
+	expandVolReq.VolumeId = "100$$unknown"
 	s := getService()
-	_, err := s.ControllerExpandVolume(context.Background(), crtexpandReq)
-	assert.NotNil(suite.T(), err, "Invalid volume ID")
+	_, err := s.ControllerExpandVolume(context.Background(), expandVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: Controller ExpandVolume volume ID invalid protocol")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
-	crtexpandReq := getCrtControllerExpandVolumeRequest()
+	expandVolReq := getControllerExpandVolumeRequest()
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -253,20 +286,20 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 	})
 	defer patch.Unpatch()
 
-	_, err := s.ControllerExpandVolume(context.Background(), crtexpandReq)
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	_, err := s.ControllerExpandVolume(context.Background(), expandVolReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller ExpandVolume")
 }
 
-func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_() {
-	crtCapabilitiesReqReq := getCtrControllerGetCapabilitiesRequest()
+func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_success() {
+	controllerGetCapsReq := getControllerGetCapabilitiesRequest()
 	s := getService()
 
-	_, err := s.ControllerGetCapabilities(context.Background(), crtCapabilitiesReqReq)
-	assert.Nil(suite.T(), err, "Invalid volume ID")
+	_, err := s.ControllerGetCapabilities(context.Background(), controllerGetCapsReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller GetCapabilities")
 }
 
 func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
-	crtValidateVolumeCapabilitiesReq := getCtrValidateVolumeCapabilitiesRequest()
+	validateVolCapsReq := getControllerValidateVolumeCapabilitiesRequest()
 	s := getService()
 
 	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
@@ -274,106 +307,87 @@ func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
 	})
 	defer patch.Unpatch()
 
-	_, err := s.ValidateVolumeCapabilities(context.Background(), crtValidateVolumeCapabilitiesReq)
-	assert.Nil(suite.T(), err, "ValidateVolumeCapabilities should succeed")
+	_, err := s.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
+	assert.Nil(suite.T(), err, "expected to succeed: Controller ValidateVolumeCapabilities")
 }
 
-func (suite *ControllerTestSuite) Test_ListVolumes() {
+func (suite *ControllerTestSuite) Test_ListVolumes_unimplemented() {
 	s := getService()
 	_, err := s.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
-	assert.NotNil(suite.T(), err, "ListVolumes unimplemented")
+	assert.NotNil(suite.T(), err, "expected to fail: Controller ListVolumes unimplemented")
 }
 
-func (suite *ControllerTestSuite) Test_ListSnapshots() {
+func (suite *ControllerTestSuite) Test_ListSnapshots_unimplemented() {
 	s := getService()
 	_, err := s.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
-	assert.NotNil(suite.T(), err, "ListSnapshots unimplemented")
+	assert.NotNil(suite.T(), err, "expected to fail: Controller ListSnapshots unimplemented")
 }
 
-func (suite *ControllerTestSuite) Test_GetCapacity() {
+func (suite *ControllerTestSuite) Test_GetCapacity_unimplemented() {
 	s := getService()
 	_, err := s.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
-	assert.NotNil(suite.T(), err, "GetCapacity unimplemented")
+	assert.NotNil(suite.T(), err, "expected to fail: Controller GetCapacity unimplemented")
 }
 
 //=============================
 
-func getCtrControllerGetCapabilitiesRequest() *csi.ControllerGetCapabilitiesRequest {
+func getControllerGetCapabilitiesRequest() *csi.ControllerGetCapabilitiesRequest {
 	return &csi.ControllerGetCapabilitiesRequest{}
 }
 
-func getCrtControllerExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
+func getControllerExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{
 		VolumeId:      "100$$nfs",
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 10000},
-		Secrets:       getSecret(),
+		Secrets:       tests.GetSecret(),
 	}
 }
 
-func getCtrDeleteSnapshotRequest() *csi.DeleteSnapshotRequest {
+func getControllerDeleteSnapshotRequest() *csi.DeleteSnapshotRequest {
 	return &csi.DeleteSnapshotRequest{
 		SnapshotId: "100$$nfs",
-		Secrets:    getSecret(),
+		Secrets:    tests.GetSecret(),
 	}
 }
 
-func getCtrCreateSnapshotRequest() *csi.CreateSnapshotRequest {
+func getControllerCreateSnapshotRequest() *csi.CreateSnapshotRequest {
 	return &csi.CreateSnapshotRequest{
 		SourceVolumeId: "100$$nfs",
-		Secrets:        getSecret(),
+		Secrets:        tests.GetSecret(),
 	}
 }
 
-func getCrtControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
+func getControllerUnpublishVolumeRequest() *csi.ControllerUnpublishVolumeRequest {
 	return &csi.ControllerUnpublishVolumeRequest{
 		VolumeId: "100$$nfs",
-		Secrets:  getSecret(),
+		Secrets:  tests.GetSecret(),
 	}
 }
 
-func getCrtControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {
+func getControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeId: "100$$nfs",
 		NodeId:   "test$$10.20.30.50",
-		Secrets:  getSecret(),
+		Secrets:  tests.GetSecret(),
 	}
 }
 
-func getCtrDeleteVolumeRequest() *csi.DeleteVolumeRequest {
+func getControllerDeleteVolumeRequest() *csi.DeleteVolumeRequest {
 	return &csi.DeleteVolumeRequest{
 		VolumeId: "100$$nfs",
-		Secrets:  getSecret(),
+		Secrets:  tests.GetSecret(),
 	}
 }
 
-func getCtrValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabilitiesRequest {
+func getControllerValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabilitiesRequest {
 	return &csi.ValidateVolumeCapabilitiesRequest{
 		VolumeId: "100$$nfs",
-		Secrets:  getSecret(),
+		Secrets:  tests.GetSecret(),
 	}
 }
 
-func getContrCreateVolumeParamter() map[string]string {
+func getControllerCreateVolumeParameters() map[string]string {
 	return map[string]string{"storage_protocol": "nfs", "pool_name": "pool_name1", "network_space": "network_space1", "nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
-}
-
-func getSecret() map[string]string {
-	secretMap := make(map[string]string)
-	secretMap["username"] = "admin"
-	secretMap["password"] = "123456"
-	secretMap["hostname"] = "https://172.17.35.61/"
-	return secretMap
-}
-
-func getControllerCreateVolumeRequest(name string, parameterMap map[string]string) *csi.CreateVolumeRequest {
-	return &csi.CreateVolumeRequest{
-		Name:          "volumeName",
-		CapacityRange: &csi.CapacityRange{RequiredBytes: 1000},
-		// VolumeCapabilities []*VolumeCapability
-		Parameters:          parameterMap,
-		Secrets:             getSecret(),
-		VolumeContentSource: nil,
-	}
 }
 
 func getService() Service {

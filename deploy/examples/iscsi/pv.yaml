@@ -23,7 +23,6 @@ spec:
       name: infinibox-creds
       namespace: infi
     volumeAttributes:
-      fstype: ext4
       # gid: 1000
       iqn: iqn.2009-11.com.infinidat:storage:infinibox-sn-36000-2436
       max_vols_per_host: 100

@@ -6,6 +6,10 @@ provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
+mountOptions:
+  - hard
+  - rsize=1048576
+  - wsize=1048576
 parameters:
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/controller-expand-secret-namespace: infi
@@ -20,7 +24,6 @@ parameters:
     # gid: 1000 # GID of file system files
     network_space: nsnas
     nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false}]"
-    nfs_mount_options: vers=3,hard,rsize=1048576,wsize=1048576
     pool_name: N_pool_1
     provision_type: THIN
     ssd_enabled: "true"

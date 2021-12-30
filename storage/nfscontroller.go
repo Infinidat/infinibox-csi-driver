@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -61,42 +61,32 @@ type infinidatVolume struct {
 type accessType int
 
 const (
-	// Infinibox default values
+	// InfiniBox default values
 	MaxFileSystemAllowed = 4000
-	MountOptions         = "hard,rsize=1024,wsize=1024"
+	StandardMountOptions = "hard,rsize=1024,wsize=1024,vers=3"
 	NfsExportPermissions = "RW"
 	NoRootSquash         = true
 	NfsUnixPermissions   = "777"
 )
 
-func validateParameter(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "network_space", "nfs_export_permissions"} // TODO: add remaining paramters
-	validationStatus := true
-	validationStatusMap := make(map[string]string)
-	for _, param := range compulsaryFields {
-		if config[param] == "" {
-			validationStatusMap[param] = param + " value missing"
-			validationStatus = false
-		}
-	}
-	klog.V(4).Infof("parameter Validation completed")
-	return validationStatus, validationStatusMap
-}
-
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	klog.V(4).Infof("Creating Volume of nfs protocol")
+	var err error
 	// Adding the the request parameter into Map config
 	config := req.GetParameters()
 	pvName := req.GetName()
 
-	klog.V(4).Infof("Creating fileystem %s of nfs protocol ", pvName)
-	validationStatus, validationStatusMap := validateParameter(config)
-	if !validationStatus {
-		klog.Errorf("failed to validate parameter for nfs protocol, %v", validationStatusMap)
-		return nil, status.Error(codes.InvalidArgument, "failed to validate parameter for nfs protocol")
+	klog.V(4).Infof(" csi request parameters %v", config)
+	err = validateStorageClassParameters(map[string]string{
+		"pool_name":     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+	}, config)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	klog.V(4).Infof("fileystem %s ,parameter validation success", pvName)
+	// TODO: negative validation - eg useCHAP should NOT be specified for nfs
 
+	// TODO: roll this capacity validation into broader controller.go
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib { // INF90
 		capacity = gib
@@ -114,7 +104,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		klog.Errorf(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
-	klog.V(2).Infof("Using priviledged ports only: %t", usePrivilegedPorts)
+	klog.V(2).Infof("Using privileged ports only: %t", usePrivilegedPorts)
 
 	// Snapshot dir visible
 	snapdirVisibleString := config["snapdir_visible"]
@@ -265,7 +255,7 @@ func (nfs *nfsstorage) createVolumeFrmPVCSource(req *csi.CreateVolumeRequest, si
 	return nfs.getNfsCsiResponse(req), nil
 }
 
-// CreateNFSVolume create volumne method
+// CreateNFSVolume create volume method
 func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil {
@@ -453,7 +443,7 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-// DeleteNFSVolume delete volumne method
+// DeleteNFSVolume delete volume method
 func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	defer func() {
 		if res := recover(); res != nil {
@@ -506,6 +496,7 @@ type ExportPermission struct {
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	var err error
 
+	// TODO: revisit this as part of CSIC-343
 	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -570,6 +561,7 @@ func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.
 	}
 	klog.V(4).Infof("volID: %d volume: %v", volID, fs)
 
+	// TODO: revisit this as part of CSIC-343
 	// _, err = nfs.cs.accessModesHelper.IsValidAccessMode(fs, req)
 	// if err != nil {
 	//     return nil, status.Error(codes.InvalidArgument, err.Error())

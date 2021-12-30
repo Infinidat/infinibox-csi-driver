@@ -6,6 +6,8 @@ provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
+mountOptions:
+  - hard
 parameters:
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
@@ -17,7 +19,7 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: infi
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infi
-  fstype: ext4
+  csi.storage.k8s.io/fstype: ext4
   # gid: 1000 # GID of volume
   max_vols_per_host: "100"
   network_space: "niscsi"

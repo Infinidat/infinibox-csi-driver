@@ -27,7 +27,7 @@ _art_dir            = artifact
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
 _GITLAB_USER        = dohlemacher
-_DOCKER_IMAGE_TAG   = v2.1.0-rc2
+_DOCKER_IMAGE_TAG   = v2.1.0-rc4
 
 # redhat username and tag
 _REDHAT_DOCKER_USER = dohlemacher2
@@ -66,6 +66,20 @@ rebuild: clean ## Rebuild source (all packages)
 .PHONY: test
 test: build  ## Unit test source.
 	$(_GOTEST) -v ./...
+
+.PHONY: test-one-thing
+test-one-thing: build  ## Unit test source, but just run one test.
+	export testdir=api && \
+	export onetest=TestFCControllerSuite/Test_CreateVolume_InvalidParameter_NoFsType && \
+	printf "\nFrom $$testdir, running test $$onetest\n\n" && \
+	cd "$$testdir" && \
+	$(_GOTEST) -v -run "$$onetest"
+
+.PHONY: test-find-fails
+test-find-fails:  ## Find and summarize failing tests.
+	@echo -e $(_begin)
+	@$(_make) test | grep "    --- FAIL:"
+	@echo -e $(_finish)
 
 .PHONY: lint
 lint: build ## Lint source.
@@ -121,7 +135,7 @@ docker-push-docker: docker-login-docker  # Tag and push to Dockerhub.
 docker-push-redhat:  ## Login, tag and push to Red Hat.
 	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
 	docker login -u unused scan.connect.redhat.com
-	docker tag $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 .PHONY: docker-push-all

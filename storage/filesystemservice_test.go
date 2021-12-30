@@ -522,17 +522,6 @@ func (suite *FileSystemServiceSuite) Test_UpdateTreeqVolume_Success() {
 	assert.Nil(suite.T(), err, "empty object")
 }
 
-func (suite *FileSystemServiceSuite) Test_validateTreeqParameters() {
-	expectedErr := errors.New("some error")
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
-	service := getFilesystemService(NFSTREEQ, *suite.cs)
-	configMap := map[string]string{"pool_name": "poolName", "network_space": "nws", "nfs_export_permissions": ""}
-
-	result, msgMap := service.validateTreeqParameters(configMap)
-	assert.False(suite.T(), result, "empty object")
-	assert.Equal(suite.T(), 1, len(msgMap))
-}
-
 func (suite *FileSystemServiceSuite) Test_IsTreeqAlreadyExist_Error() {
 	var poolID int64 = 10
 	// var fsID int64 = 11
@@ -622,7 +611,18 @@ func getTreeQResponse(fileSysID int64) *api.Treeq {
 }
 
 func getCreateVolumeRequest() *csi.CreateVolumeRequest {
-	return &csi.CreateVolumeRequest{}
+	parameters := map[string]string{
+		"pool_name":                 "a_pool",
+		"max_filesystem_size":       "30gib",
+		"max_filesystems":           "20",
+		"max_treeqs_per_filesystem": "21",
+		"network_space":             "nas",
+	}
+	req := csi.CreateVolumeRequest{
+		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * gib},
+		Parameters:    parameters,
+	}
+	return &req
 }
 
 func getfsMetadata() *api.FSMetadata {

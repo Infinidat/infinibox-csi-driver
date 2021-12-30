@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -503,6 +503,9 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 		klog.V(4).Infof("Error occured while getting metadata value: %s", err)
 		return false
 	}
+
+	klog.V(4).Infof("GetMetadataStatus for file system ID %d: %v", fileSystemID, resp)
+
 	if metadata == (Metadata{}) {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.(Metadata)
@@ -513,6 +516,7 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 		status = false
 	}
 	klog.V(2).Infof("Got metadata status of filesystem with ID %d", fileSystemID)
+	klog.V(2).Infof("Got metadata status of filesystem with ID %d: %t", fileSystemID, status) 
 	return status
 }
 

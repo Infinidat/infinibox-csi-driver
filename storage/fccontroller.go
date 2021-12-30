@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -41,36 +41,36 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, err
 	}
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
+
 	params := req.GetParameters()
 	klog.V(2).Infof(" csi request parameters %v", params)
-	err = validateParametersFC(params)
+
+	// validate required parameters
+	err = validateStorageClassParameters(map[string]string{
+		"pool_name":         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		"max_vols_per_host": `(?i)\A\d+\z`,
+	}, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	// Get Volume Provision Type
-	volType := "THIN"
-	if prosiontype, ok := params[KeyVolumeProvisionType]; ok {
-		volType = prosiontype
+
+	// validate optional parameters
+	volType, provided := params["provision_type"]
+	if !provided {
+		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
+	}
+	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
+	ssdEnabledString, provided := params["ssd_enabled"]
+	if provided {
+		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
 	}
 
-	// Access Mode check
-	volCaps := req.GetVolumeCapabilities()
-	if volCaps == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-	for _, volCap := range volCaps {
-		if volCap.GetAccessMode().GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
-			klog.Errorf("volume capability %s for FC is not supported", volCap.GetAccessMode().GetMode().String())
-			return nil, status.Error(codes.Unavailable, fmt.Sprintf("Volume capability %s for FC is not supported", volCap.GetAccessMode().GetMode().String()))
-		}
-	}
 
-	// Volume name to be created
+	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
-	klog.V(2).Infof("csi volume name from request: %s", name)
-	if name == "" {
-		return nil, status.Error(codes.InvalidArgument, "Name cannot be empty")
-	}
+
+	// Pool name - already verified earlier
+	poolName := params["pool_name"]
 
 	targetVol, err := fc.cs.api.GetVolumeByName(name)
 	if err != nil {
@@ -82,7 +82,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		klog.V(2).Infof("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
 		if targetVol.Size == sizeBytes {
 			existingVolumeInfo := fc.cs.getCSIResponse(targetVol, req)
-			copyRequestParameters(req.GetParameters(), existingVolumeInfo.VolumeContext)
+			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
 			return &csi.CreateVolumeResponse{
 				Volume: existingVolumeInfo,
 			}, nil
@@ -92,22 +92,11 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, err
 	}
 
-	// We require the storagePool name for creation
-	poolName, ok := req.GetParameters()["pool_name"]
-	if !ok {
-		return nil, status.Error(codes.InvalidArgument, "pool_name is a required parameter")
-	}
-	fstype := req.GetParameters()["fstype"]
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
 		return fc.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
 	}
-	ssd := req.GetParameters()["ssd_enabled"]
-	if ssd == "" {
-		ssd = fmt.Sprint(false)
-	}
-	ssdEnabled, _ := strconv.ParseBool(ssd)
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
@@ -141,7 +130,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 
 	// Prepare response struct
-	copyRequestParameters(req.GetParameters(), vi.VolumeContext)
+	copyRequestParameters(params, vi.VolumeContext)
 	csiResp := &csi.CreateVolumeResponse{
 		Volume: vi,
 	}
@@ -149,7 +138,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// attach metadata to volume object
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = volumeResp.Name
-	metadata["host.filesystem_type"] = fstype
+	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = fc.cs.api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
 	if err != nil {
 		klog.Errorf("failed to attach metadata for volume: %s, err: %v", name, err)
@@ -267,7 +256,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = dstVol.Name
-	metadata["host.filesystem_type"] = req.GetParameters()["fstype"]
+	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = fc.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
 		klog.Errorf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
@@ -304,6 +293,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, errors.New("error getting volume by id")
 	}
 
+	// TODO: revisit this as part of CSIC-343
 	_, err = fc.cs.accessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -427,6 +417,7 @@ func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.Va
 	}
 	klog.V(4).Infof("volID: %d colume: %v", volID, v)
 
+	// TODO: revisit this as part of CSIC-343
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
 	// if err != nil {
 	// 	   return nil, status.Error(codes.Internal, err.Error())

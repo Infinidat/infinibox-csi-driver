@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -70,52 +71,24 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 	return sizeinByte, nil
 }
 
-func validateParametersFC(storageClassParams map[string]string) error {
-	reqParams := []string{
-		"fstype",
-		"pool_name",
-		"provision_type",
-		"storage_protocol",
-		"ssd_enabled",
-		"max_vols_per_host",
-	}
-	if len(reqParams) != len(storageClassParams) {
-		log.Error("Mismatch in provided parameters and required params")
-		return errors.New("Mismatch in provided parameters and required params")
-	}
-	for _, param := range reqParams {
-		if storageClassParams[param] == "" {
-			log.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
-			return fmt.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
+func validateStorageClassParameters(requiredStorageClassParams map[string]string, providedStorageClassParams map[string]string) error {
+	// Loop through and check required parameters only, consciously ignore parameters that aren't required
+	badParamsMap := make(map[string]string)
+	for param, required_regex := range requiredStorageClassParams {
+		if param_value, ok := providedStorageClassParams[param]; ok {
+			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
+				badParamsMap[param] = "Required input parameter " + param_value + " didn't match expected pattern " + required_regex
+			}
+		} else {
+			badParamsMap[param] = "Parameter required but not provided"
 		}
 	}
-	return nil
-}
 
-func validateParametersiSCSI(storageClassParams map[string]string) error {
-	reqParams := []string{
-		"useCHAP",
-		"fstype",
-		"pool_name",
-		"network_space",
-		"provision_type",
-		"storage_protocol",
-		"ssd_enabled",
-		"max_vols_per_host",
-		"uid",
-		"gid",
-		"unix_permissions",
+	if len(badParamsMap) > 0 {
+		klog.Errorf("Invalid StorageClass parameters provided: %s", badParamsMap)
+		return fmt.Errorf("Invalid StorageClass parameters provided: %s", badParamsMap)
 	}
-	if len(reqParams) != len(storageClassParams) {
-		klog.Errorf("Mismatch in provided parameters (%v) and required params (%v)", storageClassParams, reqParams)
-		return errors.New("Mismatch in provided parameters and required params")
-	}
-	for _, param := range reqParams {
-		if storageClassParams[param] == "" {
-			klog.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
-			return fmt.Errorf("Invalid value %s for required parameter %s", storageClassParams[param], param)
-		}
-	}
+
 	return nil
 }
 

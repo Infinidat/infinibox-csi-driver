@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -89,7 +89,6 @@ func getFilesystemService(serviceType string, c commonservice) *FilesystemServic
 
 // FileSystemInterface interface
 type FileSystemInterface interface {
-	validateTreeqParameters(config map[string]string) (bool, map[string]string)
 	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
 	DeleteTreeqVolume(filesystemID, treeqID int64) error
 	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error
@@ -226,7 +225,7 @@ func (filesystem *FilesystemService) setParameter(config map[string]string, capa
 	filesystem.exportpath = "/" + filesystem.pVName
 }
 
-// CreateTreeqVolume create volumne method
+// CreateTreeqVolume create volume method
 func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (treeqVolume map[string]string, err error) {
 	defer func() {
 		if res := recover(); res != nil {
@@ -235,7 +234,6 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	}()
 	treeqVolume = make(map[string]string)
 	treeqVolume["storage_protocol"] = config["storage_protocol"]
-	treeqVolume["nfs_mount_options"] = config["nfs_mount_options"]
 	filesystem.setParameter(config, capacity, pvName)
 
 	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
@@ -461,20 +459,6 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 	filesystem.exportID = exportResp.ID
 	filesystem.exportBlock = exportResp.ExportPath
 	return
-}
-
-func (filesystem *FilesystemService) validateTreeqParameters(config map[string]string) (bool, map[string]string) {
-	compulsaryFields := []string{"pool_name", "network_space", "nfs_export_permissions"}
-	validationStatus := true
-	validationStatusMap := make(map[string]string)
-	for _, param := range compulsaryFields {
-		if config[param] == "" {
-			validationStatusMap[param] = param + " value missing"
-			validationStatus = false
-		}
-	}
-	klog.V(4).Infof("parameter Validation completed")
-	return validationStatus, validationStatusMap
 }
 
 func getDefaultValues() map[string]string {

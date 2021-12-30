@@ -5,6 +5,7 @@ import (
 	"errors"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -17,6 +18,7 @@ func (suite *FCControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
+	tests.ConfigureKlog()
 }
 
 type FCControllerSuite struct {
@@ -30,73 +32,32 @@ func TestFCControllerSuite(t *testing.T) {
 	suite.Run(t, new(FCControllerSuite))
 }
 
-func (suite *FCControllerSuite) Test_CreateVolume_InvalidParameter_Fail() {
-	service := fcstorage{cs: *suite.cs}
-	var parameterMap map[string]string
-	crtValReq := getISCSICreateVolumeRequest("", parameterMap)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume no parameters")
-}
-
-func (suite *FCControllerSuite) Test_CreateVolume_InvalidParameter_Fail2() {
-	service := fcstorage{cs: *suite.cs}
-	parameterMap := getFCCreateVolumeParameter()
-	delete(parameterMap, "fstype")
-	crtValReq := getISCSICreateVolumeRequest("", parameterMap)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume missing parameter")
-}
-
-func (suite *FCControllerSuite) Test_CreateVolume_GetVolumeCapabilities_fail() {
-	service := fcstorage{cs: *suite.cs}
-	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("pvname", parameterMap)
-	crtValReq.VolumeCapabilities = nil
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume no VolumeCapabilities")
-}
-
-func (suite *FCControllerSuite) Test_CreateVolume_GetVolumeCapabilities_Mode_fail() {
-	service := fcstorage{cs: *suite.cs}
-	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("pvname", parameterMap)
-
-	capa := csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-		},
-	}
-	var arr []*csi.VolumeCapability
-	arr = append(arr, &capa)
-	crtValReq.VolumeCapabilities = arr
-
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume VolumeCapabilities invalid mode")
-}
-
-func (suite *FCControllerSuite) Test_CreateVolume_GetPVName_fail() {
-	service := fcstorage{cs: *suite.cs}
-	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("", parameterMap)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "Name cannot be empty")
-}
+// BUG: bad test - FCController doesn't need to validate fstype, that's on fcnode to do.
+// func (suite *FCControllerSuite) Test_CreateVolume_InvalidParameter_NoFsType() {
+// 	service := fcstorage{cs: *suite.cs}
+// 	parameterMap := getFCCreateVolumeParameter()
+// 	delete(parameterMap, "fstype") // this is an old parameter anyway
+// 	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
+// 	createVolReq.VolumeCapabilities[0].AccessType.Mount.FsType = "" // this is where we should fail at the node level
+// 	_, err := service.CreateVolume(context.Background(), createVolReq)
+// 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume missing fstype parameter")
+// }
 
 func (suite *FCControllerSuite) Test_CreateVolume_GetName_fail() {
 	service := fcstorage{cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume GetVolumeByName")
 }
 
-func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_fail() {
+func (suite *FCControllerSuite) Test_CreateVolume_fail() {
 	service := fcstorage{cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
@@ -104,14 +65,14 @@ func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_fail() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume create volume")
 }
 
-func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_success() {
+func (suite *FCControllerSuite) Test_CreateVolume_success() {
 	service := fcstorage{cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 
@@ -120,14 +81,14 @@ func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_success() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
 }
 
-func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_metadataError() {
+func (suite *FCControllerSuite) Test_CreateVolume_metadataError() {
 	service := fcstorage{cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
@@ -137,84 +98,84 @@ func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_metadataError() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume attach metadata")
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_InvalidVolumeID() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
-	crtValReq.VolumeId = ""
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	createVolReq := getISCSIDeleteRequest()
+	createVolReq.VolumeId = ""
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume empty volume ID")
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_casting_Error() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
-	crtValReq.VolumeId = "1bc"
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	createVolReq := getISCSIDeleteRequest()
+	createVolReq.VolumeId = "1bc"
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume invalid volume ID due to bad casting")
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolume", mock.Anything).Return(nil, expectedErr)
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume GetVolume")
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return(getVolumeArray(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume attach metadata")
 }
 
-func (suite *FCControllerSuite) Test_DeleteVolume_DeleteVolume_Error() {
+func (suite *FCControllerSuite) Test_DeleteVolume_Error() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	suite.api.On("DeleteVolume", mock.Anything).Return(expectedErr)
 
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume delete volume")
 }
 
-func (suite *FCControllerSuite) Test_DeleteVolume_DeleteVolume_success() {
+func (suite *FCControllerSuite) Test_DeleteVolume_success() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	suite.api.On("DeleteVolume", mock.Anything).Return(nil)
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc DeleteVolume")
 }
 
-func (suite *FCControllerSuite) Test_DeleteVolume_DeleteVolume_AlreadyDelete() {
+func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	service := fcstorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("VOLUME_NOT_FOUND")
 	suite.api.On("GetVolume", mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc DeleteVolume already deleted")
 }
 
-func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_succes() {
+func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
 	service := fcstorage{cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeCloneRequest(parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$fc")
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -223,14 +184,15 @@ func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_succes() 
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
 }
 
-func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_AttachMetadataToObject_err() {
+func (suite *FCControllerSuite) Test_CreateVolume_content_AttachMetadataToObject_err() {
 	service := fcstorage{cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
-	crtValReq := getISCSICreateVolumeCloneRequest(parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$fc")
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -240,7 +202,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_CreateVolume_content_AttachMet
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume attach metadata")
 }
 
@@ -391,10 +353,10 @@ func (suite *FCControllerSuite) Test_ControllerExpandVolume() {
 func (suite *FCControllerSuite) Test_ValidateVolumeCapabilities() {
 	service := fcstorage{cs: *suite.cs}
 	var parameterMap map[string]string
-	crtValidateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
+	validateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
 
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	_, err := service.ValidateVolumeCapabilities(context.Background(), crtValidateVolCapsReq)
+	_, err := service.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc ValidateVolumeCapabilities")
 }
 
@@ -419,5 +381,11 @@ func (suite *FCControllerSuite) Test_GetCapacity() {
 // Test data ===========
 
 func getFCCreateVolumeParameter() map[string]string {
-	return map[string]string{"fstype": "fstype1", "pool_name": "pool_name1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host"}
+	return map[string]string{
+		"max_vols_per_host": "19",
+		"pool_name":         "pool_name1",
+		"provision_type":    "THIN",
+		"ssd_enabled":       "true",
+		"storage_protocol":  "fc",
+	}
 }

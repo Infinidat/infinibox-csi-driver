@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -54,19 +54,26 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if !notMnt {
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
-	mountOptions := []string{}
-	configMountOptions := req.GetVolumeContext()["nfs_mount_options"]
-	if configMountOptions == "" {
-		configMountOptions = MountOptions
+
+	// get mount options from VolumeCapability - the standard way
+	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
+	// accommodate legacy nfs_mount_options parameter and legacy default in storageservice.go - remove in future releases, CSIC-346
+	mountOptionsString, oldNfsMountOptionsParamProvided := req.GetVolumeContext()["nfs_mount_options"]
+	if oldNfsMountOptionsParamProvided {
+		klog.Warningf("Deprecated 'nfs_mount_options' parameter %s provided, will NOT be supported in future releases - please move to standard 'mountOptions' parameter", mountOptionsString)
+	} else {
+		mountOptionsString = StandardMountOptions // defined in nfscontroller.go
 	}
-	for _, option := range strings.Split(configMountOptions, ",") {
+	for _, option := range strings.Split(mountOptionsString, ",") {
 		if option != "" {
 			mountOptions = append(mountOptions, option)
 		}
 	}
 	if req.GetReadonly() {
+		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
 		mountOptions = append(mountOptions, "ro")
 	}
+	// TODO: remove duplicates from this list
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
