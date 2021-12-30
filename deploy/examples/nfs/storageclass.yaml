@@ -21,7 +21,6 @@ parameters:
     csi.storage.k8s.io/node-stage-secret-namespace: infi
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infi
-    # gid: 1000 # GID of file system files
     network_space: nsnas
     nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false}]"
     pool_name: N_pool_1
@@ -29,4 +28,6 @@ parameters:
     ssd_enabled: "true"
     storage_protocol: nfs
     # uid: 1000 # UID of file system files
+    # gid: 1000 # GID of file system files
     # unix_permissions: 777 # chmod -R of file system
+    # privileged_ports_only: no

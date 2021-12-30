@@ -24,5 +24,3 @@ parameters:
   provision_type: "THIN"
   storage_protocol: "fc"
   ssd_enabled: "false"
-  max_vols_per_host: "100"
-

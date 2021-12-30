@@ -11,5 +11,3 @@ spec:
       storage: 1Gi
   storageClassName: ibox-nfs-storageclass-demo
   #volumeName: <<pv name>> #need to uncomment if want to existing pv
- 
-

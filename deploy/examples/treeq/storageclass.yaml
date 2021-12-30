@@ -11,13 +11,13 @@ mountOptions:
   - rsize=1048576
   - wsize=1048576
 parameters: 
-    pool_name: treeq_bug2  
-    network_space: nsnas    
-    provision_type: THIN    
-    storage_protocol: nfs_treeq 
-    fs_prefix: csit_  
+    pool_name: treeq_bug2
+    network_space: nsnas
+    provision_type: THIN
+    storage_protocol: nfs_treeq
+    fs_prefix: csit_
     nfs_export_permissions: "[{'access':'RW','client':'192.168.147.182-192.168.147.185','no_root_squash':true}]"
-    ssd_enabled: "true"     
+    ssd_enabled: "true"
     max_filesystems: "999"
     max_treeqs_per_filesystem: "20"
     max_filesystem_size: 30gib

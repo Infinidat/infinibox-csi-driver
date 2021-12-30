@@ -25,10 +25,10 @@ spec:
       namespace: infi
     volumeAttributes:
       exportID: 3000
-      # gid: 1000
       ipAddress: 172.17.35.45
       storage_protocol: nfs
       # uid: 1000
+      # gid: 1000
       # unix_permissions: 777
       volPathd: /csi-1c1324de94
     volumeHandle: 7394$$nfs

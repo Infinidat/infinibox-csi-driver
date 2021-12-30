@@ -23,14 +23,13 @@ spec:
       name: infinibox-creds
       namespace: infi
     volumeAttributes:
-      # gid: 1000
       iqn: iqn.2009-11.com.infinidat:storage:infinibox-sn-36000-2436
-      max_vols_per_host: 100
       portals: 172.17.35.68,172.17.35.69,172.17.35.70,172.17.35.71,172.17.35.72,172.17.35.73
       readOnly: "false"
       storage.kubernetes.io/csiProvisionerIdentity: 1583914762466-8081-infinibox-csi-driver
       storage_protocol: iscsi
       # uid: 1000
+      # gid: 1000
       # unix_permissions: 777
       useCHAP: none
     volumeHandle: 20797$$iscsi

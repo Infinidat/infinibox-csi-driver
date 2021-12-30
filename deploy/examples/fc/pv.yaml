@@ -23,7 +23,6 @@ spec:
       name: infinibox-creds
       namespace: infi
     volumeAttributes:
-      max_vols_per_host: 100
       storage.kubernetes.io/csiProvisionerIdentity: 1585396938065-8081-infinibox-csi-driver
       storage_protocol: fc
     volumeHandle: 3723$$fc
