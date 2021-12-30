@@ -66,22 +66,17 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability not provided")
-	}
-	switch volCap.GetAccessType().(type) {
-	case *csi.VolumeCapability_Block:
-		fcDetails.isBlock = true
-	}
 
-    // Warning: AttachFCDisk attaches nothing. It only finds the device and returns it.
+	// Warning: AttachFCDisk attaches nothing. It only finds the device and returns it.
 	devicePath, err := fc.AttachFCDisk(*fcDetails.connector, &OSioHandler{})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	diskMounter := fc.getFCDiskMounter(req, *fcDetails)
-	err = fc.MountFCDisk(diskMounter, devicePath)
+	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
+	if err != nil {
+		return nil, err
+	}
+	err = fc.MountFCDisk(*diskMounter, devicePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -280,8 +275,10 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	}
 
 	if fm.fcDisk.isBlock {
-		klog.V(2).Infof("Block volume will be mount at file %s", fm.TargetPath)
+		// option A: raw block volume access
+		klog.V(2).Infof("mounting raw block volume at given path %s", fm.TargetPath)
 		if fm.ReadOnly {
+			// TODO: actually implement this - CSIC-343
 			return status.Error(codes.Internal, "Read only is not supported for Block Volume")
 		}
 
@@ -303,15 +300,18 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return status.Errorf(codes.Internal, "failed to create target path for raw block bind mount: %v", err)
 		}
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
+
+		// TODO: validate this further, see CSIC-341
 		options := []string{"bind"}
-		options = append(options, "rw")
+		options = append(options, "rw") // TODO: address in CSIC-343
 		if err := fm.Mounter.Mount(devicePath, fm.TargetPath, "", options); err != nil {
 			klog.Errorf("fc: failed to mount fc volume %s to %s, error %v", devicePath, fm.TargetPath, err)
 			return err
 		}
 		klog.V(4).Infof("Block volume mounted successfully")
 	} else {
-		klog.V(4).Infof("mount volume to given path %s", fm.TargetPath)
+		// option B: local filesystem access
+		klog.V(2).Infof("mounting volume with filesystem at given path %s", fm.TargetPath)
 
 		// Create mountPoint, with prepended /host, if it does not exist.
 		mountPoint := "/host" + fm.TargetPath
@@ -326,7 +326,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 				return err
 			}
 
-            // // Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
+			// // Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
 			// util.SetReady(mountPoint)
 			// is_ready := util.IsReady(mountPoint)
 			// klog.V(2).Infof("Check that mountPoint is ready: %t", is_ready)
@@ -334,19 +334,38 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			klog.V(4).Infof("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
 
-		var options []string
-
-		if fm.ReadOnly {
+		// TODO: validate this further, see CSIC-341
+		options := []string{}
+		if fm.ReadOnly { // TODO: address in CSIC-343
 			options = append(options, "ro")
 		} else {
 			options = append(options, "rw")
 		}
-
 		options = append(options, fm.MountOptions...)
-		if err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options); err != nil {
-			msg := fmt.Sprintf("fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
-			klog.Errorf(msg)
-			return status.Errorf(codes.Internal, msg)
+		
+		err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options)
+		klog.V(4).Infof("FormatAndMount returned: %s", err)
+		if err != nil {
+			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
+			searchBadSuperBlock := "wrong fs type, bad option, bad superblock"
+			klog.V(4).Infof("Search error for matches to handle: %s", err)
+
+			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
+				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
+			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
+				if err := helper.RegenerateXfsFilesystemUuid(devicePath); err != nil {
+					return status.Errorf(codes.Internal, err.Error())
+				}
+				klog.V(4).Infof("Run FormatAndMount, after UUID change")
+				err = fm.Mounter.FormatAndMount(devicePath, mountPoint, fm.FsType, options)
+				if err != nil {
+					return status.Errorf(codes.Internal, err.Error())
+				}
+			} else {
+				msg := fmt.Sprintf("fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
+				klog.Errorf(msg)
+				return status.Errorf(codes.Internal, msg)
+			}
 		}
 	}
 	dskinfo := diskInfo{}
@@ -426,12 +445,70 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	}, nil
 }
 
-func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) FCMounter {
-	fstype := req.GetVolumeContext()["fstype"]
-	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
-	return FCMounter{
+func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) (*FCMounter, error) {
+	// standard place to define block/file etc
+	reqVolCapability := req.GetVolumeCapability()
+
+	// check accessMode - where we will eventually police R/W etc (CSIC-343)
+	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
+	// TODO: set readonly flag for RO accessmodes, any other validations needed?
+	
+	// handle file (mount) and block parameters
+	mountVolCapability := reqVolCapability.GetMount()
+	fstype := ""
+	mountOptions := []string{}
+	blockVolCapability := reqVolCapability.GetBlock()
+
+	// LEGACY MITIGATION: accept but warn about old opaque fstype parameter if present - remove in the future with CSIC-344
+	fstype, oldFstypeParamProvided := req.GetVolumeContext()["fstype"]
+	if oldFstypeParamProvided {
+		klog.Warningf("Deprecated 'fstype' parameter %s provided, will NOT be supported in future releases - please move to 'csi.storage.k8s.io/fstype'", fstype)
+	}
+
+	// protocol-specific paths below
+	if mountVolCapability != nil && blockVolCapability == nil { 
+		// option A. user wants file access to their FC device
+		fcDetails.isBlock = false
+
+		// filesystem type and reconciliation with older nonstandard param
+		// LEGACY MITIGATION: remove !oldFstypeParamProvided in the future with CSIC-344
+		if mountVolCapability.GetFsType() != "" {
+			fstype = mountVolCapability.GetFsType()
+		} else if !oldFstypeParamProvided {
+			errMsg := "No fstype in VolumeCapability for volume: " + req.GetVolumeId()
+			klog.Errorf(errMsg)
+			return nil, status.Error(codes.InvalidArgument, errMsg)
+		}
+
+		// mountOptions - could be nil
+		mountOptions = mountVolCapability.GetMountFlags()
+
+		// TODO: other validations needed for file?
+		// - something about read-only access?
+		// - check that fstype is supported?
+		// - check that mount options are valid for fstype provided
+
+	} else if mountVolCapability == nil && blockVolCapability != nil {
+		// option B. user wants block access to their FC device
+		fcDetails.isBlock = true
+
+		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
+			klog.Warning("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
+		}
+		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
+		
+		// don't need to look at FsType or MountFlags here, only relevant for mountVol
+		// TODO: other validations needed for block?
+		// - something about read-only access? 
+	} else {
+		errMsg := "Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
+		klog.Errorf(errMsg)
+		return nil, status.Error(codes.InvalidArgument, errMsg)
+	}
+
+	return &FCMounter{
 		fcDisk:       fcDetails,
-		ReadOnly:     false,
+		ReadOnly:     false, // TODO: not accurate, address in CSIC-343
 		FsType:       fstype,
 		MountOptions: mountOptions,
 		Mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
@@ -439,7 +516,7 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
 		TargetPath:   req.GetTargetPath(),
 		StagePath:    req.GetStagingTargetPath(),
-	}
+	}, nil
 }
 
 type ioHandler interface {

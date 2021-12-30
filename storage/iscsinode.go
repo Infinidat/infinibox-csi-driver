@@ -31,7 +31,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
-	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/volume/util"
@@ -240,17 +239,10 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	klog.V(4).Infof("iscsiDisk: %v", iscsiDisk)
 
-	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		err = errors.New("GetVolumeCapability failed")
-		return nil, status.Error(codes.InvalidArgument, "iscsi: Volume capability not provided")
+	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
+	if err != nil {
+		return nil, err
 	}
-	switch volCap.GetAccessType().(type) {
-	case *csi.VolumeCapability_Block:
-		iscsiDisk.isBlock = true
-	}
-	diskMounter := iscsi.getISCSIDiskMounter(iscsiDisk, req)
-
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
 		klog.Errorf("AttachDisk failed")
@@ -726,13 +718,20 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	if b.isBlock {
 		// A block volume is a volume that will appear as a block device inside the container.
-		klog.V(4).Infof("Block volume will be mount at file %s", mntPath)
+		klog.V(2).Infof("mounting raw block volume at given path %s", mntPath)
 		if b.readOnly {
+			// TODO: actually implement this - CSIC-343
 			return "", status.Error(codes.Internal, "iscsi: Read-only is not supported for Block Volume")
 		}
 
-		if err := os.MkdirAll(filepath.Dir(mntPath), 0o750); err != nil {
-			klog.Errorf("Failed to mkdir %s, error", filepath.Dir(mntPath))
+		klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+		klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(mntPath))
+		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+		// MkdirAll() will cause hard-to-grok mount errors.
+		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", filepath.Dir(mntPath))
+		err = cmd.Run()
+		if err != nil {
+			klog.Errorf("failed to mkdir '%s': %s", mntPath, err)
 			return "", err
 		}
 
@@ -742,8 +741,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", fmt.Errorf("iscsi: Failed to create target file for raw block bind mount: %v", err)
 		}
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
+
+		// TODO: validate this further, see CSIC-341
 		options := []string{"bind"}
-		options = append(options, "rw")
+		options = append(options, "rw") // TODO address in CSIC-343
 		if err := b.mounter.Mount(devicePath, mntPath, "", options); err != nil {
 			klog.Errorf("Failed to mount iscsi volume %s [%s] to %s, error %v", devicePath, b.fsType, mntPath, err)
 			return "", err
@@ -758,7 +759,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// A mounted (file) volume is volume that will be mounted using a specified file system
 		// and appear as a directory inside the container.
 		mountPoint := mntPath
-		klog.V(4).Infof("Mounting volume '%s' to mountPoint '%s'", devicePath, mountPoint)
+		klog.V(4).Infof("mounting volume %s with filesystem at given path %s", devicePath, mountPoint)
 
 		// Attempt to find a mapper device to use rather than a bare devicePath.
 		// If not found, use the devicePath.
@@ -799,10 +800,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		var options []string
 		if b.readOnly {
 			klog.V(4).Infof("Volume is read-only")
-			options = append(options, "ro")
+			options = append(options, "ro") // BUG: what if user separately specified "rw" option? address in CSIC-343
 		} else {
 			klog.V(4).Infof("Volume is read-write")
-			options = append(options, "rw")
+			options = append(options, "rw") // BUG: what if user separately specified "ro" option? address in CSIC-343
 		}
 		options = append(options, b.mountOptions...)
 
@@ -828,7 +829,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
 			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
-				if err := regenerateXfsFilesystemUuid(devicePath); err != nil {
+				if err := helper.RegenerateXfsFilesystemUuid(devicePath); err != nil {
 					return "", err
 				}
 				klog.V(4).Infof("Run FormatAndMount, after UUID change")
@@ -874,14 +875,14 @@ func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (
 	mntPath := path.Join("/host", targetPath)
 	mntPathParent := filepath.Dir(mntPath)
 
-    if err := c.mounter.Unmount(targetPath); err != nil {
-        if strings.Contains(err.Error(), "not mounted") {
-            klog.V(4).Infof("mount target path not mounted, while trying to unmount: %s", targetPath)
-        } else {
-            klog.Errorf("failed to unmount mount target path: %s, err: %v", targetPath, err)
-            return err
-        }
-    }
+	if err := c.mounter.Unmount(targetPath); err != nil {
+		if strings.Contains(err.Error(), "not mounted") {
+			klog.V(4).Infof("mount target path not mounted, while trying to unmount: %s", targetPath)
+		} else {
+			klog.Errorf("failed to unmount mount target path: %s, err: %v", targetPath, err)
+			return err
+		}
+	}
 
 	if err := os.RemoveAll(mntPathParent); err != nil {
 		klog.Errorf("failed to remove mount path parent: %s, err: %v", mntPathParent, err)
@@ -991,20 +992,78 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	}, nil
 }
 
-func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.NodePublishVolumeRequest) *iscsiDiskMounter {
-	fstype := req.GetVolumeContext()["fstype"]
-	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
+func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.NodePublishVolumeRequest) (*iscsiDiskMounter, error) {
+	// handle volumeCapabilities, the standard place to define block/file etc
+	reqVolCapability := req.GetVolumeCapability()
+
+	// check accessMode - where we will eventually police R/W etc (CSIC-343)
+	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
+	// TODO: set readonly flag for RO accessmodes, any other validations needed?
+
+	// handle file (mount) and block parameters
+	mountVolCapability := reqVolCapability.GetMount()
+	fstype := ""
+	mountOptions := []string{}
+	blockVolCapability := reqVolCapability.GetBlock()
+
+	// LEGACY MITIGATION: accept but warn about old opaque fstype parameter if present - remove in the future with CSIC-344
+	fstype, oldFstypeParamProvided := req.GetVolumeContext()["fstype"]
+	if oldFstypeParamProvided {
+		klog.Warningf("Deprecated 'fstype' parameter %s provided, will NOT be supported in future releases - please move to 'csi.storage.k8s.io/fstype'", fstype)
+	}
+
+	// protocol-specific paths below
+	if mountVolCapability != nil && blockVolCapability == nil { 
+		// option A. user wants file access to their iSCSI device
+		iscsiDisk.isBlock = false
+
+		// filesystem type and reconciliation with older nonstandard param
+		// LEGACY MITIGATION: remove !oldFstypeParamProvided in the future with CSIC-344
+		if mountVolCapability.GetFsType() != "" {
+			fstype = mountVolCapability.GetFsType()
+		} else if !oldFstypeParamProvided {
+			errMsg := "No fstype in VolumeCapability for volume: " + req.GetVolumeId()
+			klog.Errorf(errMsg)
+			return nil, status.Error(codes.InvalidArgument, errMsg)
+		}
+
+		// mountOptions - could be nothing
+		mountOptions = mountVolCapability.GetMountFlags()
+
+		// TODO: other validations needed for file?
+		// - something about read-only access?
+		// - check that fstype is supported?
+		// - check that mount options are valid for fstype provided
+
+	} else if mountVolCapability == nil && blockVolCapability != nil {
+		// option B. user wants block access to their iSCSI device
+		iscsiDisk.isBlock = true
+
+		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
+			klog.Warning("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
+		}
+		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
+		
+		// don't need to look at FsType or MountFlags here, only relevant for mountVol
+		// TODO: other validations needed for block?
+		// - something about read-only access?
+	} else {
+		errMsg := "Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
+		klog.Errorf(errMsg)
+		return nil, status.Error(codes.InvalidArgument, errMsg)
+	}
+	
 	return &iscsiDiskMounter{
 		iscsiDisk:    iscsiDisk,
 		fsType:       fstype,
-		readOnly:     false,
+		readOnly:     false,  // TODO: not accurate, address in CSIC-343
 		mountOptions: mountOptions,
 		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
 		exec:         utilexec.New(),
 		targetPath:   req.GetTargetPath(),
 		stagePath:    req.GetStagingTargetPath(),
 		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
-	}
+	}, nil
 }
 
 func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmounter {
@@ -1334,35 +1393,6 @@ func findDeviceForPath(path string) (string, error) {
 	return "", errors.New("iscsi: Illegal path for device " + devicePath)
 }
 
-func regenerateXfsFilesystemUuid(devicePath string) (err error) {
-	klog.V(4).Infof("regenerateXfsFilesystemUuid called")
-
-	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
-	allow_uuid_fix, err := helper.YamlBoolToBool(allow_xfs_uuid_regeneration)
-	if err != nil {
-		klog.Errorf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
-		return err
-	}
-
-	if allow_uuid_fix {
-		newUuid := uuid.New()
-
-		klog.Errorf("Device %s has duplicate XFS UUID. New UUID: %s. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, newUuid, allow_xfs_uuid_regeneration)
-
-		klog.V(4).Infof("Update device '%s' UUID with '%s'", devicePath, newUuid)
-		_, err_xfs := execScsi.Command("xfs_admin", fmt.Sprintf("-U %s %s", newUuid, devicePath))
-
-		if err_xfs != nil {
-			msg := fmt.Sprintf("xfs_admin failed. Volume likely to be read-only: %s", err_xfs)
-			klog.V(4).Infof(msg)
-			return errors.New(msg)
-		}
-	} else {
-		klog.Errorf("Device %s has duplicate XFS UUID and cannot be mounted. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, allow_xfs_uuid_regeneration)
-		return err
-	}
-	return nil
-}
 
 func deleteMultipathDevices(devices []string) (err error) {
 	for _, device := range devices {

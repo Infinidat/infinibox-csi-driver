@@ -6,6 +6,8 @@ provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
+mountOptions:
+  - hard
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infi
@@ -17,7 +19,7 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: infi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infi
-  fstype: ext4
+  csi.storage.k8s.io/fstype: ext4
   pool_name: "FC-pool"
   provision_type: "THIN"
   storage_protocol: "fc"

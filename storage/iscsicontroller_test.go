@@ -5,6 +5,7 @@ import (
 	"errors"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -17,6 +18,8 @@ func (suite *ISCSIControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
+
+	tests.ConfigureKlog()
 }
 
 type ISCSIControllerSuite struct {
@@ -33,8 +36,8 @@ func TestISCSIControllerSuite(t *testing.T) {
 func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail() {
 	service := iscsistorage{cs: *suite.cs}
 	var parameterMap map[string]string
-	crtValReq := getISCSICreateVolumeRequest("", parameterMap)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
 }
 
@@ -42,61 +45,26 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail2() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, "useCHAP")
-	crtValReq := getISCSICreateVolumeRequest("", parameterMap)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
-}
-
-func (suite *ISCSIControllerSuite) Test_CreateVolume_GetVolumeCapabilities_fail() {
-	service := iscsistorage{cs: *suite.cs}
-	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("pvname", parameterMap)
-	crtValReq.VolumeCapabilities = nil
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume no VolumeCapabilitie")
-}
-
-func (suite *ISCSIControllerSuite) Test_CreateVolume_GetVolumeCapabilities_Mode_fail() {
-	service := iscsistorage{cs: *suite.cs}
-	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("pvname", parameterMap)
-
-	capa := csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
-		},
-	}
-	var arr []*csi.VolumeCapability
-	arr = append(arr, &capa)
-	crtValReq.VolumeCapabilities = arr
-
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume VolumeCapabilities unsupported mode")
-}
-
-func (suite *ISCSIControllerSuite) Test_CreateVolume_GetPVName_fail() {
-	service := iscsistorage{cs: *suite.cs}
-	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("", parameterMap)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume empty name")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_GetName_fail() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume GetVolumeByName")
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_fail() {
+func (suite *ISCSIControllerSuite) Test_CreateVolume_fail() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
@@ -104,14 +72,14 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_fail() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume")
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_success() {
+func (suite *ISCSIControllerSuite) Test_CreateVolume_success() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 
@@ -121,14 +89,14 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_success() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: CreateVolume")
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_metadataError() {
+func (suite *ISCSIControllerSuite) Test_CreateVolume_metadataError() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeRequest("PVName", parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
@@ -139,84 +107,84 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_metadataError(
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume attach metadata")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_InvalidVolumeID() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
-	crtValReq.VolumeId = ""
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	createVolReq := getISCSIDeleteRequest()
+	createVolReq.VolumeId = ""
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume invalid volumneID")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_casting_Error() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
-	crtValReq.VolumeId = "1bc"
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	createVolReq := getISCSIDeleteRequest()
+	createVolReq.VolumeId = "1bc"
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "casting failed")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolume", mock.Anything).Return(nil, expectedErr)
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume getVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return(getVolumeArray(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume GetVolumeSnapshot attach metadata")
 }
 
-func (suite *ISCSIControllerSuite) Test_DeleteVolume_DeleteVolume_Error() {
+func (suite *ISCSIControllerSuite) Test_DeleteVolume_Error() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	suite.api.On("DeleteVolume", mock.Anything).Return(expectedErr)
 
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume delete volume")
 }
 
-func (suite *ISCSIControllerSuite) Test_DeleteVolume_DeleteVolume_success() {
+func (suite *ISCSIControllerSuite) Test_DeleteVolume_success() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	suite.api.On("DeleteVolume", mock.Anything).Return(nil)
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi DeleteVolume")
 }
 
-func (suite *ISCSIControllerSuite) Test_DeleteVolume_DeleteVolume_AlreadyDelete() {
+func (suite *ISCSIControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	service := iscsistorage{cs: *suite.cs}
-	crtValReq := getISCSIDeleteRequest()
+	createVolReq := getISCSIDeleteRequest()
 	expectedErr := errors.New("VOLUME_NOT_FOUND")
 	suite.api.On("GetVolume", mock.Anything).Return(nil, expectedErr)
 
-	_, err := service.DeleteVolume(context.Background(), crtValReq)
+	_, err := service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi DeleteVolume when already deleted")
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_content_succes() {
+func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeCloneRequest(parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$iscsi")
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -225,14 +193,15 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_content_succes
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateVolume success")
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_content_AttachMetadataToObject_err() {
+func (suite *ISCSIControllerSuite) Test_CreateVolume_content_AttachMetadataToObject_err() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	crtValReq := getISCSICreateVolumeCloneRequest(parameterMap)
+	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$iscsi")
 	expectedErr := errors.New("some Error")
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -242,7 +211,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_CreateVolume_content_Attach
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
-	_, err := service.CreateVolume(context.Background(), crtValReq)
+	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume attach metadata")
 }
 
@@ -392,10 +361,10 @@ func (suite *ISCSIControllerSuite) Test_ControllerExpandVolume() {
 func (suite *ISCSIControllerSuite) Test_ValidateVolumeCapabilities() {
 	service := iscsistorage{cs: *suite.cs}
 	var parameterMap map[string]string
-	crtValidateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
+	validateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
 
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	_, err := service.ValidateVolumeCapabilities(context.Background(), crtValidateVolCapsReq)
+	_, err := service.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ValidateVolumeCapabilities")
 }
 
@@ -542,21 +511,6 @@ func getNetworkspace() api.NetworkSpace {
 	return nspace
 }
 
-func getISCSICreateVolumeRequest(pvName string, parameterMap map[string]string) *csi.CreateVolumeRequest {
-	capa := csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-		},
-	}
-	var arr []*csi.VolumeCapability
-	arr = append(arr, &capa)
-	return &csi.CreateVolumeRequest{
-		Name:               pvName,
-		Parameters:         parameterMap,
-		VolumeCapabilities: arr,
-	}
-}
-
 func getISCSIValidateVolumeCapabilitiesRequest(pvName string, parameterMap map[string]string) *csi.ValidateVolumeCapabilitiesRequest {
 	capa := csi.VolumeCapability{
 		AccessMode: &csi.VolumeCapability_AccessMode{
@@ -572,32 +526,17 @@ func getISCSIValidateVolumeCapabilitiesRequest(pvName string, parameterMap map[s
 	}
 }
 
-// getCreateVolumeRequestByType - method return the snapshot or clone createVallume request
-func getISCSICreateVolumeCloneRequest(parameterMap map[string]string) *csi.CreateVolumeRequest {
-	capa := csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-		},
-	}
-	var arr []*csi.VolumeCapability
-	arr = append(arr, &capa)
-
-	createVolume := &csi.CreateVolumeRequest{
-		Name:          "volumeName",
-		CapacityRange: &csi.CapacityRange{RequiredBytes: 1000},
-		Parameters:    parameterMap,
-		VolumeContentSource: &csi.VolumeContentSource{
-			Type: &csi.VolumeContentSource_Volume{
-				Volume: &csi.VolumeContentSource_VolumeSource{
-					VolumeId: "1$$iscsi",
-				},
-			},
-		},
-		VolumeCapabilities: arr,
-	}
-	return createVolume
-}
-
 func getISCSICreateVolumeParameters() map[string]string {
-    return map[string]string{"useCHAP": "useCHAP1", "fstype": "fstype1", "pool_name": "pool_name1", "network_space": "network_space1", "provision_type": "provision_type1", "storage_protocol": "storage_protocol1", "ssd_enabled": "ssd_enabled1", "max_vols_per_host": "max_vols_per_host", "uid": "1234", "gid": "2468", "unix_permissions": "0777"}
+	return map[string]string{
+		"gid":               "2468",
+		"max_vols_per_host": "19",
+		"network_space":     "network_space1",
+		"pool_name":         "pool_name1",
+		"provision_type":    "provision_type1",
+		"ssd_enabled":       "true",
+		"storage_protocol":  "iscsi",
+		"uid":               "1234",
+		"unix_permissions":  "0777",
+		"useCHAP":           "none",
+	}
 }

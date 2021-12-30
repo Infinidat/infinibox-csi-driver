@@ -17,7 +17,6 @@ spec:
       name: infinibox-creds
       namespace: infi
     driver: infinibox-csi-driver
-    fsType: ext4
     nodePublishSecretRef:
       name: infinibox-creds
       namespace: infi
@@ -28,7 +27,6 @@ spec:
       exportID: 3000
       # gid: 1000
       ipAddress: 172.17.35.45
-      nfs_mount_options: vers=3,hard,rsize=1048576,wsize=1048576
       storage_protocol: nfs
       # uid: 1000
       # unix_permissions: 777
@@ -37,3 +35,7 @@ spec:
   persistentVolumeReclaimPolicy: Delete
   storageClassName: ibox-nfs-storageclass-demo
   volumeMode: Filesystem
+  mountOptions:
+    - hard
+    - rsize=1048576
+    - wsize=1048576

@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"infinibox-csi-driver/helper"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -25,6 +26,8 @@ import (
 func (suite *TreeqNodeSuite) SetupTest() {
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osHelperMock = new(helper.MockOsHelper)
+
+	tests.ConfigureKlog()
 }
 
 type TreeqNodeSuite struct {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"infinibox-csi-driver/storage"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"bou.ke/monkey"
@@ -129,7 +130,7 @@ func getNodeStageVolumeRequest() *csi.NodeStageVolumeRequest {
 	return &csi.NodeStageVolumeRequest{
 		VolumeId:      "100$$nfs",
 		VolumeContext: map[string]string{"storage_protocol": "nfs"},
-		Secrets:       getSecret(),
+		Secrets:       tests.GetSecret(),
 	}
 }
 
@@ -143,6 +144,6 @@ func getNodeNodePublishVolumeRequest() *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		VolumeId:      "100$$nfs",
 		VolumeContext: map[string]string{"storage_protocol": "nfs"},
-		Secrets:       getSecret(),
+		Secrets:       tests.GetSecret(),
 	}
 }

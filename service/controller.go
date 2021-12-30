@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -36,17 +36,37 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	configparams["driverversion"] = s.driverVersion
 
 	volName := req.GetName()
-	storageprotocol := req.GetParameters()["storage_protocol"]
-
-	klog.V(2).Infof("CreateVolume called, vol-name: %s controller nodeid: %s storage_protocol: %s capacity-range: %v params: %v",
-		volName, s.nodeID, storageprotocol, req.GetCapacityRange(), req.GetParameters())
-	if storageprotocol == "" {
-		return nil, status.Error(codes.Internal, "'storage_protocol' is a required field, not found")
+	reqParameters := req.GetParameters()
+	if len(reqParameters) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no Parameters provided to CreateVolume")
 	}
+	storageprotocol := reqParameters["storage_protocol"]
+	reqCapabilities := req.GetVolumeCapabilities()
+
+	klog.V(2).Infof("CreateVolume called, name: '%s' controller nodeid: '%s' storage_protocol: '%s' capacity-range: %v params: %v",
+		volName, s.nodeID, storageprotocol, req.GetCapacityRange(), reqParameters)
+
+	// Basic CSI parameter checking across protocols
+	
+	if len(storageprotocol) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no 'storage_protocol' provided to CreateVolume")
+	}
+	if len(volName) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no name provided to CreateVolume")
+	}
+	if reqCapabilities == nil || len(reqCapabilities) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no VolumeCapabilities provided to CreateVolume")
+	}
+	error := validateCapabilities(reqCapabilities)
+	if error != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "VolumeCapabilities invalid: %v", error)
+	}
+	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
+
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {
 		klog.Errorf("CreateVolume error: %v", err)
-		err = status.Error(codes.Internal, "failed to initialize storage controller while creating volume "+storageprotocol)
+		err = status.Errorf(codes.Internal, "failed to initialize storage controller while creating volume '%s'", volName)
 		return nil, err
 	}
 	createVolResp, err = storageController.CreateVolume(ctx, req)
@@ -55,13 +75,13 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		// it's important to return the original error, because it matches K8s expectations
 		return nil, err
 	} else if createVolResp == nil {
-		err = status.Errorf(codes.Internal, "failed to create volume %s, empty response", storageprotocol)
+		err = status.Errorf(codes.Internal, "failed to create volume '%s', empty response", volName)
 		return nil, err
 	} else if createVolResp.Volume == nil {
-		err = status.Errorf(codes.Internal, "failed to create volume %s, resp: %v, no volume struct", storageprotocol, createVolResp)
+		err = status.Errorf(codes.Internal, "failed to create volume '%s', resp: %v, no volume struct", volName, createVolResp)
 		return nil, err
 	} else if createVolResp.Volume.VolumeId == "" {
-		err = status.Errorf(codes.Internal, "failed to create volume %s, resp: %v, no volumeID", storageprotocol, createVolResp)
+		err = status.Errorf(codes.Internal, "failed to create volume '%s', resp: %v, no volumeID", volName, createVolResp)
 		return nil, err
 	}
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
@@ -90,8 +110,6 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	}
 	config := make(map[string]string)
 	config["nodeid"] = s.nodeID
-
-    klog.V(4).Infof("DEBUG: req: %v", req)
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
@@ -183,6 +201,45 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 		klog.Errorf("ControllerUnpublishVolume %v", err)
 	}
 	return
+}
+
+func validateCapabilities(capabilities []*csi.VolumeCapability) error {
+	isBlock := false
+	isFile := false
+	
+	if capabilities == nil {
+		return errors.New("no volume capabilities specified")
+	}
+
+	for _, capability := range capabilities {
+		// validate accessMode
+		accessMode := capability.GetAccessMode()
+		if accessMode == nil {
+			return errors.New("no accessmode specified in volume capability")
+		}
+		mode := accessMode.GetMode()
+		// TODO: do something to actually reject invalid access modes, if any
+		// there aren't any that we don't support yet, but some combinations are dumb?
+
+		// check block and file behavior
+		if block := capability.GetBlock(); block != nil {
+			isBlock = true
+			if mode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
+				klog.Warning("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
+			}
+			// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
+		}
+		if file := capability.GetMount(); file != nil {
+			isFile = true
+			// We should validate fs_type and []mount_flags parts of MountVolume message in NFS/TreeQ controllers - CSIC-339
+		}
+	}
+
+	if isBlock && isFile {
+		return errors.New("both file and block volume capabilities specified")
+	}
+
+	return nil
 }
 
 func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {

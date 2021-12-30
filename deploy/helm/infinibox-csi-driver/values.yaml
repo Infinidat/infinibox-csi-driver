@@ -1,6 +1,9 @@
 ---
 # vim: set filetype=yaml :
 # Default values for infinibox-csi-driver.
+# Values from this file are also used by
+# operator-sdk when generating CSI operator
+# bundle/manifests/infinibox-operator-certified.clusterserviceversion.yaml
 
 replicaCount: 1
 
@@ -15,7 +18,7 @@ logLevel: "debug"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "v2.1.0-rc1"
+csiDriverVersion: "v2.1.0-rc4"
 
 # It is possible for two volumes, formatted XFS, to have identical XFS UUIDs.
 # A common cause is to create a snapshot from a volume. Both will have
@@ -29,31 +32,21 @@ allowXfsUuidRegeneration: "yes"
 
 # Image paths
 images:
-  imagePullSecret: private-docker-reg-secret
-
-  # "images.attacher-sidercar" defines the container image used for the csi attacher sidecar
-  attachersidecar: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
-  attachersidecar_pull_policy: IfNotPresent
-
-  # "images.provisioner-sidercar" defines the container image used for the csi provisioner sidecar
-  provisionersidecar: k8s.gcr.io/sig-storage/csi-provisioner:v2.2.2
-  provisionersidecar_pull_policy: IfNotPresent
-
-  # "images.snapshotter-sidercar" defines the container image used for the csi snapshotter sidercar
-  snapshottersidecar: k8s.gcr.io/sig-storage/csi-snapshotter:v4.0.0
-  snapshottersidecar_pull_policy: IfNotPresent
-
-  # "images.registrar-sidercar" defines the container images used for the csi registrar sidercar
-  registrarsidecar: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v1.3.0
-  registrarsidecar_pull_policy: IfNotPresent
-
-  # "images.resizer-sidercar" defines the container image used for the csi provisioner sidecar
-  resizersidecar: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
-  resizersidecar_pull_policy: IfNotPresent
-
-  # "images.csidriver" defines csidriver image used for external provisioning
-  csidriver: docker.io/infinidat/infinidat-csi-driver:v2.1.0-rc1
-  csidriver_pull_policy: Always
+  attachersidecar: "k8s.gcr.io/sig-storage/csi-attacher@sha256:80dec81b679a733fda448be92a2331150d99095947d04003ecff3dbd7f2a476a"  # v3.3.0
+  attachersidecar_pull_policy: "IfNotPresent"
+  # csidriver: docker.io/infinidat/infinidat-csi-driver:v2.1.0-rc4
+  csidriver: git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc4
+  # csidriver: "registry.connect.redhat.com/infinidat/infinibox-csidriver-certified@sha256:ad5956cf1adc2f0913481a68f5cd6e5d107d3094c72c07d400d020f7e722ef12"  # v2.1.0-rc3
+  csidriver_pull_policy: "Always"
+  imagePullSecret: "private-docker-reg-secret"
+  provisionersidecar: "k8s.gcr.io/sig-storage/csi-provisioner@sha256:04c55b93a032ad8075cae540d60fc740a72c31006590dbdb61ad4ab9813959d0"  # v2.2.2
+  provisionersidecar_pull_policy: "IfNotPresent"
+  registrarsidecar: "k8s.gcr.io/sig-storage/csi-node-driver-registrar@sha256:9622c6a6dac7499a055a382930f4de82905a3c5735c0753f7094115c9c871309"  # v1.3.0
+  registrarsidecar_pull_policy: "IfNotPresent"
+  resizersidecar: "k8s.gcr.io/sig-storage/csi-resizer@sha256:6e0546563b18872b0aa0cad7255a26bb9a87cb879b7fc3e2383c867ef4f706fb"  # v1.3.0
+  "resizersidecar_pull_policy": "IfNotPresent"
+  snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:51f2dfde5bccac7854b3704689506aeecfb793328427b91115ba253a93e60782"  # v4.0.0
+  snapshottersidecar_pull_policy: "IfNotPresent"
 
 Infinibox_Cred:
   SecretName: "infinibox-creds"

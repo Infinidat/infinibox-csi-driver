@@ -13,6 +13,7 @@ package api
 import (
 	"errors"
 	"infinibox-csi-driver/api/client"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,7 @@ import (
 func (suite *ApiTestSuite) SetupTest() {
 	suite.clientMock = new(MockApiClient)
 	suite.serviceMock = new(MockApiService)
+    tests.ConfigureKlog()
 }
 
 type ApiTestSuite struct {

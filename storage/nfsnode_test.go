@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2021 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -13,8 +13,9 @@ package storage
 import (
 	"context"
 	"errors"
-	"infinibox-csi-driver/helper"
 	"os"
+	"infinibox-csi-driver/helper"
+	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -27,6 +28,8 @@ import (
 func (suite *NodeSuite) SetupTest() {
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osmock = new(helper.MockOsHelper)
+
+	tests.ConfigureKlog()
 }
 
 type NodeSuite struct {
@@ -183,7 +186,6 @@ func getNodePublishVolumeRequest(tagetPath string, publishContexMap map[string]s
 
 func getPublishContexMap() map[string]string {
 	contextMap := make(map[string]string)
-	contextMap["nfs_mount_options"] = "hard,rsize=1048576,wsize=1048576"
 	contextMap["ipAddress"] = "10.2.2.112"
 	contextMap["volPathd"] = "12345"
 	contextMap["volPathd"] = "/fs/filesytem/"
