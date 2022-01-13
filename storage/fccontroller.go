@@ -65,7 +65,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
 	}
 
-
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
 

@@ -1013,7 +1013,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 	}
 
 	// protocol-specific paths below
-	if mountVolCapability != nil && blockVolCapability == nil { 
+	if mountVolCapability != nil && blockVolCapability == nil {
 		// option A. user wants file access to their iSCSI device
 		iscsiDisk.isBlock = false
 
@@ -1043,7 +1043,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 			klog.Warning("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
 		}
 		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
-		
+
 		// don't need to look at FsType or MountFlags here, only relevant for mountVol
 		// TODO: other validations needed for block?
 		// - something about read-only access?
@@ -1052,11 +1052,11 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 		klog.Errorf(errMsg)
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
-	
+
 	return &iscsiDiskMounter{
 		iscsiDisk:    iscsiDisk,
 		fsType:       fstype,
-		readOnly:     false,  // TODO: not accurate, address in CSIC-343
+		readOnly:     false, // TODO: not accurate, address in CSIC-343
 		mountOptions: mountOptions,
 		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
 		exec:         utilexec.New(),
@@ -1392,7 +1392,6 @@ func findDeviceForPath(path string) (string, error) {
 	}
 	return "", errors.New("iscsi: Illegal path for device " + devicePath)
 }
-
 
 func deleteMultipathDevices(devices []string) (err error) {
 	for _, device := range devices {

@@ -45,7 +45,7 @@ images:
   registrarsidecar_pull_policy: "IfNotPresent"
   resizersidecar: "k8s.gcr.io/sig-storage/csi-resizer@sha256:6e0546563b18872b0aa0cad7255a26bb9a87cb879b7fc3e2383c867ef4f706fb"  # v1.3.0
   "resizersidecar_pull_policy": "IfNotPresent"
-  snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:51f2dfde5bccac7854b3704689506aeecfb793328427b91115ba253a93e60782"  # v4.0.0
+  snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:ac845016480ce5eb18a04c1e4e7a4613900e662367dd1771db1e4ccfcedda5e2"  # v5.0.0
   snapshottersidecar_pull_policy: "IfNotPresent"
 
 Infinibox_Cred:

@@ -47,7 +47,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		volName, s.nodeID, storageprotocol, req.GetCapacityRange(), reqParameters)
 
 	// Basic CSI parameter checking across protocols
-	
+
 	if len(storageprotocol) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no 'storage_protocol' provided to CreateVolume")
 	}
@@ -97,14 +97,14 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 		}
 	}()
 
-	voltype := req.GetVolumeId()
-	klog.V(2).Infof("DeleteVolume method called with volume name %s", voltype)
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+	volumeId := req.GetVolumeId()
+	klog.V(2).Infof("DeleteVolume called with volume ID %s", volumeId)
+	volproto, err := s.validateVolumeID(volumeId)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			klog.Errorf("DeleteVolume success, volume not found")
+			klog.Warningf("DeleteVolume was successful. However, no volume with ID %s was not found", volumeId)
 		} else {
-			klog.Errorf("DeleteVolume success, no such volume - invalid storage type")
+			klog.Warningf("DeleteVolume was successful. However, validateVolumeID, using ID %s, returned an error: %v", volumeId, err)
 		}
 		return &csi.DeleteVolumeResponse{}, nil
 	}
@@ -119,10 +119,10 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	req.VolumeId = volproto.VolumeID
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
-		klog.Errorf("failed to delete volume %v", err)
+		klog.Errorf("Failed to delete volume with ID %s: %v", volumeId, err)
 		return
 	}
-	req.VolumeId = voltype
+	req.VolumeId = volumeId
 	return
 }
 
@@ -206,7 +206,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 func validateCapabilities(capabilities []*csi.VolumeCapability) error {
 	isBlock := false
 	isFile := false
-	
+
 	if capabilities == nil {
 		return errors.New("no volume capabilities specified")
 	}
@@ -382,7 +382,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	}()
 
 	snapshotID := req.GetSnapshotId()
-	klog.V(2).Infof("Delete Snapshot called with snapshot Id %s", snapshotID)
+	klog.V(2).Infof("DeleteSnapshot called with snapshot Id %s", snapshotID)
 	volproto, err := s.validateVolumeID(snapshotID)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
