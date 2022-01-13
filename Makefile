@@ -108,13 +108,13 @@ build-linux:  ## Cross compile CSI driver for Linux
 
 ##@ Docker
 .PHONY: docker-build-docker
-docker-build-docker: build  ## Build and tag CSI driver docker image.
+docker-build-docker: build test  ## Build and tag CSI driver docker image.
 	docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) -f Dockerfile .
 	@# TODO tag cmd needs review.
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 .PHONY: docker-build-redhat
-docker-build-redhat: build  ## Build and tag CSI driver for Red Hat docker repo.
+docker-build-redhat: build test  ## Build and tag CSI driver for Red Hat docker repo.
 	docker build -t $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) -f Dockerfile .
 
 .PHONY: docker-build-all
