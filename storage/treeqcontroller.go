@@ -46,6 +46,17 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		capacity = gib
 		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
 	}
+
+	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
+	// TODO: improve and standardize this across protocols - CSIC-304
+	for _, cap := range req.GetVolumeCapabilities() {
+		if block := cap.GetBlock(); block != nil {
+			msg := fmt.Sprintf("Block access requested for NFS TreeQ PV %s", pvName)
+			klog.Errorf(msg)
+			return nil, status.Error(codes.InvalidArgument, msg)
+		}
+	}
+
 	treeqVolumeMap, err = treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), pvName)
 	if len(treeqVolumeMap) == 0 && err == nil {
 		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)

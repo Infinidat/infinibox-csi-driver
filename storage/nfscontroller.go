@@ -93,6 +93,16 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		klog.Warningf("Volume Minimum capacity should be greater than %d", gib)
 	}
 
+	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
+	// TODO: improve and standardize this across protocols - CSIC-304
+	for _, cap := range req.GetVolumeCapabilities() {
+		if block := cap.GetBlock(); block != nil {
+			msg := fmt.Sprintf("Block access requested for NFS PV %s", pvName)
+			klog.Errorf(msg)
+			return nil, status.Error(codes.InvalidArgument, msg)
+		}
+	}
+
 	// Privileged ports only
 	usePrivilegedPortsString := config["privileged_ports_only"]
 	if usePrivilegedPortsString == "" {
