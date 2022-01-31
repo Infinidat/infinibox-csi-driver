@@ -134,6 +134,7 @@ docker-push-docker: docker-login-docker  # Tag and push to Dockerhub.
 .PHONY: docker-push-redhat
 docker-push-redhat:  ## Login, tag and push to Red Hat.
 	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
+	@echo "The password is a token acquired by https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image"
 	docker login -u unused scan.connect.redhat.com
 	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
