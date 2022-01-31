@@ -34,9 +34,8 @@ allowXfsUuidRegeneration: "yes"
 images:
   attachersidecar: "k8s.gcr.io/sig-storage/csi-attacher@sha256:80dec81b679a733fda448be92a2331150d99095947d04003ecff3dbd7f2a476a"  # v3.3.0
   attachersidecar_pull_policy: "IfNotPresent"
-  # csidriver: docker.io/infinidat/infinidat-csi-driver:v2.1.0-rc4
-  csidriver: git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc4
-  # csidriver: "registry.connect.redhat.com/infinidat/infinibox-csidriver-certified@sha256:ad5956cf1adc2f0913481a68f5cd6e5d107d3094c72c07d400d020f7e722ef12"  # v2.1.0-rc3
+  csidriver: registry.connect.redhat.com/infinidat/infinidat-csi-driver:v2.1.0-rc4
+  # csidriver: git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc4
   csidriver_pull_policy: "Always"
   imagePullSecret: "private-docker-reg-secret"
   provisionersidecar: "k8s.gcr.io/sig-storage/csi-provisioner@sha256:04c55b93a032ad8075cae540d60fc740a72c31006590dbdb61ad4ab9813959d0"  # v2.2.2
