@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	leader   string = "LOCK:"
-	follower string = "UNLOCK:"
+	leader   string = "lock:"
+	follower string = "unlock:"
 )
 
 type ExecScsi struct {

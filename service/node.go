@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/storage"
+	"infinibox-csi-driver/helper"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -29,7 +30,14 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from NodePublishVolume " + fmt.Sprint(res))
 		}
+
+		isLocking := false
+		helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
 	}()
+
+	isLocking := true
+	helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
+
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("NodePublishVolume called with volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
@@ -38,6 +46,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
+		klog.V(2).Infof("NodePublishVolume succeeded with volume ID %s", volumeId)
 		return storageNode.NodePublishVolume(ctx, req)
 	}
 	klog.Errorf("NodePublishVolume failed: %s", err)
@@ -48,26 +57,39 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from  NodeUnpublishVolume " + fmt.Sprint(res))
+			err = errors.New(fmt.Sprintf("Recovered from NodeUnpublishVolume with volume ID %s: %s", req.GetVolumeId(), res))
 		}
+
+		isLocking := false
+		helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
 	}()
-	klog.V(2).Infof("NodeUnpublishVolume called with volume name %s", req.GetVolumeId())
+
+	isLocking := true
+	helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
+
+	klog.V(2).Infof("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
+		klog.V(2).Infof("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
 	if err != nil {
+		klog.V(2).Infof("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	resp, err := protocolOperation.NodeUnpublishVolume(ctx, req)
+	if err != nil {
+		klog.V(2).Infof("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
+		return nil, err
+	}
+	klog.V(2).Infof("NodeUnpublishVolume succeeded with volume ID %s", req.GetVolumeId())
 	return resp, err
 }
 
-func (s *service) NodeGetCapabilities(
-	ctx context.Context,
-	req *csi.NodeGetCapabilitiesRequest) (
-	*csi.NodeGetCapabilitiesResponse, error) {
+func (s *service) NodeGetCapabilities( ctx context.Context, req *csi.NodeGetCapabilitiesRequest) ( *csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
 			{
@@ -108,9 +130,16 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from NodeStageVolume " + fmt.Sprint(res))
+			err = errors.New(fmt.Sprintf("Recovered from NodeStageVolume with ID %s: %s", req.GetVolumeId(), res))
 		}
+
+		isLocking := false
+		helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
 	}()
+
+	isLocking := true
+	helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
+
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
@@ -118,9 +147,10 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
+		klog.V(2).Infof("NodeStageVolume succeeded with volume ID '%s'", volumeId)
 		return storageNode.NodeStageVolume(ctx, req)
 	}
-	klog.Errorf("NodeStateVolume failed: %s", err)
+	klog.Errorf("NodeStageVolume failed with volume ID %s: %s", volumeId, err)
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
@@ -128,19 +158,35 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from NodeUnstageVolume " + fmt.Sprint(res))
+			err = errors.New(fmt.Sprintf("Recovered from NodeUnstageVolume with volume ID %s: %s", req.GetVolumeId(), res))
 		}
+
+		isLocking := false
+		helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", req.GetVolumeId())
 	}()
-	klog.V(2).Infof("NodeUnstageVolume called with volume name %s", req.GetVolumeId())
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+
+	volumeId := req.GetVolumeId()
+
+	isLocking := true
+	helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
+
+	klog.V(2).Infof("NodeUnstageVolume called with volume name %s", volumeId)
+	volproto, err := s.validateVolumeID(volumeId)
 	if err != nil {
+		klog.Errorf("NodeUnstageVolume failed with volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
 	if err != nil {
+		klog.Errorf("NodeUnstageVolume failed with volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	resp, err := protocolOperation.NodeUnstageVolume(ctx, req)
+	if err != nil {
+		klog.Errorf("NodeUnstageVolume failed with volume ID %s: %s", volumeId, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	klog.V(2).Infof("NodeStageVolume succeeded with volume ID '%s'", volumeId)
 	return resp, err
 }
 

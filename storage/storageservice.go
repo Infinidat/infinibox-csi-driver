@@ -206,15 +206,16 @@ func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.
 func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 	err = cs.api.UnMapVolumeFromHost(hostID, volumeID)
 	if err != nil {
-		// ignoring following error
+		// Ignore the following errors
+		successMsg := fmt.Sprintf("Success: No need to unmap volume with ID %d from host with ID %d", volumeID, hostID)
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			klog.V(4).Infof("cannot unmap volume from host with id %d, host not found", hostID)
+			klog.V(4).Infof("%s, host not found", successMsg)
 			return nil
 		} else if strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-			klog.V(4).Infof("cannot unmap volume with id %d from host id %d , lun not found", volumeID, hostID)
+			klog.V(4).Infof("%s, lun not found", successMsg)
 			return nil
 		} else if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			klog.V(4).Infof("volume with ID %d is already deleted , volume not found", volumeID)
+			klog.V(4).Infof("%s, volume not found", successMsg)
 			return nil
 		}
 		return err
@@ -359,33 +360,74 @@ func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, e
 	return mode, nil
 }*/
 
-// detachFCDisk removes scsi device file such as /dev/sdX from the node.
+// detachDisk removes scsi device file such as /dev/sdX from the node.
 func detachDisk(devicePath string) error {
-	// Remove scsi device from the node.
+	klog.V(4).Infof("detachDisk called with devicePath %s", devicePath)
 	if !strings.HasPrefix(devicePath, "/dev/") {
 		return fmt.Errorf("detach disk: invalid device name: %s", devicePath)
 	}
 	arr := strings.Split(devicePath, "/")
 	dev := arr[len(arr)-1]
-	removeFromScsiSubsystem(dev)
-	return nil
+	err := removeFromScsiSubsystem(dev)
+	if err != nil {
+		klog.Errorf("detachDisk failed with devicePath %s", devicePath)
+	} else {
+		klog.V(4).Infof("detachDisk succeeded with devicePath %s", devicePath)
+	}
+	return err
 }
 
 // Removes a scsi device based upon /dev/sdX name
-func removeFromScsiSubsystem(deviceName string) {
+func removeFromScsiSubsystem(deviceName string) (err error) {
 	// fileName := "/sys/block/" + deviceName + "/device/delete"
 	// klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
 	// data := []byte("1\n")
 	// ioutil.WriteFile(fileName, data, 0666)
 	// klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
+
 	device := strings.Replace(deviceName, "/dev/", "", 1)
 	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
-	klog.V(4).Infof("Run: echo 1 > %s", deletePath)
-	// _, deleteErr := exec.Command("echo", "1", ">", deletePath).Output()
-	_, deleteErr := execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
-	if deleteErr != nil {
-		klog.Errorf("Failed to delete device '%s' with error %v", deletePath, deleteErr.Error())
+	statePath := fmt.Sprintf("/sys/block/%s/device/state", device)
+
+	// Get state of device
+	klog.V(4).Infof("Checking device state of %s", device)
+	output, err := execScsi.Command("cat", statePath)
+	if err != nil {
+		klog.Errorf("Failed: Cannot check state of device %s", device)
+		return
 	}
+
+	// Check device is in blocked state.
+	if output == "blocked" {
+		msg := fmt.Sprintf("Device %s is blocked", device)
+		klog.Errorf(msg)
+		err = errors.New(msg)
+		return
+	}
+
+	// Echo 1 to delete device
+	klog.V(4).Infof("Running 'echo 1 > %s'", deletePath)
+	output, err = execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
+	if err != nil {
+		klog.Errorf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
+		return
+	}
+
+	// var sleep_secs time.Duration
+	// sleep_secs = 10
+	// time.Sleep(sleep_secs * time.Second)
+
+	// Stat device
+	if _, err := os.Stat(deletePath); err == nil {
+		klog.Warningf("Device %s still exists", deletePath)
+	} else if errors.Is(err, os.ErrNotExist) {
+		klog.V(4).Infof("Device %s no longer exists", deletePath)
+		return nil
+	} else {
+		klog.V(4).Infof("Device %s may or may not exist. See error: %s", deletePath, err)
+	}
+
+	return err
 }
 
 // FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path

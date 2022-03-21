@@ -24,7 +24,7 @@ import (
 func (suite *ApiTestSuite) SetupTest() {
 	suite.clientMock = new(MockApiClient)
 	suite.serviceMock = new(MockApiService)
-    tests.ConfigureKlog()
+	tests.ConfigureKlog()
 }
 
 type ApiTestSuite struct {
@@ -1256,7 +1256,37 @@ func (suite *ApiTestSuite) Test_AddNodeInExport_IP_not_exist_success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	_, err := service.AddNodeInExport(100, "RW", false, "10.20.30.40")
 	// Assert
-	assert.Nil(suite.T(), err, "Error should not be nil")
+	assert.Nil(suite.T(), err, "Error should be nil")
+}
+
+func (suite *ApiTestSuite) Test_AddNodeInExport_IP_outside_range_added_success() {
+	// expectedErr := errors.New("some error")
+	exportResp := ExportResponse{}
+	exportResp.ID = 1009
+
+	permissionsArry := []Permissions{}
+	permissions := Permissions{}
+	permissions.Access = "RW"
+	permissions.Client = "10.20.30.30-10.20.30.40"
+	permissions.NoRootSquash = false
+	permissionsArry = append(permissionsArry, permissions)
+
+	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
+
+	expectedResponse := client.ApiResponse{Result: exportResp}
+	suite.clientMock.On("Get").Return(expectedResponse, nil)
+
+	var putresp ExportResponse
+	exportResp.ID = 123
+	updateResponse := client.ApiResponse{Result: putresp}
+
+	suite.clientMock.On("Put").Return(updateResponse, nil)
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	_, err := service.AddNodeInExport(100, "RW", false, "10.20.30.99")
+
+	// Assert
+	assert.Nil(suite.T(), err, "Error should be nil")
 }
 
 func (suite *ApiTestSuite) Test_AddNodeInExport_update_error() {

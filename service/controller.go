@@ -128,8 +128,8 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 
 // ControllerPublishVolume method
 func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (publishVolResp *csi.ControllerPublishVolumeResponse, err error) {
-	klog.V(2).Infof("ControllerPublishVolume called with req volumeID %s, nodeID %s, ctxt: %v",
-		req.GetVolumeId(), req.GetNodeId(), req.GetVolumeContext())
+	klog.V(2).Infof("ControllerPublishVolume called with request volumeID %s and nodeID %s",
+		req.GetVolumeId(), req.GetNodeId())
 
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -160,14 +160,14 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	}
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
-		klog.Errorf("ControllerPublishVolume, request: '%v', error: '%v'", req, err)
+		klog.Errorf("ControllerPublishVolume failed with volume ID %s and node ID %s: %v", req.GetVolumeId(), req.GetNodeId(), err)
 	}
 	return
 }
 
 // ControllerUnpublishVolume method
 func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
-	klog.V(2).Infof("Main ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
+	klog.V(2).Infof("ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))

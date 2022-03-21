@@ -502,9 +502,12 @@ type ExportPermission struct {
 	Client         string
 }
 
-// ControllerPublishVolume
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	var err error
+	volumeID := req.GetVolumeId()
+	exportID := req.GetVolumeContext()["exportID"]
+
+	klog.V(2).Infof("ControllerPublishVolume() called with volume ID %s and export ID %s", volumeID, exportID)
 
 	// TODO: revisit this as part of CSIC-343
 	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
@@ -517,20 +520,21 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		klog.Errorf("failed to retrieve permission maps, %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	klog.V(4).Infof("NFS export permissions for volume ID %s and export ID %s: %v", volumeID, exportID, exportPermissionMapArray)
+
 	access := ""
 	if len(exportPermissionMapArray) > 0 {
 		access = exportPermissionMapArray[0]["access"].(string)
 	}
 
-	exportID := req.GetVolumeContext()["exportID"]
 	noRootSquash := true // default value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
 		return nil, errors.New("not found Node ID")
 	}
 	nodeIP := nodeNameIP[1]
-	eportid, _ := strconv.Atoi(exportID)
-	_, err = nfs.cs.api.AddNodeInExport(eportid, access, noRootSquash, nodeIP)
+	exportid, _ := strconv.Atoi(exportID)
+	_, err = nfs.cs.api.AddNodeInExport(exportid, access, noRootSquash, nodeIP)
 	if err != nil {
 		klog.Errorf("failed to add export rule, %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to add export rule  %s", err)

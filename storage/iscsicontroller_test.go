@@ -472,12 +472,12 @@ func getISCSIDeleteRequest() *csi.DeleteVolumeRequest {
 	}
 }
 
-func getStoragePool() api.StoragePool {
-	var storagePool api.StoragePool
-	storagePool.ID = 100
-	storagePool.Name = "storagePoll"
-	return storagePool
-}
+// func getStoragePool() api.StoragePool {
+// 	var storagePool api.StoragePool
+// 	storagePool.ID = 100
+// 	storagePool.Name = "storagePoll"
+// 	return storagePool
+// }
 
 func getVolume() api.Volume {
 	var vol api.Volume
