@@ -278,34 +278,68 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("AddNodeInExport Panic occured -  " + fmt.Sprint(res))
+			msg := fmt.Sprintf("AddNodeInExport Panic occurred - %v", res)
+			klog.Errorf(msg)
+			err = errors.New(msg)
 		}
 	}()
-	klog.V(2).Infof("Add node in export path with ID %d", exportID)
+	klog.V(2).Infof("AddNodeInExport() called")
+	klog.V(2).Infof("Adding node with IP %s to export with export ID %d using access '%s'", ip, exportID, access)
 	flag := false
-	exportPathRef := ExportPathRef{}
+
 	uri := "api/rest/exports/" + strconv.Itoa(exportID)
 	eResp := ExportResponse{}
 
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		klog.Errorf("Error occured while getting export path : %s", err)
+		klog.Errorf("Error occurred while getting export path for export with ID %d: %s", exportID, err)
 		return nil, err
 	}
+
+	klog.V(4).Infof("Current export with export ID %d. Response type: %T,  response: %v", exportID, resp, resp)
+	if respApiResponse, ok := resp.(client.ApiResponse); ok == false {
+		msg := fmt.Sprintf("Getting current export with ID %d returned a resp that is not of type client.ApiResponse", exportID)
+		klog.Errorf(msg)
+		err = errors.New(msg)
+		return nil, err
+	} else {
+		var respResult interface{} = respApiResponse.Result
+		//var respMetaData client.Resultmetadata = respApiResponse.MetaData
+		//var respError interface{} = respApiResponse.Error
+		// klog.V(4).Infof("Current export with export ID %d. GET response Result: %v", exportID, respResult)
+		// klog.V(4).Infof("Current export with export ID %d. GET response MetaData: %v", exportID, respMetaData)
+		// klog.V(4).Infof("Current export with export ID %d. GET response Error: %v", exportID, respError)
+
+		if exportResponse, ok := respResult.(*ExportResponse); ok == false {
+			msg := fmt.Sprintf("Export response for export with ID %d is not of type ExportResponse", exportID)
+			klog.Infof(msg)
+		} else {
+			klog.V(4).Infof("Current export with export ID %d. exportResponse: %v", exportID, *exportResponse)
+		}
+	}
+
+    // TODO - Remove this block. Needed only for allowing UT to pass.
+    //        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
+		klog.V(4).Infof("DeepEqual(eResp, ExportResponse{}) is true")
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(ExportResponse)
+		klog.V(4).Infof("Current export with export ID %d. apiresp type: %T, apiresp: %v", exportID, apiresp, apiresp)
+		klog.V(4).Infof("Current export with export ID %d. eResp type: %T, eResp: %v", exportID, eResp, eResp)
+	} else {
+		klog.V(4).Infof("DeepEqual(eResp, ExportResponse{}) is false")
 	}
+
 	index := -1
 	permissionList := eResp.Permissions
 	for i, permission := range permissionList {
 		if compareClientIP(permission.Client, ip) {
 			flag = true
-			klog.V(4).Infof("Node IP address already added in export rule")
+			klog.V(4).Infof("Node IP address %s already added in export rule with ID %d", ip, exportID)
 		} else if permission.Client == "*" {
 			index = i
 			flag = true
-			klog.V(4).Infof("Node IP address already covered by '*' export rule")
+			klog.V(4).Infof("Node IP address %s already covered by '*' export rule for export ID %d", ip, exportID)
 		}
 	}
 	if index != -1 {
@@ -318,18 +352,19 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 			Client:       ip,
 		}
 		permissionList = append(permissionList, newPermission)
-		exportPathRef.Permissions = permissionList
-		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
-		if err != nil {
-			klog.Errorf("Error occured while updating export rule : %s", err)
-			return nil, err
-		}
 
-		if reflect.DeepEqual(eResp, ExportResponse{}) {
-			eResp, _ = resp.(ExportResponse)
+		exportPermissions := ExportPermissions{}
+		exportPermissions.Permissions = permissionList
+		klog.V(4).Infof("Setting export with ID %d permissions to %+v", exportID, exportPermissions)
+		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPermissions, &eResp)
+		if err != nil {
+			klog.Errorf("Error occurred while updating export rule for export with ID %d: %s", exportID, err)
+			return nil, err
+		} else {
+			klog.Infof("Updated export rule for export with ID %d, resp %v, eResp %v", exportID, resp, eResp)
 		}
 	}
-	klog.V(2).Infof("Added node in export path with ID %d", exportID)
+	klog.V(2).Infof("Completed adding node %s to export with export ID %d: %+v", ip, exportID, eResp)
 	return &eResp, nil
 }
 
@@ -495,16 +530,16 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 			err = errors.New("GetMetadataStatus Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(2).Infof("Get metadata status of filesystem with ID %d", fileSystemID)
+	klog.V(2).Infof("Get metadata status of IBox object with ID %d", fileSystemID)
 	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TOBEDELETED
 	metadata := Metadata{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
 	if err != nil {
-		klog.V(4).Infof("Error occured while getting metadata value: %s", err)
+		klog.V(4).Infof("Getting metadata did not return a value: %s", err)
 		return false
 	}
 
-	klog.V(4).Infof("GetMetadataStatus for file system ID %d: %v", fileSystemID, resp)
+	klog.V(4).Infof("GetMetadataStatus for IBox object with ID %d: %v", fileSystemID, resp)
 
 	if metadata == (Metadata{}) {
 		apiresp := resp.(client.ApiResponse)
@@ -515,8 +550,8 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 		klog.V(4).Infof("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
 		status = false
 	}
-	klog.V(2).Infof("Got metadata status of filesystem with ID %d", fileSystemID)
-	klog.V(2).Infof("Got metadata status of filesystem with ID %d: %t", fileSystemID, status) 
+	klog.V(2).Infof("Got metadata status of IBox object with ID %d", fileSystemID)
+	klog.V(2).Infof("Got metadata status of IBox object with ID %d: %t", fileSystemID, status)
 	return status
 }
 
@@ -597,7 +632,7 @@ func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { // delete fileystem's parent ID
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("DeleteParentFileSystem Panic occured -  " + fmt.Sprint(res))
+			err = fmt.Errorf("DeleteParentFileSystem called with file system ID %d. Panic occurred: %v", fileSystemID, res)
 		}
 	}()
 	// first check .. hasChild ...
@@ -606,11 +641,15 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) // delete the filesystem
 		if err != nil {
-			klog.Errorf("Failed to delete filesystem, filesystemID:%d error:%v", fileSystemID, err)
+			klog.Errorf("Failed to delete filesystem with ID %d: %v", fileSystemID, err)
 			return
 		}
 		if parentID != 0 {
-			c.DeleteParentFileSystem(parentID)
+			err = c.DeleteParentFileSystem(parentID)
+			if err != nil {
+				klog.Errorf("Failed to delete parent filesystem with parent ID %d: %v", fileSystemID, err)
+				return
+			}
 		}
 	}
 	return

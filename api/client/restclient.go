@@ -150,9 +150,8 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	klog.V(2).Infof("Put: context.Context '%s'", ctx)
-	klog.V(2).Infof("Put: url '%s'", url)
-	klog.V(4).Infof("Put: body '%s'", body)
+	klog.V(4).Infof("Put: context.Context '%+v'", ctx)
+	klog.V(4).Infof("Put: url '%s'", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -194,7 +193,7 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 		R().Delete(url)
 	res, err := rc.checkResponse(response, err, nil)
 	if err != nil {
-		klog.Errorf("error in validating response %v ", err)
+		klog.Errorf("checkResponse returned error: %+v", err)
 		return nil, err
 	}
 	klog.V(2).Infof("client.Delete request Completed")

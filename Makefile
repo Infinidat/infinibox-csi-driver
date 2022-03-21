@@ -1,4 +1,4 @@
-SHELL						= /bin/bash
+SHELL = /bin/bash
 
 EUID := $(shell id -u -r)
 ifneq ($(EUID),0)
@@ -9,8 +9,10 @@ include Makefile-help
 
 _GOCMD              ?= $(shell which go)
 
-# Go parameters
-_GOBUILD            = $(_GOCMD) build
+# Go parameters.
+# Timestamp go binary. See var compileDate in main.go.
+_DOCKER_IMAGE_TAG   = v2.1.0-rc5
+_GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG)"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
 _GOMOD              = $(_GOCMD) mod
@@ -27,7 +29,6 @@ _art_dir            = artifact
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
 _GITLAB_USER        = dohlemacher
-_DOCKER_IMAGE_TAG   = v2.1.0-rc4
 
 # redhat username and tag
 _REDHAT_DOCKER_USER = dohlemacher2
@@ -57,7 +58,9 @@ clean:  ## Clean source.
 
 .PHONY: build
 build:  ## Build source.
-	$(_GOBUILD) -o $(_BINARY_NAME) -v
+	@echo -e $(_begin)
+	@$(_GOBUILD) -o $(_BINARY_NAME) -v
+	@echo -e $(_finish)
 
 .PHONY: rebuild
 rebuild: clean ## Rebuild source (all packages)
@@ -69,11 +72,18 @@ test: build  ## Unit test source.
 
 .PHONY: test-one-thing
 test-one-thing: build  ## Unit test source, but just run one test.
-	export testdir=api && \
+	@echo -e $(_begin)
+	@export testdir=api && \
 	export onetest=TestFCControllerSuite/Test_CreateVolume_InvalidParameter_NoFsType && \
+	export onetest=TestFCControllerSuite/Test_AddNodeInExport_Error && \
+	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success && \
+    export onetest=TestServiceTestSuite/Test_AddNodeInExport_IP_not_exist_success && \
+	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IP_outside_range_added_succes && \
+	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success && \
 	printf "\nFrom $$testdir, running test $$onetest\n\n" && \
 	cd "$$testdir" && \
 	$(_GOTEST) -v -run "$$onetest"
+	@echo -e $(_finish)
 
 .PHONY: test-find-fails
 test-find-fails:  ## Find and summarize failing tests.
@@ -109,9 +119,11 @@ build-linux:  ## Cross compile CSI driver for Linux
 ##@ Docker
 .PHONY: docker-build-docker
 docker-build-docker: build test  ## Build and tag CSI driver docker image.
+	@echo -e $(_begin)
 	docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) -f Dockerfile .
 	@# TODO tag cmd needs review.
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	@echo -e $(_finish)
 
 .PHONY: docker-build-redhat
 docker-build-redhat: build test  ## Build and tag CSI driver for Red Hat docker repo.
@@ -124,10 +136,12 @@ docker-build-all: docker-build-docker docker-build-redhat  ## Build upstream and
 docker-login-docker:  ## Login to Dockerhub.
 	@docker login
 
-.PHONY: docker-push-docker
-docker-push-docker: docker-login-docker  # Tag and push to Dockerhub.
-	#$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
-	#docker tag 82d61b47403b $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+.PHONY: docker-push-gitlab
+docker-push-gitlab:  # Tag and push to gitlab.
+	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+
+.PHONY: docker-push-dockerhub
+docker-push-dockerhub: docker-login-docker  # Tag and push to dockerhub.
 	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
@@ -139,18 +153,17 @@ docker-push-redhat:  ## Login, tag and push to Red Hat.
 	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
-.PHONY: docker-push-all
-docker-push-all: docker-push-docker docker-push-redhat  ## Push to both Dockerhub and Red Hat.
-
 .PHONY: docker-push-gitlab-registry
 docker-push-gitlab-registry: docker-build-docker  ## Build, tag and push to gitlab (recommended for dev).
+	@echo -e $(_begin)
 	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
 	docker login $(_GITLAB_REPO)
 	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
 	docker push $(_TARGET_IMAGE)
+	@echo -e $(_finish)
 
-# gitlab-push:
-# 	git push --set-upstream upstream $(_DOCKER_IMAGE_TAG)
+.PHONY: docker-push-all
+docker-push-all: docker-push-gitlab docker-push-redhat docker-push-dockerhub  ## Push to both Gitlab, Red Hat and Dockerhub.
 
 .PHONY: buildlocal
 buildlocal: build docker-build clean

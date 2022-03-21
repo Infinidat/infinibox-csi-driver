@@ -33,7 +33,7 @@ func RegenerateXfsFilesystemUuid(devicePath string) (err error) {
 	if allow_uuid_fix {
 		newUuid := uuid.New()
 
-		klog.Errorf("Device %s has duplicate XFS UUID. New UUID: %s. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, newUuid, allow_xfs_uuid_regeneration)
+		klog.Warningf("Device %s has duplicate XFS UUID. New UUID: %s. ALLOW_XFS_UUID_REGENERATION is set to %s", devicePath, newUuid, allow_xfs_uuid_regeneration)
 
 		klog.V(4).Infof("Update device '%s' UUID with '%s'", devicePath, newUuid)
 		_, err_xfs := execScsi.Command("xfs_admin", fmt.Sprintf("-U %s %s", newUuid, devicePath))

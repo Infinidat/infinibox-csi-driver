@@ -9,6 +9,8 @@
 # Use color in Makefiles.
 _USE_COLOR ?= false
 
+.DEFAULT_GOAL := help
+
 # Color vars
 _help_padding = 30
 _black    = \033[0;30m

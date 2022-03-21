@@ -23,6 +23,10 @@ import (
 	"k8s.io/klog"
 )
 
+var version string
+var compileDate string
+var gitHash string
+
 // starting method of CSI-Driver
 func main() {
 	defer klog.Flush()  // Flush pending log IO
@@ -46,11 +50,13 @@ func main() {
 	default:
 		verbosity = "2"
 	}
-
 	flag.Set("v", verbosity)
 	flag.Parse()
 
 	klog.V(2).Infof("Infinidat CSI Driver is Starting")
+	klog.V(2).Infof("Version: %s", version)
+	klog.V(2).Infof("Compile date: %s", compileDate)
+	klog.V(2).Infof("Compile git hash: %s", gitHash)
 	klog.V(2).Infof("Log level: %s", appLogLevel)
 
 	// Check ALLOW_XFS_UUID_REGENERATION

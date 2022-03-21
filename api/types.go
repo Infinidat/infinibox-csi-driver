@@ -255,9 +255,13 @@ type FileSystemMetaData struct {
 	Page            int  `json:"provtype,omitempty"`
 }
 
+type ExportPermissions struct {
+	Permissions []Permissions `json:"permissions,omitempty"`
+}
+
 type ExportPathRef struct {
 	InnerPath          string        `json:"inner_path,omitempty"`
-	PrefWrite          string        `json:"pref_write,omitempty"`
+	PrefWrite          int           `json:"pref_write,omitempty"`
 	PrefRead           int           `json:"pref_read,omitempty"`
 	MaxRead            int           `json:"max_read,omitempty"`
 	PrefReaddir        int           `json:"pref_readdir,omitempty"`

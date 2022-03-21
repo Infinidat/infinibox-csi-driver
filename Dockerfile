@@ -1,7 +1,7 @@
 #FROM ubuntu:18.04
 #FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 #FROM redhat/ubi8-minimal:8.4-205
-FROM redhat/ubi8:8.4-206.1626828523
+FROM redhat/ubi8
 
 # Note: See "linux_host" note the IBox Ansible vars yaml
 # file in git.infinidat.com:PSUS/webinar-automate-sla.git.
@@ -21,7 +21,7 @@ RUN chmod +x /setenv.sh
 COPY infinibox-csi-driver /infinibox-csi-driver
 RUN chmod +x /infinibox-csi-driver
 
-RUN yum -y install file lsof && \
+RUN yum -y install file lsof hostname && \
     yum -y clean all && rm -rf /var/cache
 
 RUN mkdir /ibox
@@ -49,6 +49,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/mount \
     && ln -s /ibox/host-chroot.sh /ibox/multipath \
     && ln -s /ibox/host-chroot.sh /ibox/multipathd \
+    && ln -s /ibox/host-chroot.sh /ibox/rescan-scsi-bus.sh \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \
     && ln -s /ibox/host-chroot.sh /ibox/rpcbind \
     && ln -s /ibox/host-chroot.sh /ibox/umount \

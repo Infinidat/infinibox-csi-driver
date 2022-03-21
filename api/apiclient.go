@@ -111,7 +111,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 // DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
-	klog.V(2).Infof("Delete Volume with ID %d", volumeID)
+	klog.V(2).Infof("----- Delete Volume with ID %d", volumeID)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("DeleteVolume Panic occured -  " + fmt.Sprint(res))
@@ -170,10 +170,12 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 	body := map[string]interface{}{"address": portAddress, "type": portType}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
 	if err != nil {
-		if !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-			klog.Errorf("error adding host port : %s error : %v", portAddress, err)
+		if strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
+			klog.V(4).Infof("Success: No need to add port '%s' to host with ID %d, port already belongs to host", portAddress, hostID)
+		} else {
+			klog.Errorf("Error adding port '%s' to host with ID %d, error: %+v", portAddress, hostID, err)
+			return hostPort, err
 		}
-		return hostPort, err
 	}
 	if reflect.DeepEqual(hostPort, (HostPort{})) {
 		apiresp := resp.(client.ApiResponse)
@@ -738,7 +740,7 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 		resp, err = c.api.Put(context.Background(), apiuri, hostsecret, body, expectedResp)
 	}
 	if err != nil {
-		klog.Errorf("Error occured: %v ", err)
+		klog.Errorf("An API JSON response error occured, URL: %s, error: %+v ", apiuri, err)
 		return
 	}
 	return

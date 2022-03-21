@@ -344,8 +344,8 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		options = append(options, fm.MountOptions...)
 
 		err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options)
-		klog.V(4).Infof("FormatAndMount returned: %s", err)
 		if err != nil {
+			klog.V(4).Infof("FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
 			searchBadSuperBlock := "wrong fs type, bad option, bad superblock"
 			klog.V(4).Infof("Search error for matches to handle: %s", err)
@@ -378,6 +378,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 	}
+	klog.V(4).Infof("FormatAndMount succeeded. devicePath: %s, targetPath: %s, fsType: %s", devicePath, fm.TargetPath, fm.FsType)
 	return nil
 }
 
@@ -613,7 +614,7 @@ func scsiHostRescan(io ioHandler) {
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
-	klog.V(4).Infof("In searchDisk")
+	klog.V(4).Infof("Called searchDisk")
 	var diskIds []string
 	var disk string
 	var dm string

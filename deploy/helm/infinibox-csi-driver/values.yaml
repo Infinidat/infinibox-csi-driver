@@ -18,7 +18,7 @@ logLevel: "debug"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "v2.1.0-rc4"
+csiDriverVersion: "v2.1.0-rc5"
 
 # It is possible for two volumes, formatted XFS, to have identical XFS UUIDs.
 # A common cause is to create a snapshot from a volume. Both will have
@@ -32,20 +32,31 @@ allowXfsUuidRegeneration: "yes"
 
 # Image paths
 images:
-  attachersidecar: "k8s.gcr.io/sig-storage/csi-attacher@sha256:80dec81b679a733fda448be92a2331150d99095947d04003ecff3dbd7f2a476a"  # v3.3.0
+  # https://kubernetes-csi.github.io/docs/external-attacher.html
+  attachersidecar: "k8s.gcr.io/sig-storage/csi-attacher@sha256:8b9c313c05f54fb04f8d430896f5f5904b6cb157df261501b29adc04d2b2dc7b"  # v3.4.0
   attachersidecar_pull_policy: "IfNotPresent"
-  csidriver: "registry.connect.redhat.com/infinidat/infinidat-csi-driver@sha256:7024346c2b489cb3e70ef6c071dc669471cb3b56e5e24a4728f60ea684bf4887"  # v2.1.0-rc4
-  # csidriver: git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc4
+
+  #csidriver: "registry.connect.redhat.com/infinidat/infinidat-csi-driver@sha256:TBD"  # v2.1.0-rc?
+  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc5"
   csidriver_pull_policy: "Always"
-  imagePullSecret: "private-docker-reg-secret"
-  provisionersidecar: "k8s.gcr.io/sig-storage/csi-provisioner@sha256:04c55b93a032ad8075cae540d60fc740a72c31006590dbdb61ad4ab9813959d0"  # v2.2.2
+
+  # https://kubernetes-csi.github.io/docs/external-provisioner.html
+  provisionersidecar: "k8s.gcr.io/sig-storage/csi-provisioner@sha256:122bfb8c1edabb3c0edd63f06523e6940d958d19b3957dc7b1d6f81e9f1f6119"  # v3.1.0
   provisionersidecar_pull_policy: "IfNotPresent"
-  registrarsidecar: "k8s.gcr.io/sig-storage/csi-node-driver-registrar@sha256:9622c6a6dac7499a055a382930f4de82905a3c5735c0753f7094115c9c871309"  # v1.3.0
+
+  # https://kubernetes-csi.github.io/docs/node-driver-registrar.html
+  registrarsidecar: "k8s.gcr.io/sig-storage/csi-node-driver-registrar@sha256:4fd21f36075b44d1a423dfb262ad79202ce54e95f5cbc4622a6c1c38ab287ad6"  # v2.5.0
   registrarsidecar_pull_policy: "IfNotPresent"
-  resizersidecar: "k8s.gcr.io/sig-storage/csi-resizer@sha256:6e0546563b18872b0aa0cad7255a26bb9a87cb879b7fc3e2383c867ef4f706fb"  # v1.3.0
-  "resizersidecar_pull_policy": "IfNotPresent"
-  snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:ac845016480ce5eb18a04c1e4e7a4613900e662367dd1771db1e4ccfcedda5e2"  # v5.0.0
+
+  # https://kubernetes-csi.github.io/docs/external-resizer.html
+  resizersidecar: "k8s.gcr.io/sig-storage/csi-resizer@sha256:9ebbf9f023e7b41ccee3d52afe39a89e3ddacdbb69269d583abfc25847cfd9e4"  # v1.4.0
+  resizersidecar_pull_policy: "IfNotPresent"
+
+  # https://kubernetes-csi.github.io/docs/external-snapshotter.html
+  snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:89e900a160a986a1a7a4eba7f5259e510398fa87ca9b8a729e7dec59e04c7709" # v5.0.1
   snapshottersidecar_pull_policy: "IfNotPresent"
+
+  imagePullSecret: "private-docker-reg-secret"
 
 Infinibox_Cred:
   SecretName: "infinibox-creds"
