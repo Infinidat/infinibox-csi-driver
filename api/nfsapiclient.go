@@ -297,7 +297,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	}
 
 	klog.V(4).Infof("Current export with export ID %d. Response type: %T,  response: %v", exportID, resp, resp)
-	if respApiResponse, ok := resp.(client.ApiResponse); ok == false {
+	if respApiResponse, ok := resp.(client.ApiResponse); !ok {
 		msg := fmt.Sprintf("Getting current export with ID %d returned a resp that is not of type client.ApiResponse", exportID)
 		klog.Errorf(msg)
 		err = errors.New(msg)
@@ -310,7 +310,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		// klog.V(4).Infof("Current export with export ID %d. GET response MetaData: %v", exportID, respMetaData)
 		// klog.V(4).Infof("Current export with export ID %d. GET response Error: %v", exportID, respError)
 
-		if exportResponse, ok := respResult.(*ExportResponse); ok == false {
+		if exportResponse, ok := respResult.(*ExportResponse); !ok {
 			msg := fmt.Sprintf("Export response for export with ID %d is not of type ExportResponse", exportID)
 			klog.Infof(msg)
 		} else {

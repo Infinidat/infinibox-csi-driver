@@ -31,6 +31,7 @@ type ExecScsi struct {
 func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out string, err error) {
 	s.mu.Lock()
 	defer func() {
+		out = strings.TrimSpace(out)
 		s.mu.Unlock()
 		klog.V(4).Infof("%s", follower)
 	}()
@@ -50,10 +51,11 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 	result, cmdErr := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 
 	if cmdErr != nil {
-		if cmd == "iscsiadm" {
-			if nativeError, nativeGetOK := cmdErr.(*exec.ExitError); nativeGetOK {
-				var errCode codes.Code
-				exitCode := nativeError.ExitCode()
+		if nativeError, nativeGetOK := cmdErr.(*exec.ExitError); nativeGetOK {
+			var errCode codes.Code
+			exitCode := nativeError.ExitCode()
+			//klog.V(4).Infof("Command %s had exit code %s", cmd, exitCode)
+			if cmd == "iscsiadm" {
 				switch exitCode {
 				case 2:
 					errCode = codes.NotFound // Session not found
@@ -82,7 +84,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 	// Logging is optional, defaults to logged
 	if len(isToLogOutput) == 0 || isToLogOutput[0] {
 		if len(out) != 0 {
-			klog.V(4).Infof("Output: %s", out)
+			klog.V(4).Infof("Output:\n%s", out)
 		}
 	}
 

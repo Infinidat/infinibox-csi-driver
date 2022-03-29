@@ -13,7 +13,6 @@ package main
 import (
 	"context"
 	"flag"
-	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
 	"os"
@@ -31,8 +30,8 @@ var gitHash string
 func main() {
 	defer klog.Flush()  // Flush pending log IO
 	klog.InitFlags(nil)
-	flag.Set("logtostderr", "true")
-	flag.Set("stderrthreshold", "WARNING")
+	_ = flag.Set("logtostderr", "true")
+	_ = flag.Set("stderrthreshold", "WARNING")
 
 	var verbosity string
 	appLogLevel := os.Getenv("APP_LOG_LEVEL")
@@ -50,7 +49,7 @@ func main() {
 	default:
 		verbosity = "2"
 	}
-	flag.Set("v", verbosity)
+	_ = flag.Set("v", verbosity)
 	flag.Parse()
 
 	klog.V(2).Infof("Infinidat CSI Driver is Starting")
@@ -58,16 +57,6 @@ func main() {
 	klog.V(2).Infof("Compile date: %s", compileDate)
 	klog.V(2).Infof("Compile git hash: %s", gitHash)
 	klog.V(2).Infof("Log level: %s", appLogLevel)
-
-	// Check ALLOW_XFS_UUID_REGENERATION
-	allow_xfs_uuid_regeneration := os.Getenv("ALLOW_XFS_UUID_REGENERATION")
-	_, err := helper.YamlBoolToBool(allow_xfs_uuid_regeneration)
-	if err != nil {
-		klog.Fatalf("Invalid ALLOW_XFS_UUID_REGENERATION variable: %s", err)
-	}
-	klog.V(2).Infof("Configuration:")
-	klog.V(2).Infof("  ALLOW_XFS_UUID_REGENERATION: %s", allow_xfs_uuid_regeneration)
-
 	klog.Flush()
 
 	configParams := getConfigParams()

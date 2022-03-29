@@ -1,11 +1,9 @@
-#FROM ubuntu:18.04
-#FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
-#FROM redhat/ubi8-minimal:8.4-205
-FROM redhat/ubi8
+FROM redhat/ubi8:latest
 
 # Note: See "linux_host" note the IBox Ansible vars yaml
 # file in git.infinidat.com:PSUS/webinar-automate-sla.git.
 # This is affected by the base image choice.
+# Base image is specified in Makefile and must match.
 
 MAINTAINER partners.infi@infinidat.com
 
@@ -22,6 +20,7 @@ COPY infinibox-csi-driver /infinibox-csi-driver
 RUN chmod +x /infinibox-csi-driver
 
 RUN yum -y install file lsof hostname && \
+	yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical && \
     yum -y clean all && rm -rf /var/cache
 
 RUN mkdir /ibox

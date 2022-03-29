@@ -61,15 +61,17 @@ type FCMounter struct {
 var execFc helper.ExecScsi
 
 func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(4).Infof("NodePublishVolume called")
+	klog.V(4).Infof("NodePublishVolume called with volume ID %s", req.GetVolumeId())
+	helper.CheckMultipath()
+
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// Warning: AttachFCDisk attaches nothing. It only finds the device and returns it.
-	devicePath, err := fc.AttachFCDisk(*fcDetails.connector, &OSioHandler{})
+	devicePath, err := fc.getFCDisk(*fcDetails.connector, &OSioHandler{})
 	if err != nil {
+		klog.Errorf("")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
@@ -193,11 +195,16 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	klog.V(4).Infof("remove multipath device %s", dstPath)
 	if strings.HasPrefix(dstPath, "/dev/dm-") {
 		multiPath = true
-		devices = findSlaveDevicesOnMultipath(dstPath)
+		devices, err = findSlaveDevicesOnMultipath(dstPath)
 	} else {
 		// Add single targetPath to devices
 		devices = append(devices, dstPath)
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	var lastErr error
 	for _, device := range devices {
 		err := detachDisk(device)
@@ -343,24 +350,19 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		}
 		options = append(options, fm.MountOptions...)
 
+		if fm.FsType == "xfs" {
+			klog.V(4).Infof("Device %s is of type XFS. Mounting using 'nouuid' option.", devicePath)
+			options = append(options, "nouuid")
+		}
+
 		err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options)
 		if err != nil {
 			klog.V(4).Infof("FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			searchBadSuperBlock := "wrong fs type, bad option, bad superblock"
 			klog.V(4).Infof("Search error for matches to handle: %s", err)
 
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				klog.Errorf("Device %s is already mounted on %s", devicePath, mountPoint)
-			} else if isBadSuperBlock := strings.Contains(err.Error(), searchBadSuperBlock); isBadSuperBlock {
-				if err := helper.RegenerateXfsFilesystemUuid(devicePath); err != nil {
-					return status.Errorf(codes.Internal, err.Error())
-				}
-				klog.V(4).Infof("Run FormatAndMount, after UUID change")
-				err = fm.Mounter.FormatAndMount(devicePath, mountPoint, fm.FsType, options)
-				if err != nil {
-					return status.Errorf(codes.Internal, err.Error())
-				}
 			} else {
 				msg := fmt.Sprintf("fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
 				klog.Errorf(msg)
@@ -711,19 +713,19 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
 	return "", ""
 }
 
-// Attach attempts to attach a fc volume to a node using the provided Connector info
-func (fc *fcstorage) AttachFCDisk(c Connector, io ioHandler) (string, error) {
+// Find and return FC disk
+func (fc *fcstorage) getFCDisk(c Connector, io ioHandler) (string, error) {
 	if io == nil {
 		io = &OSioHandler{}
 	}
-	klog.V(2).Infof("Attaching fc volume")
+	klog.V(4).Infof("getFCDisk() called")
 	devicePath, err := fc.searchDisk(c, io)
 	if err != nil {
-		klog.V(2).Infof("unable to find disk given WWNN or WWIDs with error %v", err)
+		klog.V(2).Infof("getFCDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
 		return "", err
 	}
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	klog.V(4).Infof("Attaching fc volume successful, device path %s", devicePath)
+	klog.V(4).Infof("FC device path %s found", devicePath)
 
 	return devicePath, nil
 }
@@ -736,9 +738,9 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 			err = errors.New("Recovered from FC DetachFCDisk  " + fmt.Sprint(res))
 		}
 	}()
-	if io == nil {
-		io = &OSioHandler{}
-	}
+	// if io == nil {
+	// 	io = &OSioHandler{}
+	// }
 
 	mounter := mount.New("")
 	mntPath := path.Join("/host", targetPath)

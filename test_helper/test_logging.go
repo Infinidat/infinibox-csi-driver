@@ -1,10 +1,10 @@
 package test_helper
 
 import (
-	"os"
 	"flag"
-    "fmt"
+	"fmt"
 	"k8s.io/klog"
+	"os"
 )
 
 func ConfigureKlog() {
@@ -13,10 +13,10 @@ func ConfigureKlog() {
 	logLevel := "99"
 	fmt.Printf("Configuring KLOG V level: %s\n", logLevel)
 	fs := flag.FlagSet{}
-    klog.InitFlags(&fs)
-    err := fs.Set("v", logLevel)
-    if err != nil {
-        fmt.Fprintf(os.Stderr, "Failed to set klog verbosity: %s\n", logLevel)
+	klog.InitFlags(&fs)
+	err := fs.Set("v", logLevel)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to set klog verbosity: %s\n", logLevel)
 		os.Exit(3)
 	}
 }
