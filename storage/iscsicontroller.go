@@ -24,9 +24,9 @@ import (
 	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -37,7 +37,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}()
 
-	klog.V(2).Infof("+++++ CreateVolume called to create volume named %s", req.GetName())
+	klog.V(2).Infof("CreateVolume called to create volume named %s", req.GetName())
 	cr := req.GetCapacityRange()
 	sizeBytes, err := verifyVolumeSize(cr)
 	if err != nil {
@@ -163,7 +163,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	klog.V(2).Infof("CreateVolume resp: %v", *csiResp)
-	klog.Infof("created volume: %s id: %d", name, volID)
+	klog.Infof("Successfully created volume with name %s and ID %d", name, volID)
 	return csiResp, err
 }
 
@@ -173,7 +173,7 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			err = errors.New("Recovered from ISCSI DeleteSnapshot  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(4).Infof("----- DeleteVolume called to delete volume with ID %s", req.GetVolumeId())
+	klog.V(4).Infof("DeleteVolume called to delete volume with ID %s", req.GetVolumeId())
 	id, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "error parsing volume id: %s", err.Error())
@@ -187,7 +187,7 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			return nil, status.Errorf(codes.Internal, "failed to delete volume: %s", err.Error())
 		}
 	}
-	klog.V(4).Infof("Volume with ID %d deleted", id)
+	klog.V(4).Infof("Successfully deleted volume with ID %d", id)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -305,7 +305,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	var msg string
-	klog.V(2).Infof("+++++ ControllerPublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	klog.V(2).Infof("ControllerPublishVolume called with node ID %s and volume ID %s", req.GetNodeId(), req.GetVolumeId())
 
 	volIdStr := req.GetVolumeId()
 	if volIdStr == "" {
@@ -412,7 +412,9 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	publishVolCtxt["hostID"] = strconv.Itoa(host.ID)
 	publishVolCtxt["hostPorts"] = ports
 	publishVolCtxt["securityMethod"] = host.SecurityMethod
-	klog.V(4).Infof("mapped volume %d, publish context: %v", volID, publishVolCtxt)
+	klog.V(4).Infof("Mapped volume %d, publish context: %v", volID, publishVolCtxt)
+
+	klog.V(2).Infof("ControllerPublishVolume completed with node ID %s and volume ID %s", req.GetNodeId(), req.GetVolumeId())
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: publishVolCtxt,
 	}, nil
@@ -420,7 +422,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
 	var msg string
-	klog.V(2).Infof("----- ControllerUnpublishVolume called with nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	klog.V(2).Infof("ControllerUnpublishVolume called with node ID %s and volume ID %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		msg = fmt.Sprintf("Failed to validate volume with ID %s: %v", req.GetVolumeId(), err)
@@ -466,6 +468,8 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 			}
 		}
 	}
+
+	klog.V(2).Infof("ControllerUnpublishVolume completed with node ID %s and volume ID %s", req.GetNodeId(), req.GetVolumeId())
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
@@ -524,7 +528,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	}()
 	var snapshotID string
 	snapshotName := req.GetName()
-	klog.V(4).Infof("+++++ CreateSnapshot called to create snapshot named %s from source volume ID %s", snapshotName, req.GetSourceVolumeId())
+	klog.V(4).Infof("CreateSnapshot called to create snapshot named %s from source volume ID %s", snapshotName, req.GetSourceVolumeId())
 	volproto, err := validateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
 		klog.Errorf("Failed to validate storage type %v", err)
@@ -542,7 +546,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 				SizeBytes:      volumeSnapshot.Size,
 				SnapshotId:     snapshotID,
 				SourceVolumeId: req.GetSourceVolumeId(),
-				CreationTime:   ptypes.TimestampNow(),
+				CreationTime:   timestamppb.Now(),
 				ReadyToUse:     true,
 			},
 		}, nil
@@ -569,11 +573,13 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		SnapshotId:     snapshotID,
 		SourceVolumeId: req.GetSourceVolumeId(),
 		ReadyToUse:     true,
-		CreationTime:   ptypes.TimestampNow(),
+		CreationTime:   timestamppb.Now(),
 		SizeBytes:      snapshot.Size,
 	}
 	klog.V(4).Infof("CreateFileSystemSnapshot resp: %v", csiSnapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
+
+	klog.V(4).Infof("CreateSnapshot successfully created snapshot named %s from source volume ID %s", snapshotName, req.GetSourceVolumeId())
 	return snapshotResp, nil
 }
 
@@ -584,9 +590,8 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		}
 	}()
 
-	klog.V(4).Infof("----- Called DeleteSnapshot to delete snapshot with ID %s", req.GetSnapshotId())
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
-	klog.V(4).Infof("Deleting snapshot with ID %d", snapshotID)
+	klog.V(4).Infof("Called DeleteSnapshot to delete snapshot with ID %d", snapshotID)
 	err = iscsi.ValidateDeleteVolume(snapshotID)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -597,7 +602,7 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			return nil, status.Errorf(codes.Internal, "failed to delete snapshot: %s", err.Error())
 		}
 	}
-	klog.V(4).Infof("Deleted snapshot with ID %d", snapshotID)
+	klog.V(4).Infof("DeleteSnapshot successfully deleted snapshot with ID %d", snapshotID)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 

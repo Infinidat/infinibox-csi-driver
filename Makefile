@@ -29,6 +29,7 @@ _art_dir            = artifact
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
 _GITLAB_USER        = dohlemacher
+_DOCKER_BASE_IMAGE  = redhat/ubi8:latest
 
 # redhat username and tag
 _REDHAT_DOCKER_USER = dohlemacher2
@@ -80,6 +81,7 @@ test-one-thing: build  ## Unit test source, but just run one test.
     export onetest=TestServiceTestSuite/Test_AddNodeInExport_IP_not_exist_success && \
 	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IP_outside_range_added_succes && \
 	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success && \
+	export onetest=Test_ExecScsiCommand && \
 	printf "\nFrom $$testdir, running test $$onetest\n\n" && \
 	cd "$$testdir" && \
 	$(_GOTEST) -v -run "$$onetest"
@@ -93,11 +95,15 @@ test-find-fails:  ## Find and summarize failing tests.
 
 .PHONY: lint
 lint: build ## Lint source.
+	@echo -e $(_begin)
 	$(_GOLINT) run
+	@echo -e $(_finish)
 
 .PHONY: fmt
 fmt: build ## Auto-format source
+	@echo -e $(_begin)
 	$(_GOFMT) -w -l .
+	@echo -e $(_finish)
 
 .PHONY: modverify
 modverify:  ## Verify dependencies have expected content.
@@ -118,9 +124,12 @@ build-linux:  ## Cross compile CSI driver for Linux
 
 ##@ Docker
 .PHONY: docker-build-docker
-docker-build-docker: build test  ## Build and tag CSI driver docker image.
+docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 	@echo -e $(_begin)
-	docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) -f Dockerfile .
+	@echo "Pulling base image $(_DOCKER_BASE_IMAGE)"
+	@docker pull $(_DOCKER_BASE_IMAGE)
+	@echo "Building CSI driver image"
+	@docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) -f Dockerfile .
 	@# TODO tag cmd needs review.
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	@echo -e $(_finish)

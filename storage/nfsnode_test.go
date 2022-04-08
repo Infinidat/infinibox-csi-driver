@@ -15,7 +15,7 @@ import (
 	"errors"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
-	"os"
+	//"os"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -199,27 +199,27 @@ func getNodeUnPublishVolumeRequest(tagetPath string, volumeID string) *csi.NodeU
 	}
 }
 
-// OS package -- mock method
-type mockOS struct {
-	mock.Mock
-}
+// // OS package -- mock method
+// type mockOS struct {
+// 	mock.Mock
+// }
 
-func (m *mockOS) IsNotExist(err error) bool {
-	status := m.Called(err)
-	st, _ := status.Get(0).(bool)
-	return st
-}
+// func (m *mockOS) IsNotExist(err error) bool {
+// 	status := m.Called(err)
+// 	st, _ := status.Get(0).(bool)
+// 	return st
+// }
 
-func (m *mockOS) MkdirAll(path string, perm os.FileMode) bool {
-	status := m.Called(path, perm)
-	return status.Get(0).(bool)
-}
+// func (m *mockOS) MkdirAll(path string, perm os.FileMode) bool {
+// 	status := m.Called(path, perm)
+// 	return status.Get(0).(bool)
+// }
 
-func (m *mockOS) Remove(path string) bool {
-	status := m.Called(path)
-	st, _ := status.Get(0).(bool)
-	return st
-}
+// func (m *mockOS) Remove(path string) bool {
+// 	status := m.Called(path)
+// 	st, _ := status.Get(0).(bool)
+// 	return st
+// }
 
 // MockNfsMounter - mount mock
 type MockNfsMounter struct {

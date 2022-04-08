@@ -26,10 +26,10 @@ func GetCreateVolumeRequest(name string, parameterMap map[string]string, sourceV
 	}
 
 	return &csi.CreateVolumeRequest{
-		Name: name,
-		CapacityRange: &csi.CapacityRange{RequiredBytes: 1000},
-		Parameters: parameterMap,
-		Secrets: GetSecret(),
+		Name:                name,
+		CapacityRange:       &csi.CapacityRange{RequiredBytes: 1000},
+		Parameters:          parameterMap,
+		Secrets:             GetSecret(),
 		VolumeContentSource: volContentSrc,
 		VolumeCapabilities: []*csi.VolumeCapability{
 			{

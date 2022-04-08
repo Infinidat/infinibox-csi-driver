@@ -24,13 +24,13 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	log "infinibox-csi-driver/helper/logger"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	csictx "github.com/rexray/gocsi/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
@@ -64,6 +64,9 @@ type iscsistorage struct {
 	cs       commonservice
 	osHelper helper.OsHelper
 }
+
+// Mutex protecting device rescan and delete operations
+var deviceMu sync.Mutex
 
 type treeqstorage struct {
 	csi.ControllerServer
@@ -173,22 +176,12 @@ func (cs *commonservice) verifyApiClient() error {
 	return nil
 }
 
-func (cs *commonservice) getIscsiInitiatorName() string {
-	if ep, ok := csictx.LookupEnv(context.Background(), "ISCSI_INITIATOR_NAME"); ok {
-		return ep
-	}
-	return ""
-}
-
-func (cs *commonservice) getVolumeByID(id int) (*api.Volume, error) {
-	// The `GetVolume` API returns a slice of volumes, but when only passing
-	// in a volume ID, the response will be just the one volume
-	vols, err := cs.api.GetVolume(id)
-	if err != nil {
-		return nil, err
-	}
-	return vols, nil
-}
+// func (cs *commonservice) getIscsiInitiatorName() string {
+// 	if ep, ok := csictx.LookupEnv(context.Background(), "ISCSI_INITIATOR_NAME"); ok {
+// 		return ep
+// 	}
+// 	return ""
+// }
 
 func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
 	luninfo, err = cs.api.MapVolumeToHost(hostID, volumeID, -1)
@@ -259,18 +252,9 @@ func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
 	return &host, nil
 }
 
-func (cs *commonservice) deleteVolume(volumeID int) (err error) {
-	err = cs.api.DeleteVolume(volumeID)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
-	klog.V(2).Infof("getCSIResponse called with vol %v", vol)
+	klog.V(2).Infof("getCSIResponse called with volume %+v", vol)
 	storagePoolName := vol.PoolName
-	klog.V(2).Infof("getCSIResponse storagePoolName is %s", vol.PoolName)
 	if storagePoolName == "" {
 		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolId)
 	}
@@ -377,32 +361,45 @@ func detachDisk(devicePath string) error {
 	return err
 }
 
-// Removes a scsi device based upon /dev/sdX name
-func removeFromScsiSubsystem(deviceName string) (err error) {
+func removeFromScsiSubsystemByHostLun(host string, lun string) (err error) {
 	// fileName := "/sys/block/" + deviceName + "/device/delete"
 	// klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
 	// data := []byte("1\n")
 	// ioutil.WriteFile(fileName, data, 0666)
 	// klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
 
-	device := strings.Replace(deviceName, "/dev/", "", 1)
-	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
-	statePath := fmt.Sprintf("/sys/block/%s/device/state", device)
+	defer func() {
+		klog.V(4).Infof("removeFromScsiSubsystemByHostLun() with host %s and lun %s completed", host, lun)
+	}()
 
-	// Get state of device
-	klog.V(4).Infof("Checking device state of %s", device)
-	output, err := execScsi.Command("cat", statePath)
-	if err != nil {
-		klog.Errorf("Failed: Cannot check state of device %s", device)
-		return
-	}
+	klog.V(4).Infof("removeFromScsiSubsystemByHostLun() called with host %s and lun %s", host, lun)
+
+	deletePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/delete", host, lun)
+	statePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/state", host, lun)
+	var output string
 
 	// Check device is in blocked state.
-	if output == "blocked" {
-		msg := fmt.Sprintf("Device %s is blocked", device)
-		klog.Errorf(msg)
-		err = errors.New(msg)
-		return
+	var sleepCount time.Duration
+	for i := 1; i <= 5; i++ {
+		// Get state of device
+		klog.V(4).Infof("Checking device state of %s", statePath)
+		output, err = execScsi.Command("cat", statePath)
+		if err != nil {
+			klog.Errorf("Failed: Cannot check state of %s", statePath)
+			return
+		}
+		deviceState := strings.TrimSpace(string(output))
+		if deviceState == "blocked" {
+			if i == 5 {
+				msg := fmt.Sprintf("Device %s is blocked", statePath)
+				klog.Errorf(msg)
+				err = errors.New(msg)
+				return
+			}
+			time.Sleep(sleepCount * time.Second)
+		} else {
+			break
+		}
 	}
 
 	// Echo 1 to delete device
@@ -413,9 +410,100 @@ func removeFromScsiSubsystem(deviceName string) (err error) {
 		return
 	}
 
-	// var sleep_secs time.Duration
-	// sleep_secs = 10
-	// time.Sleep(sleep_secs * time.Second)
+	// Stat device
+	if _, err := os.Stat(deletePath); err == nil {
+		klog.Warningf("Device %s still exists", deletePath)
+	} else if errors.Is(err, os.ErrNotExist) {
+		klog.V(4).Infof("Device %s no longer exists", deletePath)
+		return nil
+	} else {
+		klog.V(4).Infof("Device %s may or may not exist. See error: %s", deletePath, err)
+	}
+
+	return err
+}
+
+// detachDisk removes scsi device file such as /dev/sdX from the node.
+func detachDiskByLun(hosts []string, lun string) error {
+	defer func() {
+		klog.V(4).Infof("detachDiskByLun() with hosts '%+v' and lun %s completed - Unlocking", hosts, lun)
+		klog.Flush()
+		deviceMu.Unlock()
+		// May happen if unlocking a mutex that was not locked
+		if r := recover(); r != nil {
+			err := fmt.Errorf("%v", r)
+			klog.V(4).Infof("detachDiskByLun(), with hosts '%+v' and lun %s failed with run-time error: %+v", hosts, lun, err)
+		}
+	}()
+
+	deviceMu.Lock()
+
+	klog.V(4).Infof("detachDiskByLun() called with hosts %+v and lun %s", hosts, lun)
+	var err error
+
+	for _, host := range hosts {
+		err = removeFromScsiSubsystemByHostLun(host, lun)
+	}
+	return err
+}
+
+// Removes a scsi device based upon /dev/sdX name
+func removeFromScsiSubsystem(deviceName string) (err error) {
+	// fileName := "/sys/block/" + deviceName + "/device/delete"
+	// klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
+	// data := []byte("1\n")
+	// ioutil.WriteFile(fileName, data, 0666)
+	// klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
+
+	defer func() {
+		klog.V(4).Infof("removeFromScsiSubsystem() with device name '%s' completed - Unlocking", deviceName)
+		klog.Flush()
+		deviceMu.Unlock()
+		// May happen if unlocking a mutex that was not locked
+		if r := recover(); r != nil {
+			err := fmt.Errorf("%v", r)
+			klog.V(4).Infof("removeFromScsiSubsystem(), with device name '%s', failed with run-time error: %+v", deviceName, err)
+		}
+	}()
+
+	deviceMu.Lock()
+
+	device := strings.Replace(deviceName, "/dev/", "", 1)
+	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
+	statePath := fmt.Sprintf("/sys/block/%s/device/state", device)
+	var output string
+
+	// Check device is in blocked state.
+	var sleepCount time.Duration
+	for i := 1; i <= 5; i++ {
+		// Get state of device
+		klog.V(4).Infof("Checking device state of %s", device)
+		output, err = execScsi.Command("cat", statePath)
+		if err != nil {
+			klog.Errorf("Failed: Cannot check state of device %s", device)
+			return
+		}
+		deviceState := strings.TrimSpace(string(output))
+		if deviceState == "blocked" {
+			if i == 5 {
+				msg := fmt.Sprintf("Device %s is blocked", device)
+				klog.Errorf(msg)
+				err = errors.New(msg)
+				return
+			}
+			time.Sleep(sleepCount * time.Second)
+		} else {
+			break
+		}
+	}
+
+	// Echo 1 to delete device
+	klog.V(4).Infof("Running 'echo 1 > %s'", deletePath)
+	output, err = execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
+	if err != nil {
+		klog.Errorf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
+		return
+	}
 
 	// Stat device
 	if _, err := os.Stat(deletePath); err == nil {
@@ -431,12 +519,14 @@ func removeFromScsiSubsystem(deviceName string) (err error) {
 }
 
 // FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
-func findSlaveDevicesOnMultipath(dm string) []string {
+func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 	var devices []string
 	// Split path /dev/dm-1 into "", "dev", "dm-1"
 	parts := strings.Split(dm, "/")
 	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
-		return devices
+		err := fmt.Errorf("findSlaveDevicesOnMultipath() for dm '%s' failed", dm)
+		klog.Error(err.Error())
+		return nil, err
 	}
 	disk := parts[2]
 	slavesPath := path.Join("/sys/block/", disk, "/slaves/")
@@ -445,7 +535,48 @@ func findSlaveDevicesOnMultipath(dm string) []string {
 			devices = append(devices, path.Join("/dev/", f.Name()))
 		}
 	}
-	return devices
+	if len(devices) == 0 {
+		err := fmt.Errorf("findSlaveDevicesOnMultipath() for dm %s found no devices", dm)
+		klog.Error(err.Error())
+		return nil, err
+	}
+	return devices, nil
+}
+
+func findHosts() ([]string, error) {
+	// TODO - Must use portals if supporting more than one target IQN.
+	// Find hosts
+	hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
+	hosts := strings.Fields(hostIds)
+	if err != nil {
+		klog.Errorf("Finding hosts failed: %s", err)
+		return hosts, err
+	}
+	if len(hosts) != mpathDeviceCount {
+		klog.Warningf("The number of hosts is not %d. hosts: '%v'", mpathDeviceCount, hosts)
+	}
+	return hosts, nil
+}
+
+// FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
+func findLunOnDevice(devicePath string) (string, error) {
+	var lun string
+	// Split path /dev/sdaa into "", "dev", "sdaa"
+	parts := strings.Split(devicePath, "/")
+	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
+		return "", fmt.Errorf("Invalid device name %s", devicePath)
+	}
+	device := parts[2]
+	scsiDevicePath := fmt.Sprintf("/sys/class/block/%s/device/scsi_device", device)
+
+	if files, err := ioutil.ReadDir(scsiDevicePath); err == nil {
+		hctl := files[0].Name()
+		partsLun := strings.Split(hctl, ":")
+		lun = partsLun[3]
+	} else {
+		return "", fmt.Errorf("Cannot read scsi device path %s", scsiDevicePath)
+	}
+	return lun, nil
 }
 
 func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args []string) ([]byte, error) {
@@ -514,9 +645,6 @@ func (cs *commonservice) isCorruptedMnt(err error) bool {
 
 	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
 }
-
-// Q. Is it legit to not implement alpha features such as ControllerGetVolume()?
-// A. Yes. Reference: https://kubernetes.slack.com/archives/C8EJ01Z46/p1599290937022900
 
 func (st *fcstorage) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,

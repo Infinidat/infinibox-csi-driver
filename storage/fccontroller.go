@@ -23,9 +23,9 @@ import (
 	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
@@ -473,7 +473,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 				SizeBytes:      volumeSnapshot.Size,
 				SnapshotId:     snapshotID,
 				SourceVolumeId: req.GetSourceVolumeId(),
-				CreationTime:   ptypes.TimestampNow(),
+				CreationTime:   timestamppb.Now(),
 				ReadyToUse:     true,
 			},
 		}, nil
@@ -498,7 +498,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		SnapshotId:     snapshotID,
 		SourceVolumeId: req.GetSourceVolumeId(),
 		ReadyToUse:     true,
-		CreationTime:   ptypes.TimestampNow(),
+		CreationTime:   timestamppb.Now(),
 		SizeBytes:      snapshot.Size,
 	}
 	klog.V(4).Infof("CreateFileSystemSnapshot resp: %v", csiSnapshot)

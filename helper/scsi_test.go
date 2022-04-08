@@ -28,22 +28,22 @@ func TestExecScsiCommand(t *testing.T) {
 			want    string // Escapes like \\n do not work
 			wanterr string
 		}{
-			{"echo", "foo", "foo\n", ""},
+			{"echo", "foo", "foo", ""},
 			{"true", "", "", ""},
 			{"false", "", "", "exit status 1"},
 
-			{"bash", "-c \"[ '1' == '1' ] && echo 'success' || echo 'fail'\"", "success\n", ""},
-			{"bash", "-c \"[ '1' == '2' ] && echo 'success' || echo 'fail'\"", "fail\n", ""},
+			{"bash", "-c \"[ '1' == '1' ] && echo 'success' || echo 'fail'\"", "success", ""},
+			{"bash", "-c \"[ '1' == '2' ] && echo 'success' || echo 'fail'\"", "fail", ""},
 
 			// This would pass, even though grep fails, except that
 			// ExecScsiCommand() sets pipefail. Therefore, this correctly fails.
-			{"echo", "'blah' | grep 'foo' | echo 'force 0' && echo 'success' || echo 'fail'", "force 0\nfail\n", ""},
+			{"echo", "'blah' | grep 'foo' | echo 'force 0' && echo 'success' || echo 'fail'", "force 0\nfail", ""},
 			// Test line feeds and tabs in output are returned.
-			{"echo", "-e 'foo\nbar\tblah'", "foo\nbar\tblah\n", ""},
+			{"echo", "-e 'foo\nbar\tblah'", "foo\nbar\tblah", ""},
 
 			// Test failure with writing to stderr
-			{"echo", "stderr >&2", "stderr\n", ""},
-			{"echo", "stdout; >&2 echo stderr", "stdout\nstderr\n", ""},
+			{"echo", "stderr >&2", "stderr", ""},
+			{"echo", "stdout; >&2 echo stderr", "stdout\nstderr", ""},
 		}
 
 		for _, test := range tests {
@@ -80,7 +80,7 @@ func TestExecScsiCommand(t *testing.T) {
 				if err != nil {
 					t.Errorf(`ExecScsiCommand("%s") has err: '%s'`, cmd, err)
 				}
-				if answer != r+"\n" {
+				if answer != r {
 					t.Errorf(`ExecScsiCommand("%s") != %s, result: %s`, r, r, answer)
 				}
 				w.Done()

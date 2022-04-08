@@ -54,7 +54,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	if len(volName) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no name provided to CreateVolume")
 	}
-	if reqCapabilities == nil || len(reqCapabilities) == 0 {
+	if len(reqCapabilities) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no VolumeCapabilities provided to CreateVolume")
 	}
 	error := validateCapabilities(reqCapabilities)

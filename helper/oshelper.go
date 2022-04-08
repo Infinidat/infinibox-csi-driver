@@ -16,15 +16,15 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	// "path/filepath"
-	// "time"
-	"sync"
+	//"sync"
 
 	"github.com/stretchr/testify/mock"
 	"k8s.io/klog"
 )
 
-var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
+var execScsi ExecScsi
+
+// var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
 
 // OsHelper interface
 type OsHelper interface {
@@ -46,23 +46,25 @@ func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeId stri
 	defer func() {
 		// This might happen if unlocking a mutex that was not locked.
 		if r := recover(); r != nil {
-			err = errors.New(fmt.Sprintf("%v", r))
+			err = fmt.Errorf("%v", r)
 			klog.V(4).Infof("manageNodeVolumeMutex, called by %s with volume ID %s, failed with run-time error: %s", callingFunction, volumeId, err)
 		}
-		return
 	}()
 
-	err = nil
-	if isLocking {
-		nodeVolumeMutex.Lock()
-		klog.V(4).Infof("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
-		klog.Flush()
-	} else {
-		klog.V(4).Infof("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
-		klog.Flush()
-		nodeVolumeMutex.Unlock()
-	}
+	klog.V(4).Info("Node.*Volume() mutex is disabled")
 	return
+
+	// err = nil
+	// if isLocking {
+	// 	nodeVolumeMutex.Lock()
+	// 	klog.V(4).Infof("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
+	// 	klog.Flush()
+	// } else {
+	// 	klog.V(4).Infof("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
+	// 	klog.Flush()
+	// 	nodeVolumeMutex.Unlock()
+	// }
+	// return
 }
 
 // MkdirAll method create dir
@@ -83,27 +85,8 @@ func (h Service) Remove(name string) error {
 }
 
 func CheckMultipath() {
-	defer func() {
-		klog.Flush()
-	}()
-
-	klog.V(4).Infof("CheckMultipath called searching for keyword faulty")
-	c := fmt.Sprintf("2>&1 multipath -ll | grep --color=never --extended-regexp 'emergency|faulty|failed' && (echo 'multipath failed'; false) || true")
-	klog.V(4).Infof("Run: %s", c)
-
-	cmd := exec.Command("bash", "-c", c)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err := cmd.Run()
-	if err != nil {
-		msg := fmt.Sprintf("CheckMultipath failed. Error: %s. Stdout: %s. Stderr: %s.", err, cmd.Stdout, cmd.Stderr)
-		klog.Errorf(msg)
-		//panic(msg)
-		return
-	}
-	klog.V(4).Infof("CheckMultipath shows multipath is not faulty")
-	return
+	isToLogOutput := true
+	_, _ = execScsi.Command("multipath", "-ll", isToLogOutput)
 }
 
 // ChownVolume method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
@@ -134,8 +117,7 @@ func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) erro
 	if uid != "" || gid != "" {
 		klog.V(4).Infof("Setting volume %s ownership: UID: '%s', GID: '%s'", targetPath, uid, gid)
 		ownerGroup := fmt.Sprintf("%s:%s", uid, gid)
-		// .snapshot within the mounted volume is readonly. Find will ignore.
-		chown := fmt.Sprintf("find %s -maxdepth 1 -name '*' -exec chown --recursive %s '{}' \\;", targetPath, ownerGroup)
+		chown := fmt.Sprintf("chown %s %s ", ownerGroup, targetPath)
 		klog.V(4).Infof("Run: %s", chown)
 		cmd := exec.Command("bash", "-c", chown)
 		err := cmd.Run()
@@ -144,7 +126,7 @@ func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) erro
 			klog.Errorf(msg)
 			return errors.New(msg)
 		} else {
-			klog.V(4).Infof("Set mount point directory and contents ownership for mount point %s", targetPath)
+			klog.V(4).Infof("Set mount point directory ownership for mount point %s to %s", targetPath, ownerGroup)
 		}
 	} else {
 		klog.V(4).Infof("Using default ownership for mount point %s", targetPath)
@@ -262,30 +244,30 @@ func (m *MockOsHelper) ChmodVolumeExec(unixPermissions string, targetPath string
 	return st
 }
 
-/*
-// Used for debugging. Log a file, found by debugWalkDir, to klog.
-func debugLogFile(path string, info os.FileInfo, err error) error {
-	if err != nil {
-		klog.Errorf(err.Error())
-		return err
-	}
-	klog.V(4).Infof("Found path %s", path)
-	return nil
-}
 
-// Used for debugging. For given walk_path, log all files found within.
-func debugWalkDir(walk_path string) (err error) {
-	klog.V(4).Infof("&&&&& debugWalkDir called with walk_path %s", walk_path)
-	err = filepath.Walk(walk_path, debugLogFile)
-	if err != nil {
-		klog.V(4).Infof("debugWalkDir failed: %s", err.Error())
-		return err
-	}
+// // Used for debugging. Log a file, found by debugWalkDir, to klog.
+// func debugLogFile(path string, info os.FileInfo, err error) error {
+// 	if err != nil {
+// 		klog.Errorf(err.Error())
+// 		return err
+// 	}
+// 	klog.V(4).Infof("Found path %s", path)
+// 	return nil
+// }
+// 
+// // Used for debugging. For given walk_path, log all files found within.
+// func debugWalkDir(walk_path string) (err error) {
+// 	klog.V(4).Infof("&&&&& debugWalkDir called with walk_path %s", walk_path)
+// 	err = filepath.Walk(walk_path, debugLogFile)
+// 	if err != nil {
+// 		klog.V(4).Infof("debugWalkDir failed: %s", err.Error())
+// 		return err
+// 	}
+// 
+// 	var sleepCount time.Duration
+// 	sleepCount = 0
+// 	klog.V(2).Infof("Sleeping %d seconds...", sleepCount)
+// 	time.Sleep(sleepCount * time.Second)
+// 	return err
+// }
 
-	var sleepCount time.Duration
-	sleepCount = 0
-	klog.V(2).Infof("Sleeping %d seconds...", sleepCount)
-	time.Sleep(sleepCount * time.Second)
-	return err
-}
-*/

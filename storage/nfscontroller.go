@@ -19,9 +19,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/klog"
 )
 
@@ -635,7 +635,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 						SizeBytes:      snap.Size,
 						SnapshotId:     snapshotID,
 						SourceVolumeId: srcVolumeId,
-						CreationTime:   ptypes.TimestampNow(),
+						CreationTime:   timestamppb.Now(),
 						ReadyToUse:     true,
 					},
 				}, nil
@@ -664,7 +664,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		SnapshotId:     snapshotID,
 		SourceVolumeId: srcVolumeId,
 		ReadyToUse:     true,
-		CreationTime:   ptypes.TimestampNow(),
+		CreationTime:   timestamppb.Now(),
 		SizeBytes:      resp.Size,
 	}
 	klog.V(4).Infof("CreateFileSystemSnapshot resp: %v", snapshot)
