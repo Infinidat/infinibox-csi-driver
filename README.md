@@ -5,9 +5,9 @@
   Infinidat [Host PowerTools](https://repo.infinidat.com/home/main-stable#host-power-tools) is recommended to validate connectivity and host best practices.
 
 ## Supported containers environments
-  - Kubernetes 1.17-1.22
+  - Kubernetes 1.20-1.23
   - Minimum Helm version required is 3.1.0
-  - Red Hat OpenShift 4.6-4.8
+  - Red Hat OpenShift 4.6-4.10
 
 ## Platform requirements
   - Latest Linux multipath software package for your operating system
