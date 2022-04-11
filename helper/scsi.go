@@ -70,10 +70,10 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 				}
 				err = status.Error(errCode, fmt.Sprintf("iscsiadm error: %d, %s", exitCode, cmdErr))
 			} else {
-				err = status.Error(codes.Unknown, fmt.Sprintf("iscsiadm error: unknown, %s", cmdErr))
+				err = status.Error(codes.Unknown, fmt.Sprintf("error: %s", cmdErr))
 			}
 		} else {
-			err = status.Error(codes.Unknown, fmt.Sprintf("%s error, %s", cmd, cmdErr))
+			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s", cmd, cmdErr))
 		}
 		klog.Errorf("'%s' failed: %s", pipefailCmd, err)
 		return "", err

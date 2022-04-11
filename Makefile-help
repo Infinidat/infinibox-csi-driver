@@ -43,7 +43,7 @@ _watch = watch -n 1 --no-title
 
 # Other vars
 _LEADER =   "================ ["
-_FOLLOWER = "] ================"
+_FOLLOWER = "\] ================"
 
 ifneq ($(_USE_COLOR),true)
 	# No color

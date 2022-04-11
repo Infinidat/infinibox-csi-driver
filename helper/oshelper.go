@@ -16,7 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	//"sync"
+	"sync"
 
 	"github.com/stretchr/testify/mock"
 	"k8s.io/klog"
@@ -24,7 +24,7 @@ import (
 
 var execScsi ExecScsi
 
-// var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
+var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
 
 // OsHelper interface
 type OsHelper interface {
@@ -51,20 +51,20 @@ func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeId stri
 		}
 	}()
 
-	klog.V(4).Info("Node.*Volume() mutex is disabled")
-	return
+	//klog.V(4).Info("Node.*Volume() mutex is disabled")
+	//return
 
-	// err = nil
-	// if isLocking {
-	// 	nodeVolumeMutex.Lock()
-	// 	klog.V(4).Infof("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
-	// 	klog.Flush()
-	// } else {
-	// 	klog.V(4).Infof("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
-	// 	klog.Flush()
-	// 	nodeVolumeMutex.Unlock()
-	// }
-	// return
+	err = nil
+	if isLocking {
+		nodeVolumeMutex.Lock()
+		klog.V(4).Infof("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
+		klog.Flush()
+	} else {
+		klog.V(4).Infof("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
+		klog.Flush()
+		nodeVolumeMutex.Unlock()
+	}
+	return
 }
 
 // MkdirAll method create dir

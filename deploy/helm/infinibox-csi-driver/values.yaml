@@ -18,7 +18,7 @@ logLevel: "debug"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "v2.1.0-rc5"
+csiDriverVersion: "v2.1.0-rc6"
 
 # It is possible for two volumes, formatted XFS, to have identical XFS UUIDs.
 # A common cause is to create a snapshot from a volume. Both will have
@@ -37,7 +37,7 @@ images:
   attachersidecar_pull_policy: "IfNotPresent"
 
   #csidriver: "registry.connect.redhat.com/infinidat/infinidat-csi-driver@sha256:TBD"  # v2.1.0-rc?
-  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc5"
+  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc6"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html

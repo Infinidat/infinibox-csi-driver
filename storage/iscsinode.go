@@ -105,12 +105,12 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	err = nil
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from ISCSI NodeStageVolume  " + fmt.Sprint(res))
+			err = fmt.Errorf("Recovered from NodeStageVolume: %+v", res)
 		}
 		if err == nil {
 			klog.V(4).Infof("NodeStageVolume completed")
 		} else {
-			klog.V(4).Infof("NodeStageVolume failed.")
+			klog.V(4).Infof("NodeStageVolume failed for request %+v", req)
 		}
 	}()
 	klog.V(2).Infof("NodeStageVolume called with publish context: %s", req.GetPublishContext())
@@ -119,8 +119,9 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	hostIDString := req.GetPublishContext()["hostID"]
 	hostID, err := strconv.Atoi(hostIDString)
 	if err != nil {
-		klog.Errorf("hostID string %s is not valid host ID: %s", hostIDString, err)
-		return nil, status.Error(codes.Internal, "not a valid host")
+		err := fmt.Errorf("hostID string '%s' is not valid host ID: %s", hostIDString, err)
+		klog.Error(err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	ports := req.GetPublishContext()["hostPorts"]
 	hostSecurity := req.GetPublishContext()["securityMethod"]
@@ -337,64 +338,10 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	//_ = diskConfigFound
 
 	// remove multipath
-	var devices []string
-	dstPath := mpathDevice
-
-	if dstPath != "" {
-		if strings.HasPrefix(dstPath, "/host") {
-			dstPath = strings.Replace(dstPath, "/host", "", 1)
-		}
-
-		if strings.HasPrefix(dstPath, "/dev/dm-") {
-			devices, err = findSlaveDevicesOnMultipath(dstPath)
-		} else {
-			// Add single targetPath to devices
-			devices = append(devices, dstPath)
-		}
-
-		if err != nil {
-			return nil, err
-		}
-		helper.PrettyKlogDebug("multipath devices", devices)
-
-		lun, err := findLunOnDevice(devices[0])
-		if err != nil {
-			return nil, err
-		}
-
-		mpath, err := findMpathFromDevice(mpathDevice)
-		if err != nil {
-			klog.Errorf("findMpathFromDevice for mpathDevice %s failed: %s", mpathDevice, err)
-			return res, err
-		}
-
-		multipathFlush(mpath)
-
-		// Warn if there are not exactly mpathDeviceCount devices
-		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
-			klog.Warningf("Invalid mpath device count found while unstaging volume %s. Devices: %+v", req.GetVolumeId(), devices)
-		}
-
-		hosts, err := findHosts()
-		if err != nil {
-			return nil, err
-		}
-
-		_ = detachDiskByLun(hosts, lun)
-
-		// var lastErr error
-		// for _, device := range devices {
-		// 	err := detachDisk(device)
-		// 	if err != nil {
-		// 		klog.Errorf("detachDisk failed for device %s: %+v", device, err)
-		// 		lastErr = fmt.Errorf("iscsi: detachDisk failed. device: %v err: %v", device, err)
-		// 	}
-		// }
-		// if lastErr != nil {
-		// 	klog.Errorf("Last error occurred during detach disk:\n%v", lastErr)
-		// 	return res, lastErr
-		// }
-		klog.V(4).Infof("detachDiskByLun succeeded for volume ID %s with lun %s", req.GetVolumeId(), lun)
+	protocol := "iscsi"
+	err = detachMpathDevice(mpathDevice, protocol)
+	if err != nil {
+		klog.Warningf("NodeUnstageVolume cannot detach volume with ID %s: %+v",  req.GetVolumeId(), err)
 	}
 
 	removePath := path.Join("/host", stagePath)
@@ -439,9 +386,9 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 
 func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 	defer func() {
-		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed - Unlocking", volumeId, lun)
+		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed", volumeId, lun)
 		klog.Flush()
-		deviceMu.Unlock()
+		//deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
 		if r := recover(); r != nil {
 			err := fmt.Errorf("%v", r)
@@ -449,8 +396,8 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 		}
 	}()
 
-	deviceMu.Lock()
-	klog.V(4).Infof("Rescan hosts for volume %s and lun %s - Locked", volumeId, lun)
+	//deviceMu.Lock()
+	klog.V(4).Infof("Rescan hosts for volume %s and lun %s", volumeId, lun)
 
 	// Find hosts. TODO - take heed of portals.
 	hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
@@ -486,65 +433,6 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 	return err
 }
 
-func waitForMultipath(hostId string, lun string) error {
-	var sleepCount time.Duration = 1
-	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/block/*/holders/*/slaves/*", hostId, lun)
-	loopCount := 7
-	for i := 1; i <= loopCount; i++ {
-		devices, err := filepath.Glob(masterPath)
-		klog.V(4).Infof("Glob devices '%s': %+v", devices, err)
-
-		if err != nil || len(devices) != mpathDeviceCount {
-			if i == loopCount {
-				msg := fmt.Sprintf("Multipath device not found for host ID '%s' and lun '%s'", hostId, lun)
-				klog.Warning(msg)
-			}
-			time.Sleep(sleepCount * time.Second)
-		} else {
-			break
-		}
-	}
-
-	klog.V(4).Infof("Multipath device is online for host ID %s and lun '%s'", hostId, lun)
-	return nil
-}
-
-func waitForDeviceState(hostId string, lun string, state string) error {
-	// Wait for device to be in state.
-	var sleepCount time.Duration = 1
-	hostPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/state", hostId, lun)
-	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/wwid", hostId, lun)
-
-	klog.V(4).Infof("Checking device state within %s", hostPath)
-	for i := 1; i <= 5; i++ {
-		// Get state of device
-		hostOutput, err := execScsi.Command("cat", hostPath)
-		if err != nil {
-			klog.Errorf("Failed (%d): Cannot check state of device file %s: %s", i, hostPath, err)
-		}
-		deviceState := strings.TrimSpace(string(hostOutput))
-
-		// Get wwid of device
-		wwidOutput, err := execScsi.Command("cat", wwidPath)
-		if err != nil {
-			klog.Errorf("Failed (%d): Cannot get wwid of wwid file %s: %s", i, wwidPath, err)
-		}
-		wwid := strings.TrimSpace(string(wwidOutput))
-		klog.V(4).Infof("Device %s has wwid '%s'", wwidPath, wwid)
-
-		if err != nil || deviceState != state {
-			if i == 5 {
-				msg := fmt.Sprintf("Device %s is not in state '%s'. Current state is '%s'", hostPath, state, deviceState)
-				klog.Warning(msg)
-			}
-			time.Sleep(sleepCount * time.Second)
-		} else {
-			klog.V(4).Infof("Device %s is in state '%s'", hostPath, state)
-			break
-		}
-	}
-	return nil
-}
 
 func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err error) {
 	defer func() {
@@ -870,6 +758,7 @@ func mountPathExists(path string) (bool, error) {
 	return false, err
 }
 
+// TODO - Refactor iSCSI's DetachDisk and FC's DetachFCDisk.
 func (iscsi *iscsistorage) DetachDisk(c iscsiDiskUnmounter, targetPath string) (err error) {
 	klog.V(2).Infof("DetachDisk called. targetpath: %s, unmounter %v", targetPath, c)
 
