@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -22,9 +22,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -66,7 +66,7 @@ type iscsistorage struct {
 }
 
 // Mutex protecting device rescan and delete operations
-var deviceMu sync.Mutex
+//var deviceMu sync.Mutex
 
 type treeqstorage struct {
 	csi.ControllerServer
@@ -344,24 +344,73 @@ func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, e
 	return mode, nil
 }*/
 
-// detachDisk removes scsi device file such as /dev/sdX from the node.
-func detachDisk(devicePath string) error {
-	klog.V(4).Infof("detachDisk called with devicePath %s", devicePath)
-	if !strings.HasPrefix(devicePath, "/dev/") {
-		return fmt.Errorf("detach disk: invalid device name: %s", devicePath)
+func detachMpathDevice(mpathDevice string, protocol string) error {
+	var err error
+	var devices []string
+	dstPath := mpathDevice
+	klog.V(4).Infof("detachMpathDevice() called with mpathDevice %s for protocol %s", mpathDevice, protocol)
+	if dstPath != "" {
+		if strings.HasPrefix(dstPath, "/host") {
+			dstPath = strings.Replace(dstPath, "/host", "", 1)
+		}
+
+		if strings.HasPrefix(dstPath, "/dev/dm-") {
+			devices, err = findSlaveDevicesOnMultipath(dstPath)
+		} else {
+			// Add single targetPath to devices
+			devices = append(devices, dstPath)
+		}
+
+		if err != nil {
+			return err
+		}
+		helper.PrettyKlogDebug("multipath devices", devices)
+
+		lun, err := findLunOnDevice(devices[0])
+		if err != nil {
+			return err
+		}
+
+		mpath, err := findMpathFromDevice(mpathDevice)
+		if err != nil {
+			klog.Errorf("findMpathFromDevice for mpathDevice %s failed: %s", mpathDevice, err)
+			return err
+		}
+
+		multipathFlush(mpath)
+
+		// Warn if there are not exactly mpathDeviceCount devices
+		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
+			klog.Warningf("Invalid mpath device count found while unstaging. Devices: %+v", devices)
+		}
+
+		hosts, err := findHosts(protocol)
+		if err != nil {
+			return err
+		}
+
+		_ = detachDiskByLun(hosts, lun)
+		
+		klog.V(4).Infof("detachDiskByLun succeeded for lun %s", lun)
 	}
-	arr := strings.Split(devicePath, "/")
-	dev := arr[len(arr)-1]
-	err := removeFromScsiSubsystem(dev)
-	if err != nil {
-		klog.Errorf("detachDisk failed with devicePath %s", devicePath)
-	} else {
-		klog.V(4).Infof("detachDisk succeeded with devicePath %s", devicePath)
-	}
-	return err
+	return nil
 }
 
 func removeFromScsiSubsystemByHostLun(host string, lun string) (err error) {
+	targetsPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s", host, lun)
+	targets, err := filepath.Glob(targetsPath)
+	if err != nil || len(targets) == 0 {
+		klog.Warningf("No fc targets found at path %s: %+v", targetsPath, err)
+		return nil
+	}
+	for _, targetString := range targets {
+		target := strings.Split(targetString, ":")[2]
+		_ = removeOneFromScsiSubsystemByHostLun(host, target, lun)
+	}
+	return nil
+}
+
+func removeOneFromScsiSubsystemByHostLun(host string, target string, lun string) (err error) {
 	// fileName := "/sys/block/" + deviceName + "/device/delete"
 	// klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
 	// data := []byte("1\n")
@@ -369,13 +418,13 @@ func removeFromScsiSubsystemByHostLun(host string, lun string) (err error) {
 	// klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
 
 	defer func() {
-		klog.V(4).Infof("removeFromScsiSubsystemByHostLun() with host %s and lun %s completed", host, lun)
+		klog.V(4).Infof("removeFromScsiSubsystemByHostLun() with host %s, target %s and lun %s completed", host, target, lun)
 	}()
 
-	klog.V(4).Infof("removeFromScsiSubsystemByHostLun() called with host %s and lun %s", host, lun)
+	klog.V(4).Infof("removeFromScsiSubsystemByHostLun() called with host %s, target %s and lun %s", host, target, lun)
 
-	deletePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/delete", host, lun)
-	statePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:0:%s/device/state", host, lun)
+	deletePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/delete", host, target, lun)
+	statePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/state", host, target, lun)
 	var output string
 
 	// Check device is in blocked state.
@@ -426,9 +475,9 @@ func removeFromScsiSubsystemByHostLun(host string, lun string) (err error) {
 // detachDisk removes scsi device file such as /dev/sdX from the node.
 func detachDiskByLun(hosts []string, lun string) error {
 	defer func() {
-		klog.V(4).Infof("detachDiskByLun() with hosts '%+v' and lun %s completed - Unlocking", hosts, lun)
+		klog.V(4).Infof("detachDiskByLun() with hosts '%+v' and lun %s completed", hosts, lun)
 		klog.Flush()
-		deviceMu.Unlock()
+		//deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
 		if r := recover(); r != nil {
 			err := fmt.Errorf("%v", r)
@@ -436,7 +485,7 @@ func detachDiskByLun(hosts []string, lun string) error {
 		}
 	}()
 
-	deviceMu.Lock()
+	//deviceMu.Lock()
 
 	klog.V(4).Infof("detachDiskByLun() called with hosts %+v and lun %s", hosts, lun)
 	var err error
@@ -447,49 +496,74 @@ func detachDiskByLun(hosts []string, lun string) error {
 	return err
 }
 
-// Removes a scsi device based upon /dev/sdX name
-func removeFromScsiSubsystem(deviceName string) (err error) {
-	// fileName := "/sys/block/" + deviceName + "/device/delete"
-	// klog.V(4).Infof("remove device from scsi-subsystem: path: %s", fileName)
-	// data := []byte("1\n")
-	// ioutil.WriteFile(fileName, data, 0666)
-	// klog.V(4).Infof("Flush device '%s' output: %s", device, blockdevOut)
+func waitForDeviceState(hostId string, lun string, state string) (err error) {
+	targetsPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s", hostId, lun)
+	targets, err := filepath.Glob(targetsPath)
+	if err != nil || len(targets) == 0 {
+		klog.Warningf("No fc targets found at path %s: %+v", targetsPath, err)
+		return nil
+	}
+	for _, targetString := range targets {
+		target := strings.Split(targetString, ":")[2]
+		_ = waitForOneDeviceState(hostId, target, lun, state)
+	}
+	return nil
+}
 
-	defer func() {
-		klog.V(4).Infof("removeFromScsiSubsystem() with device name '%s' completed - Unlocking", deviceName)
-		klog.Flush()
-		deviceMu.Unlock()
-		// May happen if unlocking a mutex that was not locked
-		if r := recover(); r != nil {
-			err := fmt.Errorf("%v", r)
-			klog.V(4).Infof("removeFromScsiSubsystem(), with device name '%s', failed with run-time error: %+v", deviceName, err)
-		}
-	}()
+func waitForOneDeviceState(hostId string, target string, lun string, state string) error {
+	// Wait for device to be in state.
+	var sleepCount time.Duration = 1
+	hostPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/state", hostId, target, lun)
+	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/wwid",  hostId, target, lun)
 
-	deviceMu.Lock()
-
-	device := strings.Replace(deviceName, "/dev/", "", 1)
-	deletePath := fmt.Sprintf("/sys/block/%s/device/delete", device)
-	statePath := fmt.Sprintf("/sys/block/%s/device/state", device)
-	var output string
-
-	// Check device is in blocked state.
-	var sleepCount time.Duration
+	klog.V(4).Infof("Checking device state within %s", hostPath)
 	for i := 1; i <= 5; i++ {
 		// Get state of device
-		klog.V(4).Infof("Checking device state of %s", device)
-		output, err = execScsi.Command("cat", statePath)
+		hostOutput, err := execScsi.Command("cat", hostPath)
 		if err != nil {
-			klog.Errorf("Failed: Cannot check state of device %s", device)
-			return
+			klog.Warningf("Failed (%d): Cannot check state of device file %s: %s", i, hostPath, err)
 		}
-		deviceState := strings.TrimSpace(string(output))
-		if deviceState == "blocked" {
+		deviceState := strings.TrimSpace(string(hostOutput))
+
+		// Get wwid of device
+		wwidOutput, err := execScsi.Command("cat", wwidPath)
+		if err != nil {
+			klog.Warningf("Failed (%d): Cannot get wwid of wwid file %s: %s", i, wwidPath, err)
+		} else {
+			wwid := strings.TrimSpace(string(wwidOutput))
+			klog.V(4).Infof("Device %s has wwid '%s'", wwidPath, wwid)
+		}
+
+		if err != nil || deviceState != state {
 			if i == 5 {
-				msg := fmt.Sprintf("Device %s is blocked", device)
-				klog.Errorf(msg)
-				err = errors.New(msg)
-				return
+				msg := fmt.Sprintf("Device %s is not in state '%s'. Current state is '%s'", hostPath, state, deviceState)
+				klog.Warning(msg)
+			}
+			time.Sleep(sleepCount * time.Second)
+		} else {
+			klog.V(4).Infof("Device %s is in state '%s'", hostPath, state)
+			break
+		}
+	}
+	return nil
+}
+
+func waitForMultipath(hostId string, lun string) error {
+	var sleepCount time.Duration = 1
+	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s/device/block/*/holders/*/slaves/*", hostId, lun)
+	loopCount := 7
+	for i := 1; i <= loopCount; i++ {
+		devices, err := filepath.Glob(masterPath)
+		if err != nil {
+			klog.V(4).Infof("Failed to Glob devices using path '%s': %+v", masterPath, err)
+		} else {
+			klog.V(4).Infof("Glob devices '%s'", devices)
+		}
+
+		if err != nil || len(devices) < mpathDeviceCount {
+			if i == loopCount {
+				msg := fmt.Sprintf("Multipath device found only %d devices for host ID '%s' and lun '%s'", len(devices), hostId, lun)
+				klog.Warning(msg)
 			}
 			time.Sleep(sleepCount * time.Second)
 		} else {
@@ -497,25 +571,8 @@ func removeFromScsiSubsystem(deviceName string) (err error) {
 		}
 	}
 
-	// Echo 1 to delete device
-	klog.V(4).Infof("Running 'echo 1 > %s'", deletePath)
-	output, err = execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
-	if err != nil {
-		klog.Errorf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
-		return
-	}
-
-	// Stat device
-	if _, err := os.Stat(deletePath); err == nil {
-		klog.Warningf("Device %s still exists", deletePath)
-	} else if errors.Is(err, os.ErrNotExist) {
-		klog.V(4).Infof("Device %s no longer exists", deletePath)
-		return nil
-	} else {
-		klog.V(4).Infof("Device %s may or may not exist. See error: %s", deletePath, err)
-	}
-
-	return err
+	klog.V(4).Infof("Multipath device is online for host ID %s and lun '%s'", hostId, lun)
+	return nil
 }
 
 // FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
@@ -543,19 +600,37 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 	return devices, nil
 }
 
-func findHosts() ([]string, error) {
+func findHosts(protocol string) ([]string, error) {
 	// TODO - Must use portals if supporting more than one target IQN.
 	// Find hosts
-	hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
-	hosts := strings.Fields(hostIds)
-	if err != nil {
-		klog.Errorf("Finding hosts failed: %s", err)
-		return hosts, err
+	if protocol == "iscsi" {
+		hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
+		hosts := strings.Fields(hostIds)
+		if err != nil {
+			klog.Errorf("Finding hosts failed: %s", err)
+			return hosts, err
+		}
+		if len(hosts) != mpathDeviceCount {
+			klog.Warningf("The number of hosts is not %d. hosts: '%v'", mpathDeviceCount, hosts)
+		}
+		return hosts, nil
+	} else if protocol == "fc" {
+		pathLeader := "/sys/class/fc_host/host"
+		hostsPath := fmt.Sprintf("%s*", pathLeader)
+		foundHosts, err := filepath.Glob(hostsPath)
+		if err != nil || len(foundHosts) == 0 {
+			klog.Errorf("No fc hosts found at path %s", hostsPath)
+		}
+		hosts := []string{}
+		for _, host := range foundHosts {
+			fcHost := strings.Replace(host, pathLeader, "", -1)
+			hosts = append(hosts, fcHost)
+		}
+		return hosts, nil
 	}
-	if len(hosts) != mpathDeviceCount {
-		klog.Warningf("The number of hosts is not %d. hosts: '%v'", mpathDeviceCount, hosts)
-	}
-	return hosts, nil
+	err := fmt.Errorf("Unsupported protocol: %s", protocol)
+	klog.Errorf(err.Error())
+	return nil, err
 }
 
 // FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path

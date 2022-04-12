@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -60,7 +60,71 @@ type FCMounter struct {
 // Global resouce contains a sync.Mutex. Used to serialize FC resource accesses.
 var execFc helper.ExecScsi
 
+func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = fmt.Errorf("Recovered from NodeStageVolume: %+v", res)
+		}
+		if err == nil {
+			klog.V(4).Infof("NodeStageVolume completed")
+		} else {
+			klog.V(4).Infof("NodeStageVolume failed for request %+v", req)
+		}
+	}()
+	klog.V(2).Infof("NodeStageVolume called with PublishContext: %+v", req.GetPublishContext())
+	hostIdString := req.GetPublishContext()["hostID"]
+	ports := req.GetPublishContext()["hostPorts"]
+
+	hostId, err := strconv.Atoi(hostIdString)
+	if err != nil {
+		err := fmt.Errorf("hostID string '%s' is not valid host ID: %s", hostIdString, err)
+		klog.Error(err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	klog.V(4).Infof("Publishing volume to host with host ID %d", hostId)
+	// validate host exists
+	if hostId < 1 {
+		err := fmt.Errorf("hostId %d is not valid host Id", hostId)
+		klog.Error(err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	fcPorts := getPortName()
+	if len(fcPorts) == 0 {
+		klog.Errorf("port name not found on worker")
+		return nil, status.Error(codes.Internal, "Port name not found")
+	}
+	for _, fcp := range fcPorts {
+		if !strings.Contains(ports, fcp) {
+			klog.V(4).Infof("host port %s is not created, creating it", fcp)
+			err = fc.cs.AddPortForHost(hostId, "FC", fcp)
+			if err != nil {
+				klog.Errorf("error creating host port %v", err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			_, err := fc.cs.api.GetHostPort(hostId, fcp)
+			if err != nil {
+				klog.Errorf("failed to get host port %s with error %v", fcp, err)
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+	}
+
+	return &csi.NodeStageVolumeResponse{}, nil
+}
+
 func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	var err error
+	defer func() {
+		if err == nil {
+			klog.V(4).Infof("NodePublishVolume succeeded with volume ID %s", req.GetVolumeId())
+		} else {
+			klog.V(4).Infof("NodePublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
+		}
+	}()
+
 	klog.V(4).Infof("NodePublishVolume called with volume ID %s", req.GetVolumeId())
 	helper.CheckMultipath()
 
@@ -88,57 +152,21 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	var err error
 	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC NodeUnpublishVolume  " + fmt.Sprint(res))
+		if err == nil {
+			klog.V(4).Infof("NodeUnpublishVolume succeeded with volume ID %s", req.GetVolumeId())
+		} else {
+			klog.V(4).Infof("NodeUnpublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
 		}
 	}()
+
+	klog.V(4).Infof("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
+
 	targetPath := req.GetTargetPath()
-	if err := fc.DetachFCDisk(targetPath, &OSioHandler{}); err != nil {
+	err = fc.DetachFCDisk(targetPath, &OSioHandler{})
+	if err != nil {
 		return nil, err
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
-func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC NodeStageVolume  " + fmt.Sprint(res))
-		}
-	}()
-	klog.V(2).Infof("NodeStageVolume called with PublishContext: %v", req.GetPublishContext())
-	hostID := req.GetPublishContext()["hostID"]
-	ports := req.GetPublishContext()["hostPorts"]
-
-	hstID, _ := strconv.Atoi(hostID)
-	klog.V(4).Infof("publishing volume to host id is %s", hostID)
-	// validate host exists
-	if hstID < 1 {
-		klog.Errorf("hostID %d is not valid host ID", hstID)
-		return nil, status.Error(codes.Internal, "not a valid host")
-	}
-	fcPorts := getPortName()
-	if len(fcPorts) == 0 {
-		klog.Errorf("port name not found on worker")
-		return nil, status.Error(codes.Internal, "Port name not found")
-	}
-	for _, fcp := range fcPorts {
-		if !strings.Contains(ports, fcp) {
-			klog.V(4).Infof("host port %s is not created, creating it", fcp)
-			err = fc.cs.AddPortForHost(hstID, "FC", fcp)
-			if err != nil {
-				klog.Errorf("error creating host port %v", err)
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-			_, err := fc.cs.api.GetHostPort(hstID, fcp)
-			if err != nil {
-				klog.Errorf("failed to get host port %s with error %v", fcp, err)
-				return nil, status.Error(codes.Internal, err.Error())
-			}
-		}
-	}
-	klog.V(4).Infof("NodeStageVolume completed")
-	return &csi.NodeStageVolumeResponse{}, nil
 }
 
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
@@ -170,66 +198,24 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		pathExist, pathErr := fc.cs.pathExists(confFile)
 		if pathErr == nil {
 			if !pathExist {
-				klog.V(4).Infof("fc config file is not exists")
+				klog.V(4).Infof("Config file not found at %s", confFile)
 				if err := os.RemoveAll(stagePath); err != nil {
-					klog.Errorf("fc: failed to remove mount path Error: %v", err)
+					klog.Errorf("Failed to remove mount path Error: %v", err)
 					return nil, err
 				}
-				klog.V(4).Infof("removed stage path: %s", stagePath)
+				klog.V(4).Infof("Removed stage path at %s", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
 		klog.Warningf("fc detach disk: failed to get fc config from path %s Error: %v", stagePath, err)
 	}
 
-	// remove multipath
-	var devices []string
-	multiPath := false
-	dstPath := mpathDevice
-
-	klog.V(4).Infof("removing mpath")
-	if strings.HasPrefix(dstPath, "/host") {
-		dstPath = strings.Replace(dstPath, "/host", "", 1)
-	}
-
-	klog.V(4).Infof("remove multipath device %s", dstPath)
-	if strings.HasPrefix(dstPath, "/dev/dm-") {
-		multiPath = true
-		devices, err = findSlaveDevicesOnMultipath(dstPath)
-	} else {
-		// Add single targetPath to devices
-		devices = append(devices, dstPath)
-	}
-
+	// remove multipath device
+	protocol := "fc"
+	err = detachMpathDevice(mpathDevice, protocol)
 	if err != nil {
-		return nil, err
+		klog.Warningf("NodeUnstageVolume cannot detach volume with ID %s: %+v",  req.GetVolumeId(), err)
 	}
-
-	var lastErr error
-	for _, device := range devices {
-		err := detachDisk(device)
-		if err != nil {
-			klog.Errorf("fc: detachFCDisk failed. device: %v err: %v", device, err)
-			lastErr = fmt.Errorf("fc: detach disk failed. device: %v err: %v", device, err)
-		}
-	}
-	if lastErr != nil {
-		klog.Errorf("fc: last error occurred during detach disk:\n%v", lastErr)
-		return nil, lastErr
-	}
-	if multiPath {
-		klog.V(4).Infof("flush multipath device using multipath -f: %s", dstPath)
-		_, err := fc.cs.ExecuteWithTimeout(4000, "multipath", []string{"-f", dstPath})
-		if err != nil {
-			if _, e := os.Stat("/host" + dstPath); os.IsNotExist(e) {
-				klog.V(4).Infof("multipath device %s deleted", dstPath)
-			} else {
-				klog.Errorf("multipath -f %s failed to device with error %v", dstPath, err.Error())
-				return nil, err
-			}
-		}
-	}
-	klog.V(4).Infof("Removed multipath sucessfully!")
 
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
 		klog.Errorf("fc: failed to remove mount path Error: %v", err)
@@ -602,22 +588,55 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 	return "", errors.New("Illegal path for device " + devicePath)
 }
 
-func scsiHostRescan(io ioHandler) {
-	scsiPath := "/sys/class/scsi_host/"
-	if dirs, errRead := io.ReadDir(scsiPath); errRead == nil {
-		for _, f := range dirs {
-			name := scsiPath + f.Name() + "/scan"
-			data := []byte("- - -")
-			if errWrite := io.WriteFile(name, data, 0o666); errWrite != nil {
-				klog.Errorf("failed to write rescan cmd to %s", name)
-			}
+func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
+	defer func() {
+		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed", volumeId, lun)
+		klog.Flush()
+		//deviceMu.Unlock()
+		// May happen if unlocking a mutex that was not locked
+		if r := recover(); r != nil {
+			err := fmt.Errorf("%v", r)
+			klog.V(4).Infof("rescanDeviceMap(), with volume ID '%s' and lun '%s', failed with run-time error: %+v", volumeId, lun, err)
+		}
+	}()
+
+	//deviceMu.Lock()
+	klog.V(4).Infof("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
+
+	fcHosts, err := findHosts("fc")
+	if err != nil {
+		return err
+	}
+
+	// For each host, scan using lun
+	for _, fcHost := range fcHosts {
+		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", fcHost)
+		klog.V(4).Infof("Rescanning host path at '%s' for volume ID '%s' and lun '%s'", scsiHostPath, volumeId, lun)
+		_, err = execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
+		if err != nil {
+			klog.Errorf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, volumeId, lun, err)
+			return err
 		}
 	}
+
+	for _, fcHost := range fcHosts {
+		if err := waitForDeviceState(fcHost, lun, "running"); err != nil {
+			return err
+		}
+	}
+
+	if err := waitForMultipath(fcHosts[0], lun); err != nil {
+		klog.V(4).Infof("Rescan hosts failed for volume ID '%s' and lun '%s'", volumeId, lun)
+		return err
+	}
+
+	klog.V(4).Infof("Rescan hosts complete for volume ID '%s' and lun '%s'", volumeId, lun)
+	return err
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	klog.V(4).Infof("Called searchDisk")
-	var diskIds []string
+	var diskIds []string // target wwns
 	var disk string
 	var dm string
 
@@ -627,47 +646,39 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 		diskIds = c.WWIDs
 	}
 
-	rescaned := false
-	for {
-		for _, diskID := range diskIds {
-			if len(c.TargetWWNs) != 0 {
-				disk, dm = fc.findFcDisk(diskID, c.Lun, io)
-			} else {
-				disk, dm = fc.getDisksWwids(diskID, io)
-			}
-			// if multipath device is found, break
-			klog.V(4).Infof("searchDisk: found disk %s and dm %s", disk, dm)
-			if dm != "" {
-				break
-			}
+	klog.V(4).Infof("searchDisk rescan scsi host")
+	_ = fc.rescanDeviceMap(diskIds[0], c.Lun)
+
+	for _, diskID := range diskIds {
+		if len(c.TargetWWNs) != 0 {
+			disk, dm = fc.findFcDisk(diskID, c.Lun, io)
+		} else {
+			disk, dm = fc.getDisksWwids(diskID, io)
 		}
-		// if a dm is found, exit loop
-		if rescaned || dm != "" {
+		// if multipath device is found, break
+		klog.V(4).Infof("searchDisk() found disk '%s' and dm '%s'", disk, dm)
+		if dm != "" {
 			break
 		}
-		// rescan and search again
-		// rescan scsi bus
-		klog.V(4).Infof("searchDisk rescan scsi host")
-		scsiHostRescan(io)
-		rescaned = true
 	}
+
 	// if no disk matches input wwn and lun, exit
 	if disk == "" && dm == "" {
-		return "", fmt.Errorf("no fc disk found")
+		return "", fmt.Errorf("No fc disk found")
 	}
 
 	// if multipath devicemapper device is found, use it; otherwise use raw disk
 	if dm != "" {
-		klog.V(4).Infof("multipath devicemapper device is found")
+		klog.V(4).Infof("Multipath devicemapper device is found %s", disk)
 		return dm, nil
 	}
-	klog.V(4).Infof("multipath devicemapper device not found, using raw disk")
+	klog.V(4).Infof("Multipath devicemapper device not found, using raw disk %s", disk)
 	return disk, nil
 }
 
 // find the fc device and device mapper parent
 func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) {
-	klog.V(4).Infof("In findFcDisk")
+	klog.V(4).Infof("findFcDisk called with wwn %s and lun %s", wwn, lun)
 	FcPath := "-fc-0x" + wwn + "-lun-" + lun
 	DevPath := "/host/dev/disk/by-path/"
 	if dirs, err := io.ReadDir(DevPath); err == nil {
@@ -731,6 +742,7 @@ func (fc *fcstorage) getFCDisk(c Connector, io ioHandler) (string, error) {
 }
 
 // Detach performs a detach operation on a volume
+// TODO - Refactor iSCSI's DetachDisk and FC's DetachFCDisk.
 func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	klog.V(2).Infof("Detaching FC volume, targetpath: %s", targetPath)
 	defer func() {
@@ -738,9 +750,6 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 			err = errors.New("Recovered from FC DetachFCDisk  " + fmt.Sprint(res))
 		}
 	}()
-	// if io == nil {
-	// 	io = &OSioHandler{}
-	// }
 
 	mounter := mount.New("")
 	mntPath := path.Join("/host", targetPath)
@@ -750,18 +759,20 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 	klog.V(4).Infof("Unmounting volume mounted at %s", targetPath)
 	if err := mounter.Unmount(targetPath); err != nil {
 		if strings.Contains(err.Error(), "not mounted") {
-			klog.V(4).Infof("While unmounting, found volume was not mounted to %s", targetPath)
+			klog.Warningf("Success: While unmounting, found volume was not mounted to %s", targetPath)
+		} else if strings.Contains(err.Error(), "no mount point specified") {
+			klog.Warningf("Success: While unmounting, mount point was not found for %s", targetPath)
 		} else {
 			klog.Errorf("Failed unmounting volume from %s, Error: %v", targetPath, err)
 			return err
 		}
 	}
 
+	// Delete mount point
 	if err := os.RemoveAll(mntPathParent); err != nil {
-		klog.Errorf("Failed to remove mntPathParent %s, Error: %v", mntPathParent, err)
-		return err
+		klog.Warningf("Failed to remove mntPathParent %s, Error: %v", mntPathParent, err)
 	}
-	klog.V(2).Infof("Volume unmounted successfully")
+	klog.V(2).Infof("DetachFCDisk successful")
 	return nil
 }
 

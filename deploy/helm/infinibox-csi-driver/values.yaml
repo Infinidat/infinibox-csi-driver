@@ -18,17 +18,7 @@ logLevel: "debug"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "v2.1.0-rc5"
-
-# It is possible for two volumes, formatted XFS, to have identical XFS UUIDs.
-# A common cause is to create a snapshot from a volume. Both will have
-# the same UUIDs.
-# If both are mounted on the same cluster node, the second mount will fail
-# with a mount error: "wrong fs type, bad option, bad superblock".
-# If allowXfsUuidRegeneration is enabled, and if the second volume/snapshot is
-# writable, Infindat's CSI driver will generate a new XFS UUID and write it to
-# the volume. This will allow the mount to succeed.
-allowXfsUuidRegeneration: "yes"
+csiDriverVersion: "v2.1.0-rc6"
 
 # Image paths
 images:
@@ -37,7 +27,7 @@ images:
   attachersidecar_pull_policy: "IfNotPresent"
 
   #csidriver: "registry.connect.redhat.com/infinidat/infinidat-csi-driver@sha256:TBD"  # v2.1.0-rc?
-  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc5"
+  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.0-rc6"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html

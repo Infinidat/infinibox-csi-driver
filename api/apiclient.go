@@ -1,4 +1,4 @@
-/*Copyright 2020 Infinidat
+/*Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -111,7 +111,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 // DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
-	klog.V(2).Infof("----- Delete Volume with ID %d", volumeID)
+	klog.V(2).Infof("Delete Volume with ID %d", volumeID)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("DeleteVolume Panic occured -  " + fmt.Sprint(res))
