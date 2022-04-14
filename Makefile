@@ -11,7 +11,7 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.1.0
+_DOCKER_IMAGE_TAG   = v2.2.0-rc1
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG)"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
@@ -24,6 +24,10 @@ _GITLAB_REPO        = git.infinidat.com:4567
 _BINARY_NAME        = infinibox-csi-driver
 _DOCKER_IMAGE       = infinidat-csi-driver
 _art_dir            = artifact
+
+# ╰─➤  docker tag dohlemacher/infinidat-csi-driver:v2.1.0 git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v2.1.0
+# ╭─packer@k3s ~/terraform-vmware/ansible/k3s-vm-playbooks/infinidat-csi-driver  ‹develop*›
+# ╰─➤  docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v2.1.0
 
 # For Development Build #################################################################
 # Docker.io username and tag
