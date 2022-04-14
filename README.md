@@ -18,11 +18,11 @@
   - Latest NFS software package for your operating system (for NFS / NFS TreeQs)
  
 # Installation
-  Helm and Operator based installation is available. See InfiniBox CSI driver [user guide](https://support.infinidat.com/hc/en-us/articles/360000633265) for details.
+  Helm and Operator based installation is available. See InfiniBox CSI driver [user guide](https://support.infinidat.com/hc/en-us/articles/360008917097-InfiniBox-CSI-Driver-for-Kubernetes-User-Guide) for details.
 
 # Support
   Infinidat provides comprehensive enterprise-grade support for Infinidat storage in containers environments. See [Infinidat support web site](https://support.infinidat.com) for details.
   Certain CSI features may be in alpha or beta status and such features should not be used for production environments; see [official CSI feature gate table](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) and [InfiniBox CSI driver release notes](https://support.infinidat.com/hc/en-us/articles/360019909678-InfiniBox-CSI-Driver-for-Kubernetes-Release-Notes) for details.
 
 # License
-  This is open source software licensed under the Apache License 2.0. See (LICENSE)[LICENSE] for details.
+  This is open source software licensed under the Apache License 2.0. See LICENSE file in this repository for details.
