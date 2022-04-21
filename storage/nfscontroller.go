@@ -63,7 +63,7 @@ type accessType int
 const (
 	// InfiniBox default values
 	MaxFileSystemAllowed = 4000
-	StandardMountOptions = "hard,rsize=1024,wsize=1024,vers=3"
+	StandardMountOptions = "vers=3,tcp,rsize=262144,wsize=262144"
 	NfsExportPermissions = "RW"
 	NoRootSquash         = true
 	NfsUnixPermissions   = "777"
