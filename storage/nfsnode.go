@@ -162,36 +162,71 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 
 	targetPath := req.GetTargetPath()
 
-	mntPath := path.Join("/host", targetPath)
-	mntPathParent := filepath.Dir(mntPath)
+	targetHostPath := path.Join("/host", targetPath)
+	pathToUnmount := ""
 
-	if pathExist, pathErr := nfs.pathExists(targetPath); pathErr != nil {
-		return nil, fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, pathErr)
-	} else if !pathExist {
-		if pathExist, _ = nfs.pathExists(mntPath); pathErr != nil {
-			if !pathExist {
-				klog.Warningf("unmount skipped because host mount path does not exist: %s", mntPath)
+	if targetPathExist, targetPathErr := nfs.pathExists(targetPath); targetPathErr != nil {
+		return nil, fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, targetPathErr)
+	} else if !targetPathExist { // Successfully checked targetPath
+		// No targetPath so try targetHostPath
+		if targetHostPathExist, targetHostPathErr := nfs.pathExists(targetHostPath); targetHostPathErr != nil {
+			return nil, fmt.Errorf("Failed to check if mount path exists: %s, err: %v", targetHostPath, targetHostPathErr)
+		} else { // Successfully checked targetHostPath
+			if !targetHostPathExist {
+				// No targetHostPath either
+				klog.Warningf("Unmount not performed because host mount path exists in neither %s nor %s", targetPath, targetHostPath)
 				return &csi.NodeUnpublishVolumeResponse{}, nil
+			} else { // targetHostPath exists
+				pathToUnmount = targetHostPath
 			}
 		}
-	} else {
-		klog.V(4).Infof("umount targetPath: %s", targetPath)
-		if err := nfs.mounter.Unmount(targetPath); err != nil {
-			if strings.Contains(err.Error(), "not mounted") {
-				klog.V(4).Infof("target path not mounted, while trying to unmount: %s", targetPath)
-			} else {
-				klog.Errorf("failed to unmount target path: %s, err: %v", targetPath, err)
-				return nil, err
-			}
-		}
+	} else { // targetPath exists
+		pathToUnmount = targetPath
 	}
 
-	if err := os.RemoveAll(mntPathParent); err != nil {
-		klog.Errorf("failed to remove mount path parent: %s, err: %v", mntPathParent, err)
+	if pathToUnmount != targetPath && pathToUnmount != targetHostPath {
+		err := fmt.Errorf("Failed to unmount, path '%s' is not correct", pathToUnmount)
+		klog.Error(err.Error())
 		return nil, err
 	}
-	if err := os.RemoveAll(targetPath); err != nil {
-		klog.Errorf("failed to remove target path: %s, err: %v", targetPath, err)
+
+	klog.V(4).Infof("Unmounting path: %s", pathToUnmount)
+	if err := nfs.mounter.Unmount(pathToUnmount); err != nil {
+		if strings.Contains(err.Error(), "not mounted") {
+			klog.V(4).Infof("Path not mounted while trying to unmount %s", pathToUnmount)
+		} else {
+			klog.Errorf("Failed to unmount path: %s, err: %v", pathToUnmount, err)
+			return nil, err
+		}
+	}
+
+	if isEmpty, err := IsDirEmpty(pathToUnmount); err != nil {
+		checkErr := fmt.Errorf("Failed to check if directory %s is empty: %s", pathToUnmount, err)
+		klog.Error(checkErr.Error())
+		return nil, checkErr
+	} else if !isEmpty {
+		err := fmt.Errorf("Cannot remove path %s. Not empty", pathToUnmount)
+		klog.Error(err.Error())
+		return nil, err
+	}
+
+	if err := os.Remove(pathToUnmount); err != nil {
+		klog.Errorf("After unmounting, failed to remove mount path %s: %v", pathToUnmount, err)
+		return nil, err
+	}
+
+	pathToUnmountParent := filepath.Dir(pathToUnmount)
+	if isEmpty, err := IsDirEmpty(pathToUnmountParent); err != nil {
+		checkErr := fmt.Errorf("Failed to check if parent directory %s is empty: %s", pathToUnmountParent, err)
+		klog.Error(checkErr.Error())
+		return nil, checkErr
+	} else if !isEmpty {
+		err := fmt.Errorf("Cannot remove path %s. Not empty", pathToUnmountParent)
+		klog.Error(err.Error())
+		return nil, err
+	}
+	if err := os.Remove(pathToUnmountParent); err != nil {
+		klog.Errorf("After unmounting, failed to remove parent path %s: %v", pathToUnmountParent, err)
 		return nil, err
 	}
 

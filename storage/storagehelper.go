@@ -15,6 +15,8 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -133,4 +135,20 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 		}
 	}
 	return permissionsMapArray, err
+}
+
+// Check if a directory is empty.
+// Return an isEmpty boolean and an error.
+func IsDirEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1) // Or f.Readdir(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err // Either not empty or error, suits both cases
 }
