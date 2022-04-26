@@ -753,32 +753,7 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 
 	mounter := mount.New("")
 	targetHostPath := path.Join("/host", targetPath)
-	pathToUnmount := ""
-
-	if targetPathExist, targetPathErr := fc.cs.pathExists(targetPath); targetPathErr != nil {
-		return fmt.Errorf("Failed to check if target path exists: %s, err: %v", targetPath, targetPathErr)
-	} else if !targetPathExist { // Successfully checked targetPath
-		// No targetPath so try targetHostPath
-		if targetHostPathExist, targetHostPathErr := fc.cs.pathExists(targetHostPath); targetHostPathErr != nil {
-			return fmt.Errorf("Failed to check if mount path exists: %s, err: %v", targetHostPath, targetHostPathErr)
-		} else { // Successfully checked targetHostPath
-			if !targetHostPathExist {
-				// No targetHostPath either
-				klog.Warningf("Unmount not performed because host mount path exists in neither %s nor %s", targetPath, targetHostPath)
-				return nil
-			} else { // targetHostPath exists
-				pathToUnmount = targetHostPath
-			}
-		}
-	} else { // targetPath exists
-		pathToUnmount = targetPath
-	}
-
-	if pathToUnmount != targetPath && pathToUnmount != targetHostPath {
-		err := fmt.Errorf("Failed to unmount, path '%s' is not correct", pathToUnmount)
-		klog.Error(err.Error())
-		return err
-	}
+	pathToUnmount := targetPath
 
 	klog.V(4).Infof("Unmounting path: %s", pathToUnmount)
 	if err := mounter.Unmount(pathToUnmount); err != nil {
@@ -789,37 +764,22 @@ func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
 			return err
 		}
 	}
+	klog.V(4).Infof("Successfully unmounted path '%s'", pathToUnmount)
 
-	if isEmpty, err := IsDirEmpty(pathToUnmount); err != nil {
-		checkErr := fmt.Errorf("Failed to check if directory %s is empty: %s", pathToUnmount, err)
-		klog.Error(checkErr.Error())
-		return checkErr
-	} else if !isEmpty {
-		err := fmt.Errorf("Cannot remove path %s. Not empty", pathToUnmount)
-		klog.Error(err.Error())
-		return err
-	}
+	klog.V(4).Infof("Attempting to RemoveAll targetHostPath %s", targetHostPath)
+	if err := os.RemoveAll(targetHostPath); err != nil {
+		klog.Errorf("After unmounting, failed to remove targetHostPath %s: %v", targetHostPath, err)
+		klog.V(4).Infof("Attempting to RemoveAll pathToUnmount %s", pathToUnmount)
+		if err := os.RemoveAll(pathToUnmount); err != nil {
+			klog.Errorf("After unmounting, failed to remove pathToUnmount %s: %v", pathToUnmount, err)
+			return err
+		} else {
+			klog.V(4).Infof("Successful RemoveAll of pathToUnmount %s", pathToUnmount)
+			return nil
+		}
+	} 
 
-	if err := os.Remove(pathToUnmount); err != nil {
-		klog.Errorf("After unmounting, failed to remove mount path %s: %v", pathToUnmount, err)
-		return err
-	}
-
-	pathToUnmountParent := filepath.Dir(pathToUnmount)
-	if isEmpty, err := IsDirEmpty(pathToUnmountParent); err != nil {
-		checkErr := fmt.Errorf("Failed to check if parent directory %s is empty: %s", pathToUnmountParent, err)
-		klog.Error(checkErr.Error())
-		return checkErr
-	} else if !isEmpty {
-		err := fmt.Errorf("Cannot remove path %s. Not empty", pathToUnmountParent)
-		klog.Error(err.Error())
-		return err
-	}
-	if err := os.Remove(pathToUnmountParent); err != nil {
-		klog.Errorf("After unmounting, failed to remove parent path %s: %v", pathToUnmountParent, err)
-		return err
-	}
-
+	klog.V(4).Infof("Successful RemoveAll of targetHostPath %s", targetHostPath)
 	return nil
 }
 
