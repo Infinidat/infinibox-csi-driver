@@ -161,12 +161,11 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	klog.V(4).Infof("NodeUnpublishVolume")
 
 	targetPath := req.GetTargetPath()
-
 	targetHostPath := path.Join("/host", targetPath)
 	pathToUnmount := ""
 
 	if targetPathExist, targetPathErr := nfs.pathExists(targetPath); targetPathErr != nil {
-		return nil, fmt.Errorf("failed to check if target path exists: %s, err: %v", targetPath, targetPathErr)
+		return nil, fmt.Errorf("Failed to check if target path exists: %s, err: %v", targetPath, targetPathErr)
 	} else if !targetPathExist { // Successfully checked targetPath
 		// No targetPath so try targetHostPath
 		if targetHostPathExist, targetHostPathErr := nfs.pathExists(targetHostPath); targetHostPathErr != nil {
