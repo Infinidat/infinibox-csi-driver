@@ -11,7 +11,7 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.1.1
+_DOCKER_IMAGE_TAG   = v2.1.2
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG)"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
@@ -206,3 +206,11 @@ docker-save: docker-image-save docker-helm-chart-save ## Save the image and the 
 .PHONY: docker-load-help
 docker-load-help:  ## Show a hint for how to load a docker image.
 	@echo "docker load < <docker image tar file>"
+
+.PHONY: docker-rmi-dangling
+docker-rmi-dangling:  ## Remove docker images that are dangling to recover disk space.
+	@echo -e $(_begin)
+	docker rmi $$(docker images -q -f dangling=true)
+	@echo -e $(_finish)
+
+

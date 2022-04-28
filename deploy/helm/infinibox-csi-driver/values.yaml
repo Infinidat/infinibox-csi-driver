@@ -18,7 +18,7 @@ logLevel: "debug"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "v2.1.1"
+csiDriverVersion: "v2.1.2"
 
 # Image paths
 images:
@@ -27,7 +27,8 @@ images:
   attachersidecar_pull_policy: "IfNotPresent"
 
   #csidriver: "registry.connect.redhat.com/infinidat/infinidat-csi-driver@sha256:TBD"
-  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.1"
+  #csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.1.2"
+  csidriver: "git.infinidat.com:4567/dohlemacher/infinidat-csi-driver:v2.1.2"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html

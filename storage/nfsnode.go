@@ -14,9 +14,7 @@ import (
 	"context"
 	"fmt"
 	log "infinibox-csi-driver/helper/logger"
-	"os"
 	"os/exec"
-	"path"
 	"strings"
 	//"syscall"
 
@@ -158,101 +156,12 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(4).Infof("NodeUnpublishVolume")
-
 	targetPath := req.GetTargetPath()
-	targetHostPath := path.Join("/host", targetPath)
-	pathToUnmount := targetPath
-
-	klog.V(4).Infof("Unmounting path: %s", pathToUnmount)
-	if err := nfs.mounter.Unmount(pathToUnmount); err != nil {
-		if strings.Contains(err.Error(), "not mounted") {
-			klog.V(4).Infof("Path not mounted while trying to unmount %s", pathToUnmount)
-		} else {
-			klog.Errorf("Failed to unmount path: %s, err: %v", pathToUnmount, err)
-			return nil, err
-		}
+	klog.V(4).Infof("Unmounting path '%s'", targetPath)
+	err := unmountAndCleanUp(targetPath)
+	if err != nil {
+		return nil, err
 	}
-	klog.V(4).Infof("Successfully unmounted path '%s'", pathToUnmount)
-
-	klog.V(4).Infof("Attempting to RemoveAll targetHostPath %s", targetHostPath)
-	if err := os.RemoveAll(targetHostPath); err != nil {
-		klog.Errorf("After unmounting, failed to remove targetHostPath %s: %v", targetHostPath, err)
-		klog.V(4).Infof("Attempting to RemoveAll pathToUnmount %s", pathToUnmount)
-		if err := os.RemoveAll(pathToUnmount); err != nil {
-			klog.Errorf("After unmounting, failed to remove pathToUnmount %s: %v", pathToUnmount, err)
-			return nil, err
-		} else {
-			klog.V(4).Infof("Successful RemoveAll of pathToUnmount %s", pathToUnmount)
-			return &csi.NodeUnpublishVolumeResponse{}, nil
-		}
-	} 
-
-	klog.V(4).Infof("Successful RemoveAll of targetHostPath %s", targetHostPath)
-
-	// if targetPathExist, targetPathErr := nfs.pathExists(targetPath); targetPathErr != nil {
-	// 	return nil, fmt.Errorf("Failed to check if target path exists: %s, err: %v", targetPath, targetPathErr)
-	// } else if !targetPathExist { // Successfully checked targetPath
-	// 	// No targetPath so try targetHostPath
-	// 	if targetHostPathExist, targetHostPathErr := nfs.pathExists(targetHostPath); targetHostPathErr != nil {
-	// 		return nil, fmt.Errorf("Failed to check if mount path exists: %s, err: %v", targetHostPath, targetHostPathErr)
-	// 	} else { // Successfully checked targetHostPath
-	// 		if !targetHostPathExist {
-	// 			// No targetHostPath either
-	// 			klog.Warningf("Unmount not performed because host mount path exists in neither %s nor %s", targetPath, targetHostPath)
-	// 			return &csi.NodeUnpublishVolumeResponse{}, nil
-	// 		} else { // targetHostPath exists
-	// 			pathToUnmount = targetHostPath
-	// 		}
-	// 	}
-	// } else { // targetPath exists
-	// 	pathToUnmount = targetPath
-	// }
-
-	// if pathToUnmount != targetPath && pathToUnmount != targetHostPath {
-	// 	err := fmt.Errorf("Failed to unmount, path '%s' is not correct", pathToUnmount)
-	// 	klog.Error(err.Error())
-	// 	return nil, err
-	// }
-
-	// klog.V(4).Infof("Unmounting path: %s", pathToUnmount)
-	// if err := nfs.mounter.Unmount(pathToUnmount); err != nil {
-	// 	if strings.Contains(err.Error(), "not mounted") {
-	// 		klog.V(4).Infof("Path not mounted while trying to unmount %s", pathToUnmount)
-	// 	} else {
-	// 		klog.Errorf("Failed to unmount path: %s, err: %v", pathToUnmount, err)
-	// 		return nil, err
-	// 	}
-	// }
-
-	// if isEmpty, err := IsDirEmpty(pathToUnmount); err != nil {
-	// 	checkErr := fmt.Errorf("Failed to check if directory %s is empty: %s", pathToUnmount, err)
-	// 	klog.Error(checkErr.Error())
-	// 	return nil, checkErr
-	// } else if !isEmpty {
-	// 	err := fmt.Errorf("Cannot remove path %s. Not empty", pathToUnmount)
-	// 	klog.Error(err.Error())
-	// 	return nil, err
-	// }
-
-	// if err := os.Remove(pathToUnmount); err != nil {
-	// 	klog.Errorf("After unmounting, failed to remove mount path %s: %v", pathToUnmount, err)
-	// 	return nil, err
-	// }
-
-	// pathToUnmountParent := filepath.Dir(pathToUnmount)
-	// if isEmpty, err := IsDirEmpty(pathToUnmountParent); err != nil {
-	// 	checkErr := fmt.Errorf("Failed to check if parent directory %s is empty: %s", pathToUnmountParent, err)
-	// 	klog.Error(checkErr.Error())
-	// 	return nil, checkErr
-	// } else if !isEmpty {
-	// 	err := fmt.Errorf("Cannot remove path %s. Not empty", pathToUnmountParent)
-	// 	klog.Error(err.Error())
-	// 	return nil, err
-	// }
-	// if err := os.Remove(pathToUnmountParent); err != nil {
-	// 	klog.Errorf("After unmounting, failed to remove parent path %s: %v", pathToUnmountParent, err)
-	// 	return nil, err
-	// }
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
