@@ -68,6 +68,8 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
 
 	klog.V(2).Infof("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
+	// klog.V(4).Infof("NodeUnpublishVolume called with ctx %+v", ctx)
+	klog.V(5).Infof("NodeUnpublishVolume called with req %+v", req)
 	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.V(2).Infof("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)

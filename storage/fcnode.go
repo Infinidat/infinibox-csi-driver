@@ -162,7 +162,7 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	klog.V(4).Infof("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 
 	targetPath := req.GetTargetPath()
-	err = fc.DetachFCDisk(targetPath, &OSioHandler{})
+	err = unmountAndCleanUp(targetPath)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +381,7 @@ func getPortName() []string {
 	cmd := "cat /sys/class/fc_host/host*/port_name"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		klog.Errorf("Failed to port name with error %v", err)
+		klog.Errorf("Failed to get port name using command '%s': %v", cmd, err)
 		return ports
 	}
 	portName := string(out)
@@ -741,47 +741,7 @@ func (fc *fcstorage) getFCDisk(c Connector, io ioHandler) (string, error) {
 	return devicePath, nil
 }
 
-// Detach performs a detach operation on a volume
-// TODO - Refactor iSCSI's DetachDisk and FC's DetachFCDisk.
-func (fc *fcstorage) DetachFCDisk(targetPath string, io ioHandler) (err error) {
-	klog.V(2).Infof("Detaching FC volume, targetpath: %s", targetPath)
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC DetachFCDisk  " + fmt.Sprint(res))
-		}
-	}()
 
-	mounter := mount.New("")
-	targetHostPath := path.Join("/host", targetPath)
-	pathToUnmount := targetPath
-
-	klog.V(4).Infof("Unmounting path: %s", pathToUnmount)
-	if err := mounter.Unmount(pathToUnmount); err != nil {
-		if strings.Contains(err.Error(), "not mounted") {
-			klog.V(4).Infof("Path not mounted while trying to unmount %s", pathToUnmount)
-		} else {
-			klog.Errorf("Failed to unmount path: %s, err: %v", pathToUnmount, err)
-			return err
-		}
-	}
-	klog.V(4).Infof("Successfully unmounted path '%s'", pathToUnmount)
-
-	klog.V(4).Infof("Attempting to RemoveAll targetHostPath %s", targetHostPath)
-	if err := os.RemoveAll(targetHostPath); err != nil {
-		klog.Errorf("After unmounting, failed to remove targetHostPath %s: %v", targetHostPath, err)
-		klog.V(4).Infof("Attempting to RemoveAll pathToUnmount %s", pathToUnmount)
-		if err := os.RemoveAll(pathToUnmount); err != nil {
-			klog.Errorf("After unmounting, failed to remove pathToUnmount %s: %v", pathToUnmount, err)
-			return err
-		} else {
-			klog.V(4).Infof("Successful RemoveAll of pathToUnmount %s", pathToUnmount)
-			return nil
-		}
-	} 
-
-	klog.V(4).Infof("Successful RemoveAll of targetHostPath %s", targetHostPath)
-	return nil
-}
 
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")

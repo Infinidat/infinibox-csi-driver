@@ -348,7 +348,7 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 	var err error
 	var devices []string
 	dstPath := mpathDevice
-	klog.V(4).Infof("detachMpathDevice() called with mpathDevice %s for protocol %s", mpathDevice, protocol)
+	klog.V(4).Infof("detachMpathDevice() called with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
 	if dstPath != "" {
 		if strings.HasPrefix(dstPath, "/host") {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
@@ -390,9 +390,8 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 		}
 
 		_ = detachDiskByLun(hosts, lun)
-		
-		klog.V(4).Infof("detachDiskByLun succeeded for lun %s", lun)
 	}
+	klog.V(4).Infof("detachMpathDevice() completed with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
 	return nil
 }
 
@@ -483,9 +482,8 @@ func detachDiskByLun(hosts []string, lun string) error {
 			err := fmt.Errorf("%v", r)
 			klog.V(4).Infof("detachDiskByLun(), with hosts '%+v' and lun %s failed with run-time error: %+v", hosts, lun, err)
 		}
+		klog.V(4).Infof("detachDiskByLun succeeded for lun '%s'", lun)
 	}()
-
-	//deviceMu.Lock()
 
 	klog.V(4).Infof("detachDiskByLun() called with hosts %+v and lun %s", hosts, lun)
 	var err error
