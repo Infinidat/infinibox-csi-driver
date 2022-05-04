@@ -6,10 +6,11 @@ provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
-mountOptions:
-  - hard
-  - rsize=1048576
-  - wsize=1048576
+mountOptions: # optional - defaults shown below, be sure to include vers=3 if you override
+  - vers=3
+  - tcp
+  - rsize=262144
+  - wsize=262144
 parameters:
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/controller-expand-secret-namespace: infi
@@ -21,13 +22,13 @@ parameters:
     csi.storage.k8s.io/node-stage-secret-namespace: infi
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infi
-    network_space: nsnas
-    nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false}]"
-    pool_name: N_pool_1
+    storage_protocol: nfs
+    network_space: nsnas # specify InfiniBox namespace name
+    nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false}]" # add node IPs here
+    pool_name: N_pool_1 # specify InfiniBox pool name
     provision_type: THIN
     ssd_enabled: "true"
-    storage_protocol: nfs
-    # uid: 1000 # UID of file system files
-    # gid: 1000 # GID of file system files
-    # unix_permissions: 777 # chmod -R of file system
-    # privileged_ports_only: no
+    # uid: 1000 # optional: override UID for filesystem mount 
+    # gid: 1000 # optional: override GID for filesystem mount
+    # unix_permissions: 777 # optional: chmod filesystem mount
+    # privileged_ports_only: no # optional: use privileged ports or not
