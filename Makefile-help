@@ -73,3 +73,24 @@ else
 	@printf "\n\tColor is currently disabled\n\n"
 endif
 	@echo -e $(_finish)
+
+_go_find_ignore=.git|test|log
+.PHONY: gofind
+gofind:  ## Search project go files using: f='search term' make gofind
+	@echo -e $(_begin)
+	find . -name "*.go" | xargs grep -n "$$f" | egrep -v '$(_go_find_ignore)'
+	@echo -e $(_finish)
+
+.PHONY: gofindfunc
+gofindfunc:  ## Search project go files for a func using: f='search term' make gofindfunc
+	@echo -e $(_begin)
+	find . -name "*.go" | xargs grep -n "^func.*$$f" | egrep -v '$(_go_find_ignore)'
+	@echo -e $(_finish)
+
+.PHONY: version
+version:  ## Show tool versions.
+	@echo -e $(_begin)
+	@$(_GOCMD) version
+	@echo
+	@echo "CSI version $(_DOCKER_IMAGE_TAG)"
+	@echo -e $(_finish)

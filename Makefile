@@ -78,19 +78,13 @@ test: build  ## Unit test source.
 	@echo -e $(_finish)
 
 .PHONY: test-one-thing
-test-one-thing: build  ## Unit test source, but just run one test.
+test-one-thing: build lint  ## Unit test source, but just run one test.
 	@echo -e $(_begin)
-	@export testdir=api && \
-	export onetest=TestFCControllerSuite/Test_CreateVolume_InvalidParameter_NoFsType && \
-	export onetest=TestFCControllerSuite/Test_AddNodeInExport_Error && \
-	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success && \
-    export onetest=TestServiceTestSuite/Test_AddNodeInExport_IP_not_exist_success && \
-	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IP_outside_range_added_succes && \
-	export onetest=TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success && \
-	export onetest=Test_ExecScsiCommand && \
-	printf "\nFrom $$testdir, running test $$onetest\n\n" && \
+	@export testdir=storage; \
+	export test=TestNodeSuite/Test_updateNfsMountOptions_badNfsVersion; \
+	printf "\nFrom $$testdir, running test $$test\n\n"; \
 	cd "$$testdir" && \
-	$(_GOTEST) -v -run "$$onetest"
+	$(_GOTEST) -v -run "$$test"
 	@echo -e $(_finish)
 
 .PHONY: test-find-fails

@@ -13,9 +13,10 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
-	//"os"
+
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -105,6 +106,162 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	assert.NotNil(suite.T(), err, " error NOT should be nil")
 }
 
+func (suite *NodeSuite) Test_updateNfsMountOptions_badNfsVersion() {
+	head := "NFS version mount option '"
+	tail := "' encountered, but only NFS version 3 is supported"
+	tests := []struct {
+		version string
+		wanterr error
+	}{
+		{"vers=", fmt.Errorf("%svers=%s", head, tail)},
+		{"vers=1", fmt.Errorf("%svers=1%s", head, tail)},
+		{"vers=2", fmt.Errorf("%svers=2%s", head, tail)},
+		{"vers=3", nil},
+		{"vers=4", fmt.Errorf("%svers=4%s", head, tail)},
+		{"vers=5", fmt.Errorf("%svers=5%s", head, tail)},
+		{"vers=33", fmt.Errorf("%svers=33%s", head, tail)},
+		{"nfsvers=1", fmt.Errorf("%snfsvers=1%s", head, tail)},
+		{"nfsvers=2", fmt.Errorf("%snfsvers=2%s", head, tail)},
+		{"nfsvers=3", nil},
+		{"nfsvers=4", fmt.Errorf("%snfsvers=4%s", head, tail)},
+		{"nfsvers=5", fmt.Errorf("%snfsvers=5%s", head, tail)},
+		{"nfsvers=33", fmt.Errorf("%snfsvers=33%s", head, tail)},
+	}
+
+	for _, test := range tests {
+		mountOptions := make([]string, 4)
+		mountOptions[0] = "tcp"
+		mountOptions[1] = "rsize=262144"
+		mountOptions[2] = "wsize=262144"
+		mountOptions[3] = test.version
+
+		targetPath := "/var/lib/kublet/"
+		req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
+		_, err := updateNfsMountOptions(mountOptions, req)
+		fmt.Printf("version: %s\n", test.version)
+		fmt.Printf("err    : %s\n", err)
+		fmt.Printf("wanterr: %s\n", test.wanterr)
+		assert.Equal(suite.T(), err, test.wanterr, fmt.Sprintf("updateNfsMountOptions(version=%s) has error %v", test.version, err))
+	}
+}
+
+func (suite *NodeSuite) Test_updateNfsMountOptions_hard() {
+	tests := []struct {
+		recovery string
+		want     int
+	}{
+		{"hard", 1},
+		{"soft", 0},
+		{"intr", 1}, // Filler for not-specified. Option ignored in modern kernels
+	}
+
+	for _, test := range tests {
+		mountOptions := make([]string, 4)
+		mountOptions[0] = "tcp"
+		mountOptions[1] = "rsize=262144"
+		mountOptions[2] = "wsize=262144"
+		mountOptions[3] = test.recovery
+
+		targetPath := "/var/lib/kublet/"
+		req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
+		updated, _ := updateNfsMountOptions(mountOptions, req)
+		countFound := countValsInSlice(updated, "hard")
+		assert.Equal(suite.T(), countFound, test.want, fmt.Sprintf("For option %s, found %d, but should find exactly %d 'ro'", test.recovery, countFound, test.want))
+	}
+}
+
+func (suite *NodeSuite) Test_updateNfsMountOptions_ro() {
+	tests := []struct {
+		readonly bool
+		want     int
+		wanterr  string
+	}{
+		{true, 1, ""},
+		{false, 0, ""},
+	}
+
+	for _, test := range tests {
+		mountOptions := make([]string, 3)
+		mountOptions[0] = "tcp"
+		mountOptions[1] = "rsize=262144"
+		mountOptions[2] = "wsize=262144"
+
+		targetPath := "/var/lib/kublet/"
+		// Create req with Readonly option
+		req := getNodePublishVolumeRequestReadonly(targetPath, test.readonly, getPublishContexMap())
+		updated, _ := updateNfsMountOptions(mountOptions, req)
+		countFound := countValsInSlice(updated, "ro")
+		assert.Equal(suite.T(), countFound, test.want, fmt.Sprintf("For readonly %t, found %d, but should find exactly %d 'ro'", test.readonly, countFound, test.want))
+	}
+}
+
+func (suite *NodeSuite) Test_updateNfsMountOptions_no_ro() {
+	mountOptions := make([]string, 3)
+	mountOptions[0] = "tcp"
+	mountOptions[1] = "rsize=262144"
+	mountOptions[2] = "wsize=262144"
+
+	targetPath := "/var/lib/kublet/"
+	readonly := false
+	req := getNodePublishVolumeRequestReadonly(targetPath, readonly, getPublishContexMap())
+	updated, _ := updateNfsMountOptions(mountOptions, req)
+	countFound := countValsInSlice(updated, "ro")
+	assert.Equal(suite.T(), countFound, 0, "Should find exactly zero 'ro'")
+}
+
+func (suite *NodeSuite) Test_updateNfsMountOptions_mustAddVers() {
+	mountOptions := make([]string, 3)
+	mountOptions[0] = "tcp"
+	mountOptions[1] = "rsize=262144"
+	mountOptions[2] = "wsize=262144"
+
+	targetPath := "/var/lib/kublet/"
+	req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
+	updated, _ := updateNfsMountOptions(mountOptions, req)
+	countFound := countValsInSlice(updated, "vers=3")
+	assert.Equal(suite.T(), countFound, 1, "Should find exactly one vers=3")
+}
+
+func (suite *NodeSuite) Test_updateNfsMountOptions_mustNotAddVersAgain() {
+	mountOptions := make([]string, 4)
+	mountOptions[0] = "tcp"
+	mountOptions[1] = "rsize=262144"
+	mountOptions[2] = "vers=3"
+	mountOptions[3] = "wsize=262144"
+
+	targetPath := "/var/lib/kublet/"
+	req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
+	updated, _ := updateNfsMountOptions(mountOptions, req)
+	countFound := countValsInSlice(updated, "vers=3")
+	assert.Equal(suite.T(), countFound, 1, "Should find exactly one vers=3")
+}
+
+func (suite *NodeSuite) Test_updateNfsMountOptions_mustNotAddVers() {
+	mountOptions := make([]string, 4)
+	mountOptions[0] = "tcp"
+	mountOptions[1] = "nfsvers=3"
+	mountOptions[2] = "rsize=262144"
+	mountOptions[3] = "wsize=262144"
+
+	targetPath := "/var/lib/kublet/"
+	req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
+	updated, _ := updateNfsMountOptions(mountOptions, req)
+	countFound := countValsInSlice(updated, "vers=3")
+	assert.Equal(suite.T(), countFound, 0, "Should not have found vers=3")
+	countFoundNfs := countValsInSlice(updated, "nfsvers=3")
+	assert.Equal(suite.T(), countFoundNfs, 1, "Should find exactly one nfsvers=3")
+}
+
+func countValsInSlice(slice []string, val string) int {
+	count := 0
+	for _, item := range slice {
+		if item == val {
+			count += 1
+		}
+	}
+	return count
+}
+
 // func (suite *NodeSuite) Test_NodeUnpublishVolume_MountPoint_fail() {
 // 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
 // 	volumeID := "1234"
@@ -180,6 +337,14 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 func getNodePublishVolumeRequest(tagetPath string, publishContexMap map[string]string) *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		TargetPath:     tagetPath,
+		PublishContext: publishContexMap,
+	}
+}
+
+func getNodePublishVolumeRequestReadonly(targetPath string, readonly bool, publishContexMap map[string]string) *csi.NodePublishVolumeRequest {
+	return &csi.NodePublishVolumeRequest{
+		TargetPath:     targetPath,
+		Readonly:       readonly,
 		PublishContext: publishContexMap,
 	}
 }
