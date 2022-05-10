@@ -15,8 +15,8 @@ import (
 	"fmt"
 	log "infinibox-csi-driver/helper/logger"
 	"os/exec"
+	"regexp"
 	"strings"
-	//"syscall"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -52,25 +52,31 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	// get mount options from VolumeCapability - the standard way
+	// Get mount options from VolumeCapability - the standard way
 	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
-	// accommodate legacy nfs_mount_options parameter and legacy default in storageservice.go - remove in future releases, CSIC-346
-	mountOptionsString, oldNfsMountOptionsParamProvided := req.GetVolumeContext()["nfs_mount_options"]
-	if oldNfsMountOptionsParamProvided {
-		klog.Warningf("Deprecated 'nfs_mount_options' parameter %s provided, will NOT be supported in future releases - please move to standard 'mountOptions' parameter", mountOptionsString)
-	} else {
-		mountOptionsString = StandardMountOptions // defined in nfscontroller.go
-	}
-	for _, option := range strings.Split(mountOptionsString, ",") {
-		if option != "" {
-			mountOptions = append(mountOptions, option)
+	if len(mountOptions) == 0 {
+		// Not using standard way. Try legacy way.
+		mountOptionsString, oldNfsMountOptionsParamProvided := req.GetVolumeContext()["nfs_mount_options"]
+		if oldNfsMountOptionsParamProvided {
+			// Use legacy nfs_mount_options parameter. TODO: Remove in future releases: CSIC-346
+			klog.Warningf("Deprecated 'nfs_mount_options' parameter %s provided, will NOT be supported in future releases - please move to standard 'mountOptions' parameter", mountOptionsString)
+		} else {
+			// No mountOptions nor nfs_mount_options. Use default defined in storageservice.go.
+			mountOptionsString = StandardMountOptions // defined in nfscontroller.go
+		}
+		// Split legacy or default string into slice
+		for _, option := range strings.Split(mountOptionsString, ",") {
+			if option != "" {
+				mountOptions = append(mountOptions, option)
+			}
 		}
 	}
-	if req.GetReadonly() {
-		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
-		mountOptions = append(mountOptions, "ro")
+
+	mountOptions, err = updateNfsMountOptions(mountOptions, req)
+	if err != nil {
+		klog.Errorf("Failed updateNfsMountOptions(): %s", err)
+		return nil, status.Errorf(codes.Internal, "Failed to update mount options for targetPath '%s': %s", targetPath, err)
 	}
-	// TODO: remove duplicates from this list
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
@@ -118,6 +124,59 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
+func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequest) ([]string, error) {
+	// If vers set to anything but 3, fail.
+	re := regexp.MustCompile(`(nfs){0,1}vers=([0-9]*)`)
+	for _, opt := range mountOptions {
+		matches := re.FindStringSubmatch(opt)
+		if len(matches) > 0 {
+			version := matches[2]
+			if version != "3" {
+				err := fmt.Errorf("NFS version mount option '%s' encountered, but only NFS version 3 is supported", opt)
+				klog.Error(err.Error())
+				return nil, err
+			}
+		}
+	}
+
+	// Force vers=3 to be in the mountOptions slice. IBoxes require NFS version 3.
+	vers3InMountOptions := false
+	for _, opt := range mountOptions {
+		if opt == "vers=3" || opt == "nfsvers=3" {
+			vers3InMountOptions = true
+			break
+		}
+	}
+	if !vers3InMountOptions {
+		mountOptions = append(mountOptions, "vers=3")
+	}
+
+	// Add option hard if 'soft' not set explicitly.
+	hardInMountOptions := false
+	softInMountOptions := false
+	for _, opt := range mountOptions {
+		if opt == "hard" {
+			hardInMountOptions = true
+		}
+		if opt == "soft" {
+			softInMountOptions = true
+		}
+	}
+	if !hardInMountOptions && !softInMountOptions {
+		mountOptions = append(mountOptions, "hard")
+	}
+
+	// Support readonly mount option.
+	if req.GetReadonly() {
+		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
+		mountOptions = append(mountOptions, "ro")
+	}
+
+	// TODO: remove duplicates from this list
+
+	return mountOptions, nil
+}
+
 // func (nfs *nfsstorage) isCorruptedMnt(err error) bool {
 // 	if err == nil {
 // 		return false
@@ -133,7 +192,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 // 	case *os.SyscallError:
 // 		underlyingError = pe.Err
 // 	}
-// 
+//
 // 	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
 // }
 
