@@ -93,6 +93,8 @@ spec:
               value: {{ required "Provide CSI Driver version"  .Values.csiDriverVersion }}
             - name: X_CSI_MODE
               value: controller
+            - name: X_CSI_SPEC_DISABLE_LEN_CHECK
+              value: "true"
             - name: X_CSI_DEBUG
               value: "false"
             - name: KUBE_NODE_NAME
