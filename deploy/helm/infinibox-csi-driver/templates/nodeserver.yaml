@@ -31,6 +31,8 @@ spec:
               value: node
             - name: X_CSI_DEBUG
               value: "false"
+            - name: X_CSI_SPEC_DISABLE_LEN_CHECK
+              value: "true"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
