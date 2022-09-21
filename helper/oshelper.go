@@ -69,7 +69,12 @@ func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeId stri
 
 // MkdirAll method create dir
 func (h Service) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
+	klog.V(4).Infof("MkdirAll with path %s perm %v\n", path, perm)
+	err := os.MkdirAll(path, perm)
+	if err != nil {
+		klog.Errorf("error os.MkdirAll %s", err.Error())
+	}
+	return err
 }
 
 // IsNotExist method check the error type
@@ -244,7 +249,6 @@ func (m *MockOsHelper) ChmodVolumeExec(unixPermissions string, targetPath string
 	return st
 }
 
-
 // // Used for debugging. Log a file, found by debugWalkDir, to klog.
 // func debugLogFile(path string, info os.FileInfo, err error) error {
 // 	if err != nil {
@@ -254,7 +258,7 @@ func (m *MockOsHelper) ChmodVolumeExec(unixPermissions string, targetPath string
 // 	klog.V(4).Infof("Found path %s", path)
 // 	return nil
 // }
-// 
+//
 // // Used for debugging. For given walk_path, log all files found within.
 // func debugWalkDir(walk_path string) (err error) {
 // 	klog.V(4).Infof("&&&&& debugWalkDir called with walk_path %s", walk_path)
@@ -263,11 +267,10 @@ func (m *MockOsHelper) ChmodVolumeExec(unixPermissions string, targetPath string
 // 		klog.V(4).Infof("debugWalkDir failed: %s", err.Error())
 // 		return err
 // 	}
-// 
+//
 // 	var sleepCount time.Duration
 // 	sleepCount = 0
 // 	klog.V(2).Infof("Sleeping %d seconds...", sleepCount)
 // 	time.Sleep(sleepCount * time.Second)
 // 	return err
 // }
-

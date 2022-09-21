@@ -13,9 +13,11 @@ package storage
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	log "infinibox-csi-driver/helper/logger"
+
 	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -26,11 +28,14 @@ import (
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Debug("treeq NodePublishVolume")
 	targetPath := req.GetTargetPath()
+	klog.V(4).Infof("NodePublishVolume with targetPath %s\n", targetPath)
 	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
+	klog.V(4).Infof("after IsLike with notMnt %t", notMnt)
 	if err != nil {
 		if treeq.osHelper.IsNotExist(err) {
+			klog.V(4).Infof("targetPath %s does not exist, will create", targetPath)
 			if err := treeq.osHelper.MkdirAll(targetPath, 0o750); err != nil {
-				log.Errorf("Error while mkdir %v", err)
+				log.Errorf("Error in MkdirAll %s", err.Error())
 				return nil, err
 			}
 			notMnt = true
@@ -67,6 +72,18 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 	log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
+
+	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
+	// MkdirAll() will cause hard-to-grok mount errors.
+	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
+	klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", targetPath)
+	cmd := exec.Command("mkdir", "--parents", "--mode", "0750", targetPath)
+	err = cmd.Run()
+	if err != nil {
+		klog.Errorf("failed to mkdir '%s': %s", targetPath, err)
+		return nil, err
+	}
+
 	err = treeq.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		log.Errorf("failed to mount source path '%s' : %s", source, err)

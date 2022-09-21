@@ -306,6 +306,7 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 	queryParam["name"] = name
 	resp, err := c.getResponseWithQueryString(urlpool, queryParam, &storagePools)
 	if err != nil {
+		klog.Errorf("error %s", err.Error())
 		return -1, fmt.Errorf("failed to get pool ID from pool Name: %s", name)
 	}
 	if len(storagePools) == 0 {
@@ -767,6 +768,7 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 		}
 		queryString += key + "=" + fmt.Sprintf("%v", val)
 	}
+	klog.V(2).Infof("apiuri %s hostsecret %s queryString %s expectedResp %s\n", apiuri, hostsecret, queryString, expectedResp)
 	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
 	return resp, err
 }
