@@ -65,6 +65,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		klog.Errorf("failed to create volume %v", err)
 		return nil, err
 	}
+	klog.V(4).Infof("CreateVolume treeqVolumeMap is %v\n", treeqVolumeMap)
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"], // + "#" + config[MAXFILESYSTEMSIZE],
@@ -77,18 +78,26 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, size string, err error) {
 	volproto := strings.Split(volumeID, "#")
-	if len(volproto) != 3 {
-		err = errors.New("volume Id and other details not found")
-		return
+	// TODO jeff, this seems to only ever have 2 parameters NOT 3
+	if len(volproto) != 2 {
+		err = errors.New(fmt.Sprintf("volume Id %s and other details not found", volumeID))
+		return 0, 0, "", err
 	}
 	if filesystemID, err = strconv.ParseInt(volproto[0], 10, 64); err != nil {
-		return
+		return 0, 0, "", err
 	}
-	if treeqID, err = strconv.ParseInt(volproto[1], 10, 64); err != nil {
-		return
+
+	// volumeID example := "94148131#20000$$nfs_treeq"
+	treeqdetails := strings.Split(volproto[1], "$")
+
+	if treeqID, err = strconv.ParseInt(treeqdetails[0], 10, 64); err != nil {
+		return 0, 0, "", err
 	}
-	size = volproto[2]
-	return
+
+	// TODO jeff, I commented this out and provided a default of 0, seems to not be implemented later on
+	//size = volproto[2]
+	size = ""
+	return filesystemID, treeqID, size, nil
 }
 
 func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
@@ -148,6 +157,7 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		klog.Warning("Volume Minimum capacity should be greater 1 GB")
 	}
 
+	klog.V(4).Infof("filesystemID %d treeqID %d capacity %d maxSize %s\n", filesystemID, treeqID, capacity, maxSize)
 	err = treeq.filesysService.UpdateTreeqVolume(filesystemID, treeqID, capacity, maxSize)
 	if err != nil {
 		return
