@@ -14,7 +14,11 @@ import (
 	"context"
 	"fmt"
 	log "infinibox-csi-driver/helper/logger"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
+
 	"regexp"
 	"strings"
 
@@ -33,12 +37,15 @@ func (nfs *nfsstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnsta
 }
 
 func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(4).Infof("NodePublishVolume")
-	targetPath := req.GetTargetPath()
+	targetPath := req.GetTargetPath()      // this is the path on the host node
+	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
+
+	klog.V(4).Infof("NodePublishVolume targetPath=%s", hostTargetPath)
+
 	notMnt, err := nfs.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if nfs.osHelper.IsNotExist(err) {
-			if err := nfs.osHelper.MkdirAll(targetPath, 0o750); err != nil {
+			if err := nfs.osHelper.MkdirAll(hostTargetPath, 0750); err != nil {
 				klog.Errorf("Error while mkdir %v", err)
 				return nil, err
 			}
@@ -75,26 +82,15 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	mountOptions, err = updateNfsMountOptions(mountOptions, req)
 	if err != nil {
 		klog.Errorf("Failed updateNfsMountOptions(): %s", err)
-		return nil, status.Errorf(codes.Internal, "Failed to update mount options for targetPath '%s': %s", targetPath, err)
+		return nil, status.Errorf(codes.Internal, "Failed to update mount options for targetPath '%s': %s", hostTargetPath, err)
 	}
+
+	klog.V(4).Infof("nfs mount options are [%v]", mountOptions)
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
-
-	// Create mount point
-	klog.V(4).Infof("Mount point doesn't exist, create: mkdir --parents --mode 0750 '%s'", targetPath)
-	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-	// MkdirAll() will cause hard-to-grok mount errors.
-	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
-	klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", targetPath)
-	cmd := exec.Command("mkdir", "--parents", "--mode", "0750", targetPath)
-	err = cmd.Run()
-	if err != nil {
-		klog.Errorf("failed to mkdir '%s': %s", targetPath, err)
-		return nil, err
-	}
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		klog.Errorf("Failed to mount source path '%s' : %s", source, err)
@@ -104,22 +100,65 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	// Chown
 	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
+	if uid == "" {
+		uid = "-1" // -1 means to not change the value
+	}
 	gid := req.GetVolumeContext()["gid"]
-	err = nfs.osHelper.ChownVolume(uid, gid, targetPath)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to chown path '%s': %s", targetPath, err)
-		klog.Errorf(msg)
-		return nil, status.Errorf(codes.Internal, msg)
+	if gid == "" {
+		gid = "-1" // -1 means to not change the value
+	}
+
+	if uid != "-1" || gid != "-1" {
+		var uidInt, gidInt int
+		uidInt, err = strconv.Atoi(uid)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to convert uid to integer '%s'", err.Error())
+			klog.Errorf(msg)
+			return nil, status.Errorf(codes.Internal, msg)
+		}
+		gidInt, err = strconv.Atoi(gid)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to convert gid to integer '%s'", err.Error())
+			klog.Errorf(msg)
+			return nil, status.Errorf(codes.Internal, msg)
+		}
+
+		err = os.Chown(hostTargetPath, uidInt, gidInt)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to chown path '%s': %s", hostTargetPath, err)
+			klog.Errorf(msg)
+			return nil, status.Errorf(codes.Internal, msg)
+		}
+		log.Infof("chown mount %s uid=%d gid=%d", hostTargetPath, uidInt, gidInt)
 	}
 
 	// Chmod
 	unixPermissions := req.GetVolumeContext()["unix_permissions"] // Returns an empty string if key not found
-	err = nfs.osHelper.ChmodVolume(unixPermissions, targetPath)
-	if err != nil {
-		msg := fmt.Sprintf("Failed to chmod path '%s': %s", targetPath, err)
-		klog.Errorf(msg)
-		return nil, status.Errorf(codes.Internal, msg)
+	if unixPermissions != "" {
+		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
+		//err = os.Chmod("/host"+targetPath, 0770)
+		if err != nil {
+			msg := fmt.Sprintf("Failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
+			klog.Errorf(msg)
+			return nil, status.Errorf(codes.Internal, msg)
+		}
+		mode := uint(tempVal)
+		err = os.Chmod(hostTargetPath, os.FileMode(mode))
+		if err != nil {
+			msg := fmt.Sprintf("Failed to chmod path '%s' with perms %s: error: %s", hostTargetPath, unixPermissions, err.Error())
+			klog.Errorf(msg)
+			return nil, status.Errorf(codes.Internal, msg)
+		}
+		log.Infof("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
 	}
+
+	// print out the target permissions
+	cmd := exec.Command("ls", "-l", filepath.Dir(hostTargetPath))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("error in doing ls command  %s\n", err.Error())
+	}
+	klog.V(4).Infof("mount point permissions %s\n", string(output))
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
