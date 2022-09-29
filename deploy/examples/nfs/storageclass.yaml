@@ -27,14 +27,15 @@ parameters:
     # InfiniBox configuration
     storage_protocol: nfs
     network_space: my_nfs_network_space # InfiniBox network space name
-    nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false}]" # add node IPs here
+    nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # add node IPs here
     pool_name: my_nfs_pool # InfiniBox pool name
     provision_type: THIN
     ssd_enabled: "true"
 
     # optional parameters
     # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
-    # uid: 1000                 # optional: override default UID for filesystem mount 
-    # gid: 1000                 # optional: override default GID for filesystem mount
-    # unix_permissions: 777     # optional: override default permissions for filesystem mount
+    # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
+    # uid: "1000"               # optional: override default UID for filesystem mount 
+    # gid: "1000"               # optional: override default GID for filesystem mount
+    # unix_permissions: "777"   # optional: override default permissions for filesystem mount
     # privileged_ports_only: no # optional: force use of  privileged ports only

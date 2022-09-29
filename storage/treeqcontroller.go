@@ -80,7 +80,7 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, size string, er
 	volproto := strings.Split(volumeID, "#")
 	// TODO jeff, this seems to only ever have 2 parameters NOT 3
 	if len(volproto) != 2 {
-		err = errors.New(fmt.Sprintf("volume Id %s and other details not found", volumeID))
+		err = fmt.Errorf("volume Id %s and other details not found", volumeID)
 		return 0, 0, "", err
 	}
 	if filesystemID, err = strconv.ParseInt(volproto[0], 10, 64); err != nil {

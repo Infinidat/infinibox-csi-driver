@@ -254,6 +254,28 @@ func validateStorageClassParameters(requiredStorageClassParams map[string]string
 		return fmt.Errorf("Invalid StorageClass parameters provided: %s", badParamsMap)
 	}
 
+	// TODO refactor potential - each protocol would implement a function to isolate it's
+	// particular SC validation logic
+	if providedStorageClassParams["storage_protocol"] == "nfs" && providedStorageClassParams["nfs_export_permissions"] != "" {
+		permissionsMapArray, err := getPermissionMaps(providedStorageClassParams["nfs_export_permissions"])
+		if err != nil {
+			klog.Errorf("Invalid StorageClass permissionsMapArray provided: %s", err.Error())
+			return fmt.Errorf("Invalid StorageClass permissionsMapArray provided: %s", err.Error())
+		}
+
+		// validation for uid,gid,unix_permissions
+		if providedStorageClassParams["uid"] != "" || providedStorageClassParams["gid"] != "" || providedStorageClassParams["unix_permissions"] != "" {
+			if len(permissionsMapArray) > 0 {
+				noRootSquash := permissionsMapArray[0]["no_root_squash"]
+				if noRootSquash == false {
+					errorMsg := "Error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied"
+					klog.Errorf(errorMsg)
+					return fmt.Errorf("Invalid StorageClass permissionsMapArray provided: %s", errorMsg)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -319,10 +341,10 @@ func IsDirEmpty(name string) (bool, error) {
 // Determine if a file represented
 // by `path` is a directory or not.
 func IsDirectory(path string) (bool, error) {
-    fileInfo, err := os.Stat(path)
-    if err != nil {
-        return false, err
-    }
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
 
-    return fileInfo.IsDir(), err
+	return fileInfo.IsDir(), err
 }
