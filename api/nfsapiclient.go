@@ -182,6 +182,7 @@ func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}
 }
 
 // GetFileSystemCount :
+/**
 func (c *ClientService) GetFileSystemCount() (int, error) {
 	var err error
 	defer func() {
@@ -208,6 +209,7 @@ func (c *ClientService) GetFileSystemCount() (int, error) {
 	klog.V(2).Infof("Total number of filesystem: %d", metadata.NoOfObject)
 	return metadata.NoOfObject, nil
 }
+*/
 
 // ExportFileSystem :
 func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
@@ -318,8 +320,8 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		}
 	}
 
-    // TODO - Remove this block. Needed only for allowing UT to pass.
-    //        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
+	// TODO - Remove this block. Needed only for allowing UT to pass.
+	//        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
 		klog.V(4).Infof("DeepEqual(eResp, ExportResponse{}) is true")
 		apiresp := resp.(client.ApiResponse)

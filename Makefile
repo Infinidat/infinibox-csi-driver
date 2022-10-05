@@ -11,7 +11,7 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.1.2
+_DOCKER_IMAGE_TAG   = v2.1.3
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG)"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
@@ -32,7 +32,7 @@ _art_dir            = artifact
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
-_GITLAB_USER        = dohlemacher
+_GITLAB_USER        = jmccormick
 _DOCKER_BASE_IMAGE  = redhat/ubi8:latest
 
 # redhat username and tag
