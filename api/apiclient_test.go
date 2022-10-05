@@ -984,6 +984,7 @@ func (suite *ApiTestSuite) Test_FileSystemHasChild_Error() {
 	assert.False(suite.T(), status)
 }
 
+/**
 func (suite *ApiTestSuite) Test_GetFileSystemCount_success() {
 	// var FilesystemID int64 = 3111
 	metadata := client.Resultmetadata{NoOfObject: 10}
@@ -1006,6 +1007,7 @@ func (suite *ApiTestSuite) Test_GetFileSystemCount_Error() {
 	assert.Equal(suite.T(), 0, cnt)
 	assert.NotNil(suite.T(), err, "Error should not be nil")
 }
+*/
 
 func (suite *ApiTestSuite) Test_CreateFilesystem_success() {
 	// var FilesystemID int64 = 3111

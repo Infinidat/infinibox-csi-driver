@@ -62,7 +62,7 @@ type accessType int
 
 const (
 	// InfiniBox default values
-	MaxFileSystemAllowed = 4000
+	//MaxFileSystemAllowed = 4000
 	StandardMountOptions = "vers=3,tcp,rsize=262144,wsize=262144"
 	NfsExportPermissions = "RW"
 	NoRootSquash         = true
@@ -363,6 +363,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 }
 
 func (nfs *nfsstorage) createFileSystem() (err error) {
+	/**
 	fileSystemCnt, err := nfs.cs.api.GetFileSystemCount()
 	if err != nil {
 		klog.Errorf("failed to get the filesystem count from Ibox %v", err)
@@ -375,6 +376,7 @@ func (nfs *nfsstorage) createFileSystem() (err error) {
 		err = errors.New("Ibox not allowed to create new file system")
 		return err
 	}
+	*/
 	namepool := nfs.configmap["pool_name"]
 	poolID, err := nfs.cs.api.GetStoragePoolIDByName(namepool)
 	if err != nil {
