@@ -13,9 +13,13 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
+	"math/rand"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
@@ -24,86 +28,76 @@ import (
 )
 
 func (suite *TreeqNodeSuite) SetupTest() {
+	rand.Seed(time.Now().UnixNano())
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osHelperMock = new(helper.MockOsHelper)
+	suite.nfsHelperMock = new(MockNfsHelper)
 
 	tests.ConfigureKlog()
 }
 
 type TreeqNodeSuite struct {
 	suite.Suite
-	nfsMountMock *MockNfsMounter
-	osHelperMock *helper.MockOsHelper
+	nfsMountMock  *MockNfsMounter
+	osHelperMock  *helper.MockOsHelper
+	nfsHelperMock *MockNfsHelper
 }
 
 func TestTreeqNodeSuite(t *testing.T) {
 	suite.Run(t, new(TreeqNodeSuite))
 }
 
-func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mnt_false() {
+func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Nil(suite.T(), err, "empty error")
+	randomDir := RandomString(10)
+	targetPath := randomDir
+	fmt.Printf("creating %s\n", "/tmp/"+targetPath)
+	err := os.Mkdir("/tmp/"+targetPath, os.ModePerm)
+	assert.Nil(suite.T(), err)
+	defer func() {
+		fmt.Printf("removing %s\n", "/tmp/"+targetPath)
+		err := os.RemoveAll("/tmp/" + targetPath)
+		assert.Nil(suite.T(), err)
+	}()
+
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
+
+	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
+	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), responce, "empty object")
 }
 
-func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_MkdirAll_error() {
-	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	mountErr := errors.New("mount error")
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, mountErr)
-	suite.osHelperMock.On("IsNotExist", mountErr).Return(true)
-	suite.osHelperMock.On("MkdirAll", mock.Anything, mock.Anything).Return(mountErr)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Equal(suite.T(), err.Error(), mountErr.Error())
-	assert.Nil(suite.T(), responce, "empty object")
-}
-
-func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
-	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	mountErr := errors.New("mount error")
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, mountErr)
-	suite.osHelperMock.On("IsNotExist", mountErr).Return(false)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Equal(suite.T(), err.Error(), mountErr.Error())
-	assert.Nil(suite.T(), responce, "empty object")
-}
-
-func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_notMnt_false() {
-	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(false, nil)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Nil(suite.T(), err, "empty error")
-}
-
 func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
-	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
+	randomDir := RandomString(10)
+	targetPath := randomDir
+	err := os.Mkdir("/tmp/"+targetPath, os.ModePerm)
+	assert.Nil(suite.T(), err)
+	defer func() {
+		err := os.RemoveAll("/tmp/" + targetPath)
+		assert.Nil(suite.T(), err)
+	}()
+	service := treeqstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osHelperMock}
+	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
+	_, err = service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 	assert.Nil(suite.T(), err, "empty error")
 }
 
 func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
+	randomDir := RandomString(10)
+	targetPath := randomDir
 	mountErr := errors.New("mount error")
-	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
+	service := treeqstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osHelperMock}
+	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
-	targetPath := "/var/lib/kublet/"
-	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
+	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 	assert.NotNil(suite.T(), err, "not nil error")
 }
 
@@ -125,7 +119,6 @@ func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_NotMountPoint_IsNotEx
 	mountErr := errors.New("mount error")
 	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, mountErr)
 	suite.osHelperMock.On("IsNotExist", mountErr).Return(true)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
@@ -203,4 +196,14 @@ func (suite *TreeqNodeSuite) Test_NodeUnstageVolume() {
 
 	_, err := service.NodeUnstageVolume(context.Background(), &csi.NodeUnstageVolumeRequest{})
 	assert.Nil(suite.T(), err, "empty err")
+}
+
+func RandomString(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+
+	s := make([]rune, n)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(s)
 }

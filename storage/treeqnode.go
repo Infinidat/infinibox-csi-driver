@@ -13,10 +13,7 @@ package storage
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"strings"
-
-	log "infinibox-csi-driver/helper/logger"
+	"os"
 
 	"k8s.io/klog"
 
@@ -25,81 +22,68 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const DEFAULT_HOST_MOUNT_POINT = "/host/"
+
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	log.Debug("treeq NodePublishVolume")
-	targetPath := req.GetTargetPath()
-	klog.V(4).Infof("NodePublishVolume with targetPath %s\n", targetPath)
-	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
-	klog.V(4).Infof("after IsLike with notMnt %t", notMnt)
-	if err != nil {
-		if treeq.osHelper.IsNotExist(err) {
-			klog.V(4).Infof("targetPath %s does not exist, will create", targetPath)
-			if err := treeq.osHelper.MkdirAll(targetPath, 0o750); err != nil {
-				log.Errorf("Error in MkdirAll %s", err.Error())
-				return nil, err
-			}
-			notMnt = true
-		} else {
-			log.Errorf("IsLikelyNotMountPoint method error  %v", err)
+	klog.V(2).Info("treeq NodePublishVolume")
+
+	targetPath := req.GetTargetPath() // this is the path on the host node
+	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
+	if containerHostMountPoint == "" {
+		containerHostMountPoint = DEFAULT_HOST_MOUNT_POINT
+	}
+	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
+
+	klog.V(4).Infof("NodePublishVolume with targetPath %s\n", hostTargetPath)
+
+	_, err := os.Stat(hostTargetPath)
+	if os.IsNotExist(err) {
+		klog.V(4).Infof("targetPath %s does not exist, will create", targetPath)
+		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
+			klog.Errorf("Error in MkdirAll %s", err.Error())
 			return nil, err
 		}
-	}
-	if !notMnt {
+	} else {
+		klog.V(4).Infof("targetPath %s already exists, will not do anything", targetPath)
+		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	// get mount options from VolumeCapability - the standard way
-	mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
-	// accommodate legacy nfs_mount_options parameter and legacy default in storageservice.go - remove in future releases, CSIC-346
-	mountOptionsString, oldNfsMountOptionsParamProvided := req.GetVolumeContext()["nfs_mount_options"]
-	if oldNfsMountOptionsParamProvided {
-		klog.Warningf("Deprecated 'nfs_mount_options' parameter %s provided, will NOT be supported in future releases - please move to standard 'mountOptions' parameter", mountOptionsString)
-	} else {
-		mountOptionsString = StandardMountOptions // defined in nfscontroller.go!
+	mountOptions, err := treeq.nfsHelper.GetNFSMountOptions(req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
-	for _, option := range strings.Split(mountOptionsString, ",") {
-		if option != "" {
-			mountOptions = append(mountOptions, option)
-		}
-	}
-	if req.GetReadonly() {
-		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
-		mountOptions = append(mountOptions, "ro")
-	}
-	// TODO: remove duplicates from this list
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	log.Debugf("Mount sourcePath %v, tagetPath %v", source, targetPath)
-
-	// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-	// MkdirAll() will cause hard-to-grok mount errors.
-	klog.V(4).Infof("Mount point does not exist. Creating mount point.")
-	klog.V(4).Infof("Run: mkdir --parents --mode 0750 '%s' ", targetPath)
-	cmd := exec.Command("mkdir", "--parents", "--mode", "0750", targetPath)
-	err = cmd.Run()
-	if err != nil {
-		klog.Errorf("failed to mkdir '%s': %s", targetPath, err)
-		return nil, err
-	}
-
+	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
 	err = treeq.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		log.Errorf("failed to mount source path '%s' : %s", source, err)
+		klog.Errorf("failed to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
 	}
-	log.Debugf("pod successfully mounted to volumeID %s", req.GetVolumeId())
+	klog.V(2).Infof("Successfully mounted treeq nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
+
+	klog.V(2).Infof("pod successfully mounted to volumeID %s", req.GetVolumeId())
+
+	err = treeq.nfsHelper.SetVolumePermissions(req)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.Internal, msg)
+	}
+
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Debug("treeq NodeUnpublishVolume")
+	klog.V(2).Info("treeq NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.osHelper.IsNotExist(err) {
-			log.Warnf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
+			klog.V(2).Infof("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		return nil, err
@@ -112,7 +96,7 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 	if err := treeq.osHelper.Remove(targetPath); err != nil && !treeq.osHelper.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
-	log.Debugf("pod successfully unmounted from volumeID %s", req.GetVolumeId())
+	klog.V(2).Infof("pod successfully unmounted from volumeID %s", req.GetVolumeId())
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

@@ -17,7 +17,7 @@ import (
 	"net/http"
 	"strconv"
 
-	log "infinibox-csi-driver/helper/logger"
+	"k8s.io/klog"
 )
 
 // TREEQCOUNT
@@ -52,7 +52,7 @@ func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetada
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {
-		log.Errorf("error occured while fetching filesystems from pool : %s ", err)
+		klog.Errorf("error occured while fetching filesystems from pool : %s ", err)
 		return
 	}
 	apiresp := resp.(client.ApiResponse)
@@ -85,7 +85,7 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 	treeqArry := []Treeq{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &treeqArry)
 	if err != nil {
-		log.Debugf("Error occured while getting treeq count value: %s", err)
+		klog.Errorf("Error occured while getting treeq count value: %s", err)
 		return
 	}
 	apiresp := resp.(client.ApiResponse)
@@ -96,7 +96,7 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 		treeqArry, _ = apiresp.Result.([]Treeq)
 	}
 
-	log.Info("Total number of Treeq : ", treeqCnt)
+	klog.V(2).Infof("Total number of Treeq : %d", treeqCnt)
 	return
 }
 
@@ -108,19 +108,20 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 			err = errors.New("Create Treeq Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	log.Info("Create filesystem")
+	klog.V(2).Infof("Create filesystem")
 	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, treeqParameter, &treeq)
 	if err != nil {
-		log.Errorf("Error occured while creating treeq  : %s", err)
+		klog.Errorf("Error occured while creating treeq  : %s", err)
 		return nil, err
 	}
 	if treeq == (Treeq{}) {
 		apiresp := resp.(client.ApiResponse)
 		treeq, _ = apiresp.Result.(Treeq)
 	}
-	log.Info("treeq created : ", treeq.Name)
+
+	klog.V(2).Infof("treeq created : %s", treeq.Name)
 	return &treeq, nil
 }
 
@@ -137,7 +138,7 @@ func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, e
 	treeqArray := []Treeq{}
 	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &treeqArray)
 	if err != nil {
-		log.Errorf("error occured while fetching treeq list : %s ", err)
+		klog.Errorf("error occured while fetching treeq list : %s ", err)
 		return 0, err
 	}
 	for _, treeq := range treeqArray {
@@ -158,14 +159,14 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &treeq)
 	if err != nil {
-		log.Errorf("Error occured while deleting treeq : %s ", err)
+		klog.Errorf("Error occured while deleting treeq : %s ", err)
 		return nil, err
 	}
 	if treeq == (Treeq{}) {
 		apiresp := resp.(client.ApiResponse)
 		treeq, _ = apiresp.Result.(Treeq)
 	}
-	log.Info("Treeq deleted successfully: ", fileSystemID)
+	klog.V(2).Infof("Treeq deleted successfully: %d", fileSystemID)
 	return &treeq, nil
 }
 
@@ -202,14 +203,14 @@ func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &treeq)
 	if err != nil {
-		log.Errorf("Error occured while updating file System : %s ", err)
+		klog.Errorf("Error occured while updating file System : %s ", err)
 		return nil, err
 	}
 	if treeq == (Treeq{}) {
 		apiresp := resp.(client.ApiResponse)
 		treeq, _ = apiresp.Result.(Treeq)
 	}
-	log.Info("Treeq updated successfully: ", fileSystemID)
+	klog.V(2).Infof("Treeq updated successfully: %d", fileSystemID)
 	return &treeq, nil
 }
 
@@ -235,7 +236,7 @@ func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*T
 	}
 	for _, fsystem := range treeq {
 		if fsystem.Name == treeqName {
-			log.Info("Got treeq : ", treeqName)
+			klog.Info("Got treeq : ", treeqName)
 			return &fsystem, nil
 		}
 	}

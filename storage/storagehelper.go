@@ -23,8 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/klog"
 	"k8s.io/mount-utils"
@@ -222,7 +220,7 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 
 	sizeinGB = requiredVolSize / bytesofGiB
 	if sizeinGB == 0 {
-		log.Warn("Volumen Minimum capacity should be greater 1 GB")
+		klog.V(2).Info("Volume Minimum capacity should be greater 1 GB")
 		sizeinGB = 1
 	}
 
@@ -256,7 +254,7 @@ func validateStorageClassParameters(requiredStorageClassParams map[string]string
 
 	// TODO refactor potential - each protocol would implement a function to isolate it's
 	// particular SC validation logic
-	if providedStorageClassParams["storage_protocol"] == "nfs" && providedStorageClassParams["nfs_export_permissions"] != "" {
+	if (providedStorageClassParams["storage_protocol"] == "nfs" || providedStorageClassParams["storage_protocol"] == "nfs_treeq") && providedStorageClassParams["nfs_export_permissions"] != "" {
 		permissionsMapArray, err := getPermissionMaps(providedStorageClassParams["nfs_export_permissions"])
 		if err != nil {
 			klog.Errorf("Invalid StorageClass permissionsMapArray provided: %s", err.Error())

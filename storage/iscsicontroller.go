@@ -19,8 +19,6 @@ import (
 	"strings"
 	"time"
 
-	log "infinibox-csi-driver/helper/logger"
-
 	"k8s.io/klog"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -687,7 +685,7 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		klog.Errorf("Failed to update file system %v", err)
 		return
 	}
-	log.Infof("Volume with ID %d size updated successfully", volumeID)
+	klog.V(2).Infof("Volume with ID %d size updated successfully", volumeID)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,
