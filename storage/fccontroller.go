@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
-	log "infinibox-csi-driver/helper/logger"
 	"strconv"
 	"strings"
 	"time"
@@ -531,7 +530,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	vol, err := fc.cs.api.GetVolume(volumeID)
 	if err != nil {
 		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			log.WithFields(log.Fields{"id": volumeID}).Debug("volume is already deleted", volumeID)
+			klog.V(2).Infof("volume is already deleted %d", volumeID)
 			return nil
 		}
 		return status.Errorf(codes.Internal,
@@ -549,14 +548,14 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		}
 		return
 	}
-	log.WithFields(log.Fields{"name": vol.Name, "id": vol.ID}).Info("Deleting volume")
+	klog.V(2).Infof("Deleting volume name: %s id: %d", vol.Name, vol.ID)
 	err = fc.cs.api.DeleteVolume(vol.ID)
 	if err != nil {
 		return status.Errorf(codes.Internal,
 			"error removing volume: %s", err.Error())
 	}
 	if vol.ParentId != 0 {
-		log.WithFields(log.Fields{"name": vol.Name, "id": vol.ID}).Info("Checking if Parent volume can be")
+		klog.V(2).Infof("checkingif parent volume can be name: %s id: %d", vol.Name, vol.ID)
 		tobedel := fc.cs.api.GetMetadataStatus(int64(vol.ParentId))
 		if tobedel {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
@@ -595,7 +594,7 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 		klog.Errorf("Failed to update file system %v", err)
 		return
 	}
-	log.Infoln("Volume size updated successfully")
+	klog.V(2).Info("Volume size updated successfully")
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,

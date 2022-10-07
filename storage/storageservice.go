@@ -28,8 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	log "infinibox-csi-driver/helper/logger"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -73,7 +71,9 @@ type treeqstorage struct {
 	csi.NodeServer
 	filesysService FileSystemInterface
 	osHelper       helper.OsHelper
+	nfsHelper      NfsHelper
 	mounter        mount.Interface
+	configmap      map[string]string
 }
 
 type nfsstorage struct {
@@ -93,6 +93,7 @@ type nfsstorage struct {
 	cs                 commonservice
 	mounter            mount.Interface
 	osHelper           helper.OsHelper
+	nfsHelper          NfsHelper
 }
 
 type commonservice struct {
@@ -112,9 +113,9 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs" {
-			return &nfsstorage{cs: comnserv, mounter: mount.New(""), osHelper: helper.Service{}}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New(""), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), osHelper: helper.Service{}}, nil
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -131,9 +132,9 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs" {
-			return &nfsstorage{cs: comnserv, mounter: mount.New(""), osHelper: helper.Service{}}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New(""), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), osHelper: helper.Service{}}, nil
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -160,7 +161,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		commonserv.driverversion = config["driverversion"]
 		commonserv.accessModesHelper = helper.AccessMode{}
 	}
-	log.Infoln("buildCommonService commonservice configuration done.")
+	klog.V(2).Info("buildCommonService commonservice configuration done.")
 	return commonserv, nil
 }
 
@@ -512,7 +513,7 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 	// Wait for device to be in state.
 	var sleepCount time.Duration = 1
 	hostPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/state", hostId, target, lun)
-	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/wwid",  hostId, target, lun)
+	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/wwid", hostId, target, lun)
 
 	klog.V(4).Infof("Checking device state within %s", hostPath)
 	for i := 1; i <= 5; i++ {

@@ -27,7 +27,8 @@ import (
 
 const (
 	// TOBEDELETED status
-	TOBEDELETED = "host.k8s.to_be_deleted"
+	TOBEDELETED          = "host.k8s.to_be_deleted"
+	StandardMountOptions = "vers=3,tcp,rsize=262144,wsize=262144"
 )
 
 // NFSVolumeServiceType servier type
@@ -63,7 +64,6 @@ type accessType int
 const (
 	// InfiniBox default values
 	MaxFileSystemAllowed = 4000
-	StandardMountOptions = "vers=3,tcp,rsize=262144,wsize=262144"
 	NfsExportPermissions = "RW"
 	NoRootSquash         = true
 	NfsUnixPermissions   = "777"

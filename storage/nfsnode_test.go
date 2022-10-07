@@ -16,6 +16,9 @@ import (
 	"fmt"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
+	"math/rand"
+	"os"
+	"time"
 
 	"testing"
 
@@ -26,82 +29,68 @@ import (
 	"k8s.io/utils/mount"
 )
 
+type MockNfsHelper struct {
+	mock.Mock
+	NfsHelper
+}
+
 func (suite *NodeSuite) SetupTest() {
+	rand.Seed(time.Now().UnixNano())
+
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osmock = new(helper.MockOsHelper)
+	suite.nfsHelperMock = new(MockNfsHelper)
 
 	tests.ConfigureKlog()
 }
 
 type NodeSuite struct {
 	suite.Suite
-	nfsMountMock *MockNfsMounter
-	osmock       *helper.MockOsHelper
+	nfsMountMock  *MockNfsMounter
+	osmock        *helper.MockOsHelper
+	nfsHelperMock *MockNfsHelper
 }
 
 func TestNodeSuite(t *testing.T) {
 	suite.Run(t, new(NodeSuite))
 }
 
-func (suite *NodeSuite) Test_NodePublishVolume_mnt_false() {
-	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
-	suite.osmock.On("ChownVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.osmock.On("ChmodVolume", mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Nil(suite.T(), err, "empty object")
-	assert.NotNil(suite.T(), responce, "empty object")
-}
-
-func (suite *NodeSuite) Test_NodePublishVolume_mkdir_error() {
-	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-	mountErr := errors.New("mount error")
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, mountErr)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.osmock.On("IsNotExist", mountErr).Return(true)
-	suite.osmock.On("MkdirAll", mock.Anything, mock.Anything).Return(mountErr)
-
-	targetPath := "/var/lib/kublet/"
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Equal(suite.T(), err.Error(), mountErr.Error())
-	assert.Nil(suite.T(), responce, "empty object")
-}
-
-func (suite *NodeSuite) Test_NodePublishVolume_Exist_true() {
-	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-	mountErr := errors.New("mount error")
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, mountErr)
-	suite.osmock.On("IsNotExist", mountErr).Return(false)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	targetPath := "/var/lib/kublet/"
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
-	assert.Equal(suite.T(), err.Error(), mountErr.Error())
-	assert.Nil(suite.T(), responce, "empty object")
-}
-
 func (suite *NodeSuite) Test_NodePublishVolume_success() {
-	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
+	randomDir := RandomString(10)
+	targetPath := randomDir
+	err := os.Mkdir("/tmp/"+targetPath, os.ModePerm)
+	assert.Nil(suite.T(), err)
+	defer func() {
+		err := os.RemoveAll("/tmp/" + targetPath)
+		assert.Nil(suite.T(), err)
+	}()
+
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
+
+	service := nfsstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.osmock.On("ChownVolume", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.osmock.On("ChmodVolume", mock.Anything, mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
+	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+
+	_, err = service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
 
 func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
+	randomDir := RandomString(10)
+	targetPath := randomDir
+
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
 	mountErr := errors.New("mount error")
-	service := nfsstorage{mounter: suite.nfsMountMock}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
+	service := nfsstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osmock}
+	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
-	suite.osmock.On("ChownVolume", mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, getPublishContexMap()))
+	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 
 	assert.NotNil(suite.T(), err, " error NOT should be nil")
 }
@@ -334,6 +323,7 @@ func countValsInSlice(slice []string, val string) int {
 // }
 
 //**************************
+
 func getNodePublishVolumeRequest(tagetPath string, publishContexMap map[string]string) *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		TargetPath:     tagetPath,
@@ -354,6 +344,7 @@ func getPublishContexMap() map[string]string {
 	contextMap["ipAddress"] = "10.2.2.112"
 	contextMap["volPathd"] = "12345"
 	contextMap["volPathd"] = "/fs/filesytem/"
+	contextMap["csiContainerHostMountPoint"] = "/host/"
 	return contextMap
 }
 
@@ -363,28 +354,6 @@ func getNodeUnPublishVolumeRequest(tagetPath string, volumeID string) *csi.NodeU
 		VolumeId:   volumeID,
 	}
 }
-
-// // OS package -- mock method
-// type mockOS struct {
-// 	mock.Mock
-// }
-
-// func (m *mockOS) IsNotExist(err error) bool {
-// 	status := m.Called(err)
-// 	st, _ := status.Get(0).(bool)
-// 	return st
-// }
-
-// func (m *mockOS) MkdirAll(path string, perm os.FileMode) bool {
-// 	status := m.Called(path, perm)
-// 	return status.Get(0).(bool)
-// }
-
-// func (m *mockOS) Remove(path string) bool {
-// 	status := m.Called(path)
-// 	st, _ := status.Get(0).(bool)
-// 	return st
-// }
 
 // MockNfsMounter - mount mock
 type MockNfsMounter struct {
@@ -421,4 +390,20 @@ func (m *MockNfsMounter) Unmount(targetPath string) error {
 	}
 	err := args.Get(0).(error)
 	return err
+}
+
+func (m *MockNfsHelper) SetVolumePermissions(req *csi.NodePublishVolumeRequest) error {
+	status := m.Called(req)
+	if status.Get(0) == nil {
+		return nil
+	}
+	return status.Get(0).(error)
+}
+
+func (m *MockNfsHelper) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error) {
+	status := m.Called(req)
+	if status.Get(1) == nil {
+		return []string{}, nil
+	}
+	return status.Get(0).([]string), status.Get(1).(error)
 }

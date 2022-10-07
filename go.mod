@@ -9,9 +9,8 @@ require (
 	github.com/containerd/continuity v0.1.0 // indirect
 	github.com/go-resty/resty/v2 v2.6.0
 	github.com/golang/protobuf v1.5.2
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.2.0 // indirect
 	github.com/rexray/gocsi v1.2.2
-	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/grpc v1.27.1
 	google.golang.org/protobuf v1.26.0

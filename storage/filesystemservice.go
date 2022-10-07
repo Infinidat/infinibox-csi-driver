@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
-	log "infinibox-csi-driver/helper/logger"
 	"path"
 	"strconv"
 	"strings"
@@ -234,6 +233,9 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	}()
 	treeqVolume = make(map[string]string)
 	treeqVolume["storage_protocol"] = config["storage_protocol"]
+	treeqVolume["gid"] = config["gid"]
+	treeqVolume["uid"] = config["uid"]
+	treeqVolume["unix_permissions"] = config["unix_permissions"]
 	filesystem.setParameter(config, capacity, pvName)
 
 	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
@@ -375,7 +377,7 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 			err = errors.New("error while AttachMetadata directory" + fmt.Sprint(res))
 		}
 		if err != nil && filesystem.exportID != 0 {
-			log.Infoln("Seemes to be some problem reverting created export id:", filesystem.exportID)
+			klog.V(2).Info("Seemes to be some problem reverting created export id:", filesystem.exportID)
 			if _, errDelExport := filesystem.cs.api.DeleteExportPath(filesystem.exportID); errDelExport != nil {
 				klog.Errorf("failed to delete export path: %s", filesystem.pVName)
 			}
@@ -711,6 +713,6 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 		return
 	}
 
-	log.Infoln("Treeq size updated successfully")
+	klog.V(2).Info("Treeq size updated successfully")
 	return
 }

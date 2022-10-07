@@ -26,6 +26,7 @@ import (
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	var treeqVolumeMap map[string]string
 	config := req.GetParameters()
+	treeq.configmap = config
 	pvName := req.GetName()
 	klog.V(4).Infof("CSI request parameters: %v", config)
 	err = validateStorageClassParameters(map[string]string{
