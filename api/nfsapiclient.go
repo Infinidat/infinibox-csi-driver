@@ -181,34 +181,6 @@ func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}
 	return &fileSystemResp, nil
 }
 
-// GetFileSystemCount :
-func (c *ClientService) GetFileSystemCount() (int, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetFileSystemCount Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
-	klog.V(2).Infof("Get FileSystem Count")
-	uri := "api/rest/filesystems"
-	filesystems := []FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
-	if err != nil {
-		klog.Errorf("error occured while fetching filesystems : %s ", err)
-		return 0, err
-	}
-
-	apiresp := resp.(client.ApiResponse)
-	metadata := apiresp.MetaData
-
-	if len(filesystems) == 0 {
-		filesystems, _ = apiresp.Result.([]FileSystem)
-	}
-	// return len(filesystems), nil
-	klog.V(2).Infof("Total number of filesystem: %d", metadata.NoOfObject)
-	return metadata.NoOfObject, nil
-}
-
 // ExportFileSystem :
 func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
 	var err error
@@ -318,8 +290,8 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		}
 	}
 
-    // TODO - Remove this block. Needed only for allowing UT to pass.
-    //        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
+	// TODO - Remove this block. Needed only for allowing UT to pass.
+	//        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
 		klog.V(4).Infof("DeepEqual(eResp, ExportResponse{}) is true")
 		apiresp := resp.(client.ApiResponse)
