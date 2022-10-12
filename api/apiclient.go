@@ -59,7 +59,6 @@ type Client interface {
 	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
 	DetachMetadataFromObject(objectID int64) (*[]Metadata, error)
 	CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error)
-	GetFileSystemCount() (int, error)
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)

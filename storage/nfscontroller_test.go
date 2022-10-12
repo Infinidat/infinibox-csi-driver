@@ -14,10 +14,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	goodIBoxFSCount = 40
-)
-
 func (suite *NFSControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
@@ -68,7 +64,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, filesystemErr)
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return(nil, nil)
-	suite.api.On("GetFileSystemCount").Return(40, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
@@ -133,35 +128,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
 	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume validate the pool and networkspace")
 }
 
-func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_fail() {
-	service := nfsstorage{cs: *suite.cs}
-	parameterMap := getCreateVolumeParameter()
-	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-	expectedError := errors.New("Some error")
-
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
-	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
-	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("data", nil)
-	suite.api.On("GetFileSystemCount").Return(nil, expectedError)
-
-	_, err := service.CreateVolume(context.Background(), createVolReq)
-	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume get filesystem count")
-}
-
-func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemCount_MaxThanIbox() {
-	service := nfsstorage{cs: *suite.cs}
-	parameterMap := getCreateVolumeParameter()
-	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
-	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
-	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(MaxFileSystemAllowed+1, nil)
-
-	_, err := service.CreateVolume(context.Background(), createVolReq)
-	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume get more file systems than allowed")
-}
-
 func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
@@ -171,7 +137,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(goodIBoxFSCount, nil)
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
@@ -188,7 +153,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(40, nil)
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(0, expectedError)
 
@@ -206,7 +170,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(40, nil)
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(1, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedError)
@@ -225,7 +188,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetFileSystemCount").Return(40, nil)
 	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
