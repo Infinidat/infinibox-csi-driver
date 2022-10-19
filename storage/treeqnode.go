@@ -49,7 +49,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	mountOptions, err := treeq.nfsHelper.GetNFSMountOptions(req)
+	mountOptions, err := treeq.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
@@ -67,7 +67,8 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	klog.V(2).Infof("pod successfully mounted to volumeID %s", req.GetVolumeId())
 
-	err = treeq.nfsHelper.SetVolumePermissions(req)
+	svc := Service{}
+	err = svc.SetVolumePermissions(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
 		klog.Errorf(msg)

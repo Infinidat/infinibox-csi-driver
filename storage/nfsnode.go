@@ -53,7 +53,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	mountOptions, err := nfs.nfsHelper.GetNFSMountOptions(req)
+	mountOptions, err := nfs.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
@@ -71,7 +71,8 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	klog.V(2).Infof("Successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
-	err = nfs.nfsHelper.SetVolumePermissions(req)
+	svc := Service{}
+	err = svc.SetVolumePermissions(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
 		klog.Errorf(msg)

@@ -31,16 +31,16 @@ func (suite *TreeqNodeSuite) SetupTest() {
 	rand.Seed(time.Now().UnixNano())
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osHelperMock = new(helper.MockOsHelper)
-	suite.nfsHelperMock = new(MockNfsHelper)
+	suite.storageHelperMock = new(MockStorageHelper)
 
 	tests.ConfigureKlog()
 }
 
 type TreeqNodeSuite struct {
 	suite.Suite
-	nfsMountMock  *MockNfsMounter
-	osHelperMock  *helper.MockOsHelper
-	nfsHelperMock *MockNfsHelper
+	nfsMountMock      *MockNfsMounter
+	osHelperMock      *helper.MockOsHelper
+	storageHelperMock *MockStorageHelper
 }
 
 func TestTreeqNodeSuite(t *testing.T) {
@@ -79,9 +79,9 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 		err := os.RemoveAll("/tmp/" + targetPath)
 		assert.Nil(suite.T(), err)
 	}()
-	service := treeqstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osHelperMock}
-	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+	service := treeqstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	_, err = service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 	assert.Nil(suite.T(), err, "empty error")
@@ -93,9 +93,9 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	randomDir := RandomString(10)
 	targetPath := randomDir
 	mountErr := errors.New("mount error")
-	service := treeqstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osHelperMock}
-	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+	service := treeqstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 	assert.NotNil(suite.T(), err, "not nil error")
@@ -199,7 +199,7 @@ func (suite *TreeqNodeSuite) Test_NodeUnstageVolume() {
 }
 
 func RandomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 	s := make([]rune, n)
 	for i := range s {

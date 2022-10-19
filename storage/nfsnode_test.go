@@ -18,9 +18,8 @@ import (
 	tests "infinibox-csi-driver/test_helper"
 	"math/rand"
 	"os"
-	"time"
-
 	"testing"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
@@ -29,9 +28,9 @@ import (
 	"k8s.io/utils/mount"
 )
 
-type MockNfsHelper struct {
+type MockStorageHelper struct {
 	mock.Mock
-	NfsHelper
+	StorageHelper
 }
 
 func (suite *NodeSuite) SetupTest() {
@@ -39,16 +38,16 @@ func (suite *NodeSuite) SetupTest() {
 
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osmock = new(helper.MockOsHelper)
-	suite.nfsHelperMock = new(MockNfsHelper)
+	suite.storageHelperMock = new(MockStorageHelper)
 
 	tests.ConfigureKlog()
 }
 
 type NodeSuite struct {
 	suite.Suite
-	nfsMountMock  *MockNfsMounter
-	osmock        *helper.MockOsHelper
-	nfsHelperMock *MockNfsHelper
+	nfsMountMock      *MockNfsMounter
+	osmock            *helper.MockOsHelper
+	storageHelperMock *MockStorageHelper
 }
 
 func TestNodeSuite(t *testing.T) {
@@ -68,10 +67,10 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
-	service := nfsstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osmock}
+	service := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	_, err = service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 
@@ -85,9 +84,9 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 	mountErr := errors.New("mount error")
-	service := nfsstorage{mounter: suite.nfsMountMock, nfsHelper: suite.nfsHelperMock, osHelper: suite.osmock}
-	suite.nfsHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.nfsHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+	service := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
@@ -392,7 +391,7 @@ func (m *MockNfsMounter) Unmount(targetPath string) error {
 	return err
 }
 
-func (m *MockNfsHelper) SetVolumePermissions(req *csi.NodePublishVolumeRequest) error {
+func (m *MockStorageHelper) SetVolumePermissions(req *csi.NodePublishVolumeRequest) error {
 	status := m.Called(req)
 	if status.Get(0) == nil {
 		return nil
@@ -400,7 +399,7 @@ func (m *MockNfsHelper) SetVolumePermissions(req *csi.NodePublishVolumeRequest) 
 	return status.Get(0).(error)
 }
 
-func (m *MockNfsHelper) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error) {
+func (m *MockStorageHelper) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error) {
 	status := m.Called(req)
 	if status.Get(1) == nil {
 		return []string{}, nil

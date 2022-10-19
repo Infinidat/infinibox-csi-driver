@@ -55,7 +55,9 @@ type Storageoperations interface {
 }
 
 type fcstorage struct {
-	cs commonservice
+	cs            commonservice
+	configmap     map[string]string
+	storageHelper StorageHelper
 }
 
 type iscsistorage struct {
@@ -64,14 +66,14 @@ type iscsistorage struct {
 }
 
 // Mutex protecting device rescan and delete operations
-//var deviceMu sync.Mutex
+// var deviceMu sync.Mutex
 
 type treeqstorage struct {
 	csi.ControllerServer
 	csi.NodeServer
 	filesysService FileSystemInterface
 	osHelper       helper.OsHelper
-	nfsHelper      NfsHelper
+	storageHelper  StorageHelper
 	mounter        mount.Interface
 	configmap      map[string]string
 }
@@ -93,7 +95,7 @@ type nfsstorage struct {
 	cs                 commonservice
 	mounter            mount.Interface
 	osHelper           helper.OsHelper
-	nfsHelper          NfsHelper
+	storageHelper      StorageHelper
 }
 
 type commonservice struct {
@@ -109,13 +111,13 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 	if err == nil {
 		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 		if storageProtocol == "fc" {
-			return &fcstorage{cs: comnserv}, nil
+			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs" {
-			return &nfsstorage{cs: comnserv, mounter: mount.New(""), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -128,13 +130,13 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 	if err == nil {
 		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 		if storageProtocol == "fc" {
-			return &fcstorage{cs: comnserv}, nil
+			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
 		} else if storageProtocol == "iscsi" {
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs" {
-			return &nfsstorage{cs: comnserv, mounter: mount.New(""), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &nfsstorage{cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), nfsHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -477,7 +479,7 @@ func detachDiskByLun(hosts []string, lun string) error {
 	defer func() {
 		klog.V(4).Infof("detachDiskByLun() with hosts '%+v' and lun %s completed", hosts, lun)
 		klog.Flush()
-		//deviceMu.Unlock()
+		// deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
 		if r := recover(); r != nil {
 			err := fmt.Errorf("%v", r)
@@ -723,7 +725,6 @@ func (cs *commonservice) isCorruptedMnt(err error) bool {
 func (st *fcstorage) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
-
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
 }
@@ -731,7 +732,6 @@ func (st *fcstorage) ControllerGetVolume(
 func (st *iscsistorage) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
-
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
 }
@@ -739,7 +739,6 @@ func (st *iscsistorage) ControllerGetVolume(
 func (st *nfsstorage) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
-
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
 }
