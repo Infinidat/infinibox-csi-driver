@@ -42,6 +42,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
 
 	params := req.GetParameters()
+	fc.configmap = params
 	klog.V(2).Infof(" csi request parameters %v", params)
 
 	// validate required parameters
@@ -63,6 +64,11 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	if provided {
 		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
 	}
+
+	gid := params["gid"]
+	uid := params["uid"]
+	unix_permissions := params["unix_permissions"]
+	klog.V(2).Infof("storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
 
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()

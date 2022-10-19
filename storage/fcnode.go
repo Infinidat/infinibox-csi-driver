@@ -125,6 +125,8 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		}
 	}()
 
+	klog.V(4).Infof("NodePublishVolume volumecontext %v", req.GetVolumeContext())
+	klog.V(4).Infof("uid %s gid %s unix_perm %s", req.GetVolumeContext()["uid"], req.GetVolumeContext()["gid"], req.GetVolumeContext()["unix_permissions"])
 	klog.V(4).Infof("NodePublishVolume called with volume ID %s", req.GetVolumeId())
 	helper.CheckMultipath()
 
@@ -133,19 +135,45 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	/**
 	devicePath, err := fc.getFCDisk(*fcDetails.connector, &OSioHandler{})
 	if err != nil {
 		klog.Errorf("")
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	*/
+
+	devicePath, err := fc.searchDisk(*fcDetails.connector, &OSioHandler{})
+	if err != nil {
+		klog.Errorf("fc.searchDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// remove the leading "/host" to reveal the path on the actual node host
+	devicePath = strings.Replace(devicePath, "/host", "", 1)
+	klog.V(4).Infof("FC device path %s found", devicePath)
+
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
 	if err != nil {
 		return nil, err
 	}
+
 	err = fc.MountFCDisk(*diskMounter, devicePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// set volume permissions based on uid/uid/unix_permissions
+	klog.V(4).Infof("after mount targetPath %s, devicePath %s ", diskMounter.TargetPath, devicePath)
+	// print out the target permissions
+	logPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
+	logPermissions("after mount devicePath ", "/host"+devicePath)
+	err = fc.storageHelper.SetVolumePermissions(req)
+	if err != nil {
+		klog.Errorf("error in setting volume permissions %s on volume %s\n", err.Error(), req.GetVolumeId())
+		return nil, err
+	}
+
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -225,7 +253,8 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 }
 
 func (fc *fcstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (
-	*csi.NodeGetCapabilitiesResponse, error) {
+	*csi.NodeGetCapabilitiesResponse, error,
+) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
 			{
@@ -240,12 +269,14 @@ func (fc *fcstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 }
 
 func (fc *fcstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (
-	*csi.NodeGetInfoResponse, error) {
+	*csi.NodeGetInfoResponse, error,
+) {
 	return &csi.NodeGetInfoResponse{}, nil
 }
 
 func (fc *fcstorage) NodeGetVolumeStats(
-	ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	ctx context.Context, req *csi.NodeGetVolumeStatsRequest,
+) (*csi.NodeGetVolumeStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
@@ -592,7 +623,7 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 	defer func() {
 		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed", volumeId, lun)
 		klog.Flush()
-		//deviceMu.Unlock()
+		// deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
 		if r := recover(); r != nil {
 			err := fmt.Errorf("%v", r)
@@ -600,7 +631,7 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 		}
 	}()
 
-	//deviceMu.Lock()
+	// deviceMu.Lock()
 	klog.V(4).Infof("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
 
 	fcHosts, err := findHosts("fc")
@@ -725,7 +756,8 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
 }
 
 // Find and return FC disk
-func (fc *fcstorage) getFCDisk(c Connector, io ioHandler) (string, error) {
+/**
+func (fc *fcstorage) getFCDisk2(c Connector, io ioHandler) (string, error) {
 	if io == nil {
 		io = &OSioHandler{}
 	}
@@ -740,8 +772,7 @@ func (fc *fcstorage) getFCDisk(c Connector, io ioHandler) (string, error) {
 
 	return devicePath, nil
 }
-
-
+*/
 
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
