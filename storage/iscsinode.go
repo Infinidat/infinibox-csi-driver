@@ -346,7 +346,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	protocol := "iscsi"
 	err = detachMpathDevice(mpathDevice, protocol)
 	if err != nil {
-		klog.Warningf("NodeUnstageVolume cannot detach volume with ID %s: %+v",  req.GetVolumeId(), err)
+		klog.Warningf("NodeUnstageVolume cannot detach volume with ID %s: %+v", req.GetVolumeId(), err)
 	}
 
 	removePath := path.Join("/host", stagePath)
@@ -425,7 +425,7 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 	defer func() {
 		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed", volumeId, lun)
 		klog.Flush()
-		//deviceMu.Unlock()
+		// deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
 		if r := recover(); r != nil {
 			err := fmt.Errorf("%v", r)
@@ -433,7 +433,7 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 		}
 	}()
 
-	//deviceMu.Lock()
+	// deviceMu.Lock()
 	klog.V(4).Infof("Rescan hosts for volume %s and lun %s", volumeId, lun)
 
 	// Find hosts. TODO - take heed of portals.
@@ -469,7 +469,6 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 	klog.V(4).Infof("Rescan hosts complete for volume ID %s and lun %s", volumeId, lun)
 	return err
 }
-
 
 func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err error) {
 	defer func() {
@@ -1217,6 +1216,7 @@ func findDeviceForPath(path string) (string, error) {
 }
 
 // Flush a multipath device map for device.
+/**
 func multipathFlush(mpath string) {
 	klog.V(4).Infof("Running multipath -f '%s'", mpath)
 
@@ -1230,6 +1230,7 @@ func multipathFlush(mpath string) {
 	_, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)
 	_, _ = execScsi.Command("ls", "/host/dev/sd*; echo", isToLogOutput)
 }
+*/
 
 // Given a device like '/dev/dm-0', find its matching multipath name such as 'mpathab'.
 func findMpathFromDevice(device string) (mpath string, err error) {
