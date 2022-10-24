@@ -379,8 +379,9 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 			klog.Errorf("findMpathFromDevice for mpathDevice %s failed: %s", mpathDevice, err)
 			return err
 		}
+		klog.V(4).Infof("mpath device is %s\n", mpath)
 
-		multipathFlush(mpath)
+		// multipathFlush(mpath)
 
 		// Warn if there are not exactly mpathDeviceCount devices
 		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
