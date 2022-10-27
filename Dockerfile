@@ -1,4 +1,5 @@
-FROM redhat/ubi8:latest
+# FROM redhat/ubi8:latest
+FROM registry.access.redhat.com/ubi8/ubi:8.6-990
 
 # Note: See "linux_host" note the IBox Ansible vars yaml
 # file in git.infinidat.com:PSUS/webinar-automate-sla.git.
