@@ -1,5 +1,4 @@
-# FROM redhat/ubi8:latest
-FROM registry.access.redhat.com/ubi8/ubi:8.6-990
+FROM redhat/ubi8:latest
 
 # Note: See "linux_host" note the IBox Ansible vars yaml
 # file in git.infinidat.com:PSUS/webinar-automate-sla.git.
@@ -8,11 +7,23 @@ FROM registry.access.redhat.com/ubi8/ubi:8.6-990
 
 MAINTAINER partners.infi@infinidat.com
 
-LABEL name="infinibox-csi-driver"
-LABEL vendor="Infinidat"
-LABEL summary="Infinidat CSI-Plugin"
+ARG   BLAME_MACHINE
+ARG   BLAME_USER
+ARG   DOCKER_IMAGE_TAG
+ARG   VCS_REF
+ENV   BLAME_MACHINE=$BLAME_MACHINE
+ENV   BLAME_USER=$BLAME_USER
+ENV   DOCKER_IMAGE_TAG=$DOCKER_IMAGE_TAG
+ENV   VCS_REF=$VCS_REF
+LABEL BLAME_MACHINE=$BLAME_MACHINE
+LABEL BLAME_USER=$BLAME_USER
+LABEL DOCKER_IMAGE_TAG=$DOCKER_IMAGE_TAG
+LABEL VCS_REF=$VCS_REF
 LABEL description="A CSI Driver image for InfiniBox"
+LABEL name="infinibox-csi-driver"
 LABEL org.opencontainers.image.authors="partners.infi@infinidat.com"
+LABEL summary="Infinidat CSI-Plugin"
+LABEL vendor="Infinidat"
 
 COPY licenses /licenses
 COPY setenv.sh /setenv.sh
@@ -21,7 +32,7 @@ COPY infinibox-csi-driver /infinibox-csi-driver
 RUN chmod +x /infinibox-csi-driver
 
 RUN yum -y install file lsof hostname && \
-	yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical && \
+	yum -y update && \
     yum -y clean all && rm -rf /var/cache
 
 RUN mkdir /ibox

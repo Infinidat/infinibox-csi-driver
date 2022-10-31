@@ -13,7 +13,7 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.2.0-rc1
+_DOCKER_IMAGE_TAG   = v2.2.0-rc2
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG) -X main.goVersion='$$(go version | sed 's/ /_/g')"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
@@ -126,8 +126,16 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 	@echo -e $(_begin)
 	@echo "Pulling base image $(_DOCKER_BASE_IMAGE)"
 	@docker pull $(_DOCKER_BASE_IMAGE)
-	@echo "Building CSI driver image"
-	@docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) -f Dockerfile .
+	@export HEAD=$$(git rev-parse --short HEAD); \
+	export BLAME_MACHINE=$$(hostname); \
+	export BLAME_USER=$${USER}; \
+	echo "Building CSI driver image [$(_DOCKER_IMAGE_TAG)] from commit [$$HEAD]"; \
+	docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) \
+		--build-arg DOCKER_IMAGE_TAG=$(_DOCKER_IMAGE_TAG) \
+		--build-arg VCS_REF=$$HEAD \
+		--build-arg BLAME_MACHINE=$$BLAME_MACHINE \
+		--build-arg BLAME_USER=$$BLAME_USER \
+		-f Dockerfile .
 	@# TODO tag cmd needs review.
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	@echo -e $(_finish)
