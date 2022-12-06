@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -24,52 +26,38 @@ import (
 )
 
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
-	var treeqVolumeMap map[string]string
-	config := req.GetParameters()
-	treeq.configmap = config
-	pvName := req.GetName()
-	klog.V(4).Infof("CSI request parameters: %v", config)
-	err = validateStorageClassParameters(map[string]string{
+	klog.V(4).Infof("CreateVolume called pvName %s parameters %v", req.GetName(), req.GetParameters())
+
+	capacity, err := nfsSanityCheck(req, map[string]string{
 		"pool_name":                 `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"network_space":             `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 		"max_filesystems":           `\A\d+\z`,
 		"max_treeqs_per_filesystem": `\A\d+\z`,
 		"max_filesystem_size":       `\A.*\z`, // TODO: add more specific pattern
-	}, config)
+	})
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	// TODO: negative validation - eg useCHAP should NOT be specified for nfs
-
-	// TODO: move this capacity validation into controller.go
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
-	if capacity < gib {
-		capacity = gib
-		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
-	}
-
-	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
-	// TODO: improve and standardize this across protocols - CSIC-304
-	for _, cap := range req.GetVolumeCapabilities() {
-		if block := cap.GetBlock(); block != nil {
-			msg := fmt.Sprintf("Block access requested for NFS TreeQ PV %s", pvName)
-			klog.Errorf(msg)
-			return nil, status.Error(codes.InvalidArgument, msg)
-		}
-	}
-
-	treeqVolumeMap, err = treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), pvName)
-	if len(treeqVolumeMap) == 0 && err == nil {
-		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, pvName)
-	}
-	if err != nil {
-		klog.Errorf("failed to create volume %v", err)
 		return nil, err
 	}
-	klog.V(4).Infof("CreateVolume treeqVolumeMap is %v\n", treeqVolumeMap)
+
+	config := req.GetParameters()
+	treeq.configmap = config
+	treeqVolumeMap, err := treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), req.GetName())
+	if err != nil {
+		klog.Errorf("error locating existing treeq %s", err.Error())
+		return nil, err
+	}
+	if len(treeqVolumeMap) == 0 {
+		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, req.GetName())
+		if err != nil {
+			klog.Errorf("error creating treeq volume %s", err.Error())
+			return nil, err
+		}
+	}
+	volumeID := treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"]
+	klog.V(4).Infof("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeMap, volumeID)
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			VolumeId:      treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"], // + "#" + config[MAXFILESYSTEMSIZE],
+			VolumeId:      volumeID,
 			CapacityBytes: capacity,
 			VolumeContext: treeqVolumeMap,
 			ContentSource: req.GetVolumeContentSource(),
@@ -79,7 +67,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, size string, err error) {
 	volproto := strings.Split(volumeID, "#")
-	// TODO jeff, this seems to only ever have 2 parameters NOT 3
+	// TODO this seems to only ever have 2 parameters NOT 3
 	if len(volproto) != 2 {
 		err = fmt.Errorf("volume Id %s and other details not found", volumeID)
 		return 0, 0, "", err
@@ -95,7 +83,7 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, size string, er
 		return 0, 0, "", err
 	}
 
-	// TODO jeff, I commented this out and provided a default of 0, seems to not be implemented later on
+	// TODO commented this out and provided a default of 0, seems to not be implemented later on
 	//size = volproto[2]
 	size = ""
 	return filesystemID, treeqID, size, nil

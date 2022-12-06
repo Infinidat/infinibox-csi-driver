@@ -130,7 +130,7 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 	export BLAME_MACHINE=$$(hostname); \
 	export BLAME_USER=$${USER}; \
 	echo "Building CSI driver image [$(_DOCKER_IMAGE_TAG)] from commit [$$HEAD]"; \
-	docker build -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) \
+	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) \
 		--build-arg DOCKER_IMAGE_TAG=$(_DOCKER_IMAGE_TAG) \
 		--build-arg VCS_REF=$$HEAD \
 		--build-arg BLAME_MACHINE=$$BLAME_MACHINE \
