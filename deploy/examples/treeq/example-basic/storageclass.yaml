@@ -11,8 +11,8 @@ mountOptions:
   - rsize=1048576
   - wsize=1048576
 parameters: 
-    pool_name: treeq_bug2
-    network_space: nsnas
+    pool_name: testpool
+    network_space: NAS
     provision_type: THIN
     storage_protocol: nfs_treeq
     fs_prefix: csit_

@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -123,6 +125,7 @@ func (filesystem *FilesystemService) checkTreeqName(FileSystemArry []api.FileSys
 
 // IsTreeqAlreadyExist check the treeq exist or not
 func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_space, pVName string) (treeqVolume map[string]string, err error) {
+	klog.V(4).Infof("IsTreeqAlreadyExist called pool %s netspace %s pVName %s", pool_name, network_space, pVName)
 	treeqVolume = make(map[string]string)
 	poolID, err := filesystem.cs.api.GetStoragePoolIDByName(pool_name)
 	if err != nil {
@@ -132,6 +135,7 @@ func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_spac
 	filesystem.poolID = poolID
 	page := 1
 	for {
+		klog.V(4).Infof("IsTreeqAlreadyExist looking for file systems page %d", page)
 		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(poolID, page)
 		if poolErr != nil {
 			klog.Errorf("failed to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
@@ -139,12 +143,16 @@ func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_spac
 			return
 		}
 		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
+			klog.V(4).Infof("IsTreeqAlreadyExist no file systems for this pool found")
 			return
 		}
+		klog.V(4).Infof("IsTreeqAlreadyExist checking pv %s ", pVName)
 		treeqData := filesystem.checkTreeqName(fsMetaData.FileSystemArry, pVName)
 		if treeqData != nil {
+			klog.V(4).Infof("treeq %s found to already exist", pVName)
 			exportErr := filesystem.getExportPath(treeqData.FilesystemID) // fetch export path and set to filesystem exportPath
 			if exportErr != nil {
+				klog.Errorf("error getting export path %v", exportErr)
 				err = exportErr
 			}
 			ipAddress, networkErr := filesystem.cs.getNetworkSpaceIP(network_space)
@@ -158,14 +166,17 @@ func (filesystem *FilesystemService) IsTreeqAlreadyExist(pool_name, network_spac
 			treeqVolume["TREEQID"] = strconv.FormatInt(treeqData.ID, 10)
 			treeqVolume["ipAddress"] = filesystem.ipAddress
 			treeqVolume["volumePath"] = path.Join(filesystem.exportpath, treeqData.Path)
+			klog.V(4).Infof("IsTreeqAlreadyExist copied treeqVolume %v", treeqVolume)
 			return
 		}
 		// inner for loop closed
 		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
+			klog.V(4).Infof("IsTreeqAlreadyExist no more pages")
 			break
 		}
 		page++ // check the file system on next page
 	} // outer for loop closed
+	klog.V(4).Infof("IsTreeqAlreadyExist existing treeq not found")
 	return
 }
 

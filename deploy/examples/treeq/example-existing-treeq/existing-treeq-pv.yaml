@@ -3,7 +3,7 @@ kind: PersistentVolume
 metadata:
   annotations:
     pv.kubernetes.io/provisioned-by: infinibox-csi-driver 
-  name: csi-eba52ccb100  
+  name: existing-treeq-pv
 spec:
   accessModes:
   - ReadWriteMany
@@ -16,23 +16,20 @@ spec:
     controllerPublishSecretRef:
       name: infinibox-creds
       namespace: infi
-    driver: infinibox-csi-driver
     nodePublishSecretRef:
       name: infinibox-creds
       namespace: infi
     nodeStageSecretRef:
       name: infinibox-creds
       namespace: infi
+    driver: infinibox-csi-driver
     volumeAttributes:
-      ID: "20430"
-      TREEQID: "20001"
-      ipAddress: 172.17.35.42
-      storage.kubernetes.io/csiProvisionerIdentity: 1583835085125-8081-infinibox-csi-driver
+      ipAddress: 172.31.32.158
       storage_protocol: nfs_treeq
-      volumePath: /csit_45e7bfda30/csi-eba52ccb100
-    volumeHandle: 20430#20001#10gib$$nfs_treeq
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: ibox-treeq-storageclass-demo
+      volumePath: /csit_cc3681284b/other-treeq
+    volumeHandle: 94199058#20009$$nfs_treeq
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ibox-treeq-storageclass-demo-retain
   volumeMode: Filesystem
   mountOptions:
     - hard

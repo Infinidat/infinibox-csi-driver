@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -76,30 +78,13 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	pvName := req.GetName()
 
 	klog.V(4).Infof(" csi request parameters %v", config)
-	err = validateStorageClassParameters(map[string]string{
+
+	capacity, err := nfsSanityCheck(req, map[string]string{
 		"pool_name":     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, config)
+	})
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	// TODO: negative validation - eg useCHAP should NOT be specified for nfs
-
-	// TODO: roll this capacity validation into broader controller.go
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
-	if capacity < gib { // INF90
-		capacity = gib
-		klog.Warningf("Volume Minimum capacity should be greater than %d", gib)
-	}
-
-	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
-	// TODO: improve and standardize this across protocols - CSIC-304
-	for _, cap := range req.GetVolumeCapabilities() {
-		if block := cap.GetBlock(); block != nil {
-			msg := fmt.Sprintf("Block access requested for NFS PV %s", pvName)
-			klog.Errorf(msg)
-			return nil, status.Error(codes.InvalidArgument, msg)
-		}
+		return nil, err
 	}
 
 	// Privileged ports only

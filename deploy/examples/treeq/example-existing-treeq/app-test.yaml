@@ -1,0 +1,16 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: existing-treeq-app
+  namespace: infi
+spec:
+  containers:
+    - name: helloworld
+      image: nginx:latest
+      volumeMounts:
+      - mountPath: "/tmp/data"
+        name: ibox-csi-volume
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: existing-treeq

@@ -1,0 +1,17 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: treeq-sticky-pvc-test
+  namespace: infi
+spec:
+  containers:
+    - name: my-frontend
+      image: busybox
+      volumeMounts:
+      - mountPath: "/tmp/data"
+        name: ibox-csi-volume
+      command: [ "sleep", "100" ]    
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: treeq-sticky-pvc

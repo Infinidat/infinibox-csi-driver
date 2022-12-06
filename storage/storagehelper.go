@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -514,4 +516,34 @@ func logPermissions(note, hostTargetPath string) {
 		klog.Errorf("error in doing ls command on %s error is  %s\n", hostTargetPath, err.Error())
 	}
 	klog.V(4).Infof("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
+}
+
+func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string) (capacity int64, err error) {
+	config := req.GetParameters()
+
+	err = validateStorageClassParameters(scParams, config)
+	if err != nil {
+		return capacity, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	capacity = int64(req.GetCapacityRange().GetRequiredBytes())
+	if capacity < gib {
+		capacity = gib
+		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
+	}
+
+	useChap := config["useCHAP"]
+	if useChap != "" {
+		klog.Warningf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
+	}
+
+	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
+	for _, cap := range req.GetVolumeCapabilities() {
+		if block := cap.GetBlock(); block != nil {
+			msg := fmt.Sprintf("Block access requested for %s PV %s", config["storage_protocol"], req.GetName())
+			klog.Errorf(msg)
+			return capacity, status.Error(codes.InvalidArgument, msg)
+		}
+	}
+	return capacity, err
 }
