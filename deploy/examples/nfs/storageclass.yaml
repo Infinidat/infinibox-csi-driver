@@ -26,9 +26,10 @@ parameters:
 
     # InfiniBox configuration
     storage_protocol: nfs
-    network_space: my_nfs_network_space # InfiniBox network space name
-    nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # add node IPs here
-    pool_name: my_nfs_pool # InfiniBox pool name
+    network_space: NAS # InfiniBox network space name
+    # nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # add node IPs here
+    nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # add node IPs here
+    pool_name: nfs-example-pool # InfiniBox pool name
     provision_type: THIN
     ssd_enabled: "true"
 

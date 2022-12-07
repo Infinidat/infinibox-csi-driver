@@ -135,6 +135,7 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 		--build-arg VCS_REF=$$HEAD \
 		--build-arg BLAME_MACHINE=$$BLAME_MACHINE \
 		--build-arg BLAME_USER=$$BLAME_USER \
+		--pull \
 		-f Dockerfile .
 	@# TODO tag cmd needs review.
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)

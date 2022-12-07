@@ -4,7 +4,7 @@ metadata:
   name: ibox-pvc-clone-snapshot-demo
   namespace: infi
 spec:
-  snapshotClassName: ibox-snapshotclass-demo
+  volumeSnapshotClassName: ibox-snapshotclass-demo
   source:
     persistentVolumeClaimName: ibox-pvc-clone-demo
 
