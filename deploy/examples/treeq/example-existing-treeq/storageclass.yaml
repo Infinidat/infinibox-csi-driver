@@ -18,9 +18,6 @@ parameters:
     fs_prefix: csit_
     nfs_export_permissions: "[{'access':'RW','client':'192.168.147.182-192.168.147.185','no_root_squash':true}]"
     ssd_enabled: "true"
-    max_filesystems: "999"
-    max_treeqs_per_filesystem: "20"
-    max_filesystem_size: 30gib
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infi
     csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
@@ -31,3 +28,8 @@ parameters:
     csi.storage.k8s.io/node-publish-secret-namespace: infi
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/controller-expand-secret-namespace: infi
+    # optional parameters
+    # the following parameters can be used to override ibox limits
+    # max_filesystems: "999"
+    # max_treeqs_per_filesystem: "20"
+    # max_filesystem_size: 30gib

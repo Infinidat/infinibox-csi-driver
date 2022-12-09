@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -52,7 +54,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		"max_vols_per_host": `(?i)\A\d+\z`,
 		"useCHAP":           `(?i)\A(none|chap|mutual_chap)\z`,
 		"network_space":     `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, params)
+	}, nil, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

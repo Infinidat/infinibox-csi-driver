@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
+	"math"
 	"path"
 	"strconv"
 	"strings"
@@ -30,12 +31,13 @@ import (
 
 // treeq constants
 const (
-	PROVISIONTYPE          = "provision_type"
+	PROVISIONTYPE = "provision_type"
+	FSPREFIX      = "fs_prefix"
+
+	// optional storage class parameters for treeq
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
 	MAXFILESYSTEMS         = "max_filesystems"
 	MAXFILESYSTEMSIZE      = "max_filesystem_size"
-	//	UNIXPERMISSION         = "nfs_unix_permissions"
-	FSPREFIX = "fs_prefix"
 
 	// Treeq count
 	TREEQCOUNT = "host.k8s.treeqs"
@@ -92,7 +94,7 @@ func getFilesystemService(serviceType string, c commonservice) *FilesystemServic
 type FileSystemInterface interface {
 	CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (map[string]string, error)
 	DeleteTreeqVolume(filesystemID, treeqID int64) error
-	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error
+	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxFileSystemSize string) error
 	IsTreeqAlreadyExist(pool_name, network_space, pVName string) (treeqVolume map[string]string, err error)
 }
 
@@ -187,6 +189,25 @@ func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize i
 		err = errors.New("Request treeq size is greater than allowed max_filesystem_size")
 		return
 	}
+
+	maxTreeqPerFS, err := filesystem.cs.api.GetMaxTreeqPerFs()
+	if err != nil {
+		klog.Errorf("error getting ibox %s limit %s", MAXTREEQSPERFILESYSTEM, err.Error())
+		return nil, err
+	}
+
+	// check for the storage class parameter is going to override
+	v := filesystem.configmap[MAXTREEQSPERFILESYSTEM]
+	if v != "" {
+		// use the storage class value
+		maxTreeqPerFS, err = strconv.Atoi(v)
+		if err != nil {
+			klog.Errorf("error converting %s storage class parameter %s", MAXTREEQSPERFILESYSTEM, err.Error())
+			return nil, err
+		}
+	}
+	klog.V(4).Infof("%s limit being used %d\n", MAXTREEQSPERFILESYSTEM, maxTreeqPerFS)
+
 	page := 1
 	for {
 		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(filesystem.poolID, page)
@@ -207,7 +228,7 @@ func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize i
 					err = errors.New("failed to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
 					return
 				}
-				if treeqCnt < filesystem.getAllowedCount(MAXTREEQSPERFILESYSTEM) {
+				if treeqCnt < maxTreeqPerFS {
 					filesystem.treeqCnt = treeqCnt
 					klog.V(4).Infof("filesystem found to create treeQ,filesystemID %d", fs.ID)
 					exportErr := filesystem.getExportPath(fs.ID) // fetch export path and set to filesystem exportPath
@@ -264,10 +285,16 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	}
 	filesystem.poolID = poolID
 
-	maxFileSystemSize, err := filesystem.maxFileSize()
-	if err != nil {
-		klog.Errorf(err.Error())
-		return
+	var maxFileSystemSize int64
+	scMaxFileSystemSize := config[MAXFILESYSTEMSIZE]
+	if scMaxFileSystemSize == "" {
+		// use the max int64 value which effively lets the ibox enforce any file system size limits
+		maxFileSystemSize = math.MaxInt64
+	} else {
+		maxFileSystemSize, err = convertToByte(scMaxFileSystemSize)
+		if err != nil {
+			klog.Errorf("failed to convert storage class parameter %s value %s to byte", MAXFILESYSTEMSIZE, scMaxFileSystemSize)
+		}
 	}
 
 	var filesys *api.FileSystem
@@ -409,17 +436,26 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 }
 
 func (filesystem *FilesystemService) createFileSystem() (err error) {
-	fileSystemCnt, err := filesystem.cs.api.GetFileSystemCountByPoolID(filesystem.poolID)
-	if err != nil {
-		klog.Errorf("failed to get the filesystem count from Ibox %v", err)
-		return
-	}
-	if fileSystemCnt >= filesystem.getAllowedCount(MAXFILESYSTEMS) {
-		klog.V(4).Infof("Max filesystem allowed on Pool %v", filesystem.getAllowedCount(MAXFILESYSTEMS))
-		klog.V(4).Infof("Current filesystem count on Pool %v", fileSystemCnt)
-		klog.Errorf("Ibox not allowed to create new file system")
-		err = errors.New("Ibox not allowed to create new file system")
-		return
+
+	v := filesystem.configmap[MAXFILESYSTEMS]
+	if v != "" {
+		// storage class has specified the max_filesystems parameter
+		fileSystemCnt, err := filesystem.cs.api.GetFileSystemCountByPoolID(filesystem.poolID)
+		if err != nil {
+			klog.Errorf("failed to get the filesystem count from ibox %v", err)
+			return err
+		}
+		allowedCnt, err := strconv.Atoi(v)
+		if err != nil {
+			klog.Errorf("failed to convert the storage class parameter %s %s", MAXFILESYSTEMS, err.Error())
+			return err
+
+		}
+		if fileSystemCnt >= allowedCnt {
+			errMsg := fmt.Sprintf("storage class %s parameter limit is reached (%d), can't create new file system", MAXFILESYSTEMS, allowedCnt)
+			klog.Errorf(errMsg)
+			return errors.New(errMsg)
+		}
 	}
 	ssdEnabled := filesystem.configmap["ssd_enabled"]
 	if ssdEnabled == "" {
@@ -474,42 +510,22 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 	return
 }
 
-func getDefaultValues() map[string]string {
-	defaultConfigMap := make(map[string]string)
-	defaultConfigMap[PROVISIONTYPE] = "thin"
-	defaultConfigMap[MAXTREEQSPERFILESYSTEM] = "1000"
-	defaultConfigMap[MAXFILESYSTEMS] = "1000"
-	defaultConfigMap[MAXFILESYSTEMSIZE] = "100tib"
-	// defaultConfigMap[UNIXPERMISSION] = "750"
-	return defaultConfigMap
-}
-
-func (filesystem *FilesystemService) getAllowedCount(key string) int {
-	var allowedCnt int
-	if _, ok := filesystem.configmap[key]; ok {
-		allowedCnt, err := strconv.Atoi(filesystem.configmap[key])
-		if err == nil {
-			return allowedCnt
-		}
-	}
-	defaultConfigMap := getDefaultValues()
-	val := defaultConfigMap[key]
-	allowedCnt, _ = strconv.Atoi(val)
-	return allowedCnt
-}
-
+/**
 func (filesystem *FilesystemService) maxFileSize() (sizeInByte int64, err error) {
 	if maxfilesize, ok := filesystem.configmap[MAXFILESYSTEMSIZE]; ok {
 		sizeInByte, err = convertToByte(maxfilesize)
 		if err != nil {
-			klog.Errorf("failed to convert MAXFILESYSTEMSIZE %s to byte", maxfilesize)
+			klog.Errorf("failed to convert storage class parameter %s value %s to byte", MAXFILESYSTEMSIZE, maxfilesize)
 		}
+		klog.V(4).Infof("using storage class %s parameter for max file size %s\n", MAXFILESYSTEMSIZE, maxfilesize)
 		return
 	}
-	defaultSize := getDefaultValues()[MAXFILESYSTEMSIZE]
+	defaultSize := "100tib"
 	sizeInByte, err = convertToByte(defaultSize)
+	klog.V(4).Infof("using csi driver built-in value %s for max file size %s\n", MAXFILESYSTEMSIZE, defaultSize)
 	return
 }
+*/
 
 func convertToByte(size string) (bytes int64, err error) {
 	sizeUnits := make(map[string]int64)
@@ -654,8 +670,8 @@ func (filesystem *FilesystemService) UpdateTreeqCnt(fileSystemID int64, action A
 	return
 }
 
-// UpdateTreeqVolume Upadate volume size method
-func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) (err error) {
+// UpdateTreeqVolume Update volume size method
+func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxFileSystemSize string) (err error) {
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("failed to update treeq " + fmt.Sprint(res))
@@ -690,22 +706,22 @@ func (filesystem *FilesystemService) UpdateTreeqVolume(filesystemID, treeqID, ca
 
 	needToIncreaseSize := capacity - treeq.HardCapacity
 	if totalTreeqSize+needToIncreaseSize > fileSystemResponse.Size {
-		configMap := make(map[string]string)
-		configMap[MAXFILESYSTEMSIZE] = maxSize
-		filesystem.configmap = configMap
-		// Get Maximum filesystem size
-		maxFileSystemSize, err := filesystem.maxFileSize()
-		if err != nil {
-			klog.Errorf(err.Error())
-			return err
-		}
-
 		var fileSys api.FileSystem
 		freeSpace := fileSystemResponse.Size - totalTreeqSize
 		increaseFileSizeBy := needToIncreaseSize - freeSpace
 		fileSys.Size = fileSystemResponse.Size + increaseFileSizeBy
-		if fileSys.Size > maxFileSystemSize {
-			return status.Error(codes.PermissionDenied, "expansion capacity not allowed")
+
+		// check to see if storage class has max file system size parameter set, if so, enforce the limit
+		if maxFileSystemSize != "" {
+			klog.V(2).Infof("peforming max file system size limit check using storage class parameter %s", maxFileSystemSize)
+			maxFileSystemSizeInBytes, err := convertToByte(maxFileSystemSize)
+			if err != nil {
+				klog.Errorf("failed to convert storage class parameter %s value %s to byte count", MAXFILESYSTEMSIZE, maxFileSystemSize)
+				return err
+			}
+			if fileSys.Size > maxFileSystemSizeInBytes {
+				return status.Error(codes.PermissionDenied, "expansion capacity not allowed")
+			}
 		}
 
 		// Expand file system size
