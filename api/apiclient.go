@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package api
 
 import (
@@ -83,6 +85,8 @@ type Client interface {
 	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
 	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
 	GetFileSystemCountByPoolID(poolID int64) (int, error)
+	GetMaxTreeqPerFs() (int, error)
+	GetMaxFileSystems() (int, error)
 	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 }
 
@@ -714,8 +718,10 @@ func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, erro
 }
 
 // **************************************************Util Methods*********************************************
-//                                   generic methods to do reset called
-//                                   consume by other method intent to do rese calls
+//
+//	generic methods to do reset called
+//	consume by other method intent to do rese calls
+//
 // **************************************************Util Methods*********************************************
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
 	klog.V(2).Infof("Request made for method: %s and apiuri %s", method, apiuri)

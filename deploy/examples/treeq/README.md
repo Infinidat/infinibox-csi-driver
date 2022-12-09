@@ -9,10 +9,14 @@ change the following parameters to suit your ibox configuration:
 - pool_name
 - network_space
 - nfs_export_permissions
+- namespace
+
+Optionally, you can override ibox limits by setting the following storage class parameters:
+
 - max_filesystems
 - max_treeqs_per_filesystem
 - max_filesystem_size
-- namespace
+
 
 Next, create the storage class:
 
@@ -85,6 +89,8 @@ of the volumeHandle and volume path that was used for the PV:
 
 The output will have volumePath and volumeHandle parameter values:
 
+      ID: "94199057"
+      TREEQID: "20001"
       gid: ""
       ipAddress: 172.31.32.158
       storage.kubernetes.io/csiProvisionerIdentity: 1669928558050-8081-infinibox-csi-driver
@@ -119,6 +125,8 @@ Next, lets create another PV that maps to the same treeq as used above, for this
 we will edit the sticky-treeq-pv.yaml file and update the PV parameters as follows:
 
         volumeAttributes:
+        ID: "94199057"
+        TREEQID: "20001"
         ipAddress: 172.31.32.158
         storage.kubernetes.io/csiProvisionerIdentity: 1583835085125-8081-infinibox-csi-driver
         storage_protocol: nfs_treeq
@@ -175,13 +183,17 @@ In the PV manifest, you'll need to change the following values to match
 what treeq and file system you want to use:
 
     volumeAttributes:
+      ID: "94199058"
+      TREEQID: "20009"
       ipAddress: 172.31.32.158
       storage.kubernetes.io/csiProvisionerIdentity: 1583835085125-8081-infinibox-csi-driver
       storage_protocol: nfs_treeq
       volumePath: /csit_cc3681284b/other-treeq
     volumeHandle: 94199058#20009$$nfs_treeq
 
-In this example, the file system is **csit_cc3681284b** and the treeq is **other-treeq**.  The **ipAddress** is unique to your ibox network.
+In this example, the file system is **csit_cc3681284b** and the treeq is **other-treeq**.
+I've given the ID and TREEQID values that are unique, but those values are also
+in the **volumeHandle** parameter.  The **ipAddress** is unique to your ibox network.
 
 Next, create a PVC that maps to the PV you just created:
 

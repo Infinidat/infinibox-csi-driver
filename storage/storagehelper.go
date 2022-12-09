@@ -240,7 +240,7 @@ func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
 	return sizeinByte, nil
 }
 
-func validateStorageClassParameters(requiredStorageClassParams map[string]string, providedStorageClassParams map[string]string) error {
+func validateStorageClassParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string) error {
 	// Loop through and check required parameters only, consciously ignore parameters that aren't required
 	badParamsMap := make(map[string]string)
 	for param, required_regex := range requiredStorageClassParams {
@@ -250,6 +250,14 @@ func validateStorageClassParameters(requiredStorageClassParams map[string]string
 			}
 		} else {
 			badParamsMap[param] = "Parameter required but not provided"
+		}
+	}
+
+	for param, required_regex := range optionalSCParameters {
+		if param_value, ok := providedStorageClassParams[param]; ok {
+			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
+				badParamsMap[param] = "Optional input parameter " + param_value + " didn't match expected pattern " + required_regex
+			}
 		}
 	}
 
@@ -518,10 +526,10 @@ func logPermissions(note, hostTargetPath string) {
 	klog.V(4).Infof("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
 }
 
-func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string) (capacity int64, err error) {
+func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, optionalParams map[string]string) (capacity int64, err error) {
 	config := req.GetParameters()
 
-	err = validateStorageClassParameters(scParams, config)
+	err = validateStorageClassParameters(scParams, optionalParams, config)
 	if err != nil {
 		return capacity, status.Error(codes.InvalidArgument, err.Error())
 	}

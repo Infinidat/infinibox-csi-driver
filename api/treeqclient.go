@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package api
 
 import (
@@ -241,4 +243,58 @@ func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*T
 		}
 	}
 	return nil, errors.New("treeq with given name not found")
+}
+
+// GetMaxTreeqPerFs method return the maximum number of treeqs allowed in a file system
+func (c *ClientService) GetMaxTreeqPerFs() (int, error) {
+	type ParameterResult struct {
+		Result struct {
+			NasTreeqMaxCountPerFilesystem int `json:"nas.treeq_max_count_per_filesystem"`
+		} `json:"result"`
+		Error    interface{} `json:"error"`
+		Metadata struct {
+			Ready bool `json:"ready"`
+		} `json:"metadata"`
+	}
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("get treeq size Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	uri := "api/rest/config/limits?fields=nas.treeq_max_count_per_filesystem"
+	queryResult := ParameterResult{}
+	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &queryResult)
+	if err != nil {
+		klog.Errorf("error occured while fetching treeq max parameter : %s ", err)
+		return 0, err
+	}
+	return queryResult.Result.NasTreeqMaxCountPerFilesystem, nil
+}
+
+// GetMaxFileSystems method return the maximum number of file systems allowed on an ibox
+func (c *ClientService) GetMaxFileSystems() (int, error) {
+	type ParameterResult struct {
+		Result struct {
+			NasMaxFilesystemsInSystem int `json:"nas.max_filesystems_in_system"`
+		} `json:"result"`
+		Error    interface{} `json:"error"`
+		Metadata struct {
+			Ready bool `json:"ready"`
+		} `json:"metadata"`
+	}
+	var err error
+	defer func() {
+		if res := recover(); res != nil && err == nil {
+			err = errors.New("get max file systems size Panic occured -  " + fmt.Sprint(res))
+		}
+	}()
+	uri := "api/rest/config/limits?fields=nas.max_filesystems_in_system"
+	queryResult := ParameterResult{}
+	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &queryResult)
+	if err != nil {
+		klog.Errorf("error occured while fetching max filesystems parameter : %s ", err)
+		return 0, err
+	}
+	return queryResult.Result.NasMaxFilesystemsInSystem, nil
 }

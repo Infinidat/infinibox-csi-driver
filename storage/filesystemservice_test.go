@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -64,6 +66,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FileSystemByPo
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(nil, expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 	service := FilesystemService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID(1000)
 	assert.NotNil(suite.T(), err, "empty object")
@@ -77,6 +80,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeq
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 	service := FilesystemService{cs: *suite.cs, capacity: 100}
 	_, err := service.getExpectedFileSystemID(9999990)
 	assert.NotNil(suite.T(), err, "empty object")
@@ -89,6 +93,7 @@ func (suite *FileSystemServiceSuite) Test_getExpectedFileSystemID_Success() {
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", mock.Anything, mock.Anything).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(1, nil)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
 	exportResp := getExportResponse()
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
@@ -121,6 +126,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_Success() {
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(1, nil)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
 	exportResp := getExportResponse()
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
