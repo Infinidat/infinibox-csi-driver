@@ -1,0 +1,72 @@
+##@ Logging
+.PHONY: _get-ns
+_get-ns:  ## Get all namespace objects.
+	@$(_cli) get sc,pvc,pv,po \
+		2>&1 | egrep -E -v 'rancher.io'
+	@$(_cli) get volumesnapshotclass,volumesnapshot,volumesnapshotcontent \
+		2>&1 | egrep -E -v 'rancher.io'
+	@echo
+	@echo "=== helm releases ==="
+	@$(_helm) list
+
+.PHONY: watch-ns
+watch-ns:  ## Watch all namespace objects.
+	@$(_watch) $(_make) _get-ns
+
+_k3s-follow-node-container-log:
+	@# Find the name of the $(_helm_release)-$$container-NNNNN pod. Follow its logs.
+	@# For convenience, loop forever when kubectl exits, usually because pod bounced.
+	@# Find and delete zero length node logs.
+	@# | tee $${log_dir}/node-pod-log_$$(date +%y-%m-%d_%H-%M-%S);
+	@while true; do \
+		pod=$$($(_cli) get pod --field-selector spec.nodeName=$$(hostname) -o json \
+			| awk '/"name": ".*node-....."/ {print $$2}' \
+			| sed 's?[",]??g') && \
+		echo && echo "Following logs for [$(_namespace)/$${pod} $${container}]" && echo && \
+		$(_cli) logs --follow $${pod} $${container}; \
+		sleep 1; \
+	done
+
+_k3s-follow-driver-container-log:
+	@# For convenience, loop forever when kubectl exits, usually because pod bounced.
+	@# Colorize warnings and errors.
+	@# | tee $${log_dir}/driver-$${container}}-log_$$(date +%y-%m-%d_%H-%M-%S);
+	@while true; do \
+		pod=$(_helm_release)-driver-0; \
+		echo && echo "Following logs for [$(_namespace)/$${pod} $${container}]. " && echo && \
+		$(_cli) logs --follow $${pod} $${container} | grep --extended-regexp --color=auto "^E.*|^W.*|"; \
+		sleep 1; \
+	done
+
+follow-node-driver-log:  ## Follow the CSI node log.
+	@container=driver        $(_make) _k3s-follow-node-container-log
+follow-node-registrar-log:  ## Follow the registrar log.
+	@container=registrar     $(_make) _k3s-follow-node-container-log
+follow-driver-attacher-log:  ## Follow the attacher log.
+	@container=attacher      $(_make) _k3s-follow-driver-container-log
+follow-driver-driver-log:  ## Follow the CSI driver log.
+	@container=driver        $(_make) _k3s-follow-driver-container-log
+follow-driver-provisioner-log:  ## Follow the provisioner log.
+	@container=provisioner   $(_make) _k3s-follow-driver-container-log
+follow-driver-resizer-log:  ## Follow the resizer log.
+	@container=resizer       $(_make) _k3s-follow-driver-container-log
+follow-driver-snapshotter-log:  ## Follow the snapshotter log.
+	@container=snapshotter   $(_make) _k3s-follow-driver-container-log
+
+.PHONY: follow-snapshot-controller-log
+follow-snapshot-controller-log:  ## Follow the snapshot controller log.
+	$(_k) logs --follow $(_helm_release)-snapshot-controller-0
+
+##@ Infinishell
+.PHONY: infinishell-events
+infinishell-events:  ## Follow the ibox event log by leveraging infinishell CLI.
+	@# Cannot use Makefile-help's _infinishell and get the --cmd to work since _IBOX_HOSTNAME must come last.
+	@echo -e $(_begin)
+	@INF_CMD="event.watch username=$(_IBOX_USERNAME) exclude=USER_LOGGED_OUT,USER_LOGIN_SUCCESS,USER_SESSION_EXPIRED tail_length=35"; \
+	TERM=xterm; \
+	infinishell --user "$(_IBOX_USERNAME)" --password "$(_IBOX_PASSWORD)" --cmd "$$INF_CMD" "$(_IBOX_HOSTNAME)"
+	@echo -e $(_finish)
+
+.PHONY: infinishell
+infinishell:  ## Start an infinishell.
+	@$(_infinishell)

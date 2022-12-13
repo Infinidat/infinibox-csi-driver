@@ -1,0 +1,17 @@
+_namespace = infi
+# _namespace = infinibox-operator-system
+_helm_release = infiniboxcsidriver-sample
+_private_docker_reg = git.infinidat.com:4567 
+
+_enable_snapshot_controller_chart = true
+_namespace_snapshot_controller = $(_namespace)
+_helm_release_snapshot_controller = snap-release
+_helm_chart_snapshot_controller_src_dir: ./charts/snapshot-controller
+_helm_chart_src_dir = $(_csi_driver_src_path)/deploy/helm/infinibox-csi-driver
+
+_IBOX_HOSTNAME=172.31.64.153
+_IBOX_USERNAME=k8s-pool-admin
+_IBOX_PASSWORD=123456
+_IBOX_NFS_POOL=nfs-example-pool
+
+_USE_COLOR ?= true

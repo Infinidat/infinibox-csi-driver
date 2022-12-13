@@ -5,7 +5,7 @@ metadata:
   namespace: infi
 spec:
   containers:
-    - name: my-frontend
+    - name: my-busybox
       image: busybox
       volumeMounts:
       - mountPath: "/tmp/data"

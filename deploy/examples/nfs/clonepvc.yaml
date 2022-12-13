@@ -5,7 +5,7 @@ metadata:
     namespace: infi
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   storageClassName: ibox-nfs-storageclass-demo
   resources:
     requests:

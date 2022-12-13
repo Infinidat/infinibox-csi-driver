@@ -7,4 +7,3 @@ spec:
   volumeSnapshotClassName: ibox-snapshotclass-demo
   source:
     persistentVolumeClaimName: ibox-pvc-demo
-
