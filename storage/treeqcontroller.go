@@ -87,6 +87,7 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, err error) {
 }
 
 func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	klog.V(2).Infof("DeleteVolume called on volume ID %s", req.GetVolumeId())
 	if len(req.GetVolumeId()) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
 	}
