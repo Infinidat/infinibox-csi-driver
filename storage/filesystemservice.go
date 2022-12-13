@@ -510,23 +510,6 @@ func (filesystem *FilesystemService) createExportPath() (err error) {
 	return
 }
 
-/**
-func (filesystem *FilesystemService) maxFileSize() (sizeInByte int64, err error) {
-	if maxfilesize, ok := filesystem.configmap[MAXFILESYSTEMSIZE]; ok {
-		sizeInByte, err = convertToByte(maxfilesize)
-		if err != nil {
-			klog.Errorf("failed to convert storage class parameter %s value %s to byte", MAXFILESYSTEMSIZE, maxfilesize)
-		}
-		klog.V(4).Infof("using storage class %s parameter for max file size %s\n", MAXFILESYSTEMSIZE, maxfilesize)
-		return
-	}
-	defaultSize := "100tib"
-	sizeInByte, err = convertToByte(defaultSize)
-	klog.V(4).Infof("using csi driver built-in value %s for max file size %s\n", MAXFILESYSTEMSIZE, defaultSize)
-	return
-}
-*/
-
 func convertToByte(size string) (bytes int64, err error) {
 	sizeUnits := make(map[string]int64)
 	sizeUnits["gib"] = gib
@@ -555,14 +538,6 @@ func (filesystem *FilesystemService) getTreeParameters() map[string]interface{} 
 	return treeqParameter
 }
 
-// func (filesystem *FilesystemService) getTreeModePermission() string {
-// 	if unixPermission, ok := filesystem.configmap[UNIXPERMISSION]; ok {
-// 		return unixPermission
-// 	}
-// 	values := getDefaultValues()
-// 	return values[UNIXPERMISSION]
-// }
-
 func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 	exportResponse, exportErr := filesystem.cs.api.GetExportByFileSystem(filesystemID)
 	if exportErr != nil {
@@ -576,13 +551,9 @@ func (filesystem *FilesystemService) getExportPath(filesystemID int64) error {
 	return nil
 }
 
-func isTreeQEmpty(treeq api.Treeq) bool {
-	return treeq.UsedCapacity <= 0
-}
-
 var deleteMutex sync.Mutex
 
-// DeleteNFSVolume delete volume method
+// DeleteTreeqVolume delete volume method
 func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
 	defer func() {
 		if res := recover(); res != nil {
@@ -590,7 +561,7 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 			return
 		}
 	}()
-	// 1.treeq exist or not checked
+	// 1. treeq exist or not checked
 	var treeq *api.Treeq
 	treeq, err = filesystem.cs.api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
@@ -602,14 +573,14 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 		return
 	}
 
-	// 2.if treeq has usedcapacity >0 then..
-	if !isTreeQEmpty(*treeq) {
+	// 2. if treeq has usedcapacity >0 then..
+	if treeq.UsedCapacity > 0 {
 		klog.Errorf("Can't delete NFS-treeq PV with data")
 		err = errors.New("can't delete NFS-treeq PV with data")
 		return
 	}
 
-	// 3 first decremnt the treeq count to recover
+	// 3. first decrement the treeq count to recover
 	// In case of 1 - we are deleting the file system,
 	deleteMutex.Lock()
 	defer deleteMutex.Unlock()
@@ -630,7 +601,7 @@ func (filesystem *FilesystemService) DeleteTreeqVolume(filesystemID, treeqID int
 	}
 
 	// 5.Delete file system if all treeq are delete
-	if treeqCnt == 0 { // measn all tree are delete. then delete the complete filesystem with exportPath ,metadata..etc
+	if treeqCnt == 0 { // means all tree are delete. then delete the complete filesystem with exportPath ,metadata..etc
 		err = filesystem.cs.api.DeleteFileSystemComplete(filesystemID)
 		if err != nil {
 			klog.Errorf("failed to delete filesystem filesystemID %d error %v", filesystemID, err)
