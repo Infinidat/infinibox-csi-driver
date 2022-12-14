@@ -4,16 +4,23 @@ go 1.15
 
 require (
 	bou.ke/monkey v1.0.2
+	github.com/Microsoft/go-winio v0.6.0 // indirect
+	github.com/Microsoft/hcsshim v0.9.5 // indirect
 	github.com/container-storage-interface/spec v1.4.0
-	github.com/containerd/containerd v1.4.4
-	github.com/containerd/continuity v0.1.0 // indirect
+	github.com/containerd/cgroups v1.0.4 // indirect
+	github.com/containerd/containerd v1.5.16
 	github.com/go-resty/resty/v2 v2.6.0
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2
-	github.com/google/uuid v1.2.0 // indirect
+	github.com/moby/sys/mountinfo v0.6.2 // indirect
 	github.com/rexray/gocsi v1.2.2
-	github.com/stretchr/testify v1.7.0
-	google.golang.org/grpc v1.27.1
-	google.golang.org/protobuf v1.26.0
+	github.com/sirupsen/logrus v1.9.0 // indirect
+	github.com/stretchr/testify v1.8.1
+	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/tools v0.4.0 // indirect
+	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37 // indirect
+	google.golang.org/grpc v1.51.0
+	google.golang.org/protobuf v1.28.1
 	k8s.io/api v0.21.0
 	k8s.io/apimachinery v0.21.1-rc.0
 	k8s.io/client-go v0.21.0
@@ -74,3 +81,5 @@ replace k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.21.0
 replace k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.21.0
 
 replace k8s.io/sample-controller => k8s.io/sample-controller v0.21.0
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.29.1
