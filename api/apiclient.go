@@ -773,7 +773,6 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 		}
 		queryString += key + "=" + fmt.Sprintf("%v", val)
 	}
-	klog.V(2).Infof("apiuri %s hostsecret %s queryString %s expectedResp %s\n", apiuri, hostsecret, queryString, expectedResp)
 	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
 	return resp, err
 }
