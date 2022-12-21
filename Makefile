@@ -13,7 +13,7 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.3.0-rc1
+_DOCKER_IMAGE_TAG   = v2.3.0
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG) -X main.goVersion='$$(go version | sed 's/ /_/g')"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
