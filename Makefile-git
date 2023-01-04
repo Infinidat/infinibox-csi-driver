@@ -15,6 +15,7 @@ _test-git-porcelain-clean:
 _test-git-cherry:
 	@# Test that HEAD is pushed to upstream
 	@echo -e $(_begin)
+	@git symbolic-ref --short HEAD || (echo -e "\nError: Must be on a git branch, not headless\n" && false)
 	@test -z "$$(git cherry)" || (echo -e "\nError: Git commit needs to be pushed to origin\n" && false)
 	@echo -e $(_finish)
 
