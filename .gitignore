@@ -19,3 +19,4 @@ infinibox-csi-driver
 *.swo
 *.un~
 Session.vim
+Makefile-vars-git-ignored

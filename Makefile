@@ -6,6 +6,10 @@ ifneq ($(EUID),0)
 	_SUDO = sudo
 endif
 
+# CICD defines _GITLAB_USER, and so should not to include Makefile-vars-git-ignored. This file is not checked in by design.
+ifneq ($(_GITLAB_USER),gitlab-user-name)
+	include Makefile-vars-git-ignored
+endif
 include Makefile-help
 include Makefile-git
 
@@ -13,7 +17,7 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.3.1
+_DOCKER_IMAGE_TAG   = v2.4.0-rc1
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG) -X main.goVersion='$$(go version | sed 's/ /_/g')"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
@@ -214,4 +218,9 @@ docker-rmi-dangling:  ## Remove docker images that are dangling to recover disk 
 	docker rmi $$(docker images -q -f dangling=true)
 	@echo -e $(_finish)
 
-
+.PHONY: docker-push-host-opensource
+docker-push-host-opensource:  ## Push CSI images to host-opensource.
+	@echo -e $(_begin)
+	docker tag  git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver:v$(_version)                        git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
+	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
+	@echo -e $(_finish)
