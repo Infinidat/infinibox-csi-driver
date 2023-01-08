@@ -107,5 +107,4 @@ spec:
       volumes:
         - name: socket-dir
           emptyDir:
-      imagePullSecrets:
-      - name: private-docker-reg-secret
+      imagePullSecrets: []

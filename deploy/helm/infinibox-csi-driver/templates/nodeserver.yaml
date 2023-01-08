@@ -89,5 +89,4 @@ spec:
           hostPath:
             path: /
             type: Directory
-      imagePullSecrets:
-      - name: private-docker-reg-secret
+      imagePullSecrets: []

@@ -4,12 +4,11 @@
 # Most clusters provide this, but if not this chart may be deployed.
 # CodeReadyContainers (CRC) and k3s do not deploy a snapshot-controller.
 
-
 # log level of driver
 verbosity: "5"
 
 # Image paths
 images:
-  imagePullSecret: "private-docker-reg-secret"
+  # imagePullSecret: "private-docker-reg-secret"
   snapshot_controller: "k8s.gcr.io/sig-storage/snapshot-controller:v5.0.0"
   snapshot_controller_pull_policy: "IfNotPresent"
