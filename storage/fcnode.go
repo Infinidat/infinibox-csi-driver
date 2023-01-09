@@ -128,7 +128,6 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	klog.V(4).Infof("NodePublishVolume volumecontext %v", req.GetVolumeContext())
 	klog.V(4).Infof("uid %s gid %s unix_perm %s", req.GetVolumeContext()["uid"], req.GetVolumeContext()["gid"], req.GetVolumeContext()["unix_permissions"])
 	klog.V(4).Infof("NodePublishVolume called with volume ID %s", req.GetVolumeId())
-	helper.CheckMultipath()
 
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {

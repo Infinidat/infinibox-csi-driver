@@ -114,7 +114,6 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		}
 	}()
 	klog.V(2).Infof("NodeStageVolume called with publish context: %s", req.GetPublishContext())
-	helper.CheckMultipath()
 
 	hostIDString := req.GetPublishContext()["hostID"]
 	hostID, err := strconv.Atoi(hostIDString)
@@ -210,7 +209,6 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	klog.V(4).Infof("NodePublishVolume called with volume ID '%s'", req.GetVolumeId())
 	klog.V(4).Infof("NodePublishVolume called with request '%+v'", req)
-	helper.CheckMultipath()
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
@@ -296,7 +294,6 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	}()
 
 	klog.V(4).Infof("NodeUnstageVolume called with volume ID %s", req.GetVolumeId())
-	helper.CheckMultipath()
 
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
@@ -738,8 +735,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 		klog.V(4).Infof("Strip /host from %s", devicePath)
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
-
-		helper.CheckMultipath()
 
 		// Persist here so that even if mount fails, the globalmount metadata json
 		// file will contain an mpath to use during clean up.

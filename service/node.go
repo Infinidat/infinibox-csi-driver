@@ -145,8 +145,6 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
 
-	helper.CheckMultipath()
-
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 	// get operator

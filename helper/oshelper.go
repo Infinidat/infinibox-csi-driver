@@ -89,11 +89,6 @@ func (h Service) Remove(name string) error {
 	return os.Remove(name)
 }
 
-func CheckMultipath() {
-	isToLogOutput := true
-	_, _ = execScsi.Command("multipath", "-ll", isToLogOutput)
-}
-
 // ChownVolume method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
 func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 	// Sanity check values.
