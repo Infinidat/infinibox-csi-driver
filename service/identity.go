@@ -15,7 +15,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"k8s.io/klog"
 )
 
 func (s *service) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
@@ -52,6 +51,5 @@ func (s *service) Probe(ctx context.Context, req *csi.ProbeRequest) (*csi.ProbeR
 	ready.Value = true
 	proberes := new(csi.ProbeResponse)
 	proberes.Ready = ready
-	klog.V(4).Infof("Probe returning: %v", proberes.Ready.GetValue())
 	return proberes, nil
 }

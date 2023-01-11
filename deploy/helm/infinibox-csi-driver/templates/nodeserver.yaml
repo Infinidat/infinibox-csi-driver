@@ -16,7 +16,31 @@ spec:
       serviceAccount: {{ .Release.Name }}-node
       hostNetwork: true
       containers:  
+        - name: liveness-probe
+          image: {{ required "csi liveness sidercar image." .Values.images.livenesssidecar }}
+          imagePullPolicy: {{ .Values.images.livenesssidecar_pull_policy | default "Always" | quote }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/run/csi/csi.sock
+          volumeMounts:
+            - name: driver-path
+              mountPath: /var/run/csi
         - name: driver
+          ports:
+            - containerPort: 9808
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
           securityContext:
             privileged: true
             capabilities:

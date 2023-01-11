@@ -44,6 +44,10 @@ images:
   # https://kubernetes-csi.github.io/docs/external-snapshotter.html
   snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:89e900a160a986a1a7a4eba7f5259e510398fa87ca9b8a729e7dec59e04c7709" # v5.0.1
   snapshottersidecar_pull_policy: "IfNotPresent"
+  # https://kubernetes-csi.github.io/docs/livenessprobe.html
+  livenesssidecar: "k8s.gcr.io/sig-storage/livenessprobe:v2.6.0"
+  livenesssidecar_pull_policy: "IfNotPresent"
+
   # imagePullSecret: "private-docker-reg-secret"
 Infinibox_Cred:
   SecretName: "infinibox-creds"
