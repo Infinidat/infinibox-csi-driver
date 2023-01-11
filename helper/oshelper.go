@@ -22,8 +22,6 @@ import (
 	"k8s.io/klog"
 )
 
-var execScsi ExecScsi
-
 var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
 
 // OsHelper interface
