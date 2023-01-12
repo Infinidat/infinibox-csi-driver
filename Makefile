@@ -17,13 +17,16 @@ _GOCMD              ?= $(shell which go)
 
 # Go parameters.
 # Timestamp go binary. See var compileDate in main.go.
-_DOCKER_IMAGE_TAG   = v2.4.0-rc1
-_GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date --utc +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG) -X main.goVersion='$$(go version | sed 's/ /_/g')"
+_GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date -u +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG) -X main.goVersion='$$(go version | sed 's/ /_/g')"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
 _GOMOD              = $(_GOCMD) mod
 _GOFMT              = gofumpt
 _GOLINT             = golangci-lint
+
+# Docker image tag. Read from env or use default
+_DOCKER_IMAGE_TAG   ?= v2.4.0-rc1
+
 
 _REDHAT_REPO        = scan.connect.redhat.com
 _GITLAB_REPO        = git.infinidat.com:4567
@@ -34,7 +37,16 @@ _art_dir            = artifact
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
-_GITLAB_USER        = dohlemacher
+
+# Developers should set _GITLAB_USER in Makefile-vars-git-ignored
+# For gitlab, _GITLAB_USER needs to be added to Settings -> CI/CD -> Variables in the 
+# developers fork of the project.
+#_GITLAB_USER        ?= abc123
+
+ifndef _GITLAB_USER
+$(error _GITLAB_USER is not set)
+endif
+
 _DOCKER_BASE_IMAGE  = redhat/ubi8:latest
 
 # redhat username and tag
@@ -160,6 +172,8 @@ docker-login-docker:  ## Login to Dockerhub.
 
 .PHONY: docker-push-gitlab
 docker-push-gitlab:  # Tag and push to gitlab.
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
+	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
 	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 .PHONY: docker-push-dockerhub
