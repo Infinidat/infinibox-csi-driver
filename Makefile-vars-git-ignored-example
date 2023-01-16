@@ -1,1 +1,4 @@
 _GITLAB_USER=gitlab-user-name
+
+_TEST_ONE_THING_DIR=storage
+_TEST_ONE_THING=TestISCSIControllerSuite/Test_CreateVolume_content_success

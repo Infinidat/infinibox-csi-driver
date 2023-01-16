@@ -37,16 +37,13 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}()
 
-	klog.V(2).Infof("CreateVolume called to create volume named %s", req.GetName())
-	cr := req.GetCapacityRange()
-	sizeBytes, err := verifyVolumeSize(cr)
+	sizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
+	klog.V(2).Infof("CreateVolume called to create volume named %s of size %d bytes", req.GetName(), sizeBytes)
 	if err != nil {
 		return nil, err
 	}
-	klog.V(2).Infof("requested size in bytes is %d ", sizeBytes)
-
 	params := req.GetParameters()
-	klog.V(2).Infof(" csi request parameters %v", params)
+	klog.V(2).Infof("Requested volume parameters are %v", params)
 
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
@@ -79,7 +76,9 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	targetVol, err := iscsi.cs.api.GetVolumeByName(name)
 	if err != nil {
 		if !strings.Contains(err.Error(), "volume with given name not found") {
-			return nil, status.Errorf(codes.NotFound, "CreateVolume failed: %v", err)
+			msg := fmt.Sprintf("CreateVolume failed: %v", err)
+			klog.Errorf(msg)
+			return nil, status.Errorf(codes.NotFound, msg)
 		}
 	}
 	if targetVol != nil {
@@ -91,15 +90,17 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 				Volume: existingVolumeInfo,
 			}, nil
 		}
-		err = status.Errorf(codes.AlreadyExists, "CreateVolume failed: volume exists but has different size")
-		klog.Errorf("Volume: %s already exists with a different size, %v", name, err)
-		return nil, err
+		msg := fmt.Sprintf("CreateVolume failed: volume %s exists but has different size", name)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.AlreadyExists, msg)
 	}
 
 	networkSpace := params["network_space"]
 	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Error getting network space %s", networkSpace)
+		msg := fmt.Sprintf("Error getting network space %s", networkSpace)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.InvalidArgument, msg)
 	}
 	portals := ""
 	for _, p := range nspace.Portals {
@@ -191,7 +192,7 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRequest, name string, sizeInKbytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
+func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
 	var err error
 	var msg string
 	defer func() {
@@ -211,7 +212,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 		volumeContentID = volumecontent.GetVolume().GetVolumeId()
 	}
 
-	klog.V(4).Infof("+++++ createVolumeFromContentSource called with source ID %s and type %s", volumeContentID, restoreType)
+	klog.V(4).Infof("Called createVolumeFromContentSource with source ID %s, type %s, and size %d B", volumeContentID, restoreType, sizeInBytes)
 
 	// Lookup the snapshot source volume.
 	volproto, err := validateVolumeID(volumeContentID)
@@ -232,10 +233,10 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	}
 
 	// Validate the size is the same.
-	if int64(srcVol.Size) != sizeInKbytes {
-		return nil, status.Errorf(codes.InvalidArgument,
-			restoreType+" %s has incompatible size %d kbytes with requested %d kbytes",
-			volumeContentID, srcVol.Size, sizeInKbytes)
+	if int64(srcVol.Size) != sizeInBytes {
+		msg := fmt.Sprintf("%s %s has incompatible size. Size is %d bytes with requested size %d bytes", restoreType, volumeContentID, srcVol.Size, sizeInBytes)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.InvalidArgument, msg)
 	}
 
 	params := req.GetParameters()
@@ -294,8 +295,9 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	// metadata["host.filesystem_type"] = params["fstype"] // TODO: set this correctly according to what iscsinode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = iscsi.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
-		klog.Errorf("failed to attach metadata for volume : %s, err: %v", dstVol.Name, err)
-		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
+		msg := fmt.Sprintf("failed to attach metadata for volume : %s, err: %v", dstVol.Name, err)
+		klog.Errorf(msg)
+		return nil, status.Errorf(codes.Internal, msg)
 	}
 
 	klog.V(2).Infof("From source %s with ID %d, created volume %s with ID %s in storage pool %s",
@@ -613,7 +615,7 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		}
 	}()
 
-	klog.V(4).Infof("----- ValidateDeleteVolume called (also deletes volume) with ID %d", volumeID)
+	klog.V(4).Infof("ValidateDeleteVolume called (also deletes volume) with ID %d", volumeID)
 
 	vol, err := iscsi.cs.api.GetVolume(volumeID)
 	if err != nil {

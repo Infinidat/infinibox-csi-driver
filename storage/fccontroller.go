@@ -36,8 +36,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 			err = errors.New("Recovered from FC CreateVolume " + fmt.Sprint(res))
 		}
 	}()
-	cr := req.GetCapacityRange()
-	sizeBytes, err := verifyVolumeSize(cr)
+	sizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	if err != nil {
 		return nil, err
 	}

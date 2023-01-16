@@ -6,7 +6,8 @@ ifneq ($(EUID),0)
 	_SUDO = sudo
 endif
 
-# CICD defines _GITLAB_USER, and so should not to include Makefile-vars-git-ignored. This file is not checked in by design.
+# CICD defines _GITLAB_USER and other vars, and so should not to include Makefile-vars-git-ignored.
+# See Makefile-vars-git-ignored for and example. This file is not checked in by design.
 ifneq ($(_GITLAB_USER),gitlab-user-name)
 	include Makefile-vars-git-ignored
 endif
@@ -37,16 +38,6 @@ _art_dir            = artifact
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
-
-# Developers should set _GITLAB_USER in Makefile-vars-git-ignored
-# For gitlab, _GITLAB_USER needs to be added to Settings -> CI/CD -> Variables in the 
-# developers fork of the project.
-#_GITLAB_USER        ?= abc123
-
-ifndef _GITLAB_USER
-$(error _GITLAB_USER is not set)
-endif
-
 _DOCKER_BASE_IMAGE  = redhat/ubi8:latest
 
 # redhat username and tag
@@ -94,11 +85,12 @@ test: build  ## Unit test source.
 .PHONY: test-one-thing
 test-one-thing: build lint  ## Unit test source, but just run one test.
 	@echo -e $(_begin)
-	@export testdir=storage; \
-	export test=TestNodeSuite/Test_updateNfsMountOptions_badNfsVersion; \
-	printf "\nFrom $$testdir, running test $$test\n\n"; \
-	cd "$$testdir" && \
-	$(_GOTEST) -v -run "$$test"
+	printf "\nFrom $(_TEST_ONE_THING_DIR)/, running test $(_TEST_ONE_THING)\n\n"; \
+	sleep 1; \
+	cd "$(_TEST_ONE_THING_DIR)" && \
+	$(_GOTEST) -v -run "$${test:-NO_TEST_DEFINED}" \
+	&&  printf "\nTest passed = From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n" \
+	|| (printf "\nTest failed - From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n"; false)
 	@echo -e $(_finish)
 
 .PHONY: test-find-fails
@@ -110,7 +102,7 @@ test-find-fails:  ## Find and summarize failing tests.
 .PHONY: lint
 lint: build ## Lint source.
 	@echo -e $(_begin)
-	$(_GOLINT) run
+	@$(_GOLINT) run
 	@echo -e $(_finish)
 
 .PHONY: fmt
@@ -240,3 +232,21 @@ docker-push-host-opensource:  ## Push CSI images to host-opensource.
 	docker tag  git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver:v$(_version)                        git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
 	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
 	@echo -e $(_finish)
+
+# Force the _check-make-vars-defined recipe to always run. Verify our make variables have been defined.
+# While Makefile will not usually have changed, its prerequisite will have to run regardless.
+# Do not use .PHONY on the Makefile rule.
+Makefile: _check-make-vars-defined
+
+.PHONY: _check-make-vars-defined
+_check-make-vars-defined:
+	@#Verify our make variables have been defined.
+ifndef _GITLAB_USER
+	$(error _GITLAB_USER is not set)
+endif
+ifndef _TEST_ONE_THING_DIR
+	$(error _TEST_ONE_THING_DIR is not set)
+endif
+ifndef _TEST_ONE_THING
+	$(error _TEST_ONE_THING is not set)
+endif

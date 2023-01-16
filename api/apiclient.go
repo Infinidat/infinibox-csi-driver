@@ -197,11 +197,9 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 			err = errors.New("CreateVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(2).Infof("Create Volume with storagepoolname: %s", storagePoolName)
-
 	path := "/api/rest/volumes"
 	poolID, err := c.GetStoragePoolIDByName(storagePoolName)
-	klog.V(4).Infof("CreateVolume fetched storagepool poolID %d", poolID)
+	klog.V(4).Infof("Creating volume in storage pool named %s (pool ID %d) of size %d bytes", storagePoolName, poolID, volume.VolumeSize)
 	if err != nil {
 		return nil, err
 	}

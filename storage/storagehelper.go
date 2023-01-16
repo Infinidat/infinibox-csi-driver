@@ -208,38 +208,6 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	return nil
 }
 
-func verifyVolumeSize(caprange *csi.CapacityRange) (int64, error) {
-	requiredVolSize := int64(caprange.GetRequiredBytes())
-	allowedMaxVolSize := int64(caprange.GetLimitBytes())
-	if requiredVolSize < 0 || allowedMaxVolSize < 0 {
-		return 0, errors.New("not valid volume size")
-	}
-
-	if requiredVolSize == 0 {
-		requiredVolSize = MinVolumeSize
-	}
-
-	var (
-		sizeinGB   int64
-		sizeinByte int64
-	)
-
-	sizeinGB = requiredVolSize / bytesofGiB
-	if sizeinGB == 0 {
-		klog.V(2).Info("Volume Minimum capacity should be greater 1 GB")
-		sizeinGB = 1
-	}
-
-	sizeinByte = sizeinGB * bytesofGiB
-	if allowedMaxVolSize != 0 {
-		if sizeinByte > allowedMaxVolSize {
-			return 0, errors.New("volume size is out of allowed limit")
-		}
-	}
-
-	return sizeinByte, nil
-}
-
 func validateStorageClassParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string) error {
 	// Loop through and check required parameters only, consciously ignore parameters that aren't required
 	badParamsMap := make(map[string]string)

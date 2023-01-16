@@ -25,9 +25,11 @@ func GetCreateVolumeRequest(name string, parameterMap map[string]string, sourceV
 		}
 	}
 
+	var bytesInOneGibibyte int64 = 1073741824
+
 	return &csi.CreateVolumeRequest{
 		Name:                name,
-		CapacityRange:       &csi.CapacityRange{RequiredBytes: 1000},
+		CapacityRange:       &csi.CapacityRange{RequiredBytes: bytesInOneGibibyte},
 		Parameters:          parameterMap,
 		Secrets:             GetSecret(),
 		VolumeContentSource: volContentSrc,
