@@ -12,11 +12,11 @@ package helper
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api"
-	"strings"
-	"k8s.io/klog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/mock"
+	"infinibox-csi-driver/api"
+	"k8s.io/klog"
+	"strings"
 )
 
 // AccessModesHelper interface
@@ -57,7 +57,7 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
 		return true, nil
 	}
-	
+
 	return false, fmt.Errorf("unsupported access mode for volume '%s' (%s): '%s'", volName, volId, friendlyModeName)
 }
 

@@ -1,12 +1,11 @@
 # vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
-SHELL = /bin/bash
 
 EUID := $(shell id -u -r)
 ifneq ($(EUID),0)
 	_SUDO = sudo
 endif
 
-# CICD defines _GITLAB_USER and other vars, and so should not to include Makefile-vars-git-ignored.
+# CICD defines _GITLAB_USER and other vars, and so CICD should not to include Makefile-vars-git-ignored.
 # See Makefile-vars-git-ignored for and example. This file is not checked in by design.
 ifneq ($(_GITLAB_USER),gitlab-user-name)
 	include Makefile-vars-git-ignored
@@ -22,14 +21,13 @@ _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date -u +
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
 _GOMOD              = $(_GOCMD) mod
-_GOFMT              = gofumpt
+_GOFMT              = gofmt
 _GOLINT             = golangci-lint
 
 # Docker image tag. Read from env or use default
 _DOCKER_IMAGE_TAG   ?= v2.4.0-rc1
 
 
-_REDHAT_REPO        = scan.connect.redhat.com
 _GITLAB_REPO        = git.infinidat.com:4567
 _BINARY_NAME        = infinibox-csi-driver
 _DOCKER_IMAGE       = infinidat-csi-driver
@@ -40,10 +38,6 @@ _art_dir            = artifact
 _DOCKER_USER        = infinidat
 _DOCKER_BASE_IMAGE  = redhat/ubi8:latest
 
-# redhat username and tag
-_REDHAT_DOCKER_USER = dohlemacher2
-_REDHAT_DOCKER_IMAGE_TAG = $(_DOCKER_IMAGE_TAG)
-
 # For Production Build ##################################################################
 ifeq ($(env),prod)
 	_IMAGE_TAG=$(_DOCKER_IMAGE_TAG)
@@ -52,10 +46,6 @@ ifeq ($(env),prod)
 	# For docker.io
 	_DOCKER_USER=infinidat
 	_DOCKER_IMAGE_TAG=$(_IMAGE_TAG)
-
-	# For scan.connect.redhat.com
-	_REDHAT_DOCKER_USER=ospid-956ccd64-1dcf-4d00-ba98-336497448906
-	_REDHAT_DOCKER_IMAGE_TAG=$(_IMAGE_TAG)
 endif
 # For Production Build ##################################################################
 
@@ -83,15 +73,16 @@ test: build  ## Unit test source.
 	@echo -e $(_finish)
 
 .PHONY: test-one-thing
+.ONESHELL:
 test-one-thing: build lint  ## Unit test source, but just run one test.
 	@echo -e $(_begin)
-	printf "\nFrom $(_TEST_ONE_THING_DIR)/, running test $(_TEST_ONE_THING)\n\n"; \
-	sleep 1; \
-	cd "$(_TEST_ONE_THING_DIR)" && \
-	$(_GOTEST) -v -run "$${test:-NO_TEST_DEFINED}" \
-	&&  printf "\nTest passed = From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n" \
-	|| (printf "\nTest failed - From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n"; false)
-	@echo -e $(_finish)
+	printf "\nFrom $(_TEST_ONE_THING_DIR)/, running test $(_TEST_ONE_THING)\n\n"
+	sleep 1
+	cd "$(_TEST_ONE_THING_DIR)"
+		$(_GOTEST) -v -run "$(_TEST_ONE_THING)" \
+		&&  printf "\nTest passed = From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n" \
+		|| (printf "\nTest failed - From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n"; false)
+	echo -e $(_finish)
 
 .PHONY: test-find-fails
 test-find-fails:  ## Find and summarize failing tests.
@@ -100,15 +91,15 @@ test-find-fails:  ## Find and summarize failing tests.
 	@echo -e $(_finish)
 
 .PHONY: lint
-lint: build ## Lint source.
+lint: build  ## Lint source.
 	@echo -e $(_begin)
 	@$(_GOLINT) run
 	@echo -e $(_finish)
 
 .PHONY: fmt
-fmt: build ## Auto-format source
+fmt: build  ## Format and simplify source.
 	@echo -e $(_begin)
-	$(_GOFMT) -w -l .
+	$(_GOFMT) -s -w .
 	@echo -e $(_finish)
 
 .PHONY: modverify
@@ -150,13 +141,6 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 	@# TODO tag cmd needs review.
 	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	@echo -e $(_finish)
-
-.PHONY: docker-build-redhat
-docker-build-redhat: build test  ## Build and tag CSI driver for Red Hat docker repo.
-	docker build -t $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) -f Dockerfile .
-
-.PHONY: docker-build-all
-docker-build-all: docker-build-docker docker-build-redhat  ## Build upstream and Red Hat docker images.
 
 .PHONY: docker-login-docker
 docker-login-docker:  ## Login to Dockerhub.
@@ -204,8 +188,6 @@ docker-image-save: ## Save image to gzipped tar file to _art_dir.
 	mkdir -p $(_art_dir) && \
 	docker save $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) \
 		| gzip > ./$(_art_dir)/$(_DOCKER_IMAGE)_$(_DOCKER_IMAGE_TAG)_docker-image.tar.gz
-	docker save $(_REDHAT_REPO)/$(_REDHAT_DOCKER_USER)/$(_DOCKER_IMAGE):$(_REDHAT_DOCKER_IMAGE_TAG) \
-		| gzip > ./$(_art_dir)/ubi_$(_DOCKER_IMAGE)_$(_REDHAT_DOCKER_IMAGE_TAG)_docker-image.tar.gz
 
 .PHONY: docker-helm-chart-save
 docker-helm-chart-save:  ## Save the helm chart to a tarball in _art_dir.
@@ -228,6 +210,13 @@ docker-rmi-dangling:  ## Remove docker images that are dangling to recover disk 
 
 .PHONY: docker-push-host-opensource
 docker-push-host-opensource:  ## Push CSI images to host-opensource.
+
+.PHONY: version
+version:  ## Show tool versions.
+	@echo -e $(_begin)
+	@$(_GOCMD) version
+	@echo
+	@echo "CSI version $(_DOCKER_IMAGE_TAG)"
 	@echo -e $(_begin)
 	docker tag  git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver:v$(_version)                        git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
 	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
@@ -235,7 +224,7 @@ docker-push-host-opensource:  ## Push CSI images to host-opensource.
 
 # Force the _check-make-vars-defined recipe to always run. Verify our make variables have been defined.
 # While Makefile will not usually have changed, its prerequisite will have to run regardless.
-# Do not use .PHONY on the Makefile rule.
+# Do not use .PHONY on this Makefile rule.
 Makefile: _check-make-vars-defined
 
 .PHONY: _check-make-vars-defined

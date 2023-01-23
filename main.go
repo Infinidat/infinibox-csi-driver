@@ -28,7 +28,7 @@ var gitHash string
 
 // starting method of CSI-Driver
 func main() {
-	defer klog.Flush()  // Flush pending log IO
+	defer klog.Flush() // Flush pending log IO
 	klog.InitFlags(nil)
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("stderrthreshold", "WARNING")

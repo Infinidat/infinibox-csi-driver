@@ -1,3 +1,4 @@
+# vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
 # Use color in Makefiles.
 _USE_COLOR ?= true
 SHELL = bash
@@ -25,10 +26,10 @@ _white    = \033[1;37m
 _reset    = \033[0m
 
 # Customize colors for 'make help'
-_group    = $(_lt_blue)
-_recipe   = $(_orange)
+_group    ?= $(_purple)
+_recipe   ?= $(_green)
 # Customize colors for make recipe begin/finish
-_heading  = $(_yellow)
+_heading  ?= $(_lt_purple)
 
 # Execute commands with consistent options
 _make = make --no-print-directory
@@ -58,7 +59,7 @@ _finish = "$(_heading)$(_LEADER) Completed $@ $(_FOLLOWER)$(_reset)"
 .PHONY: help
 help:  ## Display this help.
 	@echo "$(_purpose)"
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make $(_recipe)<recipe>$(_reset)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "$(_recipe)%-$(_help_padding)s$(_reset) %s\n", $$1, $$2 } /^##@/ { printf "\n$(_group)%s$(_reset)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make $(_recipe)<recipe>$(_reset)\n"} /^[\.a-zA-Z_0-9-]+:.*?##/ { printf "$(_recipe)%-$(_help_padding)s$(_reset) %s\n", $$1, $$2 } /^##@/ { printf "\n$(_group)%s$(_reset)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 .PHONY: color-help
 color-help:  ## Edit Makefile-help to change color schemes.
@@ -83,12 +84,4 @@ gofind:  ## Search project go files using: f='search term' make gofind
 gofindfunc:  ## Search project go files for a func using: f='search term' make gofindfunc
 	@echo -e $(_begin)
 	find . -name "*.go" | xargs grep -n "^func.*$$f" | egrep -v '$(_go_find_ignore)'
-	@echo -e $(_finish)
-
-.PHONY: version
-version:  ## Show tool versions.
-	@echo -e $(_begin)
-	@$(_GOCMD) version
-	@echo
-	@echo "CSI version $(_DOCKER_IMAGE_TAG)"
 	@echo -e $(_finish)
