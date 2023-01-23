@@ -290,12 +290,16 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 		}
 	}()
 
-	err = nfs.createExportPath()
-	if err != nil {
-		klog.Errorf("failed to export path %v", err)
-		return
+	if nfs.configmap["nfs_export_permissions"] == "" {
+		klog.V(4).Info("nfs_export_permissions parameter is not set in the StorageClass, will use default export")
+	} else {
+		err = nfs.createExportPath()
+		if err != nil {
+			klog.Errorf("failed to export path %v", err)
+			return
+		}
+		klog.V(4).Infof("export path created for filesytem: %s", nfs.pVName)
 	}
-	klog.V(4).Infof("export path created for filesytem: %s", nfs.pVName)
 
 	defer func() {
 		if res := recover(); res != nil {
@@ -479,13 +483,21 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	volumeID := req.GetVolumeId()
 	exportID := req.GetVolumeContext()["exportID"]
 
-	klog.V(2).Infof("ControllerPublishVolume() called with volume ID %s and export ID %s", volumeID, exportID)
+	klog.V(2).Infof("ControllerPublishVolume nodeId %s volumeID %s exportID %s nfs_export_permissions %s",
+		req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()["nfs_export_permissions"])
 
 	// TODO: revisit this as part of CSIC-343
 	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	if req.GetVolumeContext()["nfs_export_permissions"] == "" {
+		klog.V(4).Infof("nfs_export_permissions parameter not set, volume ID %s export ID %s", volumeID, exportID)
+		return &csi.ControllerPublishVolumeResponse{}, nil
+	}
+
+	// proceed to create a default export rule using the Node ip address
 
 	exportPermissionMapArray, err := getPermissionMaps(req.GetVolumeContext()["nfs_export_permissions"])
 	if err != nil {
@@ -511,6 +523,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		klog.Errorf("failed to add export rule, %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to add export rule  %s", err)
 	}
+
 	return &csi.ControllerPublishVolumeResponse{}, nil
 }
 

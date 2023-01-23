@@ -94,6 +94,7 @@ type Client interface {
 type ClientService struct {
 	api        client.RestClient
 	SecretsMap map[string]string
+	ConfigMap  map[string]string
 }
 
 // NewClient : Create New Client

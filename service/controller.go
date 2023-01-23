@@ -31,9 +31,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	}()
 
 	// TODO: validate the required parameter
-	configparams := make(map[string]string)
-	configparams["nodeid"] = s.nodeID
-	configparams["driverversion"] = s.driverVersion
 
 	volName := req.GetName()
 	reqParameters := req.GetParameters()
@@ -62,6 +59,11 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		return nil, status.Errorf(codes.InvalidArgument, "VolumeCapabilities invalid: %v", error)
 	}
 	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
+
+	configparams := make(map[string]string)
+	configparams["nodeid"] = s.nodeID
+	configparams["driverversion"] = s.driverVersion
+	configparams["nfs_export_permissions"] = reqParameters["nfs_export_permissions"]
 
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {

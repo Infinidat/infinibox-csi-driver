@@ -13,7 +13,10 @@ package storage
 import (
 	"context"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -40,7 +43,38 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	klog.V(4).Infof("NodePublishVolume targetPath=%s", hostTargetPath)
 
-	_, err := os.Stat(hostTargetPath)
+	tmp := strings.Split(req.GetVolumeId(), "$$")[0]
+	fileSystemId, err := strconv.ParseInt(tmp, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.GetVolumeContext()["nfs_export_permissions"] == "" {
+		nfs.snapdirVisible = false
+		nfs.usePrivilegedPorts = false
+		if req.GetVolumeContext()["snapdir_visible"] != "" {
+			nfs.snapdirVisible, err = strconv.ParseBool(req.GetVolumeContext()["snapdir_visible"])
+			if err != nil {
+				klog.Errorf("error %s", err.Error())
+				return nil, err
+			}
+		}
+		if req.GetVolumeContext()["privileged_ports_only"] != "" {
+			nfs.usePrivilegedPorts, err = strconv.ParseBool(req.GetVolumeContext()["privileged_ports_only"])
+			if err != nil {
+				klog.Errorf("error %s", err.Error())
+				return nil, err
+			}
+		}
+		err = nfs.createExportRule(fileSystemId, req.GetVolumeContext()["nodeID"])
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		klog.V(4).Infof("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()["nfs_export_permissions"])
+	}
+
+	_, err = os.Stat(hostTargetPath)
 	if os.IsNotExist(err) {
 		klog.V(4).Infof("targetPath %s does not exist, will create", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
@@ -72,6 +106,11 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	klog.V(2).Infof("Successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
 	svc := Service{}
+	if req.GetReadonly() {
+		klog.V(2).Info("this is a readonly volume, skipping setting volume permissions")
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
 	err = svc.SetVolumePermissions(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
@@ -110,4 +149,66 @@ func (nfs *nfsstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetV
 
 func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not implemented")
+}
+
+func (nfs *nfsstorage) createExportRule(filesystemId int64, ipAddress string) (err error) {
+	//lookup file system information
+	fs, err := nfs.cs.api.GetFileSystemByID(filesystemId)
+	if err != nil {
+		klog.Errorf("failed to get filesystem by id %d\n", filesystemId)
+		return status.Errorf(codes.Internal, "failed to get filesystem by id  %v", err)
+	}
+
+	// use the volumeId to get the filesystem information,
+	//example rule {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
+	var exportFileSystem api.ExportFileSys
+	exportFileSystem.FilesystemID = filesystemId
+	exportFileSystem.Transport_protocols = "TCP"
+	exportFileSystem.Privileged_port = nfs.usePrivilegedPorts
+	exportFileSystem.SnapdirVisible = nfs.snapdirVisible
+	exportFileSystem.Export_path = "/" + fs.Name // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
+	exportPerms := "[{'access':'RW','client':'" + ipAddress + "','no_root_squash':true}]"
+	permissionsMapArray, err := getPermissionMaps(exportPerms)
+	if err != nil {
+		klog.Errorf("failed to parse permission map string %s", exportPerms)
+		return err
+	}
+
+	// remove an existing export if it exists, this occurs when a pod restarts
+	resp, err := nfs.cs.api.GetExportByFileSystem(filesystemId)
+	if err != nil {
+		klog.Errorf("error from GetExportByFileSystem filesystemId %d %s", filesystemId, err.Error())
+		return err
+	}
+	klog.V(4).Infof("GetExportByFileSystem response =%+v", resp)
+	if resp != nil {
+		responses := *resp
+		for i := 0; i < len(responses); i++ {
+			r := responses[i]
+			if r.ExportPath == exportFileSystem.Export_path {
+				klog.V(4).Infof("export path was found to already exist %s", r.ExportPath)
+				// here is where we would delete the existing export
+				deleteResp, err := nfs.cs.api.DeleteExportPath(r.ID)
+				if err != nil {
+					klog.Errorf("error from DeleteExportPath ID %d filesystemId %d", r.ID, filesystemId)
+					return err
+				}
+				klog.V(4).Infof("delete export path response %+v\n", deleteResp)
+			}
+		}
+	}
+
+	// create the export rule
+	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
+	klog.V(4).Infof("exportFileSystem =%+v", exportFileSystem)
+	exportResp, err := nfs.cs.api.ExportFileSystem(exportFileSystem)
+	if err != nil {
+		klog.Errorf("failed to create export path of filesystem %s", fs.Name)
+		return err
+	}
+	nfs.exportID = exportResp.ID
+	nfs.exportBlock = exportResp.ExportPath
+	klog.V(4).Infof("Created nfs export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
+
+	return nil
 }

@@ -16,8 +16,6 @@ import (
 	"context"
 	"infinibox-csi-driver/api/client"
 
-	//"infinibox-csi-driver/api"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -129,6 +127,14 @@ func (m *MockApiService) UpdateFilesystem(fileSystemID int64, fileSystem FileSys
 func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
 	args := m.Called(fileSystemID)
 	resp, _ := args.Get(0).([]ExportResponse)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+// DeleteExportPath
+func (m *MockApiService) DeleteExportPath(fileSystemID int64) (*ExportResponse, error) {
+	args := m.Called(fileSystemID)
+	resp, _ := args.Get(0).(ExportResponse)
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }

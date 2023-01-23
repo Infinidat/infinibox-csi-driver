@@ -39,17 +39,18 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
 
 	volumeId := req.GetVolumeId()
-	klog.V(2).Infof("NodePublishVolume called with volume ID '%s'", volumeId)
+	klog.V(2).Infof("NodePublishVolume - volume ID '%s'", volumeId)
 	storageProtocol := req.GetVolumeContext()["storage_protocol"]
 	config := make(map[string]string)
 
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
-		klog.V(2).Infof("NodePublishVolume succeeded with volume ID %s", volumeId)
+		klog.V(2).Infof("NodePublishVolume - NewStorageNode succeeded with volume ID %s", volumeId)
+		req.VolumeContext["nodeID"] = s.nodeID
 		return storageNode.NodePublishVolume(ctx, req)
 	}
-	klog.Errorf("NodePublishVolume failed: %s", err)
+	klog.Errorf("NodePublishVolume - NewStorageNode error: %s", err)
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
@@ -68,7 +69,6 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
 
 	klog.V(2).Infof("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
-	// klog.V(4).Infof("NodeUnpublishVolume called with ctx %+v", ctx)
 	klog.V(5).Infof("NodeUnpublishVolume called with req %+v", req)
 	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {

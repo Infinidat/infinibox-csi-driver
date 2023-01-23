@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
 	"math/rand"
@@ -37,8 +38,11 @@ func (suite *NodeSuite) SetupTest() {
 	rand.Seed(time.Now().UnixNano())
 
 	suite.nfsMountMock = new(MockNfsMounter)
+	suite.api = new(api.MockApiService)
 	suite.osmock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(MockStorageHelper)
+	suite.accessMock = new(helper.MockAccessModesHelper)
+	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
 
 	tests.ConfigureKlog()
 }
@@ -46,8 +50,11 @@ func (suite *NodeSuite) SetupTest() {
 type NodeSuite struct {
 	suite.Suite
 	nfsMountMock      *MockNfsMounter
+	api               *api.MockApiService
 	osmock            *helper.MockOsHelper
+	accessMock        *helper.MockAccessModesHelper
 	storageHelperMock *MockStorageHelper
+	cs                *commonservice
 }
 
 func TestNodeSuite(t *testing.T) {
@@ -72,7 +79,89 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
-	_, err = service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
+	req := getNodePublishVolumeRequest(targetPath, contex)
+	req.VolumeContext = getVolumeContexMap()
+	req.VolumeId = "1234$$nfs"
+	_, err = service.NodePublishVolume(context.Background(), req)
+
+	assert.Nil(suite.T(), err, " error should be nil")
+}
+
+// the test for when nfs_export_permissions is not set by a user, in this
+// case a default export rule should be created, this test has no existing
+// exports
+func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
+	randomDir := RandomString(10)
+	targetPath := randomDir
+	err := os.Mkdir("/tmp/"+targetPath, os.ModePerm)
+	assert.Nil(suite.T(), err)
+	defer func() {
+		err := os.RemoveAll("/tmp/" + targetPath)
+		assert.Nil(suite.T(), err)
+	}()
+
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
+
+	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
+	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	exportResp := getExportResponse()
+	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
+	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
+
+	req := getNodePublishVolumeRequest(targetPath, contex)
+	req.VolumeContext = getVolumeContexMap()
+	req.VolumeId = "1234$$nfs"
+	req.VolumeContext["nfs_export_permissions"] = ""
+	req.Secrets = make(map[string]string)
+	req.Secrets["nodeID"] = "192.168.0.110"
+	req.VolumeContext["snapdir_visible"] = "true"
+	req.VolumeContext["privileged_ports_only"] = "false"
+	_, err = service.NodePublishVolume(context.Background(), req)
+
+	assert.Nil(suite.T(), err, " error should be nil")
+}
+
+// the test for when nfs_export_permissions is not set by a user, in this
+// case a default export rule should be created, this test has 1 existing
+// exports that will test deleting it and recreating the export logic, this
+// is the case when a pod restarts having an existing export
+func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success() {
+	randomDir := RandomString(10)
+	targetPath := randomDir
+	err := os.Mkdir("/tmp/"+targetPath, os.ModePerm)
+	assert.Nil(suite.T(), err)
+	defer func() {
+		err := os.RemoveAll("/tmp/" + targetPath)
+		assert.Nil(suite.T(), err)
+	}()
+
+	contex := getPublishContexMap()
+	contex["csiContainerHostMountPoint"] = "/tmp/"
+
+	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
+	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
+	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	tmp := getExportResponseWithExports()
+	fmt.Printf("here is the exports [%+v]\n", tmp)
+	suite.api.On("GetExportByFileSystem", mock.Anything).Return(tmp, nil)
+	suite.api.On("DeleteExportPath", mock.Anything).Return(getExportResponse(), nil)
+
+	req := getNodePublishVolumeRequest(targetPath, contex)
+	req.VolumeContext = getVolumeContexMap()
+	req.VolumeId = "1234$$nfs"
+	req.VolumeContext["nfs_export_permissions"] = ""
+	req.VolumeContext["nodeID"] = "192.168.0.110"
+	req.VolumeContext["snapdir_visible"] = "true"
+	req.VolumeContext["privileged_ports_only"] = "false"
+	_, err = service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -347,6 +436,12 @@ func getPublishContexMap() map[string]string {
 	return contextMap
 }
 
+func getVolumeContexMap() map[string]string {
+	contextMap := make(map[string]string)
+	contextMap["nfs_export_permissions"] = "{'access':'RW','client':'*','no_root_squash':true}"
+	return contextMap
+}
+
 func getNodeUnPublishVolumeRequest(tagetPath string, volumeID string) *csi.NodeUnpublishVolumeRequest {
 	return &csi.NodeUnpublishVolumeRequest{
 		TargetPath: tagetPath,
@@ -405,4 +500,13 @@ func (m *MockStorageHelper) GetNFSMountOptions(req *csi.NodePublishVolumeRequest
 		return []string{}, nil
 	}
 	return status.Get(0).([]string), status.Get(1).(error)
+}
+
+func getExportResponseWithExports() (exportResp []api.ExportResponse) {
+	exportRespArry := make([]api.ExportResponse, 1)
+
+	exportRespArry[0] = api.ExportResponse{
+		ExportPath: "/",
+	}
+	return exportRespArry
 }

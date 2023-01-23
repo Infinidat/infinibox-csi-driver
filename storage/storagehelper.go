@@ -231,7 +231,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 
 	if len(badParamsMap) > 0 {
 		klog.Errorf("Invalid StorageClass parameters provided: %s", badParamsMap)
-		return fmt.Errorf("Invalid StorageClass parameters provided: %s", badParamsMap)
+		return fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
 	}
 
 	// TODO validate uid, guid, unix_permissions globally since it pertains to nfs/treeq/fc
@@ -241,21 +241,25 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 
 	// TODO refactor potential - each protocol would implement a function to isolate it's
 	// particular SC validation logic
-	if (providedStorageClassParams["storage_protocol"] == "nfs" || providedStorageClassParams["storage_protocol"] == "nfs_treeq") && providedStorageClassParams["nfs_export_permissions"] != "" {
-		permissionsMapArray, err := getPermissionMaps(providedStorageClassParams["nfs_export_permissions"])
-		if err != nil {
-			klog.Errorf("Invalid StorageClass permissionsMapArray provided: %s", err.Error())
-			return fmt.Errorf("Invalid StorageClass permissionsMapArray provided: %s", err.Error())
-		}
+	if providedStorageClassParams["storage_protocol"] == "nfs" || providedStorageClassParams["storage_protocol"] == "nfs_treeq" {
+		if providedStorageClassParams["nfs_export_permissions"] == "" {
+			// the case when nfs_export_permissions is not set by a user in the SC
+		} else {
+			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams["nfs_export_permissions"])
+			if err != nil {
+				klog.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
+				return fmt.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
+			}
 
-		// validation for uid,gid,unix_permissions
-		if providedStorageClassParams["uid"] != "" || providedStorageClassParams["gid"] != "" || providedStorageClassParams["unix_permissions"] != "" {
-			if len(permissionsMapArray) > 0 {
-				noRootSquash := permissionsMapArray[0]["no_root_squash"]
-				if noRootSquash == false {
-					errorMsg := "Error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied"
-					klog.Errorf(errorMsg)
-					return fmt.Errorf("Invalid StorageClass permissionsMapArray provided: %s", errorMsg)
+			// validation for uid,gid,unix_permissions
+			if providedStorageClassParams["uid"] != "" || providedStorageClassParams["gid"] != "" || providedStorageClassParams["unix_permissions"] != "" {
+				if len(permissionsMapArray) > 0 {
+					noRootSquash := permissionsMapArray[0]["no_root_squash"]
+					if noRootSquash == false {
+						errorMsg := "Error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied"
+						klog.Errorf(errorMsg)
+						return fmt.Errorf("invalid StorageClass permissionsMapArray provided: %s", errorMsg)
+					}
 				}
 			}
 		}
@@ -290,7 +294,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
-		klog.Errorf("invalid nfs_export_permissions format %v", err)
+		klog.Errorf("invalid nfs_export_permissions format %v raw [%s] fixed [%s]", err, permission, permissionFixed)
 	}
 
 	for _, pass := range permissionsMapArray {
