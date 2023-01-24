@@ -242,10 +242,10 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 	// TODO refactor potential - each protocol would implement a function to isolate it's
 	// particular SC validation logic
 	if providedStorageClassParams["storage_protocol"] == "nfs" || providedStorageClassParams["storage_protocol"] == "nfs_treeq" {
-		if providedStorageClassParams["nfs_export_permissions"] == "" {
+		if providedStorageClassParams[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
 			// the case when nfs_export_permissions is not set by a user in the SC
 		} else {
-			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams["nfs_export_permissions"])
+			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams[api.SC_NFS_EXPORT_PERMISSIONS])
 			if err != nil {
 				klog.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
 				return fmt.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
@@ -294,7 +294,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
-		klog.Errorf("invalid nfs_export_permissions format %v raw [%s] fixed [%s]", err, permission, permissionFixed)
+		klog.Errorf("invalid %s format %v raw [%s] fixed [%s]", api.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
 	}
 
 	for _, pass := range permissionsMapArray {

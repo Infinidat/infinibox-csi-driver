@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"strconv"
 	"strings"
 
@@ -54,6 +55,9 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, err
 		}
 	}
+
+	treeqVolumeMap[api.SC_NFS_EXPORT_PERMISSIONS] = req.Parameters[api.SC_NFS_EXPORT_PERMISSIONS]
+
 	volumeID := treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"]
 	klog.V(4).Infof("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeMap, volumeID)
 	return &csi.CreateVolumeResponse{

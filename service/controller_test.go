@@ -12,6 +12,7 @@ package service
 
 import (
 	"context"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/storage"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -387,7 +388,8 @@ func getControllerValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabil
 }
 
 func getControllerCreateVolumeParameters() map[string]string {
-	return map[string]string{"storage_protocol": "nfs", "pool_name": "pool_name1", "network_space": "network_space1", "nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
+	return map[string]string{"storage_protocol": "nfs", "pool_name": "pool_name1", "network_space": "network_space1",
+		api.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
 }
 
 func getService() Service {

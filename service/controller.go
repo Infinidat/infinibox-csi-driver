@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/storage"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -63,7 +64,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
 	configparams["driverversion"] = s.driverVersion
-	configparams["nfs_export_permissions"] = reqParameters["nfs_export_permissions"]
+	configparams[api.SC_NFS_EXPORT_PERMISSIONS] = reqParameters[api.SC_NFS_EXPORT_PERMISSIONS]
 
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {

@@ -116,11 +116,11 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = getVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
-	req.VolumeContext["nfs_export_permissions"] = ""
+	req.VolumeContext[api.SC_NFS_EXPORT_PERMISSIONS] = ""
 	req.Secrets = make(map[string]string)
 	req.Secrets["nodeID"] = "192.168.0.110"
-	req.VolumeContext["snapdir_visible"] = "true"
-	req.VolumeContext["privileged_ports_only"] = "false"
+	req.VolumeContext[api.SC_SNAPDIR_VISIBLE] = "true"
+	req.VolumeContext[api.SC_PRIV_PORTS] = "false"
 	_, err = service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
@@ -157,10 +157,10 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success(
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = getVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
-	req.VolumeContext["nfs_export_permissions"] = ""
+	req.VolumeContext[api.SC_NFS_EXPORT_PERMISSIONS] = ""
 	req.VolumeContext["nodeID"] = "192.168.0.110"
-	req.VolumeContext["snapdir_visible"] = "true"
-	req.VolumeContext["privileged_ports_only"] = "false"
+	req.VolumeContext[api.SC_SNAPDIR_VISIBLE] = "true"
+	req.VolumeContext[api.SC_PRIV_PORTS] = "false"
 	_, err = service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
@@ -438,7 +438,7 @@ func getPublishContexMap() map[string]string {
 
 func getVolumeContexMap() map[string]string {
 	contextMap := make(map[string]string)
-	contextMap["nfs_export_permissions"] = "{'access':'RW','client':'*','no_root_squash':true}"
+	contextMap[api.SC_NFS_EXPORT_PERMISSIONS] = "{'access':'RW','client':'*','no_root_squash':true}"
 	return contextMap
 }
 

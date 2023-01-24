@@ -49,18 +49,20 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return nil, err
 	}
 
-	if req.GetVolumeContext()["nfs_export_permissions"] == "" {
+	if req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		nfs.snapdirVisible = false
 		nfs.usePrivilegedPorts = false
-		if req.GetVolumeContext()["snapdir_visible"] != "" {
-			nfs.snapdirVisible, err = strconv.ParseBool(req.GetVolumeContext()["snapdir_visible"])
+		snapDir := req.GetVolumeContext()[api.SC_SNAPDIR_VISIBLE]
+		if snapDir != "" {
+			nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
 			if err != nil {
 				klog.Errorf("error %s", err.Error())
 				return nil, err
 			}
 		}
-		if req.GetVolumeContext()["privileged_ports_only"] != "" {
-			nfs.usePrivilegedPorts, err = strconv.ParseBool(req.GetVolumeContext()["privileged_ports_only"])
+		privPorts := req.GetVolumeContext()[api.SC_PRIV_PORTS]
+		if privPorts != "" {
+			nfs.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 			if err != nil {
 				klog.Errorf("error %s", err.Error())
 				return nil, err
@@ -71,7 +73,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			return nil, err
 		}
 	} else {
-		klog.V(4).Infof("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()["nfs_export_permissions"])
+		klog.V(4).Infof("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)
@@ -161,12 +163,13 @@ func (nfs *nfsstorage) createExportRule(filesystemId int64, ipAddress string) (e
 
 	// use the volumeId to get the filesystem information,
 	//example rule {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
-	var exportFileSystem api.ExportFileSys
-	exportFileSystem.FilesystemID = filesystemId
-	exportFileSystem.Transport_protocols = "TCP"
-	exportFileSystem.Privileged_port = nfs.usePrivilegedPorts
-	exportFileSystem.SnapdirVisible = nfs.snapdirVisible
-	exportFileSystem.Export_path = "/" + fs.Name // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
+	exportFileSystem := api.ExportFileSys{
+		FilesystemID:        filesystemId,
+		Transport_protocols: "TCP",
+		Privileged_port:     nfs.usePrivilegedPorts,
+		SnapdirVisible:      nfs.snapdirVisible,
+		Export_path:         "/" + fs.Name, // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
+	}
 	exportPerms := "[{'access':'RW','client':'" + ipAddress + "','no_root_squash':true}]"
 	permissionsMapArray, err := getPermissionMaps(exportPerms)
 	if err != nil {

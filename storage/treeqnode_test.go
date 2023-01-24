@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
 	"math/rand"
@@ -32,7 +33,8 @@ func (suite *TreeqNodeSuite) SetupTest() {
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(MockStorageHelper)
-
+	suite.api = new(api.MockApiService)
+	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
 	tests.ConfigureKlog()
 }
 
@@ -40,6 +42,9 @@ type TreeqNodeSuite struct {
 	suite.Suite
 	nfsMountMock      *MockNfsMounter
 	osHelperMock      *helper.MockOsHelper
+	accessMock        *helper.MockAccessModesHelper
+	api               *api.MockApiService
+	cs                *commonservice
 	storageHelperMock *MockStorageHelper
 }
 
@@ -48,7 +53,7 @@ func TestTreeqNodeSuite(t *testing.T) {
 }
 
 func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
-	service := treeqstorage{mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
+	service := treeqstorage{cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	randomDir := RandomString(10)
 	targetPath := randomDir
 	fmt.Printf("creating %s\n", "/tmp/"+targetPath)
@@ -60,10 +65,22 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 		assert.Nil(suite.T(), err)
 	}()
 
+	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	exportResp := getExportResponse()
+	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
+	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
+
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
-	responce, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
+	req := getNodePublishVolumeRequest(targetPath, contex)
+	req.VolumeId = "94148131#20000$$nfs_treeq"
+	req.Secrets = make(map[string]string)
+	req.Secrets["one"] = "one"
+	req.Secrets["two"] = "two"
+	req.Secrets["three"] = "three"
+	responce, err := service.NodePublishVolume(context.Background(), req)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), responce, "empty object")
 }
@@ -79,11 +96,22 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 		err := os.RemoveAll("/tmp/" + targetPath)
 		assert.Nil(suite.T(), err)
 	}()
-	service := treeqstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
+	service := treeqstorage{cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	_, err = service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
+	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	exportResp := getExportResponse()
+	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
+	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
+	req := getNodePublishVolumeRequest(targetPath, contex)
+	req.VolumeId = "94148131#20000$$nfs_treeq"
+	req.Secrets = make(map[string]string)
+	req.Secrets["one"] = "one"
+	req.Secrets["two"] = "two"
+	req.Secrets["three"] = "three"
+	_, err = service.NodePublishVolume(context.Background(), req)
 	assert.Nil(suite.T(), err, "empty error")
 }
 

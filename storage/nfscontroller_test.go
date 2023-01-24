@@ -852,15 +852,15 @@ func getCreateVolumeCloneRequest(name string, parameterMap map[string]string) *c
 
 func getCreateVolumeParameter() map[string]string {
 	return map[string]string{
-		"pool_name":              "pool_name1",
-		"network_space":          "network_space1",
-		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		"pool_name":                   "pool_name1",
+		"network_space":               "network_space1",
+		api.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }
 
 func getPublishVolumeParameter() map[string]string {
 	return map[string]string{
-		"exportID":               "1",
-		"nfs_export_permissions": "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		"exportID":                    "1",
+		api.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }

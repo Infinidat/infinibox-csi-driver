@@ -258,6 +258,7 @@ func (filesystem *FilesystemService) setParameter(config map[string]string, capa
 
 // CreateTreeqVolume create volume method
 func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string, capacity int64, pvName string) (treeqVolume map[string]string, err error) {
+	klog.V(2).Infof("CreateTreeqVolume filesystem.configmap %+v config %+v capacity %d pvName %s", filesystem.configmap, config, capacity, pvName)
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while creating treeq method " + fmt.Sprint(res))
@@ -313,7 +314,8 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 			klog.Errorf("failed to create fileSystem %v", err)
 			return
 		}
-		err = filesystem.createExportPathAndAddMetadata()
+
+		err = filesystem.createExportPathAndAddMetadata(config[api.SC_NFS_EXPORT_PERMISSIONS])
 		if err != nil {
 			klog.Errorf("failed to create export and metadata %v", err)
 			return
@@ -390,34 +392,38 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	return
 }
 
-func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error) {
+func (filesystem *FilesystemService) createExportPathAndAddMetadata(nfsExportPermissions string) (err error) {
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while export directory" + fmt.Sprint(res))
 		}
 		if err != nil && filesystem.fileSystemID != 0 {
-			klog.V(2).Infof("Seemes to be some problem reverting filesystem: %s", filesystem.pVName)
+			klog.V(2).Infof("error reverting filesystem: %s", filesystem.pVName)
 			if _, errDelFS := filesystem.cs.api.DeleteFileSystem(filesystem.fileSystemID); errDelFS != nil {
-				klog.Errorf("failed to delete filesystem: %s", filesystem.pVName)
+				klog.Errorf("error deleting filesystem: %s", filesystem.pVName)
 			}
 		}
 	}()
 
-	err = filesystem.createExportPath()
-	if err != nil {
-		klog.Errorf("failed to export path %v", err)
-		return
+	if nfsExportPermissions == "" {
+		klog.V(4).Infof("%s parameter not set, will create export later, filesystem: %s", api.SC_NFS_EXPORT_PERMISSIONS, filesystem.pVName)
+	} else {
+		err = filesystem.createExportPath(nfsExportPermissions)
+		if err != nil {
+			klog.Errorf("error creating export path %v", err)
+			return
+		}
+		klog.V(4).Infof("export path created for filesystem: %s", filesystem.pVName)
 	}
-	klog.V(4).Infof("export path created for filesystem: %s", filesystem.pVName)
 
 	defer func() {
 		if res := recover(); res != nil {
 			err = errors.New("error while AttachMetadata directory" + fmt.Sprint(res))
 		}
 		if err != nil && filesystem.exportID != 0 {
-			klog.V(2).Info("Seemes to be some problem reverting created export id:", filesystem.exportID)
+			klog.V(2).Info("error reverting created export id:", filesystem.exportID)
 			if _, errDelExport := filesystem.cs.api.DeleteExportPath(filesystem.exportID); errDelExport != nil {
-				klog.Errorf("failed to delete export path: %s", filesystem.pVName)
+				klog.Errorf("error deleting export path: %s", filesystem.pVName)
 			}
 		}
 	}()
@@ -427,8 +433,7 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata() (err error
 
 	_, err = filesystem.cs.api.AttachMetadataToObject(filesystem.fileSystemID, metadata)
 	if err != nil {
-		klog.Errorf("failed to attach metadata for fileSystem : %s", filesystem.pVName)
-		klog.Errorf("error to attach metadata %v", err)
+		klog.Errorf("error attaching metadata for fileSystem : %s error %v", filesystem.pVName, err)
 		return
 	}
 	klog.V(4).Infof("metadata attached successfully for filesystem %s", filesystem.pVName)
@@ -488,8 +493,8 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 	return
 }
 
-func (filesystem *FilesystemService) createExportPath() (err error) {
-	permissionsMapArray, err := getPermissionMaps(filesystem.configmap["nfs_export_permissions"])
+func (filesystem *FilesystemService) createExportPath(nfsExportPermissions string) (err error) {
+	permissionsMapArray, err := getPermissionMaps(nfsExportPermissions)
 	if err != nil {
 		return
 	}

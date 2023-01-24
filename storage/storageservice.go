@@ -71,11 +71,16 @@ type iscsistorage struct {
 type treeqstorage struct {
 	csi.ControllerServer
 	csi.NodeServer
-	filesysService FileSystemInterface
-	osHelper       helper.OsHelper
-	storageHelper  StorageHelper
-	mounter        mount.Interface
-	configmap      map[string]string
+	cs                 commonservice
+	filesysService     FileSystemInterface
+	osHelper           helper.OsHelper
+	storageHelper      StorageHelper
+	usePrivilegedPorts bool
+	snapdirVisible     bool
+	exportID           int64
+	exportBlock        string
+	mounter            mount.Interface
+	configmap          map[string]string
 }
 
 type nfsstorage struct {
@@ -117,7 +122,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &treeqstorage{cs: comnserv, filesysService: getFilesystemService(storageProtocol, comnserv), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
@@ -136,7 +141,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 		} else if storageProtocol == "nfs" {
 			return &nfsstorage{cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &treeqstorage{cs: comnserv, filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		}
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
