@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"strconv"
 	"strings"
 
@@ -80,15 +81,15 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	klog.V(4).Infof(" csi request parameters %v", config)
 
 	capacity, err := nfsSanityCheck(req, map[string]string{
-		"pool_name":     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	usePrivilegedPorts := false
-	usePrivilegedPortsString := config[api.SC_PRIV_PORTS]
+	usePrivilegedPortsString := config[common.SC_PRIV_PORTS]
 	if usePrivilegedPortsString != "" {
 		usePrivilegedPorts, err = strconv.ParseBool(usePrivilegedPortsString)
 		if err != nil {
@@ -100,7 +101,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	klog.V(2).Infof("Using privileged ports only: %t", usePrivilegedPorts)
 
 	snapdirVisible := false
-	snapdirVisibleString := config[api.SC_SNAPDIR_VISIBLE]
+	snapdirVisibleString := config[common.SC_SNAPDIR_VISIBLE]
 	if snapdirVisibleString != "" {
 		snapdirVisible, err = strconv.ParseBool(snapdirVisibleString)
 		if err != nil {
@@ -117,7 +118,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	nfs.usePrivilegedPorts = usePrivilegedPorts
 	nfs.snapdirVisible = snapdirVisible
 	nfs.exportpath = "/" + pvName
-	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
+	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config[common.SC_NETWORK_SPACE], " "))
 	if err != nil {
 		msg := fmt.Sprintf("failed to get networkspace ipaddress, %v", err)
 		klog.Errorf(msg)
@@ -162,14 +163,14 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	if contentSource != nil {
 		if contentSource.GetSnapshot() != nil {
 			snapshot := req.GetVolumeContentSource().GetSnapshot()
-			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"], snapshot.GetSnapshotId())
+			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config[common.SC_POOL_NAME], snapshot.GetSnapshotId())
 			if err != nil {
 				klog.Errorf("failed to create volume from snapshot with error: %v", err)
 				return nil, err
 			}
 		} else if contentSource.GetVolume() != nil {
 			volume := req.GetVolumeContentSource().GetVolume()
-			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config["pool_name"], volume.GetVolumeId())
+			csiResp, err = nfs.createVolumeFrmPVCSource(req, capacity, config[common.SC_POOL_NAME], volume.GetVolumeId())
 			if err != nil {
 				klog.Errorf("failed to create volume from pvc with error: %v", err)
 				return nil, err
@@ -254,12 +255,12 @@ func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *c
 			err = errors.New("error while creating CreateNFSVolume method " + fmt.Sprint(res))
 		}
 	}()
-	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.configmap["pool_name"], nfs.configmap["network_space"])
+	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.configmap[common.SC_POOL_NAME], nfs.configmap[common.SC_NETWORK_SPACE])
 	if err != nil {
 		klog.Errorf(err.Error())
 		return nil, err
 	}
-	nfs.configmap["network_space"] = validnwlist
+	nfs.configmap[common.SC_NETWORK_SPACE] = validnwlist
 	klog.V(4).Infof("networkspace validation success")
 
 	err = nfs.createFileSystem()
@@ -288,7 +289,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 		}
 	}()
 
-	if nfs.configmap[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if nfs.configmap[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		klog.V(4).Info("nfs_export_permissions parameter is not set in the StorageClass, will use default export")
 	} else {
 		err = nfs.createExportPath()
@@ -324,9 +325,9 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 }
 
 func (nfs *nfsstorage) createExportPath() (err error) {
-	permissionsMapArray, err := getPermissionMaps(nfs.configmap[api.SC_NFS_EXPORT_PERMISSIONS])
+	permissionsMapArray, err := getPermissionMaps(nfs.configmap[common.SC_NFS_EXPORT_PERMISSIONS])
 	if err != nil {
-		klog.Errorf("failed to parse permission map string %s", nfs.configmap[api.SC_NFS_EXPORT_PERMISSIONS])
+		klog.Errorf("failed to parse permission map string %s", nfs.configmap[common.SC_NFS_EXPORT_PERMISSIONS])
 		return err
 	}
 
@@ -351,13 +352,13 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 }
 
 func (nfs *nfsstorage) createFileSystem() (err error) {
-	namepool := nfs.configmap["pool_name"]
+	namepool := nfs.configmap[common.SC_POOL_NAME]
 	poolID, err := nfs.cs.api.GetStoragePoolIDByName(namepool)
 	if err != nil {
 		klog.Errorf("failed to get GetPoolID by pool_name %s", namepool)
 		return err
 	}
-	ssdEnabled := nfs.configmap["ssd_enabled"]
+	ssdEnabled := nfs.configmap[common.SC_SSD_ENABLED]
 	if ssdEnabled == "" {
 		ssdEnabled = fmt.Sprint(false)
 	}
@@ -365,8 +366,8 @@ func (nfs *nfsstorage) createFileSystem() (err error) {
 	mapRequest := make(map[string]interface{})
 	mapRequest["pool_id"] = poolID
 	mapRequest["name"] = nfs.pVName
-	mapRequest["ssd_enabled"] = ssd
-	mapRequest["provtype"] = strings.ToUpper(nfs.configmap["provision_type"])
+	mapRequest[common.SC_SSD_ENABLED] = ssd
+	mapRequest["provtype"] = strings.ToUpper(nfs.configmap[common.SC_PROVISION_TYPE])
 	mapRequest["size"] = nfs.capacity
 	fileSystem, err := nfs.cs.api.CreateFilesystem(mapRequest)
 	if err != nil {
@@ -484,7 +485,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	exportID := req.GetVolumeContext()["exportID"]
 
 	klog.V(2).Infof("ControllerPublishVolume nodeId %s volumeID %s exportID %s nfs_export_permissions %s",
-		req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS])
+		req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 
 	// TODO: revisit this as part of CSIC-343
 	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
@@ -492,14 +493,14 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		klog.V(4).Infof("nfs_export_permissions parameter not set, volume ID %s export ID %s", volumeID, exportID)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
 	// proceed to create a default export rule using the Node ip address
 
-	exportPermissionMapArray, err := getPermissionMaps(req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS])
+	exportPermissionMapArray, err := getPermissionMaps(req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	if err != nil {
 		klog.Errorf("failed to retrieve permission maps, %v", err)
 		return nil, status.Error(codes.Internal, err.Error())

@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"os"
 	"strconv"
 	"strings"
@@ -49,10 +50,10 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return nil, err
 	}
 
-	if req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		nfs.snapdirVisible = false
 		nfs.usePrivilegedPorts = false
-		snapDir := req.GetVolumeContext()[api.SC_SNAPDIR_VISIBLE]
+		snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
 		if snapDir != "" {
 			nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
 			if err != nil {
@@ -60,7 +61,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 				return nil, err
 			}
 		}
-		privPorts := req.GetVolumeContext()[api.SC_PRIV_PORTS]
+		privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
 		if privPorts != "" {
 			nfs.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 			if err != nil {
@@ -73,7 +74,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			return nil, err
 		}
 	} else {
-		klog.V(4).Infof("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS])
+		klog.V(4).Infof("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)

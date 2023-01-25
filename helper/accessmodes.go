@@ -13,6 +13,7 @@ package helper
 import (
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -64,7 +65,7 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 
 func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
 	// Compare the export permissions on IBox to the requested access mode. Return an error if incompatible.
-	nfsExportPermission := req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS]
+	nfsExportPermission := req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
 	isIboxExportReadonly := strings.Contains(nfsExportPermission, "'access':'RO'") // Could also contain "'access':'RW'"
 
 	exportVolPathd := req.GetVolumeContext()["volPathd"]

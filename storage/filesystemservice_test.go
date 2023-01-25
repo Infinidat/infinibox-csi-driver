@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -205,7 +206,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Err
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap["fs_prefix"] = "csit_"
+	configMap[common.SC_FS_PREFIX] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -228,7 +229,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Err
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap["fs_prefix"] = "csit_"
+	configMap[common.SC_FS_PREFIX] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -252,7 +253,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap["fs_prefix"] = "csit_"
+	configMap[common.SC_FS_PREFIX] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -278,7 +279,7 @@ func (suite *FileSystemServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() 
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap["fs_prefix"] = "csit_"
+	configMap[common.SC_FS_PREFIX] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -618,11 +619,11 @@ func getTreeQResponse(fileSysID int64) *api.Treeq {
 
 func getCreateVolumeRequest() *csi.CreateVolumeRequest {
 	parameters := map[string]string{
-		"pool_name":                 "a_pool",
-		"max_filesystem_size":       "30gib",
+		common.SC_POOL_NAME:         "a_pool",
+		common.SC_MAX_VOLS_PER_HOST: "30gib",
 		"max_filesystems":           "20",
 		"max_treeqs_per_filesystem": "21",
-		"network_space":             "nas",
+		common.SC_NETWORK_SPACE:     "nas",
 	}
 	req := csi.CreateVolumeRequest{
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * gib},
@@ -671,8 +672,8 @@ func getfsMetadata2() *api.FSMetadata {
 
 func getCreateTreeqVolumeParameter() map[string]string {
 	return map[string]string{
-		"pool_name":                   "pool_name1",
-		"network_space":               "network_space1",
-		api.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		common.SC_POOL_NAME:              "pool_name1",
+		common.SC_NETWORK_SPACE:          "network_space1",
+		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }

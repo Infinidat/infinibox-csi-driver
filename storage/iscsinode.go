@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"io/ioutil"
 	"os"
@@ -124,7 +125,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	}
 	ports := req.GetPublishContext()["hostPorts"]
 	hostSecurity := req.GetPublishContext()["securityMethod"]
-	useChap := req.GetVolumeContext()["useCHAP"]
+	useChap := req.GetVolumeContext()[common.SC_USE_CHAP]
 	klog.V(4).Infof("Publishing volume to host with hostID %d", hostID)
 
 	// validate host exists
@@ -229,8 +230,8 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 
 	// Chown
-	uid := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
-	gid := req.GetVolumeContext()["gid"]
+	uid := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
+	gid := req.GetVolumeContext()[common.SC_GID]
 	targetPath := req.GetTargetPath()
 	err = iscsi.osHelper.ChownVolume(uid, gid, targetPath)
 	if err != nil {
@@ -240,7 +241,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 
 	// Chmod
-	unixPermissions := req.GetVolumeContext()["unix_permissions"] // Returns an empty string if key not found
+	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
 	klog.V(4).Infof("unixPermissions: %s", unixPermissions)
 	err = iscsi.osHelper.ChmodVolume(unixPermissions, targetPath)
 	if err != nil {
@@ -848,7 +849,7 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 		return nil, fmt.Errorf("iscsi: LUN is missing")
 	}
 
-	useChap := volContext["useCHAP"]
+	useChap := volContext[common.SC_USE_CHAP]
 	chapSession := false
 	if useChap != "none" {
 		chapSession = true

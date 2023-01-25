@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"math"
 	"path"
@@ -31,8 +32,6 @@ import (
 
 // treeq constants
 const (
-	PROVISIONTYPE = "provision_type"
-	FSPREFIX      = "fs_prefix"
 
 	// optional storage class parameters for treeq
 	MAXTREEQSPERFILESYSTEM = "max_treeqs_per_filesystem"
@@ -213,7 +212,7 @@ func (filesystem *FilesystemService) getExpectedFileSystemID(maxFileSystemSize i
 		fsMetaData, poolErr := filesystem.cs.api.GetFileSystemsByPoolID(filesystem.poolID, page)
 		if poolErr != nil {
 			klog.Errorf("failed to get filesystems from poolID %d and page no %d error %v", filesystem.poolID, page, err)
-			err = errors.New("failed to get filesystems from poolName " + filesystem.configmap["pool_name"])
+			err = errors.New("failed to get filesystems from poolName " + filesystem.configmap[common.SC_POOL_NAME])
 			return
 		}
 		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
@@ -265,13 +264,13 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 		}
 	}()
 	treeqVolume = make(map[string]string)
-	treeqVolume["storage_protocol"] = config["storage_protocol"]
-	treeqVolume["gid"] = config["gid"]
-	treeqVolume["uid"] = config["uid"]
-	treeqVolume["unix_permissions"] = config["unix_permissions"]
+	treeqVolume[common.SC_STORAGE_PROTOCOL] = config[common.SC_STORAGE_PROTOCOL]
+	treeqVolume[common.SC_GID] = config[common.SC_GID]
+	treeqVolume[common.SC_UID] = config[common.SC_UID]
+	treeqVolume[common.SC_UNIX_PERMISSIONS] = config[common.SC_UNIX_PERMISSIONS]
 	filesystem.setParameter(config, capacity, pvName)
 
-	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config["network_space"], " "))
+	ipAddress, err := filesystem.cs.getNetworkSpaceIP(strings.Trim(config[common.SC_NETWORK_SPACE], " "))
 	if err != nil {
 		klog.Errorf("failed to get networkspace ipaddress %v", err)
 		return
@@ -279,9 +278,9 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 	filesystem.ipAddress = ipAddress
 
 	var poolID int64
-	poolID, err = filesystem.cs.api.GetStoragePoolIDByName(filesystem.configmap["pool_name"])
+	poolID, err = filesystem.cs.api.GetStoragePoolIDByName(filesystem.configmap[common.SC_POOL_NAME])
 	if err != nil {
-		klog.Errorf("failed to get poolID from poolName %s", filesystem.configmap["pool_name"])
+		klog.Errorf("failed to get poolID from poolName %s", filesystem.configmap[common.SC_POOL_NAME])
 		return
 	}
 	filesystem.poolID = poolID
@@ -315,7 +314,7 @@ func (filesystem *FilesystemService) CreateTreeqVolume(config map[string]string,
 			return
 		}
 
-		err = filesystem.createExportPathAndAddMetadata(config[api.SC_NFS_EXPORT_PERMISSIONS])
+		err = filesystem.createExportPathAndAddMetadata(config[common.SC_NFS_EXPORT_PERMISSIONS])
 		if err != nil {
 			klog.Errorf("failed to create export and metadata %v", err)
 			return
@@ -406,7 +405,7 @@ func (filesystem *FilesystemService) createExportPathAndAddMetadata(nfsExportPer
 	}()
 
 	if nfsExportPermissions == "" {
-		klog.V(4).Infof("%s parameter not set, will create export later, filesystem: %s", api.SC_NFS_EXPORT_PERMISSIONS, filesystem.pVName)
+		klog.V(4).Infof("%s parameter not set, will create export later, filesystem: %s", common.SC_NFS_EXPORT_PERMISSIONS, filesystem.pVName)
 	} else {
 		err = filesystem.createExportPath(nfsExportPermissions)
 		if err != nil {
@@ -462,7 +461,7 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 			return errors.New(errMsg)
 		}
 	}
-	ssdEnabled := filesystem.configmap["ssd_enabled"]
+	ssdEnabled := filesystem.configmap[common.SC_SSD_ENABLED]
 	if ssdEnabled == "" {
 		ssdEnabled = fmt.Sprint(false)
 	}
@@ -475,13 +474,13 @@ func (filesystem *FilesystemService) createFileSystem() (err error) {
 	pvSplit := strings.Split(filesystem.pVName, "-")
 	treeqFileSystemName = "csit_" + pvSplit[1]
 
-	if prefix, ok := filesystem.configmap[FSPREFIX]; ok {
+	if prefix, ok := filesystem.configmap[common.SC_FS_PREFIX]; ok {
 		treeqFileSystemName = prefix + pvSplit[1]
 	}
 	filesystem.exportpath = "/" + treeqFileSystemName
 	mapRequest["name"] = treeqFileSystemName
-	mapRequest["ssd_enabled"] = ssd
-	mapRequest["provtype"] = strings.ToUpper(filesystem.configmap["provision_type"])
+	mapRequest[common.SC_SSD_ENABLED] = ssd
+	mapRequest["provtype"] = strings.ToUpper(filesystem.configmap[common.SC_PROVISION_TYPE])
 	mapRequest["size"] = filesystem.capacity
 	fileSystem, err := filesystem.cs.api.CreateFilesystem(mapRequest)
 	if err != nil {

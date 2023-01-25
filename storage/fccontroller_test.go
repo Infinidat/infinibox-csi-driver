@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -236,7 +237,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
 	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{"max_vols_per_host": "AA"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerPublishVolume invalid max_vols_per_host value")
 }
@@ -248,7 +249,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
 	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{"max_vols_per_host": "0"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerPublishVolume max_vols_per_host exceeded")
 }
@@ -382,10 +383,10 @@ func (suite *FCControllerSuite) Test_GetCapacity() {
 
 func getFCCreateVolumeParameter() map[string]string {
 	return map[string]string{
-		"max_vols_per_host": "19",
-		"pool_name":         "pool_name1",
-		"provision_type":    "THIN",
-		"ssd_enabled":       "true",
-		"storage_protocol":  "fc",
+		common.SC_MAX_VOLS_PER_HOST: "19",
+		common.SC_POOL_NAME:         "pool_name1",
+		common.SC_PROVISION_TYPE:    "THIN",
+		common.SC_SSD_ENABLED:       "true",
+		common.SC_STORAGE_PROTOCOL:  "fc",
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"strconv"
 	"strings"
 	"time"
@@ -48,34 +49,34 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
-		"pool_name":         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"max_vols_per_host": `(?i)\A\d+\z`,
+		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
 	}, nil, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// validate optional parameters
-	volType, provided := params["provision_type"]
+	volType, provided := params[common.SC_PROVISION_TYPE]
 	if !provided {
 		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
 	}
 	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
-	ssdEnabledString, provided := params["ssd_enabled"]
+	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
 	if provided {
 		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
 	}
 
-	gid := params["gid"]
-	uid := params["uid"]
-	unix_permissions := params["unix_permissions"]
+	gid := params[common.SC_GID]
+	uid := params[common.SC_UID]
+	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
 	klog.V(2).Infof("storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
 
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
 
 	// Pool name - already verified earlier
-	poolName := params["pool_name"]
+	poolName := params[common.SC_POOL_NAME]
 
 	targetVol, err := fc.cs.api.GetVolumeByName(name)
 	if err != nil {
@@ -231,7 +232,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		return nil, status.Errorf(codes.InvalidArgument,
 			"volume storage pool is different than the requested storage pool %s", storagePool)
 	}
-	ssd := req.GetParameters()["ssd_enabled"]
+	ssd := req.GetParameters()[common.SC_SSD_ENABLED]
 	if ssd == "" {
 		ssd = fmt.Sprint(false)
 	}
@@ -332,7 +333,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		}
 	}
 
-	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()["max_vols_per_host"])
+	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST])
 	if err != nil {
 		klog.Errorf("Invalid parameter max_vols_per_host error:  %v", err)
 		return nil, err

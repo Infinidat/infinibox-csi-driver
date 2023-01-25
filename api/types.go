@@ -10,13 +10,6 @@ See the License for the specific language governing permissions and
 limitations under the License.*/
 package api
 
-// storage class parameter keys
-const (
-	SC_NFS_EXPORT_PERMISSIONS = "nfs_export_permissions"
-	SC_PRIV_PORTS             = "privileged_ports_only"
-	SC_SNAPDIR_VISIBLE        = "snapdir_visible"
-)
-
 type EndpointConfig struct {
 	Endpoint string
 	Version  string

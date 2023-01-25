@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -36,7 +37,7 @@ func TestNfsControllerSuite(t *testing.T) {
 func (suite *NFSControllerSuite) Test_CreateVolume_paramerValidation_Fail() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
-	delete(parameterMap, "pool_name")
+	delete(parameterMap, common.SC_POOL_NAME)
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: parameter validation ")
@@ -62,7 +63,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, filesystemErr)
-	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
+	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(100, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
@@ -137,7 +138,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(0, expectedError)
+	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: CreateVolume get poolID by poolName")
@@ -153,7 +154,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
+	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(100, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(0, expectedError)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
@@ -170,7 +171,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
+	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(100, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(1, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedError)
 
@@ -188,7 +189,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
-	suite.api.On("GetStoragePoolIDByName", parameterMap["pool_name"]).Return(100, nil)
+	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(100, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
@@ -852,15 +853,15 @@ func getCreateVolumeCloneRequest(name string, parameterMap map[string]string) *c
 
 func getCreateVolumeParameter() map[string]string {
 	return map[string]string{
-		"pool_name":                   "pool_name1",
-		"network_space":               "network_space1",
-		api.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		common.SC_POOL_NAME:              "pool_name1",
+		common.SC_NETWORK_SPACE:          "network_space1",
+		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }
 
 func getPublishVolumeParameter() map[string]string {
 	return map[string]string{
-		"exportID":                    "1",
-		api.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		"exportID":                       "1",
+		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }

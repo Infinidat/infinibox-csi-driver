@@ -14,7 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -38,7 +38,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	if len(reqParameters) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no Parameters provided to CreateVolume")
 	}
-	storageprotocol := reqParameters["storage_protocol"]
+	storageprotocol := reqParameters[common.SC_STORAGE_PROTOCOL]
 	reqCapabilities := req.GetVolumeCapabilities()
 
 	klog.V(2).Infof("CreateVolume called, name: '%s' controller nodeid: '%s' storage_protocol: '%s' capacity-range: %v params: %v",
@@ -64,7 +64,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	configparams := make(map[string]string)
 	configparams["nodeid"] = s.nodeID
 	configparams["driverversion"] = s.driverVersion
-	configparams[api.SC_NFS_EXPORT_PERMISSIONS] = reqParameters[api.SC_NFS_EXPORT_PERMISSIONS]
+	configparams[common.SC_NFS_EXPORT_PERMISSIONS] = reqParameters[common.SC_NFS_EXPORT_PERMISSIONS]
 
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {

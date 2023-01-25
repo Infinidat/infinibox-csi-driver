@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -44,7 +45,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail() {
 func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail2() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
-	delete(parameterMap, "useCHAP")
+	delete(parameterMap, common.SC_USE_CHAP)
 	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
@@ -244,7 +245,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError()
 	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{"max_vols_per_host": "AA"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume invalid max_vols_per_host value")
 }
@@ -256,7 +257,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError(
 	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{"max_vols_per_host": "0"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume max_vols_per_host exceeded")
 }
@@ -447,7 +448,7 @@ func getISCSIControllerPublishVolumeRequest() *csi.ControllerPublishVolumeReques
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeId:      "1$$iscsi",
 		NodeId:        "10.20.20.50$$iscsi",
-		VolumeContext: map[string]string{"max_vols_per_host": "10"},
+		VolumeContext: map[string]string{common.SC_MAX_VOLS_PER_HOST: "10"},
 	}
 }
 
@@ -528,15 +529,15 @@ func getISCSIValidateVolumeCapabilitiesRequest(pvName string, parameterMap map[s
 
 func getISCSICreateVolumeParameters() map[string]string {
 	return map[string]string{
-		"gid":               "2468",
-		"max_vols_per_host": "19",
-		"network_space":     "network_space1",
-		"pool_name":         "pool_name1",
-		"provision_type":    "provision_type1",
-		"ssd_enabled":       "true",
-		"storage_protocol":  "iscsi",
-		"uid":               "1234",
-		"unix_permissions":  "0777",
-		"useCHAP":           "none",
+		common.SC_GID:               "2468",
+		common.SC_MAX_VOLS_PER_HOST: "19",
+		common.SC_NETWORK_SPACE:     "network_space1",
+		common.SC_POOL_NAME:         "pool_name1",
+		common.SC_PROVISION_TYPE:    "provision_type1",
+		common.SC_SSD_ENABLED:       "true",
+		common.SC_STORAGE_PROTOCOL:  "iscsi",
+		common.SC_UID:               "1234",
+		common.SC_UNIX_PERMISSIONS:  "0777",
+		common.SC_USE_CHAP:          "none",
 	}
 }

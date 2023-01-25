@@ -14,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
 	"time"
@@ -40,7 +41,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("NodePublishVolume - volume ID '%s'", volumeId)
-	storageProtocol := req.GetVolumeContext()["storage_protocol"]
+	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
 	config := make(map[string]string)
 
 	// get operator
@@ -145,7 +146,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
 
-	storageProtocol := req.GetVolumeContext()["storage_protocol"]
+	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
 	config := make(map[string]string)
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())

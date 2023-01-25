@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -22,7 +23,7 @@ func TestNodeTestSuite(t *testing.T) {
 
 func (suite *NodeTestSuite) Test_NodePublishVolume_invalid_protocol() {
 	nodePublishReq := getNodeNodePublishVolumeRequest()
-	nodePublishReq.VolumeContext = map[string]string{"storage_protocol": "unknown"}
+	nodePublishReq.VolumeContext = map[string]string{common.SC_STORAGE_PROTOCOL: "unknown"}
 	s := getService()
 	_, err := s.NodePublishVolume(context.Background(), nodePublishReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
@@ -73,7 +74,7 @@ func (suite *NodeTestSuite) Test_NodeGetInfo() {
 
 func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 	nodeStageReq := getNodeStageVolumeRequest()
-	nodeStageReq.VolumeContext = map[string]string{"storage_protocol": "unknown"}
+	nodeStageReq.VolumeContext = map[string]string{common.SC_STORAGE_PROTOCOL: "unknown"}
 	s := getService()
 	_, err := s.NodeStageVolume(context.Background(), nodeStageReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
@@ -129,7 +130,7 @@ func getNodeExpandVolumeRequest() *csi.NodeExpandVolumeRequest {
 func getNodeStageVolumeRequest() *csi.NodeStageVolumeRequest {
 	return &csi.NodeStageVolumeRequest{
 		VolumeId:      "100$$nfs",
-		VolumeContext: map[string]string{"storage_protocol": "nfs"},
+		VolumeContext: map[string]string{common.SC_STORAGE_PROTOCOL: "nfs"},
 		Secrets:       tests.GetSecret(),
 	}
 }
@@ -143,7 +144,7 @@ func getNodeUnpublishVolumeRequest() *csi.NodeUnpublishVolumeRequest {
 func getNodeNodePublishVolumeRequest() *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		VolumeId:      "100$$nfs",
-		VolumeContext: map[string]string{"storage_protocol": "nfs"},
+		VolumeContext: map[string]string{common.SC_STORAGE_PROTOCOL: "nfs"},
 		Secrets:       tests.GetSecret(),
 	}
 }

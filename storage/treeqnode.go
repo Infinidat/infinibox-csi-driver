@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"os"
 	"strconv"
 
@@ -47,11 +48,11 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	klog.V(4).Infof("volumeContext=%+v", req.GetVolumeContext())
 	klog.V(4).Infof("treeq.configmap=%+v", treeq.configmap)
 
-	if req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		treeq.snapdirVisible = false
 		treeq.usePrivilegedPorts = false
 
-		snapDirVisible := req.GetVolumeContext()[api.SC_SNAPDIR_VISIBLE]
+		snapDirVisible := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
 		if snapDirVisible != "" {
 			treeq.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
 			if err != nil {
@@ -59,7 +60,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 				return nil, err
 			}
 		}
-		privPorts := req.GetVolumeContext()[api.SC_PRIV_PORTS]
+		privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
 		if privPorts != "" {
 			treeq.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 			if err != nil {
@@ -72,7 +73,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			return nil, err
 		}
 	} else {
-		klog.V(4).Infof("%s was specified %s, will not create default export rule", api.SC_NFS_EXPORT_PERMISSIONS, req.GetVolumeContext()[api.SC_NFS_EXPORT_PERMISSIONS])
+		klog.V(4).Infof("%s was specified %s, will not create default export rule", common.SC_NFS_EXPORT_PERMISSIONS, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)

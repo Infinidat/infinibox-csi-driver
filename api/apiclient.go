@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
+	"infinibox-csi-driver/common"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -210,7 +211,7 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 	valumeParameter["size"] = volume.VolumeSize
 	valumeParameter["name"] = volume.Name
 	valumeParameter["provtype"] = volume.ProvisionType
-	valumeParameter["ssd_enabled"] = volume.SsdEnabled
+	valumeParameter[common.SC_SSD_ENABLED] = volume.SsdEnabled
 	vol := Volume{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &vol)
 	if err != nil {
@@ -394,7 +395,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 	valumeParameter["parent_id"] = snapshotParam.ParentID
 	valumeParameter["name"] = snapshotParam.SnapshotName
 	valumeParameter["write_protected"] = snapshotParam.WriteProtected
-	valumeParameter["ssd_enabled"] = snapshotParam.SsdEnabled
+	valumeParameter[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
 	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
 	if err != nil {
 		return nil, err

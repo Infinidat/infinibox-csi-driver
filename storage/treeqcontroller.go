@@ -16,7 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"strconv"
 	"strings"
 
@@ -30,8 +30,8 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	klog.V(4).Infof("CreateVolume called pvName %s parameters %v", req.GetName(), req.GetParameters())
 
 	capacity, err := nfsSanityCheck(req, map[string]string{
-		"pool_name":     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"network_space": `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, map[string]string{
 		MAXFILESYSTEMS:         `\A\d+\z`,
 		MAXTREEQSPERFILESYSTEM: `\A\d+\z`,
@@ -43,7 +43,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	config := req.GetParameters()
 	treeq.configmap = config
-	treeqVolumeMap, err := treeq.filesysService.IsTreeqAlreadyExist(config["pool_name"], strings.Trim(config["network_space"], ""), req.GetName())
+	treeqVolumeMap, err := treeq.filesysService.IsTreeqAlreadyExist(config[common.SC_POOL_NAME], strings.Trim(config[common.SC_NETWORK_SPACE], ""), req.GetName())
 	if err != nil {
 		klog.Errorf("error locating existing treeq %s", err.Error())
 		return nil, err
@@ -56,7 +56,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	treeqVolumeMap[api.SC_NFS_EXPORT_PERMISSIONS] = req.Parameters[api.SC_NFS_EXPORT_PERMISSIONS]
+	treeqVolumeMap[common.SC_NFS_EXPORT_PERMISSIONS] = req.Parameters[common.SC_NFS_EXPORT_PERMISSIONS]
 
 	volumeID := treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"]
 	klog.V(4).Infof("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeMap, volumeID)

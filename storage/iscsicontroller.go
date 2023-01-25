@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"strconv"
 	"strings"
 	"time"
@@ -47,22 +48,22 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
-		"pool_name":         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		"max_vols_per_host": `(?i)\A\d+\z`,
-		"useCHAP":           `(?i)\A(none|chap|mutual_chap)\z`,
-		"network_space":     `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
+		common.SC_USE_CHAP:          `(?i)\A(none|chap|mutual_chap)\z`,
+		common.SC_NETWORK_SPACE:     `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, nil, params)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	// validate optional parameters
-	volType, provided := params["provision_type"]
+	volType, provided := params[common.SC_PROVISION_TYPE]
 	if !provided {
 		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
 	}
 	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
-	ssdEnabledString, provided := params["ssd_enabled"]
+	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
 	if provided {
 		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
 	}
@@ -71,7 +72,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	name := req.GetName()
 
 	// Pool name - already verified earlier
-	poolName := params["pool_name"]
+	poolName := params[common.SC_POOL_NAME]
 
 	targetVol, err := iscsi.cs.api.GetVolumeByName(name)
 	if err != nil {
@@ -95,7 +96,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.AlreadyExists, msg)
 	}
 
-	networkSpace := params["network_space"]
+	networkSpace := params[common.SC_NETWORK_SPACE]
 	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		msg := fmt.Sprintf("Error getting network space %s", networkSpace)
@@ -255,7 +256,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	}
 
 	// Parse ssd enabled flag
-	ssd := params["ssd_enabled"]
+	ssd := params[common.SC_SSD_ENABLED]
 	if ssd == "" {
 		ssd = fmt.Sprint(false)
 	}
@@ -386,7 +387,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		}
 	}
 
-	maxVolsPerHostStr := req.GetVolumeContext()["max_vols_per_host"]
+	maxVolsPerHostStr := req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST]
 	if maxVolsPerHostStr != "" {
 		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
 		if err != nil {

@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"io"
 	"os"
 	"os/exec"
@@ -35,9 +36,6 @@ import (
 )
 
 const (
-	// StoragePoolKey : pool to be used
-	StoragePoolKey = "pool_name"
-
 	// MinVolumeSize : volume will be created with this size if requested volume size is less than this values
 	MinVolumeSize = 1 * bytesofGiB
 
@@ -241,18 +239,18 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 
 	// TODO refactor potential - each protocol would implement a function to isolate it's
 	// particular SC validation logic
-	if providedStorageClassParams["storage_protocol"] == "nfs" || providedStorageClassParams["storage_protocol"] == "nfs_treeq" {
-		if providedStorageClassParams[api.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == "nfs" || providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == "nfs_treeq" {
+		if providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 			// the case when nfs_export_permissions is not set by a user in the SC
 		} else {
-			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams[api.SC_NFS_EXPORT_PERMISSIONS])
+			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS])
 			if err != nil {
 				klog.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
 				return fmt.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
 			}
 
 			// validation for uid,gid,unix_permissions
-			if providedStorageClassParams["uid"] != "" || providedStorageClassParams["gid"] != "" || providedStorageClassParams["unix_permissions"] != "" {
+			if providedStorageClassParams[common.SC_UID] != "" || providedStorageClassParams[common.SC_GID] != "" || providedStorageClassParams[common.SC_UNIX_PERMISSIONS] != "" {
 				if len(permissionsMapArray) > 0 {
 					noRootSquash := permissionsMapArray[0]["no_root_squash"]
 					if noRootSquash == false {
@@ -294,7 +292,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
-		klog.Errorf("invalid %s format %v raw [%s] fixed [%s]", api.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
+		klog.Errorf("invalid %s format %v raw [%s] fixed [%s]", common.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
 	}
 
 	for _, pass := range permissionsMapArray {
@@ -431,7 +429,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 
 	// Chown
 	var uid_int, gid_int int
-	tmp := req.GetVolumeContext()["uid"] // Returns an empty string if key not found
+	tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
 	if tmp == "" {
 		uid_int = -1 // -1 means to not change the value
 	} else {
@@ -443,7 +441,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		}
 	}
 
-	tmp = req.GetVolumeContext()["gid"]
+	tmp = req.GetVolumeContext()[common.SC_GID]
 	if tmp == "" {
 		gid_int = -1 // -1 means to not change the value
 	} else {
@@ -464,7 +462,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	klog.V(4).Infof("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 
 	// Chmod
-	unixPermissions := req.GetVolumeContext()["unix_permissions"] // Returns an empty string if key not found
+	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
 	if unixPermissions != "" {
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
@@ -512,7 +510,7 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
 	}
 
-	useChap := config["useCHAP"]
+	useChap := config[common.SC_USE_CHAP]
 	if useChap != "" {
 		klog.Warningf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
 	}
@@ -520,7 +518,7 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			msg := fmt.Sprintf("Block access requested for %s PV %s", config["storage_protocol"], req.GetName())
+			msg := fmt.Sprintf("Block access requested for %s PV %s", config[common.SC_STORAGE_PROTOCOL], req.GetName())
 			klog.Errorf(msg)
 			return capacity, status.Error(codes.InvalidArgument, msg)
 		}
