@@ -87,7 +87,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	} else {
 		klog.V(4).Infof("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
-		return &csi.NodePublishVolumeResponse{}, nil
+		// don't return, this may be a second call after a mount timeout.
 	}
 
 	mountOptions, err := nfs.storageHelper.GetNFSMountOptions(req)
@@ -108,13 +108,12 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	klog.V(2).Infof("Successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
-	svc := Service{}
 	if req.GetReadonly() {
 		klog.V(2).Info("this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	err = svc.SetVolumePermissions(req)
+	err = nfs.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
 		klog.Errorf(msg)

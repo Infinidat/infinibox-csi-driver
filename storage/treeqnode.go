@@ -86,7 +86,6 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	} else {
 		klog.V(4).Infof("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
-		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	mountOptions, err := treeq.storageHelper.GetNFSMountOptions(req)
