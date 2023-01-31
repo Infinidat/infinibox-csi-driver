@@ -48,6 +48,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		klog.V(2).Infof("NodePublishVolume NewStorageNode instance created with volume ID %s", volumeId)
+		req.VolumeContext["nodeID"] = s.nodeID
 		return storageNode.NodePublishVolume(ctx, req)
 	}
 	klog.Errorf("NodePublishVolume NewStorageNode instance creation failed: %s", err)
