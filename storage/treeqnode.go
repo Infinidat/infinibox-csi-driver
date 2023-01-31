@@ -109,8 +109,8 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	svc := Service{}
-	err = svc.SetVolumePermissions(req)
+	//svc := Service{}
+	err = treeq.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
 		klog.Errorf(msg)
