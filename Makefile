@@ -73,16 +73,15 @@ test: build  ## Unit test source.
 	@echo -e $(_finish)
 
 .PHONY: test-one-thing
-.ONESHELL:
 test-one-thing: build lint  ## Unit test source, but just run one test.
 	@echo -e $(_begin)
-	printf "\nFrom $(_TEST_ONE_THING_DIR)/, running test $(_TEST_ONE_THING)\n\n"
-	sleep 1
-	cd "$(_TEST_ONE_THING_DIR)"
+	@printf "\nFrom $(_TEST_ONE_THING_DIR)/, running test $(_TEST_ONE_THING)\n\n"
+	@sleep 1
+	@cd "$(_TEST_ONE_THING_DIR)" && \
 		$(_GOTEST) -v -run "$(_TEST_ONE_THING)" \
 		&&  printf "\nTest passed = From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n" \
 		|| (printf "\nTest failed - From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n"; false)
-	echo -e $(_finish)
+	@echo -e $(_finish)
 
 .PHONY: test-find-fails
 test-find-fails:  ## Find and summarize failing tests.
