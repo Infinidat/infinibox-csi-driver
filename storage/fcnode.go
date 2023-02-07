@@ -17,7 +17,8 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"io/ioutil"
+	"io/fs"
+
 	"os"
 	"os/exec"
 	"path"
@@ -558,8 +559,21 @@ type Connector struct {
 type OSioHandler struct{}
 
 // ReadDir calls the ReadDir function from ioutil package
-func (handler *OSioHandler) ReadDir(dirname string) ([]os.FileInfo, error) {
-	return ioutil.ReadDir(dirname)
+func (handler *OSioHandler) ReadDir(dirname string) (infos []os.FileInfo, err error) {
+	entries, err := os.ReadDir(dirname)
+	if err != nil {
+		return infos, err
+	}
+	infos = make([]fs.FileInfo, 0, len(entries))
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return infos, err
+
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
 }
 
 // Lstat calls the Lstat function from os package
@@ -574,7 +588,7 @@ func (handler *OSioHandler) EvalSymlinks(path string) (string, error) {
 
 // WriteFile calls WriteFile from ioutil package
 func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.FileMode) error {
-	return ioutil.WriteFile(filename, data, perm)
+	return os.WriteFile(filename, data, perm)
 }
 
 // FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent

@@ -5,7 +5,7 @@ stages:
     - test
 
 default:
-    image: quay.io/projectquay/golang:1.18
+    image: quay.io/projectquay/golang:1.19
 
     before_script:
         - echo ${CI_PROJECT_DIR}

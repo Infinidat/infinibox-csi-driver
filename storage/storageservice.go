@@ -18,7 +18,7 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"io/ioutil"
+
 	"math/rand"
 	"os"
 	"os/exec"
@@ -578,10 +578,13 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 	}
 	disk := parts[2]
 	slavesPath := path.Join("/sys/block/", disk, "/slaves/")
-	if files, err := ioutil.ReadDir(slavesPath); err == nil {
-		for _, f := range files {
-			devices = append(devices, path.Join("/dev/", f.Name()))
-		}
+
+	files, err := os.ReadDir(slavesPath)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range files {
+		devices = append(devices, path.Join("/dev/", f.Name()))
 	}
 	if len(devices) == 0 {
 		err := fmt.Errorf("findSlaveDevicesOnMultipath() for dm %s found no devices", dm)
@@ -635,13 +638,14 @@ func findLunOnDevice(devicePath string) (string, error) {
 	device := parts[2]
 	scsiDevicePath := fmt.Sprintf("/sys/class/block/%s/device/scsi_device", device)
 
-	if files, err := ioutil.ReadDir(scsiDevicePath); err == nil {
-		hctl := files[0].Name()
-		partsLun := strings.Split(hctl, ":")
-		lun = partsLun[3]
-	} else {
+	files, err := os.ReadDir(scsiDevicePath)
+	if err != nil {
 		return "", fmt.Errorf("cannot read scsi device path %s", scsiDevicePath)
 	}
+
+	hctl := files[0].Name()
+	partsLun := strings.Split(hctl, ":")
+	lun = partsLun[3]
 	return lun, nil
 }
 

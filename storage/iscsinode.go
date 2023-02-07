@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"io/ioutil"
+
 	"os"
 	"os/exec"
 	"path"
@@ -1181,17 +1181,19 @@ func (iscsi *iscsistorage) findMultipathDeviceForDevice(device string) string {
 	}
 	// TODO: Does this need a /host prefix?
 	sysPath := "/sys/block/"
-	if dirs, err := ioutil.ReadDir(sysPath); err == nil {
-		for _, f := range dirs {
-			name := f.Name()
-			if strings.HasPrefix(name, "dm-") {
-				if _, err1 := os.Lstat(sysPath + name + "/slaves/" + disk); err1 == nil {
-					return "/dev/" + name
-				}
+
+	dirs, err := os.ReadDir(sysPath)
+	if err != nil {
+		klog.Errorf("Failed to find multipath device with error %v", err)
+		return ""
+	}
+	for _, f := range dirs {
+		name := f.Name()
+		if strings.HasPrefix(name, "dm-") {
+			if _, err1 := os.Lstat(sysPath + name + "/slaves/" + disk); err1 == nil {
+				return "/dev/" + name
 			}
 		}
-	} else {
-		klog.Errorf("Failed to find multipath device with error %v", err)
 	}
 	return ""
 }
