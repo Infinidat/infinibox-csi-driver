@@ -52,7 +52,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, expectedErr)
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.NotNil(suite.T(), err, "empty error")
 }
@@ -66,7 +66,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	result, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.Nil(suite.T(), err, "empty error")
 	correctVolId := fmt.Sprintf("%s#%s", volumeRespoance["ID"], volumeRespoance["TREEQID"])
@@ -78,20 +78,20 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_InvalidVolumeID() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100"
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
 	var filesytemID, treeqID int64 = 100, 200
@@ -101,7 +101,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND error")
 	var filesytemID, treeqID int64 = 100, 200
@@ -111,7 +111,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
 	var filesytemID, treeqID int64 = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(nil)
@@ -121,20 +121,20 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_VolumeID_empty() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_InvalidVolumeID() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100"
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
@@ -145,7 +145,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfound() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
 	maxSize := ""
@@ -155,7 +155,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfoun
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
-	service := treeqstorage{filesysService: suite.filesystem}
+	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
 	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
 	maxSize := ""

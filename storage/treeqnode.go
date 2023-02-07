@@ -13,7 +13,6 @@ package storage
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"os"
 	"strconv"
@@ -46,15 +45,15 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	klog.V(4).Infof("fileSystemId %d treeqId %d\n", fileSystemId, treeqId)
 	klog.V(4).Infof("volumeContext=%+v", req.GetVolumeContext())
-	klog.V(4).Infof("treeq.configmap=%+v", treeq.configmap)
+	klog.V(4).Infof("treeq.nfsstorage.configmap=%+v", treeq.nfsstorage.storageClassParameters)
 
 	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
-		treeq.snapdirVisible = false
-		treeq.usePrivilegedPorts = false
+		treeq.nfsstorage.snapdirVisible = false
+		treeq.nfsstorage.usePrivilegedPorts = false
 
 		snapDirVisible := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
 		if snapDirVisible != "" {
-			treeq.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
+			treeq.nfsstorage.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
 			if err != nil {
 				klog.Errorf("error %s", err.Error())
 				return nil, err
@@ -62,13 +61,13 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		}
 		privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
 		if privPorts != "" {
-			treeq.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
+			treeq.nfsstorage.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 			if err != nil {
 				klog.Errorf("error %s", err.Error())
 				return nil, err
 			}
 		}
-		err = treeq.createExportRule(fileSystemId, req.GetVolumeContext()["nodeID"])
+		err = treeq.nfsstorage.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
 		if err != nil {
 			return nil, err
 		}
@@ -86,9 +85,10 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	} else {
 		klog.V(4).Infof("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
+		// don't return, this may be a second call after a mount timeout
 	}
 
-	mountOptions, err := treeq.storageHelper.GetNFSMountOptions(req)
+	mountOptions, err := treeq.nfsstorage.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
@@ -97,7 +97,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
-	err = treeq.mounter.Mount(source, targetPath, "nfs", mountOptions)
+	err = treeq.nfsstorage.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		klog.Errorf("failed to mount source path '%s' : %s", source, err)
 		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
@@ -109,8 +109,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	//svc := Service{}
-	err = treeq.storageHelper.SetVolumePermissions(req)
+	err = treeq.nfsstorage.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
 		klog.Errorf(msg)
@@ -123,20 +122,20 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	klog.V(2).Info("treeq NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
-	notMnt, err := treeq.mounter.IsLikelyNotMountPoint(targetPath)
+	notMnt, err := treeq.nfsstorage.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
-		if treeq.osHelper.IsNotExist(err) {
+		if treeq.nfsstorage.osHelper.IsNotExist(err) {
 			klog.V(2).Infof("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		return nil, err
 	}
 	if notMnt {
-		if err := treeq.mounter.Unmount(targetPath); err != nil {
+		if err := treeq.nfsstorage.mounter.Unmount(targetPath); err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
 		}
 	}
-	if err := treeq.osHelper.Remove(targetPath); err != nil && !treeq.osHelper.IsNotExist(err) {
+	if err := treeq.nfsstorage.osHelper.Remove(targetPath); err != nil && !treeq.nfsstorage.osHelper.IsNotExist(err) {
 		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
 	}
 	klog.V(2).Infof("pod successfully unmounted from volumeID %s", req.GetVolumeId())
@@ -149,68 +148,4 @@ func (treeq *treeqstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 func (treeq *treeqstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	return &csi.NodeUnstageVolumeResponse{}, nil
-}
-
-func (treeq *treeqstorage) createExportRule(filesystemId int64, ipAddress string) (err error) {
-	klog.V(4).Infof("createExportRule filesystemId=%d, ipAddress: %s", filesystemId, ipAddress)
-	//lookup file system information
-	fs, err := treeq.cs.api.GetFileSystemByID(filesystemId)
-	if err != nil {
-		klog.Errorf("failed to get filesystem by id %d\n", filesystemId)
-		return status.Errorf(codes.Internal, "failed to get filesystem by id  %v", err)
-	}
-
-	// use the volumeId to get the filesystem information,
-	//example rule {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
-	exportFileSystem := api.ExportFileSys{
-		FilesystemID:        filesystemId,
-		Transport_protocols: "TCP",
-		Privileged_port:     treeq.usePrivilegedPorts,
-		SnapdirVisible:      treeq.snapdirVisible,
-		Export_path:         "/" + fs.Name, // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
-	}
-	exportPerms := "[{'access':'RW','client':'" + ipAddress + "','no_root_squash':true}]"
-	permissionsMapArray, err := getPermissionMaps(exportPerms)
-	if err != nil {
-		klog.Errorf("failed to parse permission map string %s", exportPerms)
-		return err
-	}
-
-	// remove an existing export if it exists, this occurs when a pod restarts
-	resp, err := treeq.cs.api.GetExportByFileSystem(filesystemId)
-	if err != nil {
-		klog.Errorf("error from GetExportByFileSystem filesystemId %d %s", filesystemId, err.Error())
-		return err
-	}
-	klog.V(4).Infof("GetExportByFileSystem response =%+v", resp)
-	if resp != nil {
-		responses := *resp
-		for i := 0; i < len(responses); i++ {
-			r := responses[i]
-			if r.ExportPath == exportFileSystem.Export_path {
-				klog.V(4).Infof("export path was found to already exist %s", r.ExportPath)
-				// here is where we would delete the existing export
-				deleteResp, err := treeq.cs.api.DeleteExportPath(r.ID)
-				if err != nil {
-					klog.Errorf("error from DeleteExportPath ID %d filesystemId %d", r.ID, filesystemId)
-					return err
-				}
-				klog.V(4).Infof("delete export path response %+v\n", deleteResp)
-			}
-		}
-	}
-
-	// create the export rule
-	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
-	klog.V(4).Infof("exportFileSystem =%+v", exportFileSystem)
-	exportResp, err := treeq.cs.api.ExportFileSystem(exportFileSystem)
-	if err != nil {
-		klog.Errorf("failed to create export path of filesystem %s", fs.Name)
-		return err
-	}
-	treeq.exportID = exportResp.ID
-	treeq.exportBlock = exportResp.ExportPath
-	klog.V(4).Infof("Created nfs treeq export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
-
-	return nil
 }

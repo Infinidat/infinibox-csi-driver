@@ -33,38 +33,39 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, map[string]string{
-		MAXFILESYSTEMS:         `\A\d+\z`,
-		MAXTREEQSPERFILESYSTEM: `\A\d+\z`,
-		MAXFILESYSTEMSIZE:      `\A.*\z`, // TODO: add more specific pattern
+		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
+		common.SC_MAX_TREEQS_PER_FILESYSTEM: `\A\d+\z`,
+		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	config := req.GetParameters()
-	treeq.configmap = config
-	treeqVolumeMap, err := treeq.filesysService.IsTreeqAlreadyExist(config[common.SC_POOL_NAME], strings.Trim(config[common.SC_NETWORK_SPACE], ""), req.GetName())
+	storageClassParameters := req.GetParameters()
+	treeq.nfsstorage.storageClassParameters = storageClassParameters
+	treeqVolumeContext, err := treeq.treeqService.IsTreeqAlreadyExist(storageClassParameters[common.SC_POOL_NAME], strings.Trim(storageClassParameters[common.SC_NETWORK_SPACE], ""), req.GetName())
 	if err != nil {
 		klog.Errorf("error locating existing treeq %s", err.Error())
 		return nil, err
 	}
-	if len(treeqVolumeMap) == 0 {
-		treeqVolumeMap, err = treeq.filesysService.CreateTreeqVolume(config, capacity, req.GetName())
+	if len(treeqVolumeContext) == 0 {
+		treeqVolumeContext, err = treeq.treeqService.CreateTreeqVolume(storageClassParameters, capacity, req.GetName())
 		if err != nil {
 			klog.Errorf("error creating treeq volume %s", err.Error())
 			return nil, err
 		}
 	}
 
-	treeqVolumeMap[common.SC_NFS_EXPORT_PERMISSIONS] = req.Parameters[common.SC_NFS_EXPORT_PERMISSIONS]
+	treeqVolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = storageClassParameters[common.SC_NFS_EXPORT_PERMISSIONS]
+	treeqVolumeContext[common.SC_STORAGE_PROTOCOL] = storageClassParameters[common.SC_STORAGE_PROTOCOL]
 
-	volumeID := treeqVolumeMap["ID"] + "#" + treeqVolumeMap["TREEQID"]
-	klog.V(4).Infof("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeMap, volumeID)
+	volumeID := treeqVolumeContext["ID"] + "#" + treeqVolumeContext["TREEQID"]
+	klog.V(4).Infof("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeContext, volumeID)
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volumeID,
 			CapacityBytes: capacity,
-			VolumeContext: treeqVolumeMap,
+			VolumeContext: treeqVolumeContext,
 			ContentSource: req.GetVolumeContentSource(),
 		},
 	}, nil
@@ -101,7 +102,7 @@ func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		klog.Errorf("Invalid Volume ID %v", err)
 		return nil, status.Error(codes.InvalidArgument, "Invalid volume ID")
 	}
-	nfsDeleteErr := treeq.filesysService.DeleteTreeqVolume(filesystemID, treeqID)
+	nfsDeleteErr := treeq.treeqService.DeleteTreeqVolume(filesystemID, treeqID)
 	if nfsDeleteErr != nil {
 		if strings.Contains(nfsDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
 			klog.Error("treeq already delete from infinibox")
@@ -136,7 +137,7 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		}
 	}()
 
-	maxFileSystemSize := treeq.configmap[MAXFILESYSTEMSIZE]
+	maxFileSystemSize := treeq.nfsstorage.storageClassParameters[common.SC_MAX_FILESYSTEM_SIZE]
 	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("Invalid Volume ID %v", err)
@@ -150,7 +151,7 @@ func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 
 	klog.V(4).Infof("filesystemID %d treeqID %d capacity %d maxSize %s\n", filesystemID, treeqID, capacity, maxFileSystemSize)
-	err = treeq.filesysService.UpdateTreeqVolume(filesystemID, treeqID, capacity, maxFileSystemSize)
+	err = treeq.treeqService.UpdateTreeqVolume(filesystemID, treeqID, capacity, maxFileSystemSize)
 	if err != nil {
 		return
 	}

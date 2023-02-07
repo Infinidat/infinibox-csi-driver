@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/api/clientgo"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"io/ioutil"
 	"math/rand"
@@ -54,6 +55,41 @@ type Storageoperations interface {
 	csi.NodeServer
 }
 
+// Mutex protecting device rescan and delete operations
+// var deviceMu sync.Mutex
+
+type commonservice struct {
+	api               api.Client
+	storagePoolIdName map[int64]string
+	driverversion     string
+	accessModesHelper helper.AccessModesHelper
+}
+
+type nfsstorage struct {
+	uniqueID               int64
+	storageClassParameters map[string]string
+	pVName                 string
+	capacity               int64
+	fileSystemID           int64
+	exportPath             string
+	usePrivilegedPorts     bool
+	snapdirVisible         bool
+	exportID               int64
+	exportBlock            string
+	ipAddress              string
+	cs                     commonservice
+	mounter                mount.Interface
+	osHelper               helper.OsHelper
+	storageHelper          StorageHelper
+}
+
+type treeqstorage struct {
+	csi.ControllerServer
+	csi.NodeServer
+	treeqService TreeqInterface
+	nfsstorage   nfsstorage
+}
+
 type fcstorage struct {
 	cs            commonservice
 	configmap     map[string]string
@@ -65,66 +101,25 @@ type iscsistorage struct {
 	osHelper helper.OsHelper
 }
 
-// Mutex protecting device rescan and delete operations
-// var deviceMu sync.Mutex
-
-type treeqstorage struct {
-	csi.ControllerServer
-	csi.NodeServer
-	cs                 commonservice
-	filesysService     FileSystemInterface
-	osHelper           helper.OsHelper
-	storageHelper      StorageHelper
-	usePrivilegedPorts bool
-	snapdirVisible     bool
-	exportID           int64
-	exportBlock        string
-	mounter            mount.Interface
-	configmap          map[string]string
-}
-
-type nfsstorage struct {
-	uniqueID  int64
-	configmap map[string]string
-	pVName    string
-	capacity  int64
-
-	////
-	fileSystemID       int64
-	exportpath         string
-	usePrivilegedPorts bool
-	snapdirVisible     bool
-	exportID           int64
-	exportBlock        string
-	ipAddress          string
-	cs                 commonservice
-	mounter            mount.Interface
-	osHelper           helper.OsHelper
-	storageHelper      StorageHelper
-}
-
-type commonservice struct {
-	api               api.Client
-	storagePoolIdName map[int64]string
-	driverversion     string
-	accessModesHelper helper.AccessModesHelper
-}
-
 // NewStorageController : To return specific implementation of storage
 func NewStorageController(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
-		if storageProtocol == "fc" {
+		switch storageProtocol {
+		case common.PROTOCOL_FC:
 			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
-		} else if storageProtocol == "iscsi" {
+		case common.PROTOCOL_ISCSI:
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
-		} else if storageProtocol == "nfs" {
+		case common.PROTOCOL_NFS:
 			return &nfsstorage{cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
-		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{cs: comnserv, filesysService: getFilesystemService(storageProtocol, comnserv), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+		case common.PROTOCOL_TREEQ:
+			nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}
+			service := &TreeqService{nfsstorage: nfs, cs: comnserv}
+			return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
+		default:
+			return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 		}
-		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
 	return nil, err
 }
@@ -134,16 +129,20 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 	comnserv, err := buildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
-		if storageProtocol == "fc" {
+		switch storageProtocol {
+		case common.PROTOCOL_FC:
 			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
-		} else if storageProtocol == "iscsi" {
+		case common.PROTOCOL_ISCSI:
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
-		} else if storageProtocol == "nfs" {
+		case common.PROTOCOL_NFS:
 			return &nfsstorage{cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
-		} else if storageProtocol == "nfs_treeq" {
-			return &treeqstorage{cs: comnserv, filesysService: getFilesystemService(storageProtocol, comnserv), mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+		case common.PROTOCOL_TREEQ:
+			nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, mounter: mount.New(""), storageHelper: Service{}, osHelper: helper.Service{}}
+			service := &TreeqService{nfsstorage: nfs, cs: comnserv}
+			return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
+		default:
+			return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 		}
-		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
 	return nil, err
 }
@@ -168,7 +167,7 @@ func buildCommonService(config map[string]string, secretMap map[string]string) (
 		commonserv.driverversion = config["driverversion"]
 		commonserv.accessModesHelper = helper.AccessMode{}
 	}
-	klog.V(2).Info("buildCommonService commonservice configuration done.")
+	klog.V(2).Infof("buildCommonService commonservice configuration done. config %+v", config)
 	return commonserv, nil
 }
 
@@ -305,7 +304,7 @@ func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) 
 		return "", err
 	}
 	if len(nspace.Portals) == 0 {
-		return "", errors.New("Ip address not found")
+		return "", errors.New("ip address not found")
 	}
 	index := getRandomIndex(len(nspace.Portals))
 	return nspace.Portals[index].IpAdress, nil
@@ -336,21 +335,6 @@ func getClusterVersion() string {
 	version, _ := cl.GetClusterVerion()
 	return version
 }
-
-/*
-func GetUnixPermission(unixPermission, defaultPermission string) (os.FileMode, error) {
-	var mode os.FileMode
-	if unixPermission == "" {
-		unixPermission = defaultPermission
-	}
-	i, err := strconv.ParseUint(unixPermission, 8, 32)
-	if err != nil {
-		klog.Errorf("failed to cast unixPermission %v", err)
-		return mode, err
-	}
-	mode = os.FileMode(i)
-	return mode, nil
-}*/
 
 func detachMpathDevice(mpathDevice string, protocol string) error {
 	var err error
@@ -635,7 +619,7 @@ func findHosts(protocol string) ([]string, error) {
 		}
 		return hosts, nil
 	}
-	err := fmt.Errorf("Unsupported protocol: %s", protocol)
+	err := fmt.Errorf("unsupported protocol: %s", protocol)
 	klog.Errorf(err.Error())
 	return nil, err
 }
@@ -646,7 +630,7 @@ func findLunOnDevice(devicePath string) (string, error) {
 	// Split path /dev/sdaa into "", "dev", "sdaa"
 	parts := strings.Split(devicePath, "/")
 	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
-		return "", fmt.Errorf("Invalid device name %s", devicePath)
+		return "", fmt.Errorf("invalid device name %s", devicePath)
 	}
 	device := parts[2]
 	scsiDevicePath := fmt.Sprintf("/sys/class/block/%s/device/scsi_device", device)
@@ -656,7 +640,7 @@ func findLunOnDevice(devicePath string) (string, error) {
 		partsLun := strings.Split(hctl, ":")
 		lun = partsLun[3]
 	} else {
-		return "", fmt.Errorf("Cannot read scsi device path %s", scsiDevicePath)
+		return "", fmt.Errorf("cannot read scsi device path %s", scsiDevicePath)
 	}
 	return lun, nil
 }

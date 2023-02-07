@@ -69,7 +69,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 				return nil, err
 			}
 		}
-		err = nfs.createExportRule(fileSystemId, req.GetVolumeContext()["nodeID"])
+		err = nfs.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	} else {
 		klog.V(4).Infof("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
-		// don't return, this may be a second call after a mount timeout.
+		// dont' return, this may be a second call after a mount timeout
 	}
 
 	mountOptions, err := nfs.storageHelper.GetNFSMountOptions(req)
@@ -153,7 +153,7 @@ func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not implemented")
 }
 
-func (nfs *nfsstorage) createExportRule(filesystemId int64, ipAddress string) (err error) {
+func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err error) {
 	//lookup file system information
 	fs, err := nfs.cs.api.GetFileSystemByID(filesystemId)
 	if err != nil {
@@ -162,7 +162,7 @@ func (nfs *nfsstorage) createExportRule(filesystemId int64, ipAddress string) (e
 	}
 
 	// use the volumeId to get the filesystem information,
-	//example rule {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
+	//example export {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
 	exportFileSystem := api.ExportFileSys{
 		FilesystemID:        filesystemId,
 		Transport_protocols: "TCP",

@@ -27,4 +27,16 @@ const (
 	SC_FS_PREFIX         = "fs_prefix"
 	SC_MAX_VOLS_PER_HOST = "max_vols_per_host"
 	SC_USE_CHAP          = "useCHAP"
+
+	SC_MAX_TREEQS_PER_FILESYSTEM = "max_treeqs_per_filesystem"
+	SC_MAX_FILESYSTEMS           = "max_filesystems"
+	SC_MAX_FILESYSTEM_SIZE       = "max_filesystem_size"
+)
+
+// storage protocols
+const (
+	PROTOCOL_NFS   = "nfs"
+	PROTOCOL_TREEQ = "nfs_treeq"
+	PROTOCOL_ISCSI = "iscsi"
+	PROTOCOL_FC    = "fc"
 )

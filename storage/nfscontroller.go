@@ -113,11 +113,11 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	klog.V(2).Infof("Snapshot directory is visible: %t", snapdirVisible)
 
 	nfs.pVName = pvName
-	nfs.configmap = config
+	nfs.storageClassParameters = config
 	nfs.capacity = capacity
 	nfs.usePrivilegedPorts = usePrivilegedPorts
 	nfs.snapdirVisible = snapdirVisible
-	nfs.exportpath = "/" + pvName
+	nfs.exportPath = "/" + pvName
 	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config[common.SC_NETWORK_SPACE], " "))
 	if err != nil {
 		msg := fmt.Sprintf("failed to get networkspace ipaddress, %v", err)
@@ -255,15 +255,15 @@ func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *c
 			err = errors.New("error while creating CreateNFSVolume method " + fmt.Sprint(res))
 		}
 	}()
-	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.configmap[common.SC_POOL_NAME], nfs.configmap[common.SC_NETWORK_SPACE])
+	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.storageClassParameters[common.SC_POOL_NAME], nfs.storageClassParameters[common.SC_NETWORK_SPACE])
 	if err != nil {
 		klog.Errorf(err.Error())
 		return nil, err
 	}
-	nfs.configmap[common.SC_NETWORK_SPACE] = validnwlist
+	nfs.storageClassParameters[common.SC_NETWORK_SPACE] = validnwlist
 	klog.V(4).Infof("networkspace validation success")
 
-	err = nfs.createFileSystem()
+	err = nfs.createFileSystem(nfs.pVName)
 	if err != nil {
 		klog.Errorf("failed to create file system, %v", err)
 		return nil, err
@@ -289,7 +289,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 		}
 	}()
 
-	if nfs.configmap[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if nfs.storageClassParameters[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		klog.V(4).Info("nfs_export_permissions parameter is not set in the StorageClass, will use default export")
 	} else {
 		err = nfs.createExportPath()
@@ -311,9 +311,11 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 			}
 		}
 	}()
-	metadata := make(map[string]interface{})
-	metadata["host.k8s.pvname"] = nfs.pVName
-	metadata["host.created_by"] = nfs.cs.GetCreatedBy()
+
+	metadata := map[string]interface{}{
+		"host.k8s.pvname": nfs.pVName,
+		"host.created_by": nfs.cs.GetCreatedBy(),
+	}
 
 	_, err = nfs.cs.api.AttachMetadataToObject(nfs.fileSystemID, metadata)
 	if err != nil {
@@ -325,9 +327,9 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 }
 
 func (nfs *nfsstorage) createExportPath() (err error) {
-	permissionsMapArray, err := getPermissionMaps(nfs.configmap[common.SC_NFS_EXPORT_PERMISSIONS])
+	permissionsMapArray, err := getPermissionMaps(nfs.storageClassParameters[common.SC_NFS_EXPORT_PERMISSIONS])
 	if err != nil {
-		klog.Errorf("failed to parse permission map string %s", nfs.configmap[common.SC_NFS_EXPORT_PERMISSIONS])
+		klog.Errorf("failed to parse permission map string %s", nfs.storageClassParameters[common.SC_NFS_EXPORT_PERMISSIONS])
 		return err
 	}
 
@@ -336,7 +338,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 		Transport_protocols: "TCP",
 		Privileged_port:     nfs.usePrivilegedPorts,
 		SnapdirVisible:      nfs.snapdirVisible,
-		Export_path:         nfs.exportpath,
+		Export_path:         nfs.exportPath,
 	}
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	var exportResp *api.ExportResponse
@@ -351,31 +353,32 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 	return err
 }
 
-func (nfs *nfsstorage) createFileSystem() (err error) {
-	namepool := nfs.configmap[common.SC_POOL_NAME]
+func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
+	namepool := nfs.storageClassParameters[common.SC_POOL_NAME]
 	poolID, err := nfs.cs.api.GetStoragePoolIDByName(namepool)
 	if err != nil {
 		klog.Errorf("failed to get GetPoolID by pool_name %s", namepool)
 		return err
 	}
-	ssdEnabled := nfs.configmap[common.SC_SSD_ENABLED]
+	ssdEnabled := nfs.storageClassParameters[common.SC_SSD_ENABLED]
 	if ssdEnabled == "" {
 		ssdEnabled = fmt.Sprint(false)
 	}
 	ssd, _ := strconv.ParseBool(ssdEnabled)
-	mapRequest := make(map[string]interface{})
-	mapRequest["pool_id"] = poolID
-	mapRequest["name"] = nfs.pVName
-	mapRequest[common.SC_SSD_ENABLED] = ssd
-	mapRequest["provtype"] = strings.ToUpper(nfs.configmap[common.SC_PROVISION_TYPE])
-	mapRequest["size"] = nfs.capacity
+	mapRequest := map[string]interface{}{
+		"pool_id":             poolID,
+		"name":                fileSystemName,
+		common.SC_SSD_ENABLED: ssd,
+		"provtype":            strings.ToUpper(nfs.storageClassParameters[common.SC_PROVISION_TYPE]),
+		"size":                nfs.capacity,
+	}
 	fileSystem, err := nfs.cs.api.CreateFilesystem(mapRequest)
 	if err != nil {
-		klog.Errorf("failed to create filesystem %s", nfs.pVName)
+		klog.Errorf("failed to create filesystem %s", fileSystemName)
 		return err
 	}
 	nfs.fileSystemID = fileSystem.ID
-	klog.V(4).Infof("filesystem Created %s", nfs.pVName)
+	klog.V(4).Infof("filesystem Created %s", fileSystemName)
 	return err
 }
 
@@ -384,21 +387,21 @@ func (nfs *nfsstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.Crea
 		VolID:        fmt.Sprint(nfs.fileSystemID),
 		VolName:      nfs.pVName,
 		VolSize:      nfs.capacity,
-		VolPath:      nfs.exportpath,
+		VolPath:      nfs.exportPath,
 		IpAddress:    nfs.ipAddress,
 		ExportID:     nfs.exportID,
 		ExportBlock:  nfs.exportBlock,
 		FileSystemID: nfs.fileSystemID,
 	}
-	nfs.configmap["ipAddress"] = (*infinidatVol).IpAddress
-	nfs.configmap["exportID"] = strconv.Itoa(int((*infinidatVol).ExportID))
-	nfs.configmap["volPathd"] = (*infinidatVol).VolPath
+	nfs.storageClassParameters["ipAddress"] = (*infinidatVol).IpAddress
+	nfs.storageClassParameters["exportID"] = strconv.Itoa(int((*infinidatVol).ExportID))
+	nfs.storageClassParameters["volPathd"] = (*infinidatVol).VolPath
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      (*infinidatVol).VolID,
 			CapacityBytes: nfs.capacity,
-			VolumeContext: nfs.configmap,
+			VolumeContext: nfs.storageClassParameters,
 			ContentSource: req.GetVolumeContentSource(),
 		},
 	}
@@ -447,8 +450,9 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	}
 	hasChild := nfs.cs.api.FileSystemHasChild(nfs.uniqueID)
 	if hasChild {
-		metadata := make(map[string]interface{})
-		metadata[TOBEDELETED] = true
+		metadata := map[string]interface{}{
+			TOBEDELETED: true,
+		}
 		_, err = nfs.cs.api.AttachMetadataToObject(nfs.uniqueID, metadata)
 		if err != nil {
 			klog.Errorf("failed to update host.k8s.to_be_deleted for filesystem %s error: %v", nfs.pVName, err)

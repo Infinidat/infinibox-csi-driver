@@ -47,11 +47,11 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	// get operator
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
-		klog.V(2).Infof("NodePublishVolume NewStorageNode instance created with volume ID %s", volumeId)
+		klog.V(2).Infof("NodePublishVolume - NewStorageNode succeeded with volume ID %s", volumeId)
 		req.VolumeContext["nodeID"] = s.nodeID
 		return storageNode.NodePublishVolume(ctx, req)
 	}
-	klog.Errorf("NodePublishVolume NewStorageNode instance creation failed: %s", err)
+	klog.Errorf("NodePublishVolume - NewStorageNode error: %s", err)
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
@@ -149,6 +149,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
 	config := make(map[string]string)
 	// get operator
+	klog.V(2).Infof("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		klog.V(2).Infof("NodeStageVolume succeeded with volume ID '%s'", volumeId)

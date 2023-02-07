@@ -239,7 +239,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 
 	// TODO refactor potential - each protocol would implement a function to isolate it's
 	// particular SC validation logic
-	if providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == "nfs" || providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == "nfs_treeq" {
+	if providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == common.PROTOCOL_NFS || providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == common.PROTOCOL_TREEQ {
 		if providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 			// the case when nfs_export_permissions is not set by a user in the SC
 		} else {
