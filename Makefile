@@ -151,11 +151,6 @@ docker-push-gitlab:  # Tag and push to gitlab.
 	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
 	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
-.PHONY: docker-push-dockerhub
-docker-push-dockerhub: docker-login-docker  # Tag and push to dockerhub.
-	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
-	docker push $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
-
 .PHONY: docker-push-redhat
 docker-push-redhat:  ## Login, tag and push to Red Hat.
 	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
@@ -216,7 +211,7 @@ docker-push-host-opensource:  ## Push CSI driver images to host-opensource.
 	@echo -e $(_finish)
 
 .PHONY: docker-push-dockerhub
-docker-push-dockerhub:  ## Push host-opensource CSI driver images to dockerhub.
+docker-push-dockerhub: docker-login-docker  ## Push host-opensource CSI driver images to dockerhub.
 	@echo -e $(_begin)
 	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG) \
 		infinidat/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG)
@@ -227,7 +222,7 @@ docker-push-dockerhub:  ## Push host-opensource CSI driver images to dockerhub.
 version:  ## Show tool versions.
 	@echo -e $(_begin)
 	@$(_GOCMD) version
-	@echo "  _DOCKER_IMAGE_TAG: $(_DOCKER_IMAGE_TAG)"
+	@echo "_DOCKER_IMAGE_TAG: $(_DOCKER_IMAGE_TAG)"
 	@echo -e $(_finish)
 
 # Force the _check-make-vars-defined recipe to always run. Verify our make variables have been defined.
