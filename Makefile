@@ -208,17 +208,26 @@ docker-rmi-dangling:  ## Remove docker images that are dangling to recover disk 
 	@echo -e $(_finish)
 
 .PHONY: docker-push-host-opensource
-docker-push-host-opensource:  ## Push CSI images to host-opensource.
+docker-push-host-opensource:  ## Push CSI driver images to host-opensource.
+	@echo -e $(_begin)
+	docker tag git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG) \
+		git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG)
+	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG)
+	@echo -e $(_finish)
+
+.PHONY: docker-push-dockerhub
+docker-push-dockerhub:  ## Push host-opensource CSI driver images to dockerhub.
+	@echo -e $(_begin)
+	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG) \
+		infinidat/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG)
+	docker push infinidat/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG)
+	@echo -e $(_finish)
 
 .PHONY: version
 version:  ## Show tool versions.
 	@echo -e $(_begin)
 	@$(_GOCMD) version
-	@echo
-	@echo "CSI version $(_DOCKER_IMAGE_TAG)"
-	@echo -e $(_begin)
-	docker tag  git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver:v$(_version)                        git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
-	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:v$(_version)
+	@echo "  _DOCKER_IMAGE_TAG: $(_DOCKER_IMAGE_TAG)"
 	@echo -e $(_finish)
 
 # Force the _check-make-vars-defined recipe to always run. Verify our make variables have been defined.
