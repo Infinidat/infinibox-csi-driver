@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -96,10 +97,16 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Errorf(codes.AlreadyExists, msg)
 	}
 
-	networkSpace := params[common.SC_NETWORK_SPACE]
-	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpace)
+	// for iscsi only, network space can have n number of values, we will pick one randomly to use
+	networkSpaces := strings.Split(params[common.SC_NETWORK_SPACE], ",")
+	rand.Seed(time.Now().UnixNano())
+	selectedNetworkSpace := networkSpaces[rand.Intn(len(networkSpaces))]
+
+	klog.V(2).Infof("networkSpaces len %d values %v picking %s\n", len(networkSpaces), networkSpaces, selectedNetworkSpace)
+
+	nspace, err := iscsi.cs.api.GetNetworkSpaceByName(selectedNetworkSpace)
 	if err != nil {
-		msg := fmt.Sprintf("Error getting network space %s", networkSpace)
+		msg := fmt.Sprintf("error getting network space %s", selectedNetworkSpace)
 		klog.Errorf(msg)
 		return nil, status.Errorf(codes.InvalidArgument, msg)
 	}
