@@ -51,7 +51,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	err = validateStorageClassParameters(map[string]string{
 		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
-	}, nil, params)
+	}, nil, params, fc.cs.api)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

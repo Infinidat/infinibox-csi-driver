@@ -34,10 +34,14 @@ func TestNfsControllerSuite(t *testing.T) {
 	suite.Run(t, new(NFSControllerSuite))
 }
 
-func (suite *NFSControllerSuite) Test_CreateVolume_paramerValidation_Fail() {
+func (suite *NFSControllerSuite) Test_CreateVolume_parameterValidation_Fail() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	delete(parameterMap, common.SC_POOL_NAME)
+
+	networkSpaceErr := errors.New("Some error")
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, networkSpaceErr)
+	// suite.api.On("validateProtocolToNetworkSpace", mock.Anything).Return(nil)
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: parameter validation ")
@@ -405,7 +409,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
 	assert.NotNil(suite.T(), err.Error(), "failed to clone the volume")
 }
 
-//===========================================================================
+// ===========================================================================
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_VolumeID_empty() {
 	service := nfsstorage{cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(""))
@@ -785,7 +789,7 @@ func getFileSystem() api.FileSystem {
 
 func getNetworkSpace() api.NetworkSpace {
 	portalArry := []api.Portal{{IpAdress: "10.20.20.50"}}
-	return api.NetworkSpace{Portals: portalArry}
+	return api.NetworkSpace{Portals: portalArry, Service: common.NS_NFS_SVC}
 }
 
 func getNfsCreateSnapshotRequest(vID string) *csi.CreateSnapshotRequest {
@@ -853,6 +857,7 @@ func getCreateVolumeCloneRequest(name string, parameterMap map[string]string) *c
 
 func getCreateVolumeParameter() map[string]string {
 	return map[string]string{
+		common.SC_STORAGE_PROTOCOL:       "nfs",
 		common.SC_POOL_NAME:              "pool_name1",
 		common.SC_NETWORK_SPACE:          "network_space1",
 		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",

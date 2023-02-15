@@ -613,6 +613,7 @@ func getCreateVolumeRequest() *csi.CreateVolumeRequest {
 		"max_filesystems":           "20",
 		"max_treeqs_per_filesystem": "21",
 		common.SC_NETWORK_SPACE:     "nas",
+		common.SC_STORAGE_PROTOCOL:  common.PROTOCOL_TREEQ,
 	}
 	req := csi.CreateVolumeRequest{
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * gib},
@@ -670,4 +671,12 @@ func getCreateTreeqVolumeParameter() map[string]string {
 		common.SC_NETWORK_SPACE:          "network_space1",
 		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
+}
+
+func getTreeQTestNetworkSpace() api.NetworkSpace {
+	var nws api.NetworkSpace
+	nws.Name = "testNWS"
+	nws.Service = common.NS_NFS_SVC
+
+	return nws
 }

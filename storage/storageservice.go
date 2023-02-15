@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
@@ -597,7 +599,7 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 func findHosts(protocol string) ([]string, error) {
 	// TODO - Must use portals if supporting more than one target IQN.
 	// Find hosts
-	if protocol == "iscsi" {
+	if protocol == common.PROTOCOL_ISCSI {
 		hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
 		hosts := strings.Fields(hostIds)
 		if err != nil {
@@ -608,7 +610,7 @@ func findHosts(protocol string) ([]string, error) {
 			klog.Warningf("The number of hosts is not %d. hosts: '%v'", mpathDeviceCount, hosts)
 		}
 		return hosts, nil
-	} else if protocol == "fc" {
+	} else if protocol == common.PROTOCOL_FC {
 		pathLeader := "/sys/class/fc_host/host"
 		hostsPath := fmt.Sprintf("%s*", pathLeader)
 		foundHosts, err := filepath.Glob(hostsPath)

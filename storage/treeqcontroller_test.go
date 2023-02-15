@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,13 +8,15 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -25,16 +28,24 @@ import (
 )
 
 func (suite *TreeqControllerSuite) SetupTest() {
+	suite.nfsMountMock = new(MockNfsMounter)
+	suite.storageHelperMock = new(MockStorageHelper)
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.filesystem = new(FileSystemInterfaceMock)
+	suite.api = new(api.MockApiService)
+	suite.cs = &commonservice{api: suite.api}
 
 	tests.ConfigureKlog()
 }
 
 type TreeqControllerSuite struct {
 	suite.Suite
-	osHelperMock *helper.MockOsHelper
-	filesystem   *FileSystemInterfaceMock
+	osHelperMock      *helper.MockOsHelper
+	filesystem        *FileSystemInterfaceMock
+	api               *api.MockApiService
+	cs                *commonservice
+	storageHelperMock *MockStorageHelper
+	nfsMountMock      *MockNfsMounter
 }
 
 // func (suite *TreeqControllerSuite) Test_CreateVolume_validation() {
@@ -46,27 +57,37 @@ type TreeqControllerSuite struct {
 // }
 
 func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
+	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
+	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
+
 	//mapParameter := make(map[string]string)
-	volumeRespoance := make(map[string]string)
+	volumeResponse := make(map[string]string)
 	expectedErr := errors.New("some error")
 
-	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
-	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, expectedErr)
-	service := treeqstorage{treeqService: suite.filesystem}
+	//networkSpaceErr := errors.New("Some error")
+	networkSpace := getTreeQTestNetworkSpace()
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
+
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
+	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, expectedErr)
 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.NotNil(suite.T(), err, "empty error")
 }
 
 func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
+	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
+	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
+
 	volumeResponse := getCreateVolumeResponse()
 	volumeRespoance := make(map[string]string)
 	volumeRespoance["ID"] = "100"
 	volumeRespoance["TREEQID"] = "200"
+	networkSpace := getTreeQTestNetworkSpace()
 
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
-	service := treeqstorage{treeqService: suite.filesystem}
 	result, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.Nil(suite.T(), err, "empty error")
 	correctVolId := fmt.Sprintf("%s#%s", volumeRespoance["ID"], volumeRespoance["TREEQID"])

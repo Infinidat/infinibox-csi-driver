@@ -8,6 +8,9 @@ artifact
 ### VisualStudioCode ###
 .vscode/*
 
+### Intellij ###
+.idea/*
+
 # other
 go.sum
 

@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package service
 
 import (
@@ -38,6 +40,8 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	if len(reqParameters) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no Parameters provided to CreateVolume")
 	}
+
+	networkSpace := reqParameters[common.SC_NETWORK_SPACE]
 	storageprotocol := reqParameters[common.SC_STORAGE_PROTOCOL]
 	reqCapabilities := req.GetVolumeCapabilities()
 
@@ -48,6 +52,9 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 	if len(storageprotocol) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no 'storage_protocol' provided to CreateVolume")
+	}
+	if len(networkSpace) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "no 'network_space' provided to CreateVolume")
 	}
 	if len(volName) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no name provided to CreateVolume")
@@ -72,6 +79,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		err = status.Errorf(codes.Internal, "failed to initialize storage controller while creating volume '%s'", volName)
 		return nil, err
 	}
+
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err != nil {
 		klog.Errorf("CreateVolume error: %v", err)

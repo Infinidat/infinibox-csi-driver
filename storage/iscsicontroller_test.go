@@ -38,6 +38,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail() {
 	service := iscsistorage{cs: *suite.cs}
 	var parameterMap map[string]string
 	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
 }
@@ -47,6 +48,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail2() {
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_USE_CHAP)
 	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
 }
@@ -58,6 +60,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_GetName_fail() {
 	expectedErr := errors.New("some Error")
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume GetVolumeByName")
 }
@@ -89,6 +92,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_success() {
 	// suite.api.On("FindStoragePool", mock.Anything,mock.Anything).Return(getStoragePool(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: CreateVolume")
@@ -194,6 +198,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateVolume success")
@@ -509,6 +514,7 @@ func getNetworkspace() api.NetworkSpace {
 	nspace.Properties = netProp
 	pArry = append(pArry, p)
 	nspace.Portals = append(nspace.Portals, pArry...)
+	nspace.Service = common.NS_ISCSI_SVC
 	return nspace
 }
 

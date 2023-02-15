@@ -83,7 +83,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	capacity, err := nfsSanityCheck(req, map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, nil)
+	}, nil, nfs.cs.api)
 	if err != nil {
 		return nil, err
 	}

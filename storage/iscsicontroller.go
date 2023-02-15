@@ -53,7 +53,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
 		common.SC_USE_CHAP:          `(?i)\A(none|chap|mutual_chap)\z`,
 		common.SC_NETWORK_SPACE:     `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, nil, params)
+	}, nil, params, iscsi.cs.api)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}

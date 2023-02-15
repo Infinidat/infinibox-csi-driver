@@ -36,7 +36,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
 		common.SC_MAX_TREEQS_PER_FILESYSTEM: `\A\d+\z`,
 		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
-	})
+	}, treeq.nfsstorage.cs.api)
 	if err != nil {
 		return nil, err
 	}

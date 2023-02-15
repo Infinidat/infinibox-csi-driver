@@ -46,6 +46,13 @@ const (
 	bytesofGiB = kiBytesofGiB * bytesofKiB
 )
 
+// used to look up expected service for protocol
+var protoToServiceMap = map[string]string{
+	common.PROTOCOL_NFS:   common.NS_NFS_SVC,
+	common.PROTOCOL_TREEQ: common.NS_NFS_SVC,
+	common.PROTOCOL_ISCSI: common.NS_ISCSI_SVC,
+}
+
 func isMountedByListMethod(targetHostPath string) (bool, error) {
 	// Use List() to search for mount matching targetHostPath
 	// Each mount in the list has this example form:
@@ -206,7 +213,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	return nil
 }
 
-func validateStorageClassParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string) error {
+func validateStorageClassParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string, api api.Client) error {
 	// Loop through and check required parameters only, consciously ignore parameters that aren't required
 	badParamsMap := make(map[string]string)
 	for param, required_regex := range requiredStorageClassParams {
@@ -216,6 +223,16 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 			}
 		} else {
 			badParamsMap[param] = "Parameter required but not provided"
+		}
+	}
+
+	scProtocol := providedStorageClassParams[common.SC_STORAGE_PROTOCOL]
+	scNetSpace := strings.Split(providedStorageClassParams[common.SC_NETWORK_SPACE], ",") // get network_space(s) as array
+
+	// validate network protocol / networkspace compatability
+	if scProtocol != common.PROTOCOL_FC {
+		if err := validateProtocolToNetworkSpace(scProtocol, scNetSpace, api); err != nil {
+			return err
 		}
 	}
 
@@ -266,6 +283,37 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 	return nil
 }
 
+// validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
+func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api api.Client) error {
+
+	if len(networkSpaces) == 0 {
+		err := fmt.Errorf("no network spaces provided")
+		return err
+	}
+
+	for _, ns := range networkSpaces {
+		if nSpace, err := api.GetNetworkSpaceByName(ns); err != nil {
+			// api call throws error
+			klog.Errorf(err.Error())
+			return err
+		} else if len(nSpace.Service) == 0 {
+			// handle empty result - nSpace doesn't exist
+			err := fmt.Errorf("ibox not configured with specified network space: '%s'", ns)
+			klog.Errorf(err.Error())
+			return err
+		} else if nSpace.Service != protoToServiceMap[protocol] {
+			// handle invalid protocol/networkspace configuration
+			klog.Errorf("specified network space '%s' does not support %s protocol with %s service", ns, protocol, nSpace.Service)
+			err := fmt.Errorf("network space '%s' does not support %s protocol ", ns, protocol)
+			return err
+		} else {
+			klog.Infof("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
+		}
+	}
+
+	return nil // returns here if all network spaces pass validation for protocol.
+}
+
 func copyRequestParameters(parameters, out map[string]string) {
 	for key, val := range parameters {
 		if val != "" {
@@ -309,8 +357,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	return permissionsMapArray, err
 }
 
-// Check if a directory is empty.
-// Return an isEmpty boolean and an error.
+// IsDirEmpty Check if a directory is empty. Return an isEmpty boolean and an error.
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -325,8 +372,7 @@ func IsDirEmpty(name string) (bool, error) {
 	return false, err // Either not empty or error, suits both cases
 }
 
-// Determine if a file represented
-// by `path` is a directory or not.
+// IsDirectory Determine if a file represented  by `path` is a directory or not.
 func IsDirectory(path string) (bool, error) {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
@@ -496,10 +542,10 @@ func logPermissions(note, hostTargetPath string) {
 	klog.V(4).Infof("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
 }
 
-func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, optionalParams map[string]string) (capacity int64, err error) {
-	config := req.GetParameters()
+func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, optionalParams map[string]string, api api.Client) (capacity int64, err error) {
+	params := req.GetParameters()
 
-	err = validateStorageClassParameters(scParams, optionalParams, config)
+	err = validateStorageClassParameters(scParams, optionalParams, params, api)
 	if err != nil {
 		return capacity, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -510,7 +556,7 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
 	}
 
-	useChap := config[common.SC_USE_CHAP]
+	useChap := params[common.SC_USE_CHAP]
 	if useChap != "" {
 		klog.Warningf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
 	}
@@ -518,7 +564,7 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			msg := fmt.Sprintf("Block access requested for %s PV %s", config[common.SC_STORAGE_PROTOCOL], req.GetName())
+			msg := fmt.Sprintf("Block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
 			klog.Errorf(msg)
 			return capacity, status.Error(codes.InvalidArgument, msg)
 		}
