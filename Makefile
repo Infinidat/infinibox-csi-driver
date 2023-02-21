@@ -218,6 +218,14 @@ docker-push-dockerhub: docker-login-docker  ## Push host-opensource CSI driver i
 	docker push infinidat/infinidat-csi-driver:$(_DOCKER_IMAGE_TAG)
 	@echo -e $(_finish)
 
+.PHONY: github-push
+_GIT_REMOTE ?= git@github.com:Infinidat/infinibox-csi-driver.git
+_GIT_PUSH_OPTIONS ?=
+github-push:  ## Push develop to Github with optional git push options.
+	@echo -e $(_begin)
+	git push $(_GIT_PUSH_OPTIONS) "$(_GIT_REMOTE)" develop:develop
+	@echo -e $(_finish)
+
 .PHONY: version
 version:  ## Show tool versions.
 	@echo -e $(_begin)
