@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,10 +8,12 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package storage
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -61,9 +64,12 @@ type iscsiDiskMounter struct {
 	stagePath    string
 }
 
+type iscsiTarget struct {
+	Portals []string
+	Iqn     string
+}
+
 type iscsiDisk struct {
-	Portals        []string
-	Iqn            string
 	lun            string
 	Iface          string
 	chap_discovery bool
@@ -73,7 +79,25 @@ type iscsiDisk struct {
 	VolName        string
 	isBlock        bool
 	MpathDevice    string
+	Targets        []iscsiTarget
 }
+
+type SessionDetails struct {
+	protocol  string
+	ipAddress string
+	hostID    string
+	iqn       string
+}
+
+const (
+	USE_CHAP            = "chap"
+	USE_CHAP_MUTUAL     = "chap_mutual"
+	ISCSI_TCP_TRANSPORT = "tcp"
+	CHAP_USERNAME       = "node.session.auth.username"
+	CHAP_PASSWORD       = "node.session.auth.password"
+	CHAP_USERNAME_IN    = "node.session.auth.username_in"
+	CHAP_PASSWORD_IN    = "node.session.auth.password_in"
+)
 
 var (
 	// chap_st = []string{
@@ -83,10 +107,10 @@ var (
 	// 	"discovery.sendtargets.auth.password_in",
 	// }
 	chap_sess = []string{
-		"node.session.auth.username",
-		"node.session.auth.password",
-		"node.session.auth.username_in",
-		"node.session.auth.password_in",
+		CHAP_USERNAME,
+		CHAP_PASSWORD,
+		CHAP_USERNAME_IN,
+		CHAP_PASSWORD_IN,
 	}
 	ifaceTransportNameRe = regexp.MustCompile(`iface.transport_name = (.*)\n`)
 )
@@ -106,7 +130,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	err = nil
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("Recovered from NodeStageVolume: %+v", res)
+			err = fmt.Errorf("recovered from NodeStageVolume: %+v", res)
 		}
 		if err == nil {
 			klog.V(4).Infof("NodeStageVolume completed")
@@ -152,10 +176,10 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		secrets := req.GetSecrets()
 		chapCreds := make(map[string]string)
 		if useChap != "none" {
-			if useChap == "chap" || useChap == "mutual_chap" {
-				if secrets["node.session.auth.username"] != "" && secrets["node.session.auth.password"] != "" {
-					chapCreds["security_chap_inbound_username"] = secrets["node.session.auth.username"]
-					chapCreds["security_chap_inbound_secret"] = secrets["node.session.auth.password"]
+			if useChap == USE_CHAP || useChap == USE_CHAP_MUTUAL {
+				if secrets[CHAP_USERNAME] != "" && secrets[CHAP_PASSWORD] != "" {
+					chapCreds["security_chap_inbound_username"] = secrets[CHAP_USERNAME]
+					chapCreds["security_chap_inbound_secret"] = secrets[CHAP_PASSWORD]
 					chapCreds["security_method"] = "CHAP"
 				} else {
 					msg := "Mutual chap credentials not provided"
@@ -163,10 +187,10 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 					return nil, status.Error(codes.Internal, "iscsi: "+msg)
 				}
 			}
-			if useChap == "mutual_chap" {
-				if secrets["node.session.auth.username_in"] != "" && secrets["node.session.auth.password_in"] != "" && chapCreds["security_method"] == "CHAP" {
-					chapCreds["security_chap_outbound_username"] = secrets["node.session.auth.username_in"]
-					chapCreds["security_chap_outbound_secret"] = secrets["node.session.auth.password_in"]
+			if useChap == USE_CHAP_MUTUAL {
+				if secrets[CHAP_USERNAME_IN] != "" && secrets[CHAP_PASSWORD_IN] != "" && chapCreds["security_method"] == "CHAP" {
+					chapCreds["security_chap_outbound_username"] = secrets[CHAP_USERNAME_IN]
+					chapCreds["security_chap_outbound_secret"] = secrets[CHAP_PASSWORD_IN]
 					chapCreds["security_method"] = "MUTUAL_CHAP"
 				} else {
 					msg := "Mutual chap credentials not provided"
@@ -195,26 +219,24 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 }
 
 func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	var err error
-	err = nil
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from ISCSI NodePublishVolume  " + fmt.Sprint(res))
-		}
-		if err == nil {
-			klog.V(4).Infof("NodePublishVolume completed for volume ID %s", req.GetVolumeId())
-		} else {
-			klog.V(4).Infof("NodePublishVolume failed for volume ID %s", req.GetVolumeId())
-		}
-	}()
 
 	klog.V(4).Infof("NodePublishVolume called with volume ID '%s'", req.GetVolumeId())
 	klog.V(4).Infof("NodePublishVolume called with request '%+v'", req)
+
+	klog.V(4).Infof("NodePublishVolume NetworkSpaces param  %s", req.GetVolumeContext()[common.SC_NETWORK_SPACE])
+
+	targets, err := iscsi.getISCSITargets(req)
+	if err != nil {
+		klog.V(4).Infof("NodePublishVolume getISCSITargets error  %s", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	klog.V(4).Infof("NodePublishVolume calculated targets  %v", targets)
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+	iscsiDisk.Targets = targets
 	klog.V(4).Infof("iscsiDisk: %v", iscsiDisk)
 
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
@@ -225,9 +247,8 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	if err != nil {
 		klog.Errorf("AttachDisk failed")
 		return nil, status.Error(codes.Internal, err.Error())
-	} else {
-		klog.V(4).Infof("AttachDisk succeeded")
 	}
+	klog.V(4).Infof("AttachDisk succeeded")
 
 	// Chown
 	uid := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
@@ -298,8 +319,6 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
-	// var bkpPortal []string
-	// var volName, iqn, iface, initiatorName, mpathDevice string
 	var mpathDevice string
 
 	klog.V(4).Infof("Staging target path: %s", stagePath)
@@ -308,11 +327,6 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// diskConfigFound := true
 	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
 		klog.V(4).Infof("Successfully loaded disk information from %s", stagePath)
-		// bkpPortal = diskUnmounter.iscsiDisk.Portals
-		// iqn = diskUnmounter.iscsiDisk.Iqn
-		// iface = diskUnmounter.iscsiDisk.Iface
-		// volName = diskUnmounter.iscsiDisk.VolName
-		// initiatorName = diskUnmounter.iscsiDisk.InitiatorName
 		mpathDevice = diskUnmounter.iscsiDisk.MpathDevice
 	} else {
 		confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
@@ -355,7 +369,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Check if removePath is a directory or a file
 	isADir, isADirError := IsDirectory(removePath)
 	if isADirError != nil {
-		err := fmt.Errorf("Failed to check if removePath '%s' is a directory: %v", removePath, isADirError)
+		err := fmt.Errorf("failed to check if removePath '%s' is a directory: %v", removePath, isADirError)
 		klog.Errorf(err.Error())
 		return nil, err
 	}
@@ -500,90 +514,102 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		return "", fmt.Errorf("iscsi: Could not parse iface file for %s", b.Iface)
 	}
 
-	bkpPortal := b.Portals
-	newIface := bkpPortal[0] // Do not append ':$volume_id'
-
 	// If not found, create new iface and copy parameters from pre-configured (default) iface to the created iface
 	// Use one interface per iSCSI network-space, i.e. usually one per IBox.
 	// TODO what does a blank Initiator name mean?
+	targets := b.Targets
 	if b.InitiatorName != "" {
-		// Look for existing interface named newIface. Clone default iface, if not found.
-		klog.V(4).Infof("initiatorName: %s", b.InitiatorName)
-		klog.V(4).Infof("Required iface name: '%s'", newIface)
-		isToLogOutput := false
-		_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
-		if err != nil {
-			klog.V(4).Infof("Creating new iface (clone) and copying parameters from pre-configured iface to it")
-			err = iscsi.cloneIface(b, newIface)
+		for i := 0; i < len(targets); i++ {
+			// Look for existing interface named newIface. Clone default iface, if not found.
+			klog.V(4).Infof("initiatorName: %s", b.InitiatorName)
+			newIface := targets[i].Portals[0] // Do not append ':$volume_id'
+			klog.V(4).Infof("Required iface name: '%s'", newIface)
+			isToLogOutput := false
+			_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
 			if err != nil {
-				klog.Errorf("Failed to clone iface: %s error: %v", b.Iface, err)
-				return "", err
+				klog.V(4).Infof("Creating new iface (clone) and copying parameters from pre-configured iface to it")
+				err = iscsi.cloneIface(b, newIface)
+				if err != nil {
+					klog.Errorf("Failed to clone iface: %s error: %v", b.Iface, err)
+					return "", err
+				}
+				klog.V(4).Infof("New iface created '%s'", newIface)
+			} else {
+				klog.V(4).Infof("Required iface '%s' already exists", newIface)
 			}
-			klog.V(4).Infof("New iface created '%s'", newIface)
-		} else {
-			klog.V(4).Infof("Required iface '%s' already exists", newIface)
+			// update iface name. TODO - Seems bad form to change a func param.
+			//b.Iface = newIface
 		}
-		// update iface name. TODO - Seems bad form to change a func param.
-		b.Iface = newIface
 	} else {
 		klog.V(4).Infof("Using existing initiator name'%s'", b.InitiatorName)
 	}
 
-	klog.V(4).Infof("Discover targets at portal '%s'", bkpPortal[0])
-	// Discover all targets associated with a portal.
-	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", bkpPortal[0]))
-	if err != nil {
-		msg := fmt.Sprintf("Failed to discover targets at portal '%s': %s ", out, err)
-		klog.Errorf(msg)
-		err = errors.New(msg)
-		return "", fmt.Errorf(msg)
+	for i := 0; i < len(targets); i++ {
+		for p := 0; p < len(targets[i].Portals); p++ {
+			klog.V(4).Infof("Discover targets at portal '%s'", targets[i].Portals[p])
+			// Discover all targets associated with a portal.
+			_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", targets[i].Portals[p]))
+			if err != nil {
+				msg := fmt.Sprintf("Failed to discover targets at portal '%s': %s ", out, err)
+				klog.Errorf(msg)
+				err = errors.New(msg)
+				return "", fmt.Errorf(msg)
+			}
+		}
 	}
 
 	if !b.chap_session {
-		klog.V(4).Infof("target iqn: %s - Not using CHAP", b.Iqn)
+		klog.V(4).Infof("target iqn: %s - Not using CHAP", targets[0].Iqn)
 	} else {
 		// Loop over portals:
 		// - Set CHAP usage and update discoverydb with CHAP secret
-		for _, tp := range bkpPortal {
-			klog.V(4).Infof("target iqn: %s - use CHAP at portal: %s", b.Iqn, tp)
-			err = iscsi.updateISCSINode(b, tp)
-			if err != nil {
-				// failure to update node db is rare. But deleting record will likely impact those who already start using it.
-				lastErr = fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", tp, err)
-				continue
+		for i := 0; i < len(targets); i++ {
+			for p := 0; p < len(targets[i].Portals); p++ {
+				klog.V(4).Infof("target iface: %s iqn: %s - use CHAP at portal: %s", b.Iface, targets[i].Iqn, targets[i].Portals[p])
+				err = iscsi.updateISCSINode(b, b.Iface, targets[i].Iqn, targets[i].Portals[p])
+				if err != nil {
+					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
+					lastErr = fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", targets[i].Portals[p], err)
+					continue
+				}
 			}
 		}
 	}
 
-	// Check for at least one session. If none, login.
-	klog.V(4).Infof("List sessions to target iqn: %s", b.Iqn)
-	sessionString, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode session | grep '%s'", b.Iqn))
-	if err != nil {
-		klog.Warningf("Session list failed, err: %s", err)
-	}
-	if !strings.Contains(sessionString, b.Iqn) {
-		klog.V(4).Infof("Login to iscsi target iqn %s at all portals using interface %s", b.Iqn, b.Iface)
-		_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --interface %s --login", b.Iqn, b.Iface))
-		if err != nil {
-			if status.Code(err) != codes.AlreadyExists {
-				msg := fmt.Sprintf("iscsi login failed to target iqn: %s, err: %s", b.Iqn, err)
-				klog.Errorf(msg)
-				return "", err
-			} else {
-				err = nil
-				klog.Infof("already logged in to target iqn: %s", b.Iqn)
+	sessionDetails := getSessionDetails()
+	klog.V(4).Infof("List sessions before any logins: %v", sessionDetails)
+
+	for i := 0; i < len(targets); i++ {
+		// Check for at least one session. If none, login.
+		klog.V(4).Infof("List sessions to target iqn: %s", targets[i].Iqn)
+
+		iqnFound := false
+		for j := 0; j < len(sessionDetails); j++ {
+			if sessionDetails[j].iqn == targets[i].Iqn {
+				iqnFound = true
 			}
 		}
-	} else {
-		klog.V(4).Infof("Already Logged into iscsi target iqn %s using interface %s", b.Iqn, b.Iface)
-	}
+		if !iqnFound {
+			for p := 0; p < len(targets[i].Portals); p++ {
+				klog.V(4).Infof("Login to iscsi target iqn %s at all portals using interface %s", targets[i].Iqn, targets[i].Portals[p])
+				_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[i].Iqn, targets[i].Portals[p]))
+				if err != nil {
+					if status.Code(err) != codes.AlreadyExists {
+						msg := fmt.Sprintf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[i].Iqn, targets[i].Portals[p], err.Error())
+						klog.Errorf(msg)
+						return "", err
+					} else {
+						klog.Infof("already logged in to target iqn: %s portal %s", targets[i].Iqn, targets[i].Portals[p])
+					}
+				}
+			}
+		} else {
+			klog.V(4).Infof("Already Logged into iscsi target iqn %s using interface %s", targets[i].Iqn, targets[i].Portals[0])
+		}
 
-	klog.V(4).Infof("List sessions to target iqn: %s", b.Iqn)
-	_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode session | grep '%s'", b.Iqn))
-	if err != nil {
-		klog.Errorf("Session list failed, err: %s", err)
-		return "", err
 	}
+	sessionDetails = getSessionDetails()
+	klog.V(4).Infof("List sessions after any logins: %v", sessionDetails)
 
 	// Rescan for LUN b.lun
 	if err := iscsi.rescanDeviceMap(b.VolName, b.lun); err != nil {
@@ -591,24 +617,26 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		return "", err
 	}
 
-	for _, tp := range bkpPortal {
-		if iscsiTransport == "tcp" {
-			devicePath = strings.Join([]string{"/host/dev/disk/by-path/ip", tp, "iscsi", b.Iqn, "lun", b.lun}, "-")
-		} else {
-			devicePath = strings.Join([]string{"/host/dev/disk/by-path/pci", "*", "ip", tp, "iscsi", b.Iqn, "lun", b.lun}, "-")
-		}
+	for i := 0; i < len(targets); i++ {
+		for j := 0; j < len(targets[i].Portals); j++ {
+			if iscsiTransport == ISCSI_TCP_TRANSPORT {
+				devicePath = strings.Join([]string{"/host/dev/disk/by-path/ip", targets[i].Portals[j], "iscsi", targets[i].Iqn, "lun", b.lun}, "-")
+			} else {
+				devicePath = strings.Join([]string{"/host/dev/disk/by-path/pci", "*", "ip", targets[i].Portals[j], "iscsi", targets[i].Iqn, "lun", b.lun}, "-")
+			}
 
-		// klog.V(4).Infof("Wait for iscsi device path: %s to appear", devicePath)
-		timeout := 10
-		if devExists := iscsi.waitForPathToExist(&devicePath, timeout, iscsiTransport); devExists {
-			klog.V(2).Infof("iscsi device path found: %s", devicePath)
-			devicePaths = append(devicePaths, devicePath)
-		} else {
-			msg := fmt.Sprintf("failed to attach iqn: %s lun: %s at portal: %s - Timeout after %ds", b.Iqn, b.lun, tp, timeout)
-			klog.Errorf(msg)
-			// update last error
-			lastErr = fmt.Errorf("iscsi: " + msg)
-			continue
+			// klog.V(4).Infof("Wait for iscsi device path: %s to appear", devicePath)
+			timeout := 10
+			if devExists := iscsi.waitForPathToExist(&devicePath, timeout, iscsiTransport); devExists {
+				klog.V(2).Infof("iscsi device path found: %s", devicePath)
+				devicePaths = append(devicePaths, devicePath)
+			} else {
+				msg := fmt.Sprintf("failed to attach iqn: %s lun: %s at portal: %s - Timeout after %ds", targets[i].Iqn, b.lun, targets[i].Portals[j], timeout)
+				klog.Errorf(msg)
+				// update last error
+				lastErr = fmt.Errorf("iscsi: " + msg)
+				continue
+			}
 		}
 	}
 
@@ -829,21 +857,6 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	publishContext := req.GetPublishContext()
 	klog.V(4).Infof("volume: %s context: %v publish context: %v", volName, volContext, publishContext)
 
-	iqn := volContext["iqn"]
-	if iqn == "" {
-		return nil, fmt.Errorf("iscsi: target iqn is missing")
-	}
-
-	portals := volContext["portals"]
-	portalList := strings.Split(portals, ",")
-	if len(portalList) == 0 {
-		return nil, fmt.Errorf("iscsi: target portals list is missing")
-	}
-	bkportal := []string{}
-	for _, portal := range portalList {
-		bkportal = append(bkportal, portalMounter(string(portal)))
-	}
-
 	lun := publishContext["lun"]
 	if lun == "" {
 		return nil, fmt.Errorf("iscsi: LUN is missing")
@@ -861,7 +874,6 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	secret := req.GetSecrets()
 	if chapSession {
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
-		// secret["node.session.auth.username"] = initiatorName
 		if err != nil {
 			klog.V(4).Infof("iscsi.parseSessionSecret failed")
 			return nil, err
@@ -870,8 +882,6 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 
 	return &iscsiDisk{
 		VolName:        volName,
-		Portals:        bkportal,
-		Iqn:            iqn,
 		lun:            lun,
 		Iface:          "default",
 		chap_discovery: chapDiscovery,
@@ -891,7 +901,6 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 
 	// handle file (mount) and block parameters
 	mountVolCapability := reqVolCapability.GetMount()
-	fstype := ""
 	mountOptions := []string{}
 	blockVolCapability := reqVolCapability.GetBlock()
 
@@ -971,36 +980,37 @@ func (iscsi *iscsistorage) parseSessionSecret(useChap string, secretParams map[s
 	var ok bool
 	secret := make(map[string]string)
 
-	if useChap == "chap" || useChap == "mutual_chap" {
+	if useChap == USE_CHAP || useChap == USE_CHAP_MUTUAL {
 		if len(secretParams) == 0 {
 			return secret, errors.New("iscsi: required chap secrets not provided")
 		}
-		if secret["node.session.auth.username"], ok = secretParams["node.session.auth.username"]; !ok {
-			return secret, fmt.Errorf("iscsi: node.session.auth.username not found in secret")
+		if secret[CHAP_USERNAME], ok = secretParams[CHAP_USERNAME]; !ok {
+			return secret, fmt.Errorf("iscsi: %s not found in secret", CHAP_USERNAME)
 		}
-		if secret["node.session.auth.password"], ok = secretParams["node.session.auth.password"]; !ok {
-			return secret, fmt.Errorf("iscsi: node.session.auth.password not found in secret")
+		if secret[CHAP_PASSWORD], ok = secretParams[CHAP_PASSWORD]; !ok {
+			return secret, fmt.Errorf("iscsi: %s not found in secret", CHAP_PASSWORD)
 		}
-		if useChap == "mutual_chap" {
-			if secret["node.session.auth.username_in"], ok = secretParams["node.session.auth.username_in"]; !ok {
-				return secret, fmt.Errorf("iscsi: node.session.auth.username_in not found in secret")
+		if useChap == USE_CHAP_MUTUAL {
+			if secret[CHAP_USERNAME_IN], ok = secretParams[CHAP_USERNAME_IN]; !ok {
+				return secret, fmt.Errorf("iscsi: %s not found in secret", CHAP_USERNAME_IN)
 			}
-			if secret["node.session.auth.password_in"], ok = secretParams["node.session.auth.password_in"]; !ok {
-				return secret, fmt.Errorf("iscsi: node.session.auth.password_in not found in secret")
+			if secret[CHAP_PASSWORD_IN], ok = secretParams[CHAP_PASSWORD_IN]; !ok {
+				return secret, fmt.Errorf("iscsi: %s not found in secret", CHAP_PASSWORD_IN)
 			}
 		}
-		secret["SecretsType"] = "chap"
+		secret["SecretsType"] = USE_CHAP
 	}
 	return secret, nil
 }
 
-func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, tp string) error {
+func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iface string, iqn string, portal string) error {
 	if !b.chap_session {
 		return nil
 	}
 
 	klog.V(4).Infof("Update node with CHAP")
-	out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name node.session.auth.authmethod --value CHAP", tp, b.Iqn, b.Iface))
+	//out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn, iface))
+	out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
 	if err != nil {
 		return fmt.Errorf("iscsi: Failed to update node with CHAP, output: %v", string(out))
 	}
@@ -1009,7 +1019,8 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, tp string) error 
 		v := b.secret[k]
 		if len(v) > 0 {
 			klog.V(4).Infof("Update node session key/value")
-			out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name %q --value %q", tp, b.Iqn, b.Iface, k, v))
+			//out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name %q --value %q", portal, iqn, iface, k, v))
+			out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, k, v))
 			if err != nil {
 				return fmt.Errorf("iscsi: Failed to update node session key %q with value %q error: %v", k, v, string(out))
 			}
@@ -1031,7 +1042,7 @@ func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRet
 	for i := 0; i < maxRetries; i++ {
 		var err error
 
-		if deviceTransport == "tcp" {
+		if deviceTransport == ISCSI_TCP_TRANSPORT {
 			_, err = os.Stat(*devicePath)
 		} else {
 			fpath, _ := filepathGlob(*devicePath)
@@ -1103,7 +1114,7 @@ func (iscsi *iscsistorage) extractTransportName(ifaceOutput string) (iscsiTransp
 
 	// While iface.transport_name is a required parameter, handle it being unspecified anyways
 	if iscsiTransport == "<empty>" {
-		iscsiTransport = "tcp"
+		iscsiTransport = ISCSI_TCP_TRANSPORT
 	}
 	return iscsiTransport
 }
@@ -1162,7 +1173,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 			klog.V(4).Infof("Failed to update records of interface '%s'", newIface)
 			_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op delete", newIface))
 			if err != nil {
-				lastErr = fmt.Errorf("Failed to delete iface '%s': %s ", newIface, err)
+				lastErr = fmt.Errorf("failed to delete iface '%s': %s ", newIface, err)
 				return lastErr
 			}
 
@@ -1268,4 +1279,73 @@ func debugWalkDir(walk_path string) (err error) {
 		return err
 	}
 	return nil
+}
+
+func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (targets []iscsiTarget, err error) {
+	networkSpaces := strings.Split(req.GetVolumeContext()[common.SC_NETWORK_SPACE], ",")
+	if len(networkSpaces) == 0 {
+		return targets, fmt.Errorf("no network spaces found")
+	}
+	klog.V(4).Infof("networkSpaces %v", networkSpaces)
+	if iscsi.cs.api == nil {
+		return targets, fmt.Errorf("no api found")
+	}
+
+	targets = make([]iscsiTarget, len(networkSpaces))
+
+	for i := 0; i < len(networkSpaces); i++ {
+		klog.V(4).Infof("getting nspace by name %v", networkSpaces[i])
+		nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpaces[i])
+		if err != nil {
+			msg := fmt.Sprintf("error getting network space %s", networkSpaces[i])
+			klog.Errorf(msg)
+			return targets, status.Errorf(codes.InvalidArgument, msg)
+		}
+		targets[i] = iscsiTarget{
+			Iqn: nspace.Properties.IscsiIqn,
+		}
+		for _, p := range nspace.Portals {
+			targets[i].Portals = append(targets[i].Portals, portalMounter(p.IpAdress))
+		}
+	}
+	return targets, nil
+}
+
+func getSessionDetails() (results []SessionDetails) {
+	rawOutput, err := execScsi.Command("iscsiadm", "--mode session")
+	if err != nil {
+		klog.Errorf("Session list failed, err: %s", err)
+		return results
+	}
+	lines, err := stringToLines(rawOutput)
+	if err != nil {
+		klog.Errorf(err.Error())
+		return results
+	}
+	results = make([]SessionDetails, 0)
+	for i := 0; i < len(lines); i++ {
+		if len(lines[i]) > 0 {
+			parts := strings.Split(lines[i], " ")
+			protocolParts := strings.Split(parts[0], ":")
+			ipaddressParts := strings.Split(parts[2], ",")
+			s := SessionDetails{
+				protocol:  protocolParts[0],
+				ipAddress: ipaddressParts[0],
+				hostID:    ipaddressParts[1],
+				iqn:       parts[3],
+			}
+			results = append(results, s)
+		}
+	}
+
+	return results
+}
+
+func stringToLines(s string) (lines []string, err error) {
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	err = scanner.Err()
+	return
 }
