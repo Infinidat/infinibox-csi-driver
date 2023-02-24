@@ -53,7 +53,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	if len(storageprotocol) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no 'storage_protocol' provided to CreateVolume")
 	}
-	if len(networkSpace) == 0 {
+	if storageprotocol != common.PROTOCOL_FC && len(networkSpace) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no 'network_space' provided to CreateVolume")
 	}
 	if len(volName) == 0 {
