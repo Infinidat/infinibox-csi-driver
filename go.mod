@@ -5,7 +5,7 @@ go 1.19
 require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
-	github.com/containerd/containerd v1.5.16
+	github.com/containerd/containerd v1.5.18
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/golang/protobuf v1.5.2
 	github.com/rexray/gocsi v1.2.2
