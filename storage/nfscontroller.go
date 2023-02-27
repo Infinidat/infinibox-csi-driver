@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (

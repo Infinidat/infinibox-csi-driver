@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -25,9 +25,10 @@ type ExecScsi struct {
 // Command runs commands and may be used with concurrancy.
 // All commands will have "set -o pipefail" prepended.
 // Parameters:
-//   cmd - Command to run with pipefail set.
-//   args - arguments for the command, can be an empty string
-//   isToLogOutput - Optional boolean array. Defaults to allow logging of output. Set to false to suppress logging. Output is always returned.
+//
+//	cmd - Command to run with pipefail set.
+//	args - arguments for the command, can be an empty string
+//	isToLogOutput - Optional boolean array. Defaults to allow logging of output. Set to false to suppress logging. Output is always returned.
 func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out string, err error) {
 	s.mu.Lock()
 	defer func() {

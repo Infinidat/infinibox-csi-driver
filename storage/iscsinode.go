@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"

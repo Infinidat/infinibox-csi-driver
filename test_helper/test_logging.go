@@ -3,8 +3,9 @@ package test_helper
 import (
 	"flag"
 	"fmt"
-	"k8s.io/klog"
 	"os"
+
+	"k8s.io/klog/v2"
 )
 
 func ConfigureKlog() {

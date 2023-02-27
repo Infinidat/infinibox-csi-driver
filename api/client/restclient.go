@@ -24,7 +24,7 @@ import (
 	//"infinibox-csi-driver/helper"
 
 	resty "github.com/go-resty/resty/v2"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 type HostConfig struct {

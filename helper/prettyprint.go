@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 
 	"fmt"
-	"k8s.io/klog"
+
+	"k8s.io/klog/v2"
 )
 
 // Pretty print a struct, map, array or slice variable. Write using klog.V(4).Infof().
