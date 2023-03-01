@@ -47,3 +47,7 @@ const (
 	PROTOCOL_ISCSI = "iscsi"
 	PROTOCOL_FC    = "fc"
 )
+
+const (
+	IBOX_DEFAULT_QUERY_PAGE_SIZE = 1000
+)

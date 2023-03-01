@@ -645,24 +645,42 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 	return luninfo, nil
 }
 
-// GetAllLunByHost - Get all luns for host id provided
+// GetAllLunByHost - Get all luns for host id provided, handles paging for large results.
 func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
+
+	page := 1
+	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	total_pages := 1 // start with 1, update after first query.
+
 	klog.V(2).Infof("Get all lun for host %d", hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
-	if err != nil {
-		klog.Errorf("failed to get luns for host %d with error %v", hostID, err)
-		return luninfo, err
-	}
-	if len(luninfo) == 0 {
+
+	for ok := true; ok; ok = page <= total_pages {
+		uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns" + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
+
+		resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
+
+		if err != nil {
+			klog.Errorf("failed to get luns for host %d with error %v", hostID, err)
+			return luninfo, err
+		}
+
 		apiresp := resp.(client.ApiResponse)
-		luninfo, _ = apiresp.Result.([]LunInfo)
+		currentResults, _ := apiresp.Result.([]LunInfo)
+		luninfo = append(luninfo, currentResults...)
+		responseSize := apiresp.MetaData.NoOfObject
+		klog.Infof("added %d items to results", responseSize)
+		if page == 1 {
+			total_pages = apiresp.MetaData.TotalPages
+		}
+		page++
 	}
+	// loop ends here
+
 	klog.V(2).Infof("got %d Luns for host %d", len(luninfo), hostID)
 	return luninfo, nil
 }

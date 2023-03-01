@@ -1,4 +1,5 @@
-/*Copyright 2022 Infinidat
+/*
+Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -7,7 +8,8 @@ Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.*/
+limitations under the License.
+*/
 package api
 
 import (
@@ -317,6 +319,36 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
+func (suite *ApiTestSuite) Test_GetAllLunByHost_SinglePage() {
+
+	expectedResponse := client.ApiResponse{Result: buildLunQueryResults(100), MetaData: getLunMetaData100()}
+
+	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResponse, nil)
+
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	testResults, _ := service.GetAllLunByHost(1)
+
+	assert.Equal(suite.T(), 100, len(testResults), "Size of results should be 100")
+
+}
+
+func (suite *ApiTestSuite) Test_GetAllLunByHost_TwoPage() {
+
+	expectedResponsePg1 := client.ApiResponse{Result: buildLunQueryResults(1000), MetaData: getLunMetaData1010Pg1()}
+	expectedResponsePg2 := client.ApiResponse{Result: buildLunQueryResults(10), MetaData: getLunMetaData1010Pg2()}
+
+	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResponsePg1, nil).Once()
+	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResponsePg2, nil).Once()
+
+	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
+
+	testResults, _ := service.GetAllLunByHost(1)
+
+	assert.Equal(suite.T(), 1010, len(testResults), "Size of results should be 1010")
+
+}
+
 func (suite *ApiTestSuite) Test_UpdateFilesystem_Fail() {
 	// Test volume snapshot will not be created
 	expectedError := errors.New("Missing parameters")
@@ -412,7 +444,7 @@ func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-//****************************************
+// ****************************************
 func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_error() {
 	expectedError := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedError)
@@ -1534,4 +1566,52 @@ func getMetaData() client.Resultmetadata {
 	metaData.PageSize = 50
 	metaData.TotalPages = 2
 	return metaData
+}
+
+func getLunMetaData100() client.Resultmetadata {
+	metaData := client.Resultmetadata{}
+	metaData.NoOfObject = 100
+	metaData.Page = 1
+	metaData.PageSize = 1000
+	metaData.TotalPages = 1
+	return metaData
+}
+
+func getLunMetaData1010Pg1() client.Resultmetadata {
+	metaData := client.Resultmetadata{}
+	metaData.NoOfObject = 1010
+	metaData.Page = 1
+	metaData.PageSize = 1000
+	metaData.TotalPages = 2
+	return metaData
+}
+
+func getLunMetaData1010Pg2() client.Resultmetadata {
+	metaData := client.Resultmetadata{}
+	metaData.NoOfObject = 1010
+	metaData.Page = 1
+	metaData.PageSize = 1000
+	metaData.TotalPages = 2
+	return metaData
+}
+
+// returns a set of LunInfo results like how a rest call would return it
+func buildLunQueryResults(numLuns int) interface{} {
+
+	testSlice := []LunInfo{}
+
+	for i := 1; i <= numLuns; i++ {
+
+		lun := LunInfo{
+			HostClusterID: 1,
+			VolumeID:      1,
+			CLustered:     false,
+			HostID:        1,
+			ID:            i,
+			Lun:           1234567890,
+		}
+		testSlice = append(testSlice, lun)
+	}
+
+	return testSlice
 }
