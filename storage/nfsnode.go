@@ -44,11 +44,12 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	klog.V(4).Infof("NodePublishVolume targetPath=%s", hostTargetPath)
+	klog.V(2).Infof("NodePublishVolume targetPath=%s", hostTargetPath)
 
 	tmp := strings.Split(req.GetVolumeId(), "$$")[0]
 	fileSystemId, err := strconv.ParseInt(tmp, 10, 64)
 	if err != nil {
+		klog.Error(err)
 		return nil, err
 	}
 
@@ -59,7 +60,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		if snapDir != "" {
 			nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
 			if err != nil {
-				klog.Errorf("error %s", err.Error())
+				klog.Error(err)
 				return nil, err
 			}
 		}
@@ -67,12 +68,13 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		if privPorts != "" {
 			nfs.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 			if err != nil {
-				klog.Errorf("error %s", err.Error())
+				klog.Error(err)
 				return nil, err
 			}
 		}
 		err = nfs.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
 		if err != nil {
+			klog.Error(err)
 			return nil, err
 		}
 	} else {
@@ -83,7 +85,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if os.IsNotExist(err) {
 		klog.V(4).Infof("targetPath %s does not exist, will create", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-			klog.Errorf("Error in MkdirAll %s", err.Error())
+			klog.Error(err)
 			return nil, err
 		}
 	} else {
@@ -94,7 +96,8 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	mountOptions, err := nfs.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
 
 	klog.V(4).Infof("nfs mount options are [%v]", mountOptions)
@@ -105,32 +108,32 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		klog.Errorf("Failed to mount source path '%s' : %s", source, err)
-		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
+		e := fmt.Errorf("failed to mount source '%s ' target %s: %v", source, targetPath, err)
+		klog.Error(e)
+		return nil, status.Errorf(codes.Internal, e.Error())
 	}
-	klog.V(2).Infof("Successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
+	klog.V(4).Infof("successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
 	if req.GetReadonly() {
-		klog.V(2).Info("this is a readonly volume, skipping setting volume permissions")
+		klog.V(4).Info("this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	err = nfs.storageHelper.SetVolumePermissions(req)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
-		klog.Errorf(msg)
-		return nil, status.Errorf(codes.Internal, msg)
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(4).Infof("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
-	klog.V(4).Infof("Unmounting path '%s'", targetPath)
+	klog.V(2).Infof("NodeUnpublishVolume targetPath %s", targetPath)
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
+		klog.Error(err)
 		return nil, err
 	}
 
@@ -159,8 +162,9 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 	//lookup file system information
 	fs, err := nfs.cs.api.GetFileSystemByID(filesystemId)
 	if err != nil {
-		klog.Errorf("failed to get filesystem by id %d\n", filesystemId)
-		return status.Errorf(codes.Internal, "failed to get filesystem by id  %v", err)
+		e := fmt.Errorf("failed to get filesystem by id %d %v", filesystemId, err)
+		klog.Error(e)
+		return status.Error(codes.Internal, e.Error())
 	}
 
 	// use the volumeId to get the filesystem information,
@@ -175,14 +179,14 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 	exportPerms := "[{'access':'RW','client':'" + ipAddress + "','no_root_squash':true}]"
 	permissionsMapArray, err := getPermissionMaps(exportPerms)
 	if err != nil {
-		klog.Errorf("failed to parse permission map string %s", exportPerms)
+		klog.Errorf("failed to parse permission map string %s %v", exportPerms, err)
 		return err
 	}
 
 	// remove an existing export if it exists, this occurs when a pod restarts
 	resp, err := nfs.cs.api.GetExportByFileSystem(filesystemId)
 	if err != nil {
-		klog.Errorf("error from GetExportByFileSystem filesystemId %d %s", filesystemId, err.Error())
+		klog.Errorf("error from GetExportByFileSystem filesystemId %d %v", filesystemId, err)
 		return err
 	}
 	klog.V(4).Infof("GetExportByFileSystem response =%+v", resp)
@@ -195,7 +199,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 				// here is where we would delete the existing export
 				deleteResp, err := nfs.cs.api.DeleteExportPath(r.ID)
 				if err != nil {
-					klog.Errorf("error from DeleteExportPath ID %d filesystemId %d", r.ID, filesystemId)
+					klog.Errorf("error from DeleteExportPath ID %d filesystemId %d %v", r.ID, filesystemId, err)
 					return err
 				}
 				klog.V(4).Infof("delete export path response %+v\n", deleteResp)
@@ -208,12 +212,12 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 	klog.V(4).Infof("exportFileSystem =%+v", exportFileSystem)
 	exportResp, err := nfs.cs.api.ExportFileSystem(exportFileSystem)
 	if err != nil {
-		klog.Errorf("failed to create export path of filesystem %s", fs.Name)
+		klog.Errorf("failed to create export path of filesystem %s %v", fs.Name, err)
 		return err
 	}
 	nfs.exportID = exportResp.ID
 	nfs.exportBlock = exportResp.ExportPath
-	klog.V(4).Infof("Created nfs export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
+	klog.V(4).Infof("created nfs export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
 
 	return nil
 }

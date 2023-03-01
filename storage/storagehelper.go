@@ -71,9 +71,8 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	mounter := mount.New("")
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
-		err := fmt.Errorf("Failed List: %+v", mountListErr)
-		klog.Errorf(err.Error())
-		return true, err
+		klog.Error(mountListErr)
+		return true, mountListErr
 	}
 	klog.V(5).Infof("Mount path list: %v", mountList)
 
@@ -94,24 +93,24 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 	isMountEmpty, isMountEmptyErr := IsDirEmpty(targetHostPath)
 	// Verify mount/ directory is empty. Fail if mount/ is not empty as that may be volume data.
 	if isMountEmptyErr != nil {
-		err := fmt.Errorf("Failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
+		err := fmt.Errorf("failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
 		klog.Errorf(err.Error())
 		return err
 	}
 	if !isMountEmpty {
-		err := fmt.Errorf("Error: mount/ directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
+		err := fmt.Errorf("error: mount/ directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
 		klog.Errorf(err.Error())
 		return err
 	}
-	klog.V(4).Infof("Verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
+	klog.V(4).Infof("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
 
 	// Clean up mount/
 	if _, statErr := os.Stat(targetHostPath); os.IsNotExist(statErr) {
-		klog.V(4).Infof("Mount point targetHostPath '%s' already removed", targetHostPath)
+		klog.V(4).Infof("mount point targetHostPath '%s' already removed", targetHostPath)
 	} else {
-		klog.V(4).Infof("Removing mount point targetHostPath '%s'", targetHostPath)
+		klog.V(4).Infof("removing mount point targetHostPath '%s'", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
-			err := fmt.Errorf("After unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
+			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 			klog.Errorf(err.Error())
 			return err
 		}
@@ -126,9 +125,9 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 	if _, statErr := os.Stat(volDataPath); os.IsNotExist(statErr) {
 		klog.V(4).Infof("%s already removed from path '%s'", volData, csiHostPath)
 	} else {
-		klog.V(4).Infof("Removing %s from path '%s'", volData, volDataPath)
+		klog.V(4).Infof("removing %s from path '%s'", volData, volDataPath)
 		if err := os.Remove(volDataPath); err != nil {
-			klog.Warningf("After unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
+			klog.Warningf("after unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
 		}
 		klog.V(4).Infof("Successfully removed %s from path '%s'", volData, volDataPath)
 	}
@@ -148,10 +147,10 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 
 // Unmount using targetPath and cleanup directories and files.
 func unmountAndCleanUp(targetPath string) (err error) {
-	klog.V(2).Infof("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
+	klog.V(4).Infof("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from unmountAndCleanUp  " + fmt.Sprint(res))
+			err = errors.New("recovered from unmountAndCleanUp  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -160,20 +159,20 @@ func unmountAndCleanUp(targetPath string) (err error) {
 
 	klog.V(4).Infof("Unmounting targetPath '%s'", targetPath)
 	if err := mounter.Unmount(targetPath); err != nil {
-		klog.Warningf("Failed to unmount targetPath '%s' but rechecking: %v", targetPath, err)
+		klog.Warningf("failed to unmount targetPath '%s' but rechecking: %v", targetPath, err)
 	} else {
 		klog.V(4).Infof("Successfully unmounted targetPath '%s'", targetPath)
 	}
 
 	isMounted, isMountedErr := isMountedByListMethod(targetHostPath)
 	if isMountedErr != nil {
-		err := fmt.Errorf("Error: Failed to check if targetHostPath '%s' is unmounted after unmounting", targetHostPath)
+		err := fmt.Errorf("error: failed to check if targetHostPath '%s' is unmounted after unmounting %v", targetHostPath, isMountedErr)
 		klog.Errorf(err.Error())
 		return err
 	}
 	if isMounted {
 		// TODO - Should include volume ID
-		err := fmt.Errorf("Error: Volume remains mounted at targetHostPath '%s'", targetHostPath)
+		err := fmt.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
 		klog.Errorf(err.Error())
 		return err
 	}
@@ -188,7 +187,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	// Check if targetHostPath is a directory or a file
 	isADir, isADirError := IsDirectory(targetHostPath)
 	if isADirError != nil {
-		err := fmt.Errorf("Failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
+		err := fmt.Errorf("failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
 		klog.Errorf(err.Error())
 		return err
 	}
@@ -196,6 +195,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	if isADir {
 		klog.V(4).Infof("targetHostPath '%s' is a directory, not a file", targetHostPath)
 		if err := cleanupOldMountDirectory(targetHostPath); err != nil {
+			klog.Error(err)
 			return err
 		}
 		klog.V(4).Infof("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
@@ -203,7 +203,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 		// TODO - Could check this is a file using IsDirectory().
 		klog.V(4).Infof("targetHostPath '%s' is a file, not a directory", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
-			err := fmt.Errorf("Failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
+			err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 			klog.Errorf(err.Error())
 			return err
 		}
@@ -219,10 +219,10 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 	for param, required_regex := range requiredStorageClassParams {
 		if param_value, ok := providedStorageClassParams[param]; ok {
 			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
-				badParamsMap[param] = "Required input parameter " + param_value + " didn't match expected pattern " + required_regex
+				badParamsMap[param] = "required input parameter " + param_value + " didn't match expected pattern " + required_regex
 			}
 		} else {
-			badParamsMap[param] = "Parameter required but not provided"
+			badParamsMap[param] = "parameter required but not provided"
 		}
 	}
 
@@ -232,6 +232,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 	// validate network protocol / networkspace compatability
 	if scProtocol != common.PROTOCOL_FC {
 		if err := validateProtocolToNetworkSpace(scProtocol, scNetSpace, api); err != nil {
+			klog.Error(err)
 			return err
 		}
 	}
@@ -245,8 +246,9 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 	}
 
 	if len(badParamsMap) > 0 {
-		klog.Errorf("Invalid StorageClass parameters provided: %s", badParamsMap)
-		return fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
+		e := fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
+		klog.Error(e)
+		return e
 	}
 
 	// TODO validate uid, guid, unix_permissions globally since it pertains to nfs/treeq/fc
@@ -262,8 +264,8 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 		} else {
 			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS])
 			if err != nil {
-				klog.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
-				return fmt.Errorf("invalid StorageClass permissionsMapArray provided: %s", err.Error())
+				klog.Error(err)
+				return err
 			}
 
 			// validation for uid,gid,unix_permissions
@@ -271,9 +273,9 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 				if len(permissionsMapArray) > 0 {
 					noRootSquash := permissionsMapArray[0]["no_root_squash"]
 					if noRootSquash == false {
-						errorMsg := "Error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied"
-						klog.Errorf(errorMsg)
-						return fmt.Errorf("invalid StorageClass permissionsMapArray provided: %s", errorMsg)
+						e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
+						klog.Error(e)
+						return e
 					}
 				}
 			}
@@ -288,24 +290,25 @@ func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
+		klog.Error(err)
 		return err
 	}
 
 	for _, ns := range networkSpaces {
 		if nSpace, err := api.GetNetworkSpaceByName(ns); err != nil {
 			// api call throws error
-			klog.Errorf(err.Error())
+			klog.Error(err)
 			return err
 		} else if len(nSpace.Service) == 0 {
 			// handle empty result - nSpace doesn't exist
-			err := fmt.Errorf("ibox not configured with specified network space: '%s'", ns)
-			klog.Errorf(err.Error())
-			return err
+			e := fmt.Errorf("ibox not configured with specified network space: '%s'", ns)
+			klog.Error(e)
+			return e
 		} else if nSpace.Service != protoToServiceMap[protocol] {
 			// handle invalid protocol/networkspace configuration
-			klog.Errorf("specified network space '%s' does not support %s protocol with %s service", ns, protocol, nSpace.Service)
-			err := fmt.Errorf("network space '%s' does not support %s protocol ", ns, protocol)
-			return err
+			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", ns, protocol, nSpace.Service)
+			klog.Error(e)
+			return e
 		} else {
 			klog.Infof("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
 		}
@@ -318,9 +321,9 @@ func copyRequestParameters(parameters, out map[string]string) {
 	for key, val := range parameters {
 		if val != "" {
 			out[key] = val
-			klog.V(2).Infof("%s: %s", key, val)
+			klog.V(4).Infof("%s: %s", key, val)
 		} else {
-			klog.V(2).Infof("%s: empty", key)
+			klog.V(4).Infof("%s: empty", key)
 		}
 	}
 }
@@ -341,6 +344,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
 		klog.Errorf("invalid %s format %v raw [%s] fixed [%s]", common.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
+		return permissionsMapArray, err
 	}
 
 	for _, pass := range permissionsMapArray {
@@ -354,7 +358,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 			pass["no_root_squash"] = rootsq
 		}
 	}
-	return permissionsMapArray, err
+	return permissionsMapArray, nil
 }
 
 // IsDirEmpty Check if a directory is empty. Return an isEmpty boolean and an error.
@@ -402,7 +406,7 @@ func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOpt
 
 	mountOptions, err = updateNfsMountOptions(mountOptions, req)
 	if err != nil {
-		klog.Errorf("Failed updateNfsMountOptions(): %s", err)
+		klog.Errorf("failed updateNfsMountOptions(): %s", err)
 		return mountOptions, err
 	}
 
@@ -424,9 +428,9 @@ func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 		if len(matches) > 0 {
 			version := matches[2]
 			if version != "3" {
-				err := fmt.Errorf("NFS version mount option '%s' encountered, but only NFS version 3 is supported", opt)
-				klog.Error(err.Error())
-				return nil, err
+				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS version 3 is supported", opt)
+				klog.Error(e)
+				return nil, e
 			}
 		}
 	}
@@ -481,9 +485,9 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	} else {
 		uid_int, err = strconv.Atoi(tmp)
 		if err != nil || uid_int < -1 {
-			msg := fmt.Sprintf("Storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
-			klog.Errorf(msg)
-			return errors.New(msg)
+			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
+			klog.Error(e)
+			return e
 		}
 	}
 
@@ -493,17 +497,17 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	} else {
 		gid_int, err = strconv.Atoi(tmp)
 		if err != nil || gid_int < -1 {
-			msg := fmt.Sprintf("Storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
-			klog.Errorf(msg)
-			return errors.New(msg)
+			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
+			klog.Error(e)
+			return e
 		}
 	}
 
 	err = os.Chown(hostTargetPath, uid_int, gid_int)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to chown path '%s': %s", hostTargetPath, err)
-		klog.Errorf(msg)
-		return status.Errorf(codes.Internal, msg)
+		e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
+		klog.Error(e)
+		return status.Errorf(codes.Internal, e.Error())
 	}
 	klog.V(4).Infof("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 
@@ -512,16 +516,16 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	if unixPermissions != "" {
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
-			msg := fmt.Sprintf("Failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
-			klog.Errorf(msg)
-			return status.Errorf(codes.Internal, msg)
+			e := fmt.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
+			klog.Error(e)
+			return status.Errorf(codes.Internal, e.Error())
 		}
 		mode := uint(tempVal)
 		err = os.Chmod(hostTargetPath, os.FileMode(mode))
 		if err != nil {
-			msg := fmt.Sprintf("Failed to chmod path '%s' with perms %s: error: %s", hostTargetPath, unixPermissions, err.Error())
-			klog.Errorf(msg)
-			return status.Errorf(codes.Internal, msg)
+			e := fmt.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err)
+			klog.Error(e)
+			return status.Errorf(codes.Internal, e.Error())
 		}
 		klog.V(4).Infof("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
 	}
@@ -547,13 +551,14 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 
 	err = validateStorageClassParameters(scParams, optionalParams, params, api)
 	if err != nil {
+		klog.Error(err)
 		return capacity, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	capacity = int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
-		klog.Warningf("Volume Minimum capacity should be greater 1 GB")
+		klog.Warningf("volume Minimum capacity should be greater 1 GB")
 	}
 
 	useChap := params[common.SC_USE_CHAP]
@@ -564,9 +569,9 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			msg := fmt.Sprintf("Block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
-			klog.Errorf(msg)
-			return capacity, status.Error(codes.InvalidArgument, msg)
+			e := fmt.Errorf("block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
+			klog.Error(e)
+			return capacity, status.Error(codes.InvalidArgument, e.Error())
 		}
 	}
 	return capacity, err
