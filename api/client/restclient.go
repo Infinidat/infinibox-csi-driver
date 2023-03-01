@@ -74,9 +74,8 @@ type restclient struct {
 	SecretMap map[string]string
 }
 
-// Get :
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
-	klog.V(2).Infof("called client.Get with url %s ", url)
+	klog.V(2).Infof("client.Get with url %s ", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -95,12 +94,11 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 		klog.Errorf("error in validating response %v", err)
 		return nil, err
 	}
-	klog.V(2).Infof("client.Get request completed.")
 	return resp, err
 }
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
-	klog.V(2).Infof("called client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
+	klog.V(2).Infof("client.GetWithQueryString for api %s and querystring is %s ", url, queryString)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -126,7 +124,7 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	klog.V(2).Infof("called Post with url %s", url)
+	klog.V(2).Infof("Post with url %s", url)
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
@@ -185,7 +183,7 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 			err = errors.New("error in Delete " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(2).Infof("called client.Delete with url %s  ", url)
+	klog.V(2).Infof("client.Delete with url %s  ", url)
 	if err := checkHttpClient(); err != nil {
 		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
