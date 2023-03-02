@@ -29,7 +29,7 @@ import (
 const DEFAULT_HOST_MOUNT_POINT = "/host/"
 
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(2).Info("treeq NodePublishVolume")
+	klog.V(2).Info("NodePublishVolume")
 
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
@@ -42,8 +42,9 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	fileSystemId, treeqId, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
-		klog.V(4).Infof("error parsing fileSystemId %s from %s", err.Error(), req.GetVolumeId())
-		return nil, err
+		e := fmt.Errorf("error parsing fileSystemId %v from %s", err, req.GetVolumeId())
+		klog.Error(e)
+		return nil, e
 	}
 	klog.V(4).Infof("fileSystemId %d treeqId %d\n", fileSystemId, treeqId)
 	klog.V(4).Infof("volumeContext=%+v", req.GetVolumeContext())
@@ -57,7 +58,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		if snapDirVisible != "" {
 			treeq.nfsstorage.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
 			if err != nil {
-				klog.Errorf("error %s", err.Error())
+				klog.Error(err)
 				return nil, err
 			}
 		}
@@ -65,12 +66,13 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		if privPorts != "" {
 			treeq.nfsstorage.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 			if err != nil {
-				klog.Errorf("error %s", err.Error())
+				klog.Error(err)
 				return nil, err
 			}
 		}
 		err = treeq.nfsstorage.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
 		if err != nil {
+			klog.Error(err)
 			return nil, err
 		}
 	} else {
@@ -85,6 +87,9 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			return nil, err
 		}
 	} else {
+		if err != nil {
+			klog.Error(err)
+		}
 		klog.V(4).Infof("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
 		// don't return, this may be a second call after a mount timeout
@@ -92,17 +97,19 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	mountOptions, err := treeq.nfsstorage.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
+		klog.Error(err)
 		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	klog.V(4).Infof("Mount sourcePath %v, targetPath %v", source, targetPath)
+	klog.V(4).Infof("mount sourcePath %v, targetPath %v", source, targetPath)
 	err = treeq.nfsstorage.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		klog.Errorf("failed to mount source path '%s' : %s", source, err)
-		return nil, status.Errorf(codes.Internal, "Failed to mount target path '%s': %s", targetPath, err)
+		e := fmt.Errorf("failed to mount targetPath %s sourcePath '%s' : %v", targetPath, source, err)
+		klog.Error(e)
+		return nil, status.Errorf(codes.Internal, e.Error())
 	}
 	klog.V(2).Infof("mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
 
@@ -113,16 +120,16 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	err = treeq.nfsstorage.storageHelper.SetVolumePermissions(req)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to set volume permissions '%s'", err.Error())
-		klog.Errorf(msg)
-		return nil, status.Errorf(codes.Internal, msg)
+		e := fmt.Errorf("failed to set volume permissions '%v'", err)
+		klog.Error(e)
+		return nil, status.Errorf(codes.Internal, e.Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(2).Info("treeq NodeUnpublishVolume")
+	klog.V(2).Info("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := treeq.nfsstorage.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
@@ -130,15 +137,20 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 			klog.V(2).Infof("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
+		if err != nil {
+			klog.Error(err)
+		}
 		return nil, err
 	}
 	if notMnt {
 		if err := treeq.nfsstorage.mounter.Unmount(targetPath); err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to unmount target path '%s': %s", targetPath, err)
+			klog.Error(err)
+			return nil, status.Errorf(codes.Internal, "failed to unmount target path '%s': %v", targetPath, err)
 		}
 	}
 	if err := treeq.nfsstorage.osHelper.Remove(targetPath); err != nil && !treeq.nfsstorage.osHelper.IsNotExist(err) {
-		return nil, status.Errorf(codes.Internal, "Cannot remove unmounted target path '%s': %s", targetPath, err)
+		klog.Error(err)
+		return nil, status.Errorf(codes.Internal, "cannot remove unmounted target path '%s': %v", targetPath, err)
 	}
 	klog.V(2).Infof("pod successfully unmounted from volumeID %s", req.GetVolumeId())
 	return &csi.NodeUnpublishVolumeResponse{}, nil
