@@ -48,6 +48,8 @@ const (
 	PROTOCOL_FC    = "fc"
 )
 
+// Service name in
 const (
+	SERVICE_NAME                 = "infinibox-csi-driver"
 	IBOX_DEFAULT_QUERY_PAGE_SIZE = 1000
 )

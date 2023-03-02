@@ -61,7 +61,7 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("Recovered from NodeUnpublishVolume with volume ID %s: %s", req.GetVolumeId(), res)
+			err = fmt.Errorf("recovered from NodeUnpublishVolume with volume ID %s: %s", req.GetVolumeId(), res)
 		}
 
 		isLocking := false
@@ -135,7 +135,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("Recovered from NodeStageVolume with ID %s: %s", req.GetVolumeId(), res)
+			err = fmt.Errorf("recovered from NodeStageVolume with ID %s: %s", req.GetVolumeId(), res)
 		}
 
 		isLocking := false
@@ -165,7 +165,7 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 	var err error
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("Recovered from NodeUnstageVolume with volume ID %s: %s", req.GetVolumeId(), res)
+			err = fmt.Errorf("recovered from NodeUnstageVolume with volume ID %s: %s", req.GetVolumeId(), res)
 		}
 
 		isLocking := false

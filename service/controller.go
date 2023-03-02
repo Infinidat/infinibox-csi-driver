@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
 
@@ -282,7 +283,76 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 }
 
 func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	res := &csi.ListVolumesResponse{}
+	res.Entries = make([]*csi.ListVolumesResponse_Entry, 0)
+	klog.V(4).Infof("controller ListVolume() called: ctx: %+v", ctx)
+	klog.V(4).Infof("controller ListVolume() called: req: %+v", req)
+
+	// Get a k8s go client for in-cluster use
+	cl, err := clientgo.BuildClient()
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "Cannot list volumes: %v", err)
+	}
+
+	/**
+	// Find all storageclasses
+	storageclassList, err := cl.GetAllStorageClasses()
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "Cannot list volumes: %v", err)
+	}
+
+	// Find pools defined in all storageclasses
+	var poolNames []string
+	for _, sc := range storageclassList.Items {
+		storageClassName := sc.ObjectMeta.GetName()
+		poolName := sc.Parameters["pool_name"]
+		if len(poolName) > 0 {
+			poolNames = append(poolNames, poolName)
+		}
+		klog.V(4).Infof("storageclass %s uses pool %s", storageClassName, poolName)
+	}
+	klog.V(4).Infof("poolNames: %+v", poolNames)
+	*/
+
+	// Find PVs managed by this CSI driver
+	pvList, err := cl.GetAllPersistentVolumes()
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "Cannot list volumes: %v", err)
+	}
+	klog.V(4).Infof("pvList count: %d", len(pvList.Items))
+
+	for _, pv := range pvList.Items {
+		klog.V(4).Infof("pv capacity : %#v", pv.Spec.Capacity)
+		klog.V(4).Infof("pv name: %#v", pv.ObjectMeta.GetName())
+		klog.V(4).Infof("pv anno: %#v", pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"])
+		if pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.SERVICE_NAME {
+			var status csi.ListVolumesResponse_VolumeStatus
+			status.PublishedNodeIds = append(status.PublishedNodeIds, pv.ObjectMeta.GetName())
+			// TODO Handle csi.ListVolumesResponse_VolumeStatus.VolumeCondition?
+			klog.V(4).Infof("status: %#v", status)
+
+			var volume csi.Volume
+
+			volume.CapacityBytes = pv.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
+			volume.VolumeId = pv.ObjectMeta.GetName()
+			volume.VolumeContext = make(map[string]string)
+			volume.VolumeContext["network_space"] = pv.Spec.CSI.VolumeAttributes["network_space"]
+			volume.VolumeContext["pool_name"] = pv.Spec.CSI.VolumeAttributes["pool_name"]
+			volume.VolumeContext["storage_protocol"] = pv.Spec.CSI.VolumeAttributes["storage_protocol"]
+			volume.ContentSource = nil
+			volume.AccessibleTopology = nil
+
+			var entry csi.ListVolumesResponse_Entry
+			entry.Volume = &volume
+			entry.Status = &status
+			klog.V(4).Infof("entry: %#v", entry)
+
+			res.Entries = append(res.Entries, &entry)
+		}
+	}
+
+	return res, nil
+
 }
 
 func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
@@ -303,13 +373,13 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
-			// &csi.ControllerServiceCapability{
-			// 	Type: &csi.ControllerServiceCapability_Rpc{
-			// 		Rpc: &csi.ControllerServiceCapability_RPC{
-			// 			Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
-			// 		},
-			// 	},
-			// },
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
+					},
+				},
+			},
 
 			// {
 			// 	Type: &csi.ControllerServiceCapability_Rpc{

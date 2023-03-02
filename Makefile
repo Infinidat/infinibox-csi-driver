@@ -226,6 +226,14 @@ github-push:  ## Push develop to Github with optional git push options.
 	git push $(_GIT_PUSH_OPTIONS) "$(_GIT_REMOTE)" develop:develop
 	@echo -e $(_finish)
 
+.PHONY: test-list-volumes
+test-list-volumes:  ## test ListVolumes using grpcurl within the driver container
+	@echo -e $(_begin)
+	kubectl cp /usr/local/bin/grpcurl infinidat-csi-driver-driver-0:/tmp/ -c driver
+	kubectl cp ~/go/pkg/mod/github.com/container-storage-interface/spec@v1.5.0/csi.proto infinidat-csi-driver-driver-0:/tmp/ -c driver	
+	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ListVolumes
+	@echo -e $(_finish)
+
 .PHONY: version
 version:  ## Show tool versions.
 	@echo -e $(_begin)
