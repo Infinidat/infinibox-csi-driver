@@ -26,6 +26,11 @@ unit_tests:
   - make test
 sast:
   stage: test
+  variables: 
+    SAST_EXCLUDED_PATHS: "**/*_test.go, test_helper/*.go"
+    SCAN_KUBERNETES_MANIFESTS: "true"
+    KUBESEC_HELM_CHARTS_PATH: deploy/helm/infinibox-csi-driver
 include:
 - template: Security/SAST.gitlab-ci.yml
-- template: Security/Container-Scanning.gitlab-ci.yml
+# container scanning disabled - further configuration required.
+# - template: Security/Container-Scanning.gitlab-ci.yml
