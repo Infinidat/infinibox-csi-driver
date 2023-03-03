@@ -41,6 +41,7 @@ type Client interface {
 	DeleteVolume(volumeID int) (err error)
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
+	GetAllSnapshots() ([]Volume, error)
 
 	GetHostByName(hostName string) (host Host, err error)
 	CreateHost(hostName string) (host Host, err error)
@@ -236,7 +237,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 	klog.V(2).Infof("FindStoragePool called with either id %d or name %s", id, name)
 	storagePools, err := c.GetStoragePool(id, name)
 	if err != nil {
-		return StoragePool{}, fmt.Errorf("Error getting storage pool %s", err)
+		return StoragePool{}, fmt.Errorf("error getting storage pool %s", err)
 	}
 
 	for _, storagePool := range storagePools {
@@ -245,7 +246,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 			return storagePool, nil
 		}
 	}
-	return StoragePool{}, errors.New("Couldn't find storage pool")
+	return StoragePool{}, errors.New("couldn't find storage pool")
 }
 
 // GetStoragePool : Get storage pool(s) either by id or name
@@ -735,12 +736,6 @@ func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, erro
 	return &volumeResp, nil
 }
 
-// **************************************************Util Methods*********************************************
-//
-//	generic methods to do reset called
-//	consume by other method intent to do rese calls
-//
-// **************************************************Util Methods*********************************************
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
 	klog.V(2).Infof("Request made for method: %s and apiuri %s", method, apiuri)
 	defer func() {
@@ -787,7 +782,7 @@ func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map
 	var queryString string
 	for key, val := range queryParam {
 		if queryString != "" {
-			queryString += ","
+			queryString += "&"
 		}
 		queryString += key + "=" + fmt.Sprintf("%v", val)
 	}
@@ -803,7 +798,7 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		}
 	}()
 	if c.SecretsMap == nil {
-		return hostconfig, errors.New("Secret not found")
+		return hostconfig, errors.New("secret not found")
 	}
 	if c.SecretsMap["hostname"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
 		hosturl, err := url.ParseRequestURI(c.SecretsMap["hostname"])
@@ -818,4 +813,40 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		return hostconfig, nil
 	}
 	return hostconfig, errors.New("host configuration is not valid")
+}
+
+// GetAllSnapshots method returns all snapshots for volumes and datasets
+func (c *ClientService) GetAllSnapshots() ([]Volume, error) {
+	var err error
+	uriList := []string{
+		"/api/rest/datasets",
+		"/api/rest/volumes",
+	}
+	allvolumes := make([]Volume, 0)
+
+	for u := 0; u < len(uriList); u++ {
+		queryParam := make(map[string]interface{})
+		queryParam["type"] = "SNAPSHOT"
+		page := 1
+		total_pages := 1 // start with 1, update after first query.
+		for ok := true; ok; ok = page <= total_pages {
+			queryParam["page"] = strconv.Itoa(page)
+			volumes := []Volume{}
+			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &volumes)
+			if err != nil {
+				klog.Errorf("failed to check GetAllSnapshots %v response: %v", err, resp)
+				return allvolumes, err
+			}
+			apiresp := resp.(client.ApiResponse)
+			klog.Infof("uri %s page %d volumes %d", uriList[u], page, len(volumes))
+
+			allvolumes = append(allvolumes, volumes...)
+			if page == 1 {
+				total_pages = apiresp.MetaData.TotalPages
+			}
+			page++
+		}
+	}
+
+	return allvolumes, err
 }

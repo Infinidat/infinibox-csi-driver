@@ -295,23 +295,26 @@ func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 	}
 
 	for _, ns := range networkSpaces {
-		if nSpace, err := api.GetNetworkSpaceByName(ns); err != nil {
+		klog.Infof("validating ns=%s protocol=%s", ns, protocol)
+		nSpace, err := api.GetNetworkSpaceByName(ns)
+		if err != nil {
 			// api call throws error
 			klog.Error(err)
 			return err
-		} else if len(nSpace.Service) == 0 {
+		}
+		if len(nSpace.Service) == 0 {
 			// handle empty result - nSpace doesn't exist
-			e := fmt.Errorf("ibox not configured with specified network space: '%s'", ns)
+			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", ns)
 			klog.Error(e)
 			return e
-		} else if nSpace.Service != protoToServiceMap[protocol] {
+		}
+		if nSpace.Service != protoToServiceMap[protocol] {
 			// handle invalid protocol/networkspace configuration
 			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", ns, protocol, nSpace.Service)
 			klog.Error(e)
 			return e
-		} else {
-			klog.Infof("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
 		}
+		klog.Infof("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
 	}
 
 	return nil // returns here if all network spaces pass validation for protocol.

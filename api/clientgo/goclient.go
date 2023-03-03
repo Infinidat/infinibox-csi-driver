@@ -93,12 +93,6 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
 	for _, pv := range persistentVolumes.Items {
-		// pvJson, err := json.MarshalIndent(pv, "", "\t")
-		// if err != nil {
-		// 	log.Fatalf(err.Error())
-		// }
-		// fmt.Printf("persistenvolume: %s\n", string(scJson))
-
 		persistentVolumeName := pv.ObjectMeta.GetName()
 		provisionedBy := pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
 		klog.V(4).Infof("pv name: %+v\n", persistentVolumeName)
@@ -121,12 +115,6 @@ func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error
 	klog.V(4).Infof("GetStorageClasses() called")
 	klog.V(4).Infof("There are %d storageclasses in the cluster\n", len(storageclasses.Items))
 	for _, sc := range storageclasses.Items {
-		// scJson, err := json.MarshalIndent(sc, "", "\t")
-		// if err != nil {
-		// 	log.Fatalf(err.Error())
-		// }
-		// fmt.Printf("storageclass: %s\n", string(scJson))
-
 		storage_class_name := sc.ObjectMeta.GetName()
 		klog.V(4).Infof("storageclass name: %+v\n", storage_class_name)
 

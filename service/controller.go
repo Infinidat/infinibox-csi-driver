@@ -16,11 +16,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
+	"strconv"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	tspb "google.golang.org/protobuf/types/known/timestamppb"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
@@ -291,33 +296,13 @@ func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) 
 	// Get a k8s go client for in-cluster use
 	cl, err := clientgo.BuildClient()
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "Cannot list volumes: %v", err)
+		return nil, status.Errorf(codes.Unavailable, "cannot list volumes: %v", err)
 	}
-
-	/**
-	// Find all storageclasses
-	storageclassList, err := cl.GetAllStorageClasses()
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "Cannot list volumes: %v", err)
-	}
-
-	// Find pools defined in all storageclasses
-	var poolNames []string
-	for _, sc := range storageclassList.Items {
-		storageClassName := sc.ObjectMeta.GetName()
-		poolName := sc.Parameters["pool_name"]
-		if len(poolName) > 0 {
-			poolNames = append(poolNames, poolName)
-		}
-		klog.V(4).Infof("storageclass %s uses pool %s", storageClassName, poolName)
-	}
-	klog.V(4).Infof("poolNames: %+v", poolNames)
-	*/
 
 	// Find PVs managed by this CSI driver
 	pvList, err := cl.GetAllPersistentVolumes()
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "Cannot list volumes: %v", err)
+		return nil, status.Errorf(codes.Unavailable, "cannot list volumes: %v", err)
 	}
 	klog.V(4).Infof("pvList count: %d", len(pvList.Items))
 
@@ -356,7 +341,54 @@ func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) 
 }
 
 func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	res := &csi.ListSnapshotsResponse{}
+	res.Entries = make([]*csi.ListSnapshotsResponse_Entry, 0)
+	klog.V(4).Infof("controller ListSnapShots() called: ctx: %+v", ctx)
+	klog.V(4).Infof("controller ListSnapShots() called: req: %+v", req)
+
+	config := make(map[string]string)
+
+	// secrets have to be passed in by the grpc caller in this particular case since
+	// we don't have secrets populated for us by a storageclass like the other protocols
+	// in your grpcurl command, you have to supply 'hostname', 'password', and 'username' map
+	// values in your request
+	x := api.ClientService{
+		ConfigMap:  config,
+		SecretsMap: req.GetSecrets(),
+	}
+	clientsvc, err := x.NewClient()
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Unavailable, "cannot get api client: %v", err)
+	}
+
+	snapshots, err := clientsvc.GetAllSnapshots()
+	if err != nil {
+		klog.Error(err)
+		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
+	}
+	klog.V(4).Infof("got back %d snapshots", len(snapshots))
+	for i := 0; i < len(snapshots); i++ {
+		cdt := snapshots[i].CreatedAt / 1000
+		tt := time.Unix(cdt, 0)
+		t := tspb.New(tt)
+		if err != nil {
+			klog.Error(err)
+		}
+		snapshot := &csi.Snapshot{
+			SnapshotId:     strconv.Itoa(snapshots[i].ID),
+			SourceVolumeId: strconv.Itoa(snapshots[i].ParentId),
+			SizeBytes:      snapshots[i].Size,
+			CreationTime:   t,
+			ReadyToUse:     true, //always true on the ibox according to Jason.
+		}
+		entry := csi.ListSnapshotsResponse_Entry{
+			Snapshot: snapshot,
+		}
+		res.Entries = append(res.Entries, &entry)
+
+	}
+	return res, nil
 }
 
 func (s *service) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
@@ -410,13 +442,13 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
-			// &csi.ControllerServiceCapability{
-			// 	Type: &csi.ControllerServiceCapability_Rpc{
-			// 		Rpc: &csi.ControllerServiceCapability_RPC{
-			// 			Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
-			// 		},
-			// 	},
-			// },
+			{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
+					},
+				},
+			},
 			{
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
