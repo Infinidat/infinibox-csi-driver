@@ -324,9 +324,6 @@ func copyRequestParameters(parameters, out map[string]string) {
 	for key, val := range parameters {
 		if val != "" {
 			out[key] = val
-			klog.V(4).Infof("%s: %s", key, val)
-		} else {
-			klog.V(4).Infof("%s: empty", key)
 		}
 	}
 }
