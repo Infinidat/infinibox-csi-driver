@@ -20,7 +20,7 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
-	"strconv"
+	"os"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -35,7 +35,7 @@ import (
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI CreateVolume  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI CreateVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -110,7 +110,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (deleteVolResp *csi.DeleteVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI DeleteVolume  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI DeleteVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -136,7 +136,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 	req.VolumeId = volproto.VolumeID
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
-		klog.Errorf("Failed to delete volume with ID %s: %v", volumeId, err)
+		klog.Errorf("failed to delete volume with ID %s: %v", volumeId, err)
 		return
 	}
 	req.VolumeId = volumeId
@@ -150,7 +150,7 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -187,7 +187,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 	klog.V(2).Infof("ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -260,7 +260,7 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) error {
 }
 
 func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	klog.V(2).Infof("Main ValidateVolumeCapabilities called with req volumeID %s", req.GetVolumeId())
+	klog.V(2).Infof("ValidateVolumeCapabilities called with req volumeID %s", req.GetVolumeId())
 	defer func() {
 		if res := recover(); res != nil && err == nil {
 			err = errors.New("Recovered from CSI ValidateVolumeCapabilities  " + fmt.Sprint(res))
@@ -277,21 +277,21 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 	config := make(map[string]string)
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("ValidateVolumeCapabilities failed to initialise storage controller: " + volproto.StorageType)
+		err = errors.New("error ValidateVolumeCapabilities failed to initialize storage controller: " + volproto.StorageType)
 		return
 	}
 	validateVolCapsResponse, err = storageController.ValidateVolumeCapabilities(ctx, req)
 	if err != nil {
-		klog.Errorf("ValidateVolumeCapabilities %v", err)
+		klog.Errorf("error ValidateVolumeCapabilities %v", err)
 	}
 	return
 }
 
 func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	res := &csi.ListVolumesResponse{}
-	res.Entries = make([]*csi.ListVolumesResponse_Entry, 0)
-	klog.V(4).Infof("controller ListVolume() called: ctx: %+v", ctx)
-	klog.V(4).Infof("controller ListVolume() called: req: %+v", req)
+	klog.V(4).Infof("controller ListVolumes() called")
+	res := &csi.ListVolumesResponse{
+		Entries: make([]*csi.ListVolumesResponse_Entry, 0),
+	}
 
 	// Get a k8s go client for in-cluster use
 	cl, err := clientgo.BuildClient()
@@ -320,10 +320,11 @@ func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) 
 
 			volume.CapacityBytes = pv.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
 			volume.VolumeId = pv.ObjectMeta.GetName()
-			volume.VolumeContext = make(map[string]string)
-			volume.VolumeContext["network_space"] = pv.Spec.CSI.VolumeAttributes["network_space"]
-			volume.VolumeContext["pool_name"] = pv.Spec.CSI.VolumeAttributes["pool_name"]
-			volume.VolumeContext["storage_protocol"] = pv.Spec.CSI.VolumeAttributes["storage_protocol"]
+			volume.VolumeContext = map[string]string{
+				"network_space":    pv.Spec.CSI.VolumeAttributes["network_space"],
+				"pool_name":        pv.Spec.CSI.VolumeAttributes["pool_name"],
+				"storage_protocol": pv.Spec.CSI.VolumeAttributes["storage_protocol"],
+			}
 			volume.ContentSource = nil
 			volume.AccessibleTopology = nil
 
@@ -341,21 +342,33 @@ func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) 
 }
 
 func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	res := &csi.ListSnapshotsResponse{}
-	res.Entries = make([]*csi.ListSnapshotsResponse_Entry, 0)
-	klog.V(4).Infof("controller ListSnapShots() called: ctx: %+v", ctx)
-	klog.V(4).Infof("controller ListSnapShots() called: req: %+v", req)
-
-	config := make(map[string]string)
-
-	// secrets have to be passed in by the grpc caller in this particular case since
-	// we don't have secrets populated for us by a storageclass like the other protocols
-	// in your grpcurl command, you have to supply 'hostname', 'password', and 'username' map
-	// values in your request
-	x := api.ClientService{
-		ConfigMap:  config,
-		SecretsMap: req.GetSecrets(),
+	klog.V(4).Infof("controller ListSnapshots() called")
+	res := &csi.ListSnapshotsResponse{
+		Entries: make([]*csi.ListSnapshotsResponse_Entry, 0),
 	}
+
+	// Get a k8s go client for in-cluster use
+	cl, err := clientgo.BuildClient()
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
+	}
+
+	ns := os.Getenv("POD_NAMESPACE")
+	klog.V(4).Infof("POD_NAMESPACE=%s", ns)
+	if ns == "" {
+		klog.Error("env var POD_NAMESPACE was not set, defaulting to openshift-operators namespace")
+		ns = "openshift-operators"
+	}
+	secret, err := cl.GetSecret("infinibox-creds", ns)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, error getting secret: %v", err)
+	}
+
+	x := api.ClientService{
+		ConfigMap:  make(map[string]string),
+		SecretsMap: secret,
+	}
+
 	clientsvc, err := x.NewClient()
 	if err != nil {
 		klog.Error(err)
@@ -375,9 +388,33 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 		if err != nil {
 			klog.Error(err)
 		}
+
+		var parentName string
+		switch snapshots[i].DatasetType {
+		case "VOLUME":
+			v, err := clientsvc.GetVolume(snapshots[i].ParentId)
+			if err != nil {
+				klog.Errorf("snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
+				parentName = "unknown"
+			} else {
+				parentName = v.Name
+			}
+		case "FILESYSTEM":
+			f, err := clientsvc.GetFileSystemByID(int64(snapshots[i].ParentId))
+			if err != nil {
+				klog.Errorf("snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
+				parentName = "unknown"
+			} else {
+				parentName = f.Name
+			}
+		default:
+			klog.Errorf("snapshot %s unknown dataset type %s parentId %d ", snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
+			parentName = "unknown"
+		}
+
 		snapshot := &csi.Snapshot{
-			SnapshotId:     strconv.Itoa(snapshots[i].ID),
-			SourceVolumeId: strconv.Itoa(snapshots[i].ParentId),
+			SnapshotId:     snapshots[i].Name,
+			SourceVolumeId: parentName,
 			SizeBytes:      snapshots[i].Size,
 			CreationTime:   t,
 			ReadyToUse:     true, //always true on the ibox according to Jason.
@@ -463,7 +500,7 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshotResp *csi.CreateSnapshotResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI CreateSnapshot  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI CreateSnapshot  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -484,13 +521,13 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 		createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
 		return createSnapshotResp, err
 	}
-	return nil, errors.New("Failed to create storageController for " + volproto.StorageType)
+	return nil, errors.New("failed to create storageController for " + volproto.StorageType)
 }
 
 func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -511,7 +548,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	config["nodeid"] = s.nodeID
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		klog.Errorf("Delete snapshot failed: %s", err)
+		klog.Errorf("delete snapshot failed: %s", err)
 		return nil, err
 	}
 	if storageController != nil {
@@ -519,13 +556,13 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 		deleteSnapshotResp, err := storageController.DeleteSnapshot(ctx, req)
 		return deleteSnapshotResp, err
 	}
-	return nil, errors.New("Failed to create storageController for " + volproto.StorageType)
+	return nil, errors.New("failed to create storageController for " + volproto.StorageType)
 }
 
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolResp *csi.ControllerExpandVolumeResponse, err error) {
 	defer func() {
 		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI ControllerExpandVolume  " + fmt.Sprint(res))
+			err = errors.New("recovered from CSI ControllerExpandVolume  " + fmt.Sprint(res))
 		}
 	}()
 
@@ -543,7 +580,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
-		klog.Errorf("Expand volume failed: %s", err)
+		klog.Errorf("expand volume failed: %s", err)
 		return
 	}
 	if storageController != nil {

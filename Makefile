@@ -233,7 +233,7 @@ test-list-volumes-snapshots:  ## test ListVolumes and ListSnapshots using grpcur
 	kubectl cp ~/go/pkg/mod/github.com/container-storage-interface/spec@v1.5.0/csi.proto infinidat-csi-driver-driver-0:/tmp/ -c driver	
 	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ControllerGetCapabilities
 	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ListVolumes
-	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto -d '{"secrets": {"username":"someiboxuser","password":"someiboxpassword!","hostname":"ibox1521.lab.wt.us.infinidat.com"}}' /var/run/csi/csi.sock csi.v1.Controller/ListSnapshots
+	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ListSnapshots
 	@echo -e $(_finish)
 
 .PHONY: version

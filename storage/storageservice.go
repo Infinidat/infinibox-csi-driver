@@ -105,7 +105,7 @@ type iscsistorage struct {
 
 // NewStorageController : To return specific implementation of storage
 func NewStorageController(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
-	comnserv, err := buildCommonService(configparams[0], configparams[1])
+	comnserv, err := BuildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 		switch storageProtocol {
@@ -128,7 +128,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 
 // NewStorageNode : To return specific implementation of storage
 func NewStorageNode(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
-	comnserv, err := buildCommonService(configparams[0], configparams[1])
+	comnserv, err := BuildCommonService(configparams[0], configparams[1])
 	if err == nil {
 		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 		switch storageProtocol {
@@ -149,7 +149,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 	return nil, err
 }
 
-func buildCommonService(config map[string]string, secretMap map[string]string) (commonservice, error) {
+func BuildCommonService(config map[string]string, secretMap map[string]string) (commonservice, error) {
 	commonserv := commonservice{}
 	if config != nil {
 		if secretMap == nil || len(secretMap) < 3 {

@@ -367,7 +367,7 @@ func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 			err = errors.New("GetVolume Panic occured -  " + fmt.Sprint(res))
 		}
 	}()
-	klog.V(4).Infof("Get a Volume of ID: %d", volumeid)
+	//klog.V(4).Infof("Get a Volume of ID: %d", volumeid)
 	volume := Volume{}
 	path := "/api/rest/volumes/" + strconv.Itoa(volumeid)
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
@@ -748,7 +748,7 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 		klog.Errorf("error occured: %v ", err)
 		return nil, err
 	}
-	klog.V(4).Infof("Requesting method: %s , %s%s", method, hostsecret.ApiHost, apiuri)
+	//klog.V(4).Infof("Requesting method: %s , %s%s", method, hostsecret.ApiHost, apiuri)
 	if method == http.MethodPost {
 		resp, err = c.api.Post(context.Background(), apiuri, hostsecret, body, expectedResp)
 	} else if method == http.MethodGet {
@@ -759,7 +759,7 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 		resp, err = c.api.Put(context.Background(), apiuri, hostsecret, body, expectedResp)
 	}
 	if err != nil {
-		klog.Errorf("an API JSON response error occured, URL: %s, error: %+v ", apiuri, err)
+		klog.Errorf("api json response error occured, method: %s URL: %s%s, error: %+v", hostsecret.ApiHost, apiuri, err)
 		return
 	}
 	klog.V(4).Infof("Requesting method: %s , %s%s successful", method, hostsecret.ApiHost, apiuri)
