@@ -20,6 +20,9 @@ logLevel: "debug"
 csiDriverName: "infinibox-csi-driver"
 csiDriverVersion: "v2.6.0-rc1"
 
+# set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
+e2etesting: "false"
+
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html

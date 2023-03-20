@@ -1,3 +1,5 @@
+//go:build unit
+
 package helper
 
 // go test -v ./helper/...

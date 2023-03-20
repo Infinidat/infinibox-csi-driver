@@ -1,3 +1,18 @@
+{{- if eq .Values.e2etesting "true" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: socat-service
+  namespace: {{ .Release.NameSpace }}
+spec:
+  selector:
+    app: infinidat-csi-driver-driver
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 10000
+      nodePort: 30007
+{{- end }}
 ---
 kind: StatefulSet
 apiVersion: apps/v1
@@ -17,6 +32,16 @@ spec:
     spec:
       serviceAccount: {{ .Release.Name }}-driver
       containers:
+        {{- if eq .Values.e2etesting "true" }}
+        - name: socat
+          image: alpine/socat:1.0.3
+          args:
+            - tcp-listen:10000,fork,reuseaddr
+            - unix-connect:/var/run/csi/csi.sock
+          volumeMounts:
+            - name: driver-path
+              mountPath: /var/run/csi
+        {{- end }}
         - name: attacher
           image: {{ required "csi attacher sidercar image." .Values.images.attachersidecar }}
           imagePullPolicy: {{ .Values.images.attachersidecar_pull_policy | default "Always" | quote }}

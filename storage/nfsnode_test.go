@@ -1,3 +1,5 @@
+//go:build unit
+
 /*
 Copyright 2022 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");

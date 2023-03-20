@@ -20,6 +20,7 @@ _GOCMD              ?= $(shell which go)
 _GOBUILD            = $(_GOCMD) build -ldflags "-X main.compileDate=$$(date -u +%Y-%m-%d_%H:%M:%S_%Z) -X main.gitHash=$$(git rev-parse HEAD) -X main.version=$(_DOCKER_IMAGE_TAG) -X main.goVersion='$$(go version | sed 's/ /_/g')"
 _GOCLEAN            = $(_GOCMD) clean
 _GOTEST             = $(_SUDO) $(_GOCMD) test
+_GOTESTNOSUDO       = $(_GOCMD) test
 _GOMOD              = $(_GOCMD) mod
 _GOFMT              = gofmt
 _GOLINT             = golangci-lint
@@ -69,7 +70,14 @@ rebuild: clean ## Rebuild source (all packages)
 .PHONY: test
 test: build  ## Unit test source.
 	@echo -e $(_begin)
-	$(_GOTEST) -v ./...
+	$(_GOTEST) -v ./... -tags unit
+	@echo -e $(_finish)
+
+.PHONY: e2e
+e2e: build  ## run e2e tests only
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTESTNOSUDO) -v ./... -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: test-one-thing
@@ -224,16 +232,6 @@ _GIT_PUSH_OPTIONS ?=
 github-push:  ## Push develop to Github with optional git push options.
 	@echo -e $(_begin)
 	git push $(_GIT_PUSH_OPTIONS) "$(_GIT_REMOTE)" develop:develop
-	@echo -e $(_finish)
-
-.PHONY: test-list-volumes-snapshots
-test-list-volumes-snapshots:  ## test ListVolumes and ListSnapshots using grpcurl in the driver container
-	@echo -e $(_begin)
-	kubectl cp /usr/local/bin/grpcurl infinidat-csi-driver-driver-0:/tmp/ -c driver
-	kubectl cp ~/go/pkg/mod/github.com/container-storage-interface/spec@v1.5.0/csi.proto infinidat-csi-driver-driver-0:/tmp/ -c driver	
-	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ControllerGetCapabilities
-	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ListVolumes
-	kubectl exec -it infinidat-csi-driver-driver-0 -c driver -- /tmp/grpcurl -plaintext -unix=true -import-path /tmp -proto csi.proto /var/run/csi/csi.sock csi.v1.Controller/ListSnapshots
 	@echo -e $(_finish)
 
 .PHONY: version
