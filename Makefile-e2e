@@ -1,0 +1,57 @@
+# vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
+
+##@ Developer Recipes
+.PHONY: install-e2e-tools
+install-e2e-tools:
+	@echo -e $(_begin)
+	wget https://dl.k8s.io/v1.25.0/kubernetes-test-linux-amd64.tar.gz
+	tar --strip-components=3 -zxf kubernetes-test-linux-amd64.tar.gz \
+		kubernetes/test/bin/e2e.test kubernetes/test/bin/ginkgo
+	@echo -e $(_finish)
+
+.PHONY: install-csi-sanity
+install-csi-sanity:
+	@echo -e $(_begin)
+	./e2e/csi-sanity/install.sh
+	@echo -e $(_finish)
+
+.PHONY: e2e
+e2e: 
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTESTNOSUDO) -v ./... -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: external-e2e  ## run the upstream e2e sanity tests for a particular suite of tests
+external-e2e:  
+	@echo -e $(_begin)
+	export _E2E_NAMESPACE=$(_E2E_NAMESPACE) \
+		_E2E_POOL=$(_E2E_POOL) \
+		_E2E_PROTOCOL=$(_E2E_PROTOCOL) \
+		_E2E_NETWORK_SPACE=$(_E2E_NETWORK_SPACE) \
+		&& ./e2e/external-e2e/run.sh
+	@echo -e $(_finish)
+
+.PHONY: e2e-csi-sanity  ## run the upstream csi-sanity tests against our gRPC endpoint
+e2e-csi-sanity:  
+	@echo -e $(_begin)
+	export _E2E_IBOX_HOSTNAME=$(_E2E_IBOX_HOSTNAME) \
+		_E2E_NAMESPACE=$(_E2E_NAMESPACE) \
+		_E2E_POOL=$(_E2E_POOL) \
+		_E2E_PROTOCOL=$(_E2E_PROTOCOL) \
+		_E2E_NETWORK_SPACE=$(_E2E_NETWORK_SPACE) \
+		_E2E_IBOX_USERNAME=$(_E2E_IBOX_USERNAME) \
+		_E2E_IBOX_PASSWORD=$(_E2E_IBOX_PASSWORD) \
+		&& ./e2e/csi-sanity/run.sh
+	@echo -e $(_finish)
+
+.PHONY: e2e-redhat-sanity  ## run the redhat e2e tests
+e2e-redhat-sanity:  
+	@echo -e $(_begin)
+	export _E2E_NAMESPACE=$(_E2E_NAMESPACE) \
+		_E2E_POOL=$(_E2E_POOL) \
+		_E2E_PROTOCOL=$(_E2E_PROTOCOL) \
+		_E2E_NETWORK_SPACE=$(_E2E_NETWORK_SPACE) \
+		&& ./e2e/redhat-e2e/run-container.sh
+	@echo -e $(_finish)
+

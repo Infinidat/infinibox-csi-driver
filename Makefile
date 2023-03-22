@@ -12,6 +12,7 @@ ifneq ($(_GITLAB_USER),gitlab-user-name)
 endif
 include Makefile-help
 include Makefile-git
+include Makefile-e2e
 
 _GOCMD              ?= $(shell which go)
 
@@ -71,13 +72,6 @@ rebuild: clean ## Rebuild source (all packages)
 test: build  ## Unit test source.
 	@echo -e $(_begin)
 	$(_GOTEST) -v ./... -tags unit
-	@echo -e $(_finish)
-
-.PHONY: e2e
-e2e: build  ## run e2e tests only
-	@echo -e $(_begin)
-	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTESTNOSUDO) -v ./... -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: test-one-thing

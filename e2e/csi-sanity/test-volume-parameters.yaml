@@ -1,0 +1,15 @@
+csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
+csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
+csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
+csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
+csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
+storage_protocol: $_E2E_PROTOCOL
+network_space: $_E2E_NETWORK_SPACE # InfiniBox network space name
+pool_name: $_E2E_POOL
+provision_type: THIN
+ssd_enabled: "true"
