@@ -72,7 +72,7 @@ go-build:
       - infinibox-csi-driver
     expire_in: 1 day
 
-feature-branch-image:
+build-branch-image:
   stage: docker_build
   tags:
     - docker-build
@@ -89,7 +89,7 @@ feature-branch-image:
     DOCKER_TLS_CERTDIR: ""
     FEATURE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   before_script:
-   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+   - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - > 
       docker build --pull 
@@ -101,7 +101,7 @@ feature-branch-image:
       -t $FEATURE_IMAGE -f Dockerfile .
     - docker push $FEATURE_IMAGE
 
-development-branch-image:
+test-merge-image-build:
   stage: docker_build
   tags:
     - docker-build
@@ -116,9 +116,9 @@ development-branch-image:
     # Use the overlayfs driver for improved performance:
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-    DEV_IMAGE: $CI_REGISTRY_IMAGE:latest
+    DEV_IMAGE: $CI_REGISTRY_IMAGE:develop
   before_script:
-   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+   - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - docker pull $DEV_IMAGE || true
     - > 
@@ -129,7 +129,6 @@ development-branch-image:
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
       -t $DEV_IMAGE -f Dockerfile .
-    - docker push $DEV_IMAGE
 
 # Re-tag latest when a tag is created. Will fail if :latest does not exist.
 release-tag:
@@ -140,7 +139,7 @@ release-tag:
     # Use the overlayfs driver for improved performance:
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-    DEV_IMAGE: $CI_REGISTRY_IMAGE:latest
+    DEV_IMAGE: $CI_REGISTRY_IMAGE:develop
   stage: release
   only:
     # We want this job to be run on tags only
