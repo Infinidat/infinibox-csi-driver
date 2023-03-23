@@ -1,35 +1,156 @@
 # You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# SAST customization:
 # Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/#customizing-settings
 # Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
 # Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
 # Note that environment variables can be set in several places
 # See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 
-# container_scanning:
-#   variables:
-#     DOCKER_IMAGE: ...
-#     DOCKER_USER: ...
-#     DOCKER_PASSWORD: ...
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+
+.go-cache:
+    variables:
+        GOPATH: $CI_PROJECT_DIR/.go
+    cache:
+      paths:
+        - .go/pkg/mod/
+
 variables:
   MAINTENANCE_MODE: 1
+  DOCKER_BASE_IMAGE: redhat/ubi8:latest
+
 stages:
+- lint
 - test
-default:
+- build
+- docker_build
+- release
+
+lint:
+    image: golangci/golangci-lint:latest
+    stage: lint
+    tags:
+      - go-test
+    extends: .go-cache
+    allow_failure: false
+    script:
+      - golangci-lint -v --timeout=5m run
+
+unit_test:
   image: quay.io/projectquay/golang:1.19
-  before_script:
-  - echo ${CI_PROJECT_DIR}
-unit_tests:
   stage: test
+  tags:
+    - go-test
   script:
-  - make build
-  - make test
+  - go test  -v ./...
+  
 sast:
   stage: test
+  tags:
+    - go-test
   variables: 
     SAST_EXCLUDED_PATHS: "**/*_test.go, test_helper/*.go"
     SCAN_KUBERNETES_MANIFESTS: "true"
     KUBESEC_HELM_CHARTS_PATH: deploy/helm/infinibox-csi-driver
+
+go-build:
+  stage: build
+  tags:
+    - go-build
+  image: quay.io/projectquay/golang:1.19
+  script:
+  - make build
+  artifacts:
+    paths:
+      - infinibox-csi-driver
+    expire_in: 1 day
+
+feature-branch-image:
+  stage: docker_build
+  tags:
+    - docker-build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+  image: docker:20.10.16
+  services:
+    - name: docker:20.10.16-dind
+      alias: dockerhost
+  variables:
+    DOCKER_HOST: tcp://dockerhost:2375/
+    # Use the overlayfs driver for improved performance:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    FEATURE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  before_script:
+   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - > 
+      docker build --pull 
+      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
+      --build-arg BLAME_USER=$CI_REGISTRY_USER
+      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
+      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
+      -t $FEATURE_IMAGE -f Dockerfile .
+    - docker push $FEATURE_IMAGE
+
+development-branch-image:
+  stage: docker_build
+  tags:
+    - docker-build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  image: docker:20.10.16
+  services:
+    - name: docker:20.10.16-dind
+      alias: dockerhost
+  variables:
+    DOCKER_HOST: tcp://dockerhost:2375/
+    # Use the overlayfs driver for improved performance:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    DEV_IMAGE: $CI_REGISTRY_IMAGE:latest
+  before_script:
+   - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker pull $DEV_IMAGE || true
+    - > 
+      docker build --pull 
+      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
+      --build-arg BLAME_USER=$CI_REGISTRY_USER
+      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
+      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
+      -t $DEV_IMAGE -f Dockerfile .
+    - docker push $DEV_IMAGE
+
+# Re-tag latest when a tag is created. Will fail if :latest does not exist.
+release-tag:
+  variables:
+    # We do not need the source code here. Just playing with Docker.
+    GIT_STRATEGY: none
+    DOCKER_HOST: tcp://dockerhost:2375/
+    # Use the overlayfs driver for improved performance:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+    DEV_IMAGE: $CI_REGISTRY_IMAGE:latest
+  stage: release
+  only:
+    # We want this job to be run on tags only
+    - tags
+  script:
+    - docker pull $DEV_IMAGE
+    - docker tag $DEV_IMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+
+
 include:
 - template: Security/SAST.gitlab-ci.yml
 # container scanning disabled - further configuration required.
