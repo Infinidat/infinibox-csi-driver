@@ -13,6 +13,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
     - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
 
 
 .go-cache:
@@ -40,12 +41,16 @@ lint:
       - go-test
     extends: .go-cache
     allow_failure: false
+    except:
+      - tags
     script:
       - golangci-lint -v --timeout=5m run
 
 unit_test:
   image: quay.io/projectquay/golang:1.19
   stage: test
+  except:
+    - tags
   tags:
     - go-test
   script:
@@ -65,6 +70,8 @@ go-build:
   tags:
     - go-build
   image: quay.io/projectquay/golang:1.19
+  except:
+    - tags
   script:
   - make build
   artifacts:
@@ -78,6 +85,8 @@ build-branch-image:
     - docker-build
   rules:
     - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_TAG
+      when: never
   image: docker:20.10.16
   services:
     - name: docker:20.10.16-dind
@@ -107,6 +116,8 @@ test-merge-image-build:
     - docker-build
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG
+      when: never
   image: docker:20.10.16
   services:
     - name: docker:20.10.16-dind
