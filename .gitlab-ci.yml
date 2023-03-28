@@ -70,10 +70,10 @@ go-build:
   tags:
     - go-build
   image: quay.io/projectquay/golang:1.19
-  except:
-    - tags
   script:
   - make build
+  except:
+    - tags
   artifacts:
     paths:
       - infinibox-csi-driver
@@ -83,10 +83,8 @@ build-branch-image:
   stage: docker_build
   tags:
     - docker-build
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "push"
-    - if: $CI_COMMIT_TAG
-      when: never
+  except:
+    - tags
   image: docker:20.10.16
   services:
     - name: docker:20.10.16-dind
@@ -114,10 +112,8 @@ test-merge-image-build:
   stage: docker_build
   tags:
     - docker-build
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_TAG
-      when: never
+  only:
+    - merge_request
   image: docker:20.10.16
   services:
     - name: docker:20.10.16-dind
@@ -143,6 +139,10 @@ test-merge-image-build:
 
 # Re-tag latest when a tag is created. Will fail if :latest does not exist.
 release-tag:
+  image: docker:20.10.16
+  services:
+    - name: docker:20.10.16-dind
+      alias: dockerhost
   variables:
     # We do not need the source code here. Just playing with Docker.
     GIT_STRATEGY: none
@@ -152,9 +152,13 @@ release-tag:
     DOCKER_TLS_CERTDIR: ""
     DEV_IMAGE: $CI_REGISTRY_IMAGE:develop
   stage: release
+  tags:
+    - docker-build
   only:
     # We want this job to be run on tags only
     - tags
+  before_script:
+   - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - docker pull $DEV_IMAGE
     - docker tag $DEV_IMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
