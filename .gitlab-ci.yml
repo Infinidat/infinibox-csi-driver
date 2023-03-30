@@ -26,6 +26,8 @@ workflow:
 variables:
   MAINTENANCE_MODE: 1
   DOCKER_BASE_IMAGE: redhat/ubi8:latest
+  BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver:$CI_COMMIT_REF_NAME
+
 
 stages:
 - lint
@@ -72,19 +74,15 @@ go-build:
   image: quay.io/projectquay/golang:1.19
   script:
   - make build
-  except:
-    - tags
   artifacts:
     paths:
       - infinibox-csi-driver
     expire_in: 1 day
 
-build-branch-image:
+build-image:
   stage: docker_build
   tags:
     - docker-build
-  except:
-    - tags
   image: docker:20.10.16
   services:
     - name: docker:20.10.16-dind
@@ -94,7 +92,6 @@ build-branch-image:
     # Use the overlayfs driver for improved performance:
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-    FEATURE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   before_script:
    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
@@ -105,8 +102,8 @@ build-branch-image:
       --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $FEATURE_IMAGE -f Dockerfile .
-    - docker push $FEATURE_IMAGE
+      -t $BUILD_IMAGE -f Dockerfile .
+    - docker push $BUILD_IMAGE
 
 test-merge-image-build:
   stage: docker_build
@@ -123,7 +120,6 @@ test-merge-image-build:
     # Use the overlayfs driver for improved performance:
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ""
-    DEV_IMAGE: $CI_REGISTRY_IMAGE:develop
   before_script:
    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
@@ -135,34 +131,7 @@ test-merge-image-build:
       --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $DEV_IMAGE -f Dockerfile .
-
-# Re-tag latest when a tag is created. Will fail if :latest does not exist.
-release-tag:
-  image: docker:20.10.16
-  services:
-    - name: docker:20.10.16-dind
-      alias: dockerhost
-  variables:
-    # We do not need the source code here. Just playing with Docker.
-    GIT_STRATEGY: none
-    DOCKER_HOST: tcp://dockerhost:2375/
-    # Use the overlayfs driver for improved performance:
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: ""
-    DEV_IMAGE: $CI_REGISTRY_IMAGE:develop
-  stage: release
-  tags:
-    - docker-build
-  only:
-    # We want this job to be run on tags only
-    - tags
-  before_script:
-   - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
-  script:
-    - docker pull $DEV_IMAGE
-    - docker tag $DEV_IMAGE $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
-    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+      -t $BUILD_IMAGE -f Dockerfile .
 
 
 include:
