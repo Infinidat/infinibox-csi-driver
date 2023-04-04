@@ -140,7 +140,7 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 		--pull \
 		-f Dockerfile .
 	@# TODO tag cmd needs review.
-	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	docker tag $(_DOCKER_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_GITLAB_USER)/$(_DOCKER_IMAGE)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 	@echo -e $(_finish)
 
 .PHONY: docker-login-docker
@@ -149,9 +149,9 @@ docker-login-docker:  ## Login to Dockerhub.
 
 .PHONY: docker-push-gitlab
 docker-push-gitlab:  # Tag and push to gitlab.
-	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
-	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
-	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG))
+	docker tag $(_GITLAB_USER)/$(_DOCKER_IMAGE)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG) $(_TARGET_IMAGE)
+	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DOCKER_IMAGE)/$(_DOCKER_IMAGE):$(_DOCKER_IMAGE_TAG)
 
 .PHONY: docker-push-redhat
 docker-push-redhat:  ## Login, tag and push to Red Hat.
