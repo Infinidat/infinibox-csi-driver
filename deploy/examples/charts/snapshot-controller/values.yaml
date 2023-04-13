@@ -10,5 +10,5 @@ verbosity: "5"
 # Image paths
 images:
   # imagePullSecret: "private-docker-reg-secret"
-  snapshot_controller: "k8s.gcr.io/sig-storage/snapshot-controller:v5.0.0"
+  snapshot_controller: "registry.k8s.io/sig-storage/snapshot-controller:v5.0.0"
   snapshot_controller_pull_policy: "IfNotPresent"

@@ -26,29 +26,29 @@ e2etesting: "false"
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html
-  attachersidecar: "k8s.gcr.io/sig-storage/csi-attacher@sha256:8b9c313c05f54fb04f8d430896f5f5904b6cb157df261501b29adc04d2b2dc7b"  # v3.4.0
+  attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:8b9c313c05f54fb04f8d430896f5f5904b6cb157df261501b29adc04d2b2dc7b"  # v3.4.0
   attachersidecar_pull_policy: "IfNotPresent"
 
   csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.6.0-rc1"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
-  provisionersidecar: "k8s.gcr.io/sig-storage/csi-provisioner@sha256:122bfb8c1edabb3c0edd63f06523e6940d958d19b3957dc7b1d6f81e9f1f6119"  # v3.1.0
+  provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:122bfb8c1edabb3c0edd63f06523e6940d958d19b3957dc7b1d6f81e9f1f6119"  # v3.1.0
   provisionersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/node-driver-registrar.html
-  registrarsidecar: "k8s.gcr.io/sig-storage/csi-node-driver-registrar@sha256:4fd21f36075b44d1a423dfb262ad79202ce54e95f5cbc4622a6c1c38ab287ad6"  # v2.5.0
+  registrarsidecar: "registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:4fd21f36075b44d1a423dfb262ad79202ce54e95f5cbc4622a6c1c38ab287ad6"  # v2.5.0
   registrarsidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/external-resizer.html
-  resizersidecar: "k8s.gcr.io/sig-storage/csi-resizer@sha256:9ebbf9f023e7b41ccee3d52afe39a89e3ddacdbb69269d583abfc25847cfd9e4"  # v1.4.0
+  resizersidecar: "registry.k8s.io/sig-storage/csi-resizer@sha256:9ebbf9f023e7b41ccee3d52afe39a89e3ddacdbb69269d583abfc25847cfd9e4"  # v1.4.0
   resizersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/external-snapshotter.html
-  snapshottersidecar: "k8s.gcr.io/sig-storage/csi-snapshotter@sha256:89e900a160a986a1a7a4eba7f5259e510398fa87ca9b8a729e7dec59e04c7709" # v5.0.1
+  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:89e900a160a986a1a7a4eba7f5259e510398fa87ca9b8a729e7dec59e04c7709" # v5.0.1
   snapshottersidecar_pull_policy: "IfNotPresent"
   # https://kubernetes-csi.github.io/docs/livenessprobe.html
-  livenesssidecar: "k8s.gcr.io/sig-storage/livenessprobe:v2.6.0"
+  livenesssidecar: "registry.k8s.io/sig-storage/livenessprobe:v2.6.0"
   livenesssidecar_pull_policy: "IfNotPresent"
 
   # imagePullSecret: "private-docker-reg-secret"
