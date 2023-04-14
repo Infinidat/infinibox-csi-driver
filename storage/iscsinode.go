@@ -37,8 +37,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubernetes/pkg/volume/util"
+	"k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
-	"k8s.io/utils/mount"
 )
 
 const (
@@ -977,7 +977,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 		fsType:       fstype,
 		readOnly:     false, // TODO: not accurate, address in CSIC-343
 		mountOptions: mountOptions,
-		mounter:      &mount.SafeFormatAndMount{Interface: mount.New(""), Exec: utilexec.New()},
+		mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
 		exec:         utilexec.New(),
 		targetPath:   req.GetTargetPath(),
 		stagePath:    req.GetStagingTargetPath(),
@@ -992,7 +992,7 @@ func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmo
 		iscsiDisk: &iscsiDisk{
 			VolName: volName,
 		},
-		mounter: mount.New(""),
+		mounter: mount.NewWithoutSystemd(""),
 		exec:    utilexec.New(),
 	}
 }

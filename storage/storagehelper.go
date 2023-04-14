@@ -31,7 +31,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
-
 	"k8s.io/mount-utils"
 )
 
@@ -68,7 +67,7 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	// }
 
 	klog.V(4).Infof("Checking mount path using mounter's List() and searching with path '%s'", targetHostPath)
-	mounter := mount.New("")
+	mounter := mount.NewWithoutSystemd("")
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
 		klog.Error(mountListErr)
@@ -154,7 +153,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 		}
 	}()
 
-	mounter := mount.New("")
+	mounter := mount.NewWithoutSystemd("")
 	targetHostPath := path.Join("/host", targetPath)
 
 	klog.V(4).Infof("Unmounting targetPath '%s'", targetPath)
