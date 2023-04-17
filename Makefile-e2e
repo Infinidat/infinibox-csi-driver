@@ -19,7 +19,7 @@ install-csi-sanity:
 e2e: 
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTESTNOSUDO) -v ./... -tags e2e
+	$(_GOTEST) -v ./... -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: external-e2e  ## run the upstream e2e sanity tests for a particular suite of tests
