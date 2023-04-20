@@ -7,6 +7,7 @@ _E2E_NAMESPACE=openshift-operators
 _E2E_POOL=csitesting
 _E2E_PROTOCOL=nfs
 _E2E_NETWORK_SPACE=NAS
+_E2E_OCP_VERSION=v4.11
 _E2E_IBOX_USERNAME=csitesting
 _E2E_IBOX_PASSWORD=csitestingisfun
 _E2E_IBOX_HOSTNAME=ibox1521.lab.wt.us.infinidat.com

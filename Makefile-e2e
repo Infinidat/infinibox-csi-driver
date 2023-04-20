@@ -52,6 +52,7 @@ e2e-redhat-sanity:
 		_E2E_POOL=$(_E2E_POOL) \
 		_E2E_PROTOCOL=$(_E2E_PROTOCOL) \
 		_E2E_NETWORK_SPACE=$(_E2E_NETWORK_SPACE) \
+		_E2E_OCP_VERSION=$(_E2E_OCP_VERSION) \
 		&& ./e2e/redhat-e2e/run-container.sh
 	@echo -e $(_finish)
 
