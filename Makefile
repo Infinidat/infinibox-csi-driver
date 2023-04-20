@@ -26,7 +26,7 @@ _GOFMT              = gofmt
 _GOLINT             = golangci-lint
 
 # Docker image tag. Read from env or use default
-_DOCKER_IMAGE_TAG   ?= v2.6.0-rc1
+_DOCKER_IMAGE_TAG   ?= v2.6.0
 
 
 _GITLAB_REPO        = git.infinidat.com:4567
