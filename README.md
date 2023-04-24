@@ -21,7 +21,7 @@
   Helm and Operator based installation is available. Refer to the InfiniBox CSI Driver [user guide](https://support.infinidat.com/hc/en-us/articles/360008917097-InfiniBox-CSI-Driver-for-Kubernetes-User-Guide) for details.
 
 # Support
-   Certain CSI features may be in alpha or beta status and such features should not be used for production environments; Refer to the [official CSI feature gate table](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) and [InfiniBox CSI Driver release notes](https://support.infinidat.com/hc/en-us/articles/360019909678-InfiniBox-CSI-Driver-for-Kubernetes-Release-Notes) for details.
+   Certain CSI features may be in alpha or beta status and such features should not be used for production environments; Refer to the [official CSI feature gate table](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) and [InfiniBox CSI Driver release notes](https://support.infinidat.com/hc/en-us/articles/10106069979293-InfiniBox-CSI-Driver-for-Kubernetes-Release-Notes) for details.
 
 # License
   This is open source software licensed under the Apache License 2.0. See LICENSE file in this repository for details.
