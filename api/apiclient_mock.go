@@ -123,6 +123,20 @@ func (m *MockApiService) UpdateFilesystem(fileSystemID int64, fileSystem FileSys
 	return &filessy, err
 }
 
+func (m *MockApiService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error) {
+	args := m.Called(fileSystemID)
+	var filessy FileSystem
+	if args.Get(0) != nil {
+		filessy, _ = args.Get(0).(FileSystem)
+	}
+
+	var err error
+	if args.Get(0) != nil {
+		err, _ = args.Get(0).(error)
+	}
+	return &filessy, err
+}
+
 // GetExportByFileSystem
 func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
 	args := m.Called(fileSystemID)
@@ -194,7 +208,10 @@ func (m *MockApiService) GetFileSystemByName(fileSystemName string) (*FileSystem
 	if args.Get(0) == nil {
 		return nil, nil
 	}
-	err, _ := args.Get(1).(error)
+	var err error
+	if args.Get(1) != nil {
+		err, _ = args.Get(1).(error)
+	}
 	return &resp, err
 }
 

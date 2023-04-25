@@ -50,7 +50,6 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_maxfilesystem() {
 		cs:         *suite.cs,
 		nfsstorage: nfs,
 	}
-	//service.capacity = 209951162777600
 	_, err := service.getExpectedFileSystemID(1000)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -64,7 +63,6 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() 
 		common.SC_MAX_FILESYSTEM_SIZE: "4mib",
 	}
 	service.nfsstorage.storageClassParameters = configmap
-	//service.capacity = 209951162777600
 	_, err := service.getExpectedFileSystemID(10)
 	fmt.Println(err)
 	assert.NotNil(suite.T(), err, "empty object")
@@ -166,9 +164,17 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
-	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(0, expectedErr)
+	//suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(0, expectedErr)
+	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
+	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.api.On("CreateTreeq", mock.Anything, mock.Anything).Return(nil, nil)
 
-	service := TreeqService{cs: *suite.cs}
+	nfs := nfsstorage{capacity: 100, cs: *suite.cs}
+	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
+	service.treeqCnt = -1
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := map[string]string{
@@ -182,12 +188,21 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowe
 	var fsMetada api.FSMetadata
 	var poolID int64 = 10
 
+	expectedErr := errors.New("some error")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(20000, nil)
+	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
+	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, nil)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.api.On("CreateTreeq", mock.Anything, mock.Anything).Return(nil, nil)
+	nfs := nfsstorage{capacity: 100, cs: *suite.cs}
+	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
+	service.treeqCnt = -1
 
-	service := TreeqService{cs: *suite.cs}
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
@@ -206,8 +221,11 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Error() 
 	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
-	service := TreeqService{cs: *suite.cs}
+	nfs := nfsstorage{capacity: 100, cs: *suite.cs}
+	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
 	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
@@ -229,8 +247,10 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Error() 
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
-	service := TreeqService{cs: *suite.cs}
+	nfs := nfsstorage{capacity: 100, cs: *suite.cs}
+	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
@@ -252,8 +272,10 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponse(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
-	service := TreeqService{cs: *suite.cs}
+	nfs := nfsstorage{capacity: 100, cs: *suite.cs}
+	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
@@ -277,8 +299,10 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() {
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("CreateTreeq", mock.Anything, mock.Anything).Return(nil, expectedErr)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything, mock.Anything).Return(expectedErr)
+	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
-	service := TreeqService{cs: *suite.cs}
+	nfs := nfsstorage{capacity: 100, cs: *suite.cs}
+	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
 	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
@@ -433,7 +457,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_errorToDelete
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(cnt, nil)
 	suite.api.On("AttachMetadataToObject", fsID, mock.Anything).Return(nil, nil)
 	suite.api.On("DeleteTreeq", fsID, treeqID).Return(nil, nil)
-	suite.api.On("DeleteFileSystemComplete", fsID, treeqID).Return(nil, expectedErr)
+	suite.api.On("DeleteFileSystemComplete", fsID).Return(expectedErr)
 	service := TreeqService{cs: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
@@ -586,8 +610,6 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_E
 
 func getExportResponse() *[]api.ExportResponse {
 	exportRespArry := []api.ExportResponse{}
-	//exportResp := api.ExportResponse{}
-	//exportResp.ExportPath = "/exportPath"
 	return &exportRespArry
 }
 

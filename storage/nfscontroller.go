@@ -247,11 +247,6 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 
 // CreateNFSVolume create volume method
 func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while creating CreateNFSVolume method " + fmt.Sprint(res))
-		}
-	}()
 	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.storageClassParameters[common.SC_POOL_NAME], nfs.storageClassParameters[common.SC_NETWORK_SPACE])
 	if err != nil {
 		klog.Error(err)

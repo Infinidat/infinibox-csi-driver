@@ -136,13 +136,6 @@ func (treeq *treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 func (treeq *treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerExpandVolume")
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI ControllerExpandVolume " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	maxFileSystemSize := treeq.nfsstorage.storageClassParameters[common.SC_MAX_FILESYSTEM_SIZE]
 	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())

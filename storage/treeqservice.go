@@ -214,11 +214,6 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 // CreateTreeqVolume create volume method
 func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]string, capacity int64, pVName string) (treeqVolumeContext map[string]string, err error) {
 	klog.V(2).Infof("CreateTreeqVolume filesystem.configmap %+v config %+v capacity %d pVName %s", ts.nfsstorage.storageClassParameters, storageClassParameters, capacity, pVName)
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while creating treeq method " + fmt.Sprint(res))
-		}
-	}()
 
 	treeqVolumeContext = map[string]string{}
 
@@ -400,12 +395,6 @@ var deleteMutex sync.Mutex
 
 // DeleteTreeqVolume delete volume method
 func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while deleting treeq " + fmt.Sprint(res))
-			return
-		}
-	}()
 	// 1. treeq exist or not checked
 	var treeq *api.Treeq
 	treeq, err = ts.cs.api.GetTreeq(filesystemID, treeqID)
@@ -489,12 +478,6 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqC
 
 // UpdateTreeqVolume Update volume size method
 func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxFileSystemSize string) (err error) {
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("failed to update treeq " + fmt.Sprint(res))
-			return
-		}
-	}()
 
 	// Get Filesystem
 	fileSystemResponse, err := svc.cs.api.GetFileSystemByID(filesystemID)
@@ -507,7 +490,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 	treeq, err := svc.cs.api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
-			err = errors.New("treeq not found")
+			klog.V(4).Infof("treeq not found %d", treeqID)
 			return nil
 		}
 		klog.Errorf("failed to get treeq: %s", err)

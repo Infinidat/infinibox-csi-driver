@@ -65,13 +65,17 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	service := nfsstorage{cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-	filesystemErr := errors.New("Some error")
+	filesystemErr := errors.New("some error")
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
-	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, filesystemErr)
+	suite.api.On("GetFileSystemByName", mock.Anything).Return(&api.FileSystem{}, filesystemErr)
 	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(100, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
+	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, nil)
+	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
+	suite.api.On("DeleteExportPath", mock.Anything).Return(nil)
+	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: get filesystem by name")
@@ -328,6 +332,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() 
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponce(1), nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, filesystemErr)
+	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err.Error(), "failed to get export path")
@@ -348,6 +353,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponce(1), nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, filesystemErr)
+	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
+	suite.api.On("DeleteExportPath", mock.Anything).Return(nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err.Error(), "failed to update metadata")
