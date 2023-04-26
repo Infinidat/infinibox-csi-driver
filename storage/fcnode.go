@@ -66,18 +66,6 @@ var execFc helper.ExecScsi
 
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("Recovered from NodeStageVolume: %+v", res)
-		}
-		if err == nil {
-			klog.V(4).Infof("NodeStageVolume completed")
-		} else {
-			klog.V(4).Infof("NodeStageVolume failed for request %+v", req)
-		}
-	}()
-	*/
 	klog.V(2).Infof("NodeStageVolume called with PublishContext: %+v", req.GetPublishContext())
 	hostIdString := req.GetPublishContext()["hostID"]
 	ports := req.GetPublishContext()["hostPorts"]
@@ -211,14 +199,6 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	klog.V(2).Infof("Called FC NodeUnstageVolume")
-	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC NodeUnstageVolume  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	var mpathDevice string
 	stagePath := req.GetStagingTargetPath()
 
@@ -254,7 +234,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	// remove multipath device
 	protocol := "fc"
-	err = detachMpathDevice(mpathDevice, protocol)
+	err := detachMpathDevice(mpathDevice, protocol)
 	if err != nil {
 		klog.Error(err)
 		klog.Warningf("NodeUnstageVolume cannot detach volume with ID %s: %+v", req.GetVolumeId(), err)
@@ -421,14 +401,6 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 }
 
 func getPortName() []string {
-	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC getPortName  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	ports := []string{}
 	cmd := "cat /sys/class/fc_host/host*/port_name"
 	out, err := exec.Command("bash", "-c", cmd).Output()
@@ -447,14 +419,6 @@ func getPortName() []string {
 }
 
 func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDevice, error) {
-	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC getFCDiskDetails " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	volproto := strings.Split(req.GetVolumeId(), "$$")
 	volName := volproto[0]
 	lun := req.GetPublishContext()["lun"]
@@ -661,18 +625,6 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 }
 
 func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
-	/**
-	defer func() {
-		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed", volumeId, lun)
-		klog.Flush()
-		// deviceMu.Unlock()
-		// May happen if unlocking a mutex that was not locked
-		if r := recover(); r != nil {
-			err := fmt.Errorf("%v", r)
-			klog.V(4).Infof("rescanDeviceMap(), with volume ID '%s' and lun '%s', failed with run-time error: %+v", volumeId, lun, err)
-		}
-	}()
-	*/
 
 	// deviceMu.Lock()
 	klog.V(4).Infof("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)

@@ -473,10 +473,6 @@ func detachDiskByLun(hosts []string, lun string) error {
 		klog.Flush()
 		// deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
-		if r := recover(); r != nil {
-			err := fmt.Errorf("%v", r)
-			klog.V(4).Infof("detachDiskByLun(), with hosts '%+v' and lun %s failed with run-time error: %+v", hosts, lun, err)
-		}
 		klog.V(4).Infof("detachDiskByLun succeeded for lun '%s'", lun)
 	}()
 

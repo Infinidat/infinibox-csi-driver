@@ -183,11 +183,6 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 
 func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, size int64, storagePool string, srcVolumeID string) (csiResp *csi.CreateVolumeResponse, err error) {
 	klog.V(4).Infof("createVolumeFromPVCSource")
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while creating volume from clone (PVC) " + fmt.Sprint(res))
-		}
-	}()
 
 	volproto, err := validateVolumeID(srcVolumeID)
 	if err != nil || volproto.VolumeID == "" {
@@ -270,9 +265,6 @@ func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *c
 
 func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while export directory" + fmt.Sprint(res))
-		}
 		if err != nil && nfs.fileSystemID != 0 {
 			klog.V(4).Infof("seems to be some problem reverting filesystem: %s", nfs.pVName)
 			if _, errDelFS := nfs.cs.api.DeleteFileSystem(nfs.fileSystemID); errDelFS != nil {
@@ -293,9 +285,6 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	}
 
 	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while AttachMetadata directory" + fmt.Sprint(res))
-		}
 		if err != nil && nfs.exportID != 0 {
 			klog.V(4).Infof("seems to be some problem reverting created export id: %d", nfs.exportID)
 			if _, errDelExport := nfs.cs.api.DeleteExportPath(nfs.exportID); errDelExport != nil {
@@ -428,12 +417,6 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 
 // DeleteNFSVolume delete volume method
 func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while deleting filesystem " + fmt.Sprint(res))
-			return
-		}
-	}()
 
 	_, fileSystemErr := nfs.cs.api.GetFileSystemByID(nfs.uniqueID)
 	if fileSystemErr != nil {
@@ -591,11 +574,6 @@ func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.C
 }
 
 func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshot *csi.CreateSnapshotResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recoved from CSI CreateSnapshot  " + fmt.Sprint(res))
-		}
-	}()
 	// var ts *timestamp.Timestamp
 	var snapshotID string
 	snapshotName := req.GetName()
@@ -609,6 +587,10 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 
 	sourceFilesystemID, _ := strconv.ParseInt(volproto.VolumeID, 10, 64)
 	snapshotArray, err := nfs.cs.api.GetSnapshotByName(snapshotName)
+	if err != nil {
+		klog.Errorf("error GetSnapshotByName %s, %v", volproto.VolumeID, err)
+		return
+	}
 	if len(*snapshotArray) > 0 {
 		for _, snap := range *snapshotArray {
 			if snap.ParentId == sourceFilesystemID {
@@ -657,11 +639,6 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 }
 
 func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshot *csi.DeleteSnapshotResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
 
 	snapshotID, _ := strconv.ParseInt(req.GetSnapshotId(), 10, 64)
 	nfs.uniqueID = snapshotID
@@ -683,11 +660,6 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerExpandVolume")
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI CreateSnapshot  " + fmt.Sprint(res))
-		}
-	}()
 
 	ID, err := strconv.ParseInt(req.GetVolumeId(), 10, 64)
 	if err != nil {

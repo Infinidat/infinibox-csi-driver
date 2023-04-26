@@ -126,20 +126,6 @@ type StatFunc func(string) (os.FileInfo, error)
 type GlobFunc func(string) ([]string, error)
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	var err error
-	/**
-	err = nil
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("recovered from NodeStageVolume: %+v", res)
-		}
-		if err == nil {
-			klog.V(4).Infof("NodeStageVolume completed")
-		} else {
-			klog.V(4).Infof("NodeStageVolume failed for request %+v", req)
-		}
-	}()
-	*/
 	klog.V(2).Infof("NodeStageVolume called with publish context: %s", req.GetPublishContext())
 
 	hostIDString := req.GetPublishContext()["hostID"]
@@ -281,24 +267,10 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	volumeId := req.GetVolumeId()
 	targetPath := req.GetTargetPath()
-	var err error
-
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: recovered from iscsi NodeUnpublishVolume  " + fmt.Sprint(res))
-		}
-		if err == nil {
-			klog.V(4).Infof("NodeUnpublishVolume completed for volume ID %s", volumeId)
-		} else {
-			klog.Errorf("NodeUnpublishVolume failed for volume ID %s", volumeId)
-		}
-	}()
-	*/
 
 	klog.V(4).Infof("NodeUnpublishVolume volume ID %s and targetPath '%s'", volumeId, targetPath)
 
-	err = unmountAndCleanUp(targetPath)
+	err := unmountAndCleanUp(targetPath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -307,18 +279,6 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 }
 
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (res *csi.NodeUnstageVolumeResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from NodeUnstageVolume  " + fmt.Sprint(res))
-		}
-		if err == nil {
-			klog.V(4).Infof("NodeUnstageVolume completed for volume with ID %s", req.GetVolumeId())
-		} else {
-			klog.V(4).Infof("NodeUnstageVolume failed for volume with ID %s", req.GetVolumeId())
-		}
-	}()
-	*/
 
 	klog.V(2).Infof("NodeUnstageVolume volume ID %s", req.GetVolumeId())
 
@@ -442,18 +402,6 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 }
 
 func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
-	/**
-	defer func() {
-		klog.V(4).Infof("rescanDeviceMap() with volume %s and lun %s completed", volumeId, lun)
-		klog.Flush()
-		// deviceMu.Unlock()
-		// May happen if unlocking a mutex that was not locked
-		if r := recover(); r != nil {
-			err := fmt.Errorf("%v", r)
-			klog.V(4).Infof("rescanDeviceMap(), with volume ID '%s' and lun '%s', failed with run-time error: %+v", volumeId, lun, err)
-		}
-	}()
-	*/
 
 	// deviceMu.Lock()
 	klog.V(4).Infof("rescan hosts for volume %s and lun %s", volumeId, lun)
@@ -495,15 +443,6 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 }
 
 func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			msg := fmt.Sprintf("Recovered from AttachDisk: %v", res)
-			klog.V(4).Info(msg)
-			err = errors.New(msg)
-		}
-	}()
-	*/
 	var devicePath string
 	var devicePaths []string
 	var iscsiTransport string
@@ -839,14 +778,6 @@ func portalMounter(portal string) string {
 }
 
 func getInitiatorName() string {
-	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from ISCSI getInitiatorName  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
@@ -861,14 +792,6 @@ func getInitiatorName() string {
 }
 
 func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
-	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("iscsi: Recovered from ISCSI getISCSIDisk  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	initiatorName := getInitiatorName()
 
 	volproto := strings.Split(req.GetVolumeId(), "$$")
@@ -893,6 +816,7 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 		chapDiscovery = true
 	}
 	secret := req.GetSecrets()
+	var err error
 	if chapSession {
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
 		if err != nil {

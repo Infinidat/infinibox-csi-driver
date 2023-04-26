@@ -101,12 +101,6 @@ type ClientService struct {
 
 // NewClient : Create New Client
 func (c *ClientService) NewClient() (*ClientService, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("NewClient Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	restclient, err := client.NewRestClient()
 	if err != nil {
 		return c, err
@@ -118,11 +112,6 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 // DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	klog.V(4).Infof("Delete Volume with ID %d", volumeID)
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("DeleteVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	_, err = c.DetachMetadataFromObject(int64(volumeID))
 	if err != nil {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
@@ -144,11 +133,6 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 
 // AddHostSecurity - add chap security for host with given details
 func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("AddHostSecurity Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("add chap atuhentication for hostID %d : ", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
 	resp, err := c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
@@ -166,11 +150,6 @@ func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int)
 
 // AddHostPort - add port for host with given details
 func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("AddHostPort Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("add port for hostID %s %d : ", portAddress, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports?approved=true"
 	body := map[string]interface{}{"address": portAddress, "type": portType}
@@ -194,12 +173,6 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 
 // CreateVolume : create volume with volume details provided in storage pool provided
 func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("CreateVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	path := "/api/rest/volumes"
 	poolID, err := c.GetStoragePoolIDByName(storagePoolName)
 	klog.V(4).Infof("Creating volume in storage pool named %s (pool ID %d) of size %d bytes", storagePoolName, poolID, volume.VolumeSize)
@@ -228,12 +201,6 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 
 // FindStoragePool : Find storage pool either by id or name
 func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("FindStoragePool Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("FindStoragePool called with either id %d or name %s", id, name)
 	storagePools, err := c.GetStoragePool(id, name)
 	if err != nil {
@@ -251,12 +218,6 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 
 // GetStoragePool : Get storage pool(s) either by id or name
 func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetStoragePool Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
 	storagePool := StoragePool{}
 	storagePools := []StoragePool{}
@@ -296,11 +257,6 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 
 // GetStoragePoolIDByName : Returns poolID of provided pool name
 func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("error while Get Pool ID  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("GetStoragePoolIDByName: %s", name)
 	storagePools := []StoragePool{}
 	// To get the pool_id for corresponding poolname
@@ -329,12 +285,6 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 
 // GetVolumeByName : find volume with given name
 func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetVolumeByName Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("Get a Volume by Name: %s", volumename)
 	voluri := "/api/rest/volumes"
 	volumes := []Volume{}
@@ -361,13 +311,6 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 
 // GetVolume : get volume by id
 func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
-	//klog.V(4).Infof("Get a Volume of ID: %d", volumeid)
 	volume := Volume{}
 	path := "/api/rest/volumes/" + strconv.Itoa(volumeid)
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
@@ -383,12 +326,6 @@ func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 
 // CreateSnapshotVolume : Create volume from snapshot
 func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("CreateSnapshotVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("Create a snapshot: %s", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
@@ -411,11 +348,6 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 
 // GetNetworkSpaceByName - Get networkspace by name
 func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetNetworkSpaceByName Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("Get network space by name: %s", networkSpaceName)
 	netspaces := []NetworkSpace{}
 	path := "api/rest/network/spaces"
@@ -438,11 +370,6 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 
 // DeleteHost - delete host by given host ID
 func (c *ClientService) DeleteHost(hostID int) (err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("DeleteHost Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("delete host with host ID %d", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID)
 	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
@@ -458,11 +385,6 @@ func (c *ClientService) DeleteHost(hostID int) (err error) {
 
 // CreateHost - create host  with given details
 func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("CreateHost Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("create host with name %s", hostName)
 	uri := "api/rest/hosts"
 	body := map[string]interface{}{"name": hostName}
@@ -482,11 +404,6 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 
 // GetHostPort - get host port details
 func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetHostPort Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("get host port by port address %s", portAddress)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports"
 	hostPorts := []HostPort{}
@@ -514,11 +431,6 @@ func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort Ho
 
 // GetHostByName - get host details for given hostname
 func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("get host by name %s", hostName)
 	uri := "api/rest/hosts"
 	hosts := []Host{}
@@ -545,11 +457,6 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 
 // GetFCPorts - get fc ports details
 func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetHostByName Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("get fc ports")
 	uri := "api/rest/components/nodes?fields=fc_ports"
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &fcNodes)
@@ -571,11 +478,6 @@ func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
 
 // UnMapVolumeFromHost - Remove mapping of volume with host
 func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("UnMapVolumeFromHost Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("Remove mapping of volume %d from host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
@@ -591,11 +493,6 @@ func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
 
 // MapVolumeToHost - Map volume with given volumeID to Host with given hostID
 func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("MapVolumeToHost Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("map volume %d to host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns?approved=true"
 	data := make(map[string]interface{})
@@ -621,11 +518,6 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunI
 
 // GetLunByHostVolume - Get Lun details for volume and host provided
 func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	luns := []LunInfo{}
 	klog.V(4).Infof("get lun for volume %d and host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
@@ -648,11 +540,6 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 
 // GetAllLunByHost - Get all luns for host id provided, handles paging for large results.
 func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetLunByHostVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 
 	page := 1
 	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
@@ -688,12 +575,6 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 
 // GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
 func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetVolumeSnapshotByParentID Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	voluri := "/api/rest/volumes/"
 	volumes := []Volume{}
 	queryParam := make(map[string]interface{})
@@ -712,12 +593,6 @@ func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, er
 
 // UpdateVolume : update volume
 func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("UpdateVolume Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(4).Infof("Update volume %d", volumeID)
 	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
 	volumeResp := Volume{}
@@ -737,12 +612,6 @@ func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, erro
 }
 
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			klog.Errorf("error in getJSONResponse while makeing %s request on %s url error : %v ", method, apiuri, err)
-			err = errors.New("error in getJSONResponse " + fmt.Sprint(res))
-		}
-	}()
 	hostsecret, err := c.getAPIConfig()
 	if err != nil {
 		klog.Errorf("error occured: %v ", err)

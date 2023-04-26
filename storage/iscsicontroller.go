@@ -31,14 +31,6 @@ import (
 )
 
 func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from ISCSI CreateVolume " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	sizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	klog.V(2).Infof("CreateVolume volume: %s of size: %d bytes", req.GetName(), sizeBytes)
@@ -46,7 +38,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	klog.V(4).Infof("requested volume parameters are %v", params)
 
 	// validate required parameters
-	err = validateStorageClassParameters(map[string]string{
+	err := validateStorageClassParameters(map[string]string{
 		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
 		common.SC_USE_CHAP:          `(?i)\A(none|chap|mutual_chap)\z`,
@@ -164,13 +156,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 }
 
 func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from ISCSI DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	klog.V(2).Infof("DeleteVolume volumeID %s", req.GetVolumeId())
 	id, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
@@ -190,15 +175,7 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 }
 
 func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
-	var err error
 	var msg string
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from ISCSI createVolumeFromVolumeContent " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	volumecontent := req.GetVolumeContentSource()
 	volumeContentID := ""
@@ -539,13 +516,6 @@ func (iscsi *iscsistorage) ControllerGetCapabilities(ctx context.Context, req *c
 }
 
 func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from ISCSI CreateSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	var snapshotID string
 	snapshotName := req.GetName()
 	klog.V(4).Infof("CreateSnapshot called to create snapshot named %s from source volume ID %s", snapshotName, req.GetSourceVolumeId())
@@ -605,13 +575,6 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 }
 
 func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (resp *csi.DeleteSnapshotResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from ISCSI DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	klog.V(4).Infof("DeleteSnapshot to delete snapshot with ID %d", snapshotID)
@@ -631,13 +594,6 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 }
 
 func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from ISCSI DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	klog.V(4).Infof("ValidateDeleteVolume called (also deletes volume) with ID %d", volumeID)
 
@@ -693,13 +649,6 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 }
 
 func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from ISCSI ControllerExpandVolume " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	volumeID, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {

@@ -14,7 +14,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"infinibox-csi-driver/api/client"
 	"net/http"
 	"strconv"
@@ -45,11 +44,6 @@ type Treeq struct {
 
 // GetFileSystemsByPoolID get filesystem by poolID
 func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetadata *FSMetadata, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetFileSystemsByPoolID Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "/api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10) + "&sort=size&page=" + strconv.Itoa(page) + "&page_size=1000&fields=id,size,name"
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
@@ -78,11 +72,6 @@ func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetada
 
 // GetFilesytemTreeqCount method return the treeq count
 func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetFilesytemTreeqCount Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	path := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
 	treeqArry := []Treeq{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &treeqArry)
@@ -104,12 +93,6 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 
 // CreateTreeq method create treeq
 func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Create Treeq Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	klog.V(2).Infof("Create filesystem")
 	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
 	treeq := Treeq{}
@@ -129,16 +112,10 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 
 // getTreeqSizeByFileSystemID method return the sum of size
 func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error) {
-	var err error
 	var size int64
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("get treeq size Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
 	treeqArray := []Treeq{}
-	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &treeqArray)
+	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &treeqArray)
 	if err != nil {
 		klog.Errorf("error occured while fetching treeq list : %s ", err)
 		return 0, err
@@ -151,12 +128,6 @@ func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, e
 
 // DeleteTreeq :
 func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Delete Treeq Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &treeq)
@@ -174,12 +145,6 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 
 // GetTreeq
 func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Get Treeq Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
 	eResp := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
@@ -195,12 +160,6 @@ func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 
 // UpdateTreeq :
 func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Update Treeq Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &treeq)
@@ -218,12 +177,6 @@ func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string
 
 // GetFileSystemByName :
 func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("GetTreeqByName Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
 	treeq := []Treeq{}
 	queryParam := make(map[string]interface{})
@@ -256,15 +209,9 @@ func (c *ClientService) GetMaxTreeqPerFs() (int, error) {
 			Ready bool `json:"ready"`
 		} `json:"metadata"`
 	}
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("get treeq size Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "api/rest/config/limits?fields=nas.treeq_max_count_per_filesystem"
 	queryResult := ParameterResult{}
-	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &queryResult)
+	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &queryResult)
 	if err != nil {
 		klog.Errorf("error occured while fetching treeq max parameter : %s ", err)
 		return 0, err
@@ -283,15 +230,9 @@ func (c *ClientService) GetMaxFileSystems() (int, error) {
 			Ready bool `json:"ready"`
 		} `json:"metadata"`
 	}
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("get max file systems size Panic occured -  " + fmt.Sprint(res))
-		}
-	}()
 	uri := "api/rest/config/limits?fields=nas.max_filesystems_in_system"
 	queryResult := ParameterResult{}
-	_, err = c.getJSONResponse(http.MethodGet, uri, nil, &queryResult)
+	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &queryResult)
 	if err != nil {
 		klog.Errorf("error occured while fetching max filesystems parameter : %s ", err)
 		return 0, err

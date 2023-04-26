@@ -147,11 +147,6 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 // Unmount using targetPath and cleanup directories and files.
 func unmountAndCleanUp(targetPath string) (err error) {
 	klog.V(4).Infof("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from unmountAndCleanUp  " + fmt.Sprint(res))
-		}
-	}()
 
 	mounter := mount.NewWithoutSystemd("")
 	targetHostPath := path.Join("/host", targetPath)

@@ -15,7 +15,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"infinibox-csi-driver/api"
 	"net"
 	"os/exec"
@@ -79,12 +78,6 @@ func (s *service) verifyController() error {
 }
 
 func (s *service) getNodeFQDN() string {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from getNodeFQDN  " + fmt.Sprint(res))
-		}
-	}()
 	cmd := "hostname -f"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {

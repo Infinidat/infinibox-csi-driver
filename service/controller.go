@@ -15,7 +15,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
@@ -33,12 +32,6 @@ import (
 
 // CreateVolume method create the volume
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI CreateVolume  " + fmt.Sprint(res))
-		}
-	}()
-
 	// TODO: validate the required parameter
 
 	volName := req.GetName()
@@ -108,12 +101,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 // DeleteVolume method delete the volumne
 func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (deleteVolResp *csi.DeleteVolumeResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI DeleteVolume  " + fmt.Sprint(res))
-		}
-	}()
-
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("DeleteVolume called with volume ID %s", volumeId)
 	volproto, err := s.validateVolumeID(volumeId)
@@ -148,12 +135,6 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 	klog.V(2).Infof("ControllerPublishVolume called with request volumeID %s and nodeID %s",
 		req.GetVolumeId(), req.GetNodeId())
 
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI ControllerPublishVolume  " + fmt.Sprint(res))
-		}
-	}()
-
 	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume failed to validate request: %v", err)
@@ -185,11 +166,6 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 // ControllerUnpublishVolume method
 func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI ControllerUnpublishVolume  " + fmt.Sprint(res))
-		}
-	}()
 
 	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
@@ -261,11 +237,6 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) error {
 
 func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
 	klog.V(2).Infof("ValidateVolumeCapabilities called with req volumeID %s", req.GetVolumeId())
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from CSI ValidateVolumeCapabilities  " + fmt.Sprint(res))
-		}
-	}()
 
 	volproto, err := s.validateVolumeID(req.GetVolumeId())
 	if err != nil {
@@ -498,11 +469,6 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 }
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshotResp *csi.CreateSnapshotResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI CreateSnapshot  " + fmt.Sprint(res))
-		}
-	}()
 
 	klog.V(2).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := s.validateVolumeID(req.GetSourceVolumeId())
@@ -525,11 +491,6 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 }
 
 func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
 
 	snapshotID := req.GetSnapshotId()
 	klog.V(2).Infof("DeleteSnapshot called with snapshot Id %s", snapshotID)
@@ -560,11 +521,6 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 }
 
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolResp *csi.ControllerExpandVolumeResponse, err error) {
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from CSI ControllerExpandVolume  " + fmt.Sprint(res))
-		}
-	}()
 
 	err = s.validateExpandVolumeRequest(req)
 	if err != nil {

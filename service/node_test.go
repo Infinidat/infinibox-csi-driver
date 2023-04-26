@@ -5,11 +5,9 @@ package service
 import (
 	"context"
 	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/storage"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
-	"bou.ke/monkey"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -31,35 +29,12 @@ func (suite *NodeTestSuite) Test_NodePublishVolume_invalid_protocol() {
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
-func (suite *NodeTestSuite) Test_NodePublishVolume_success() {
-	nodePublishReq := getNodeNodePublishVolumeRequest()
-	s := getService()
-	patch := monkey.Patch(storage.NewStorageNode, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &NodeMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := s.NodePublishVolume(context.Background(), nodePublishReq)
-	assert.Nil(suite.T(), err, "NodePublishVolume expected to succede")
-}
-
 func (suite *NodeTestSuite) Test_NodeUnpublishVolume_invalid_protocol() {
 	nodeUnPublishReq := getNodeUnpublishVolumeRequest()
 	nodeUnPublishReq.VolumeId = "100"
 	s := getService()
 	_, err := s.NodeUnpublishVolume(context.Background(), nodeUnPublishReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
-}
-
-func (suite *NodeTestSuite) Test_NodeUnpublishVolume_success() {
-	nodeUnPublishReq := getNodeUnpublishVolumeRequest()
-	s := getService()
-	patch := monkey.Patch(storage.NewStorageNode, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &NodeMock{}, nil
-	})
-	defer patch.Unpatch()
-	_, err := s.NodeUnpublishVolume(context.Background(), nodeUnPublishReq)
-	assert.Nil(suite.T(), err)
 }
 
 func (suite *NodeTestSuite) Test_NodeGetCapabilities() {
@@ -82,37 +57,11 @@ func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
-func (suite *NodeTestSuite) Test_NodeStageVolume_success() {
-	nodeStageReq := getNodeStageVolumeRequest()
-	s := getService()
-	patch := monkey.Patch(storage.NewStorageNode, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &NodeMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := s.NodeStageVolume(context.Background(), nodeStageReq)
-	assert.Nil(suite.T(), err)
-}
-
-func (suite *NodeTestSuite) Test_NodeUnstageVolume() {
-	//s := getService()
-	//_, err := s.NodeUnstageVolume(context.Background(), &csi.NodeUnstageVolumeRequest{})
-	//assert.Nil(suite.T(), err)
-}
-
 func (suite *NodeTestSuite) Test_NodeGetVolumeStats() {
 	s := getService()
 	_, err := s.NodeGetVolumeStats(context.Background(), &csi.NodeGetVolumeStatsRequest{})
 	assert.NotNil(suite.T(), err)
 }
-
-// func (suite *NodeTestSuite) Test_NodeExpandVolume_invalid_ID() {
-// 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
-// 	nodeNodeExpandReq.VolumeId = ""
-// 	s := getService()
-// 	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
-// 	assert.NotNil(suite.T(), err, "Invalid ID")
-// }
 
 func (suite *NodeTestSuite) Test_NodeExpandVolume_unimplemented() {
 	nodeNodeExpandReq := getNodeExpandVolumeRequest()

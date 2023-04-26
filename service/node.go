@@ -14,8 +14,6 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
@@ -28,12 +26,7 @@ import (
 )
 
 func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	var err error
 	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from NodePublishVolume " + fmt.Sprint(res))
-		}
-
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
 	}()
@@ -58,12 +51,7 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 }
 
 func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	var err error
 	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("recovered from NodeUnpublishVolume with volume ID %s: %s", req.GetVolumeId(), res)
-		}
-
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
 	}()
@@ -132,12 +120,7 @@ func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) 
 }
 
 func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	var err error
 	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("recovered from NodeStageVolume with ID %s: %s", req.GetVolumeId(), res)
-		}
-
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
 	}()
@@ -162,12 +145,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 }
 
 func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	var err error
 	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = fmt.Errorf("recovered from NodeUnstageVolume with volume ID %s: %s", req.GetVolumeId(), res)
-		}
-
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", req.GetVolumeId())
 	}()

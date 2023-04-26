@@ -75,13 +75,6 @@ type restclient struct {
 }
 
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			klog.Errorf("error in Get() while making request on %s url error : %v ", url, err)
-			err = errors.New("error in Get() " + fmt.Sprint(res))
-		}
-	}()
 	if err := checkHttpClient(); err != nil {
 		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -98,13 +91,6 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
 	klog.V(2).Infof("GetWithQueryString url %s?%s", url, queryString)
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			klog.Errorf("error in GetWithQueryString while making request on %s url error : %v ", url, err)
-			err = errors.New("error in GetWithQueryString " + fmt.Sprint(res))
-		}
-	}()
 	if err := checkHttpClient(); err != nil {
 		klog.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -123,13 +109,6 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			klog.Errorf("error in Post while making request on %s url error : %v ", url, err)
-			err = errors.New("error in Post " + fmt.Sprint(res))
-		}
-	}()
 	if err := checkHttpClient(); err != nil {
 		klog.Errorf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -147,13 +126,6 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 }
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			klog.Errorf("error in Put while making request on %s url error : %v ", url, err)
-			err = errors.New("error in Put " + fmt.Sprint(res))
-		}
-	}()
 	if err := checkHttpClient(); err != nil {
 		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -170,13 +142,6 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 }
 
 func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostConfig) (interface{}, error) {
-	var err error
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			klog.Errorf("error in Delete while making request on %s url error : %v ", url, err)
-			err = errors.New("error in Delete " + fmt.Sprint(res))
-		}
-	}()
 	if err := checkHttpClient(); err != nil {
 		klog.Errorf("checkHttpClient returned err %v ", err)
 		return nil, err
@@ -202,11 +167,6 @@ func checkHttpClient() error {
 
 // Method to check the response is valid or not
 func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct interface{}) (apiresp ApiResponse, retErr error) {
-	defer func() {
-		if recovered := recover(); recovered != nil && retErr == nil {
-			retErr = errors.New("error while parsing management api response " + fmt.Sprint(recovered) + "for request " + res.Request.URL)
-		}
-	}()
 
 	if res.StatusCode() == http.StatusUnauthorized {
 		return apiresp, errors.New("Request authentication failed for: " + res.Request.URL)

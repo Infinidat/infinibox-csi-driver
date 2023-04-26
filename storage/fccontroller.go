@@ -32,13 +32,6 @@ import (
 
 func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("recovered from FC CreateVolume " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	sizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
 	if err != nil {
 		klog.Error(err)
@@ -169,13 +162,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 }
 
 func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	klog.V(2).Infof("DeleteVolume")
 	if req.GetVolumeId() == "" {
 		return nil, status.Errorf(codes.Internal,
@@ -198,13 +184,6 @@ func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequ
 
 func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest, name string, sizeInKbytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
 	var err error
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC createVolumeFromVolumeContent " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	volumecontent := req.GetVolumeContentSource()
 	volumeContentID := ""
@@ -480,13 +459,6 @@ func (fc *fcstorage) ControllerGetCapabilities(ctx context.Context, req *csi.Con
 }
 
 func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC CreateSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	var snapshotID string
 	snapshotName := req.GetName()
 	klog.V(4).Infof("Create Snapshot of name %s", snapshotName)
@@ -543,13 +515,6 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 }
 
 func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (resp *csi.DeleteSnapshotResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	err = fc.ValidateDeleteVolume(snapshotID)
@@ -561,13 +526,6 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 }
 
 func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC DeleteSnapshot  " + fmt.Sprint(res))
-		}
-	}()
-	*/
 	vol, err := fc.cs.api.GetVolume(volumeID)
 	if err != nil {
 		klog.Error(err)
@@ -615,13 +573,6 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 }
 
 func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
-	/**
-	defer func() {
-		if res := recover(); res != nil && err == nil {
-			err = errors.New("Recovered from FC ControllerExpandVolume " + fmt.Sprint(res))
-		}
-	}()
-	*/
 
 	klog.V(2).Info("ControllerExpandVolume")
 	volumeID, err := strconv.Atoi(req.GetVolumeId())
