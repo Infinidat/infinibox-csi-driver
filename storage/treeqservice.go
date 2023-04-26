@@ -14,7 +14,6 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
@@ -308,40 +307,20 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 	treeqVolumeContext["ipAddress"] = ts.nfsstorage.ipAddress
 	treeqVolumeContext["volumePath"] = path.Join(ts.nfsstorage.exportPath, treeqResponse.Path)
 
-	// if AttachMetadataToObject - failed to add metadata then delete the created treeq
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while update metadata" + fmt.Sprint(res))
-		}
-		if err != nil && ts.nfsstorage.fileSystemID != 0 {
+	treeqCount := ts.treeqCnt + 1
+	_, updateTreeqErr := ts.UpdateTreeqCnt(filesystemID, NONE, treeqCount)
+	if updateTreeqErr != nil {
+		err = errors.New("failed to increment treeq count as metadata")
+		// if AttachMetadataToObject - failed to add metadata then delete the created treeq
+		if ts.nfsstorage.fileSystemID != 0 {
 			klog.V(2).Infof("error reverting treeq: %s", ts.nfsstorage.pVName)
 			_, errDelTreeq := ts.cs.api.DeleteTreeq(ts.nfsstorage.fileSystemID, treeqResponse.ID)
 			if errDelTreeq != nil {
 				klog.Errorf("failed to delete treeq: %s", ts.nfsstorage.pVName)
 			}
 		}
-	}()
-
-	treeqCount := ts.treeqCnt + 1
-	_, updateTreeqErr := ts.UpdateTreeqCnt(filesystemID, NONE, treeqCount)
-	if updateTreeqErr != nil {
-		err = errors.New("failed to increment treeq count as metadata")
 		return
 	}
-
-	// if UpdateFilesystem fails, descrement the metadata tree count
-	defer func() {
-		if res := recover(); res != nil {
-			err = errors.New("error while update file size" + fmt.Sprint(res))
-		}
-		if err != nil && filesystemID != 0 {
-			klog.V(2).Infof("error reverting treeqcount")
-			_, errUpdTreeq := ts.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
-			if errUpdTreeq != nil {
-				klog.Errorf("failed to update count for treeq: %s", ts.nfsstorage.pVName)
-			}
-		}
-	}()
 
 	// if new file system is created ,while creating the treeq, then not need to update size
 	if filesys != nil {
@@ -351,6 +330,15 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		if updateFileSizeErr != nil {
 			klog.Errorf("failed to update File Size %v", err)
 			err = errors.New("failed to update files size")
+			// if UpdateFilesystem fails, descrement the metadata tree count
+			if filesystemID != 0 {
+				klog.V(2).Infof("error reverting treeqcount")
+				_, errUpdTreeq := ts.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
+				if errUpdTreeq != nil {
+					klog.Errorf("failed to update count for treeq: %s", ts.nfsstorage.pVName)
+				}
+			}
+
 			return
 		}
 	}

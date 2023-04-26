@@ -17,7 +17,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -232,13 +231,6 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 
 // Method to check error response from management api
 func (rc *restclient) parseError(responseinmap interface{}) (str string, iserr bool) {
-	defer func() {
-		if res := recover(); res != nil {
-			str = "recovered in parseError  " + fmt.Sprint(res)
-			iserr = true
-		}
-	}()
-
 	if responseinmap != nil {
 		resultmap := responseinmap.(map[string]interface{})
 		return resultmap["code"].(string) + " " + resultmap["message"].(string), true
