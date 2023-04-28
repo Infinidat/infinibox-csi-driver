@@ -46,7 +46,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true              
-          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver_node }}
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: CSI_ENDPOINT
@@ -82,8 +82,6 @@ spec:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - "--kubelet-registration-path=/var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock"
-          securityContext:
-            privileged: true
           env:
             - name: ADDRESS
               value: /csi/csi.sock

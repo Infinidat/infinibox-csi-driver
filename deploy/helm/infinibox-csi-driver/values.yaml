@@ -29,7 +29,8 @@ images:
   attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:8b9c313c05f54fb04f8d430896f5f5904b6cb157df261501b29adc04d2b2dc7b"  # v3.4.0
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.7.0-rc1"
+  csidriver_controller: "docker.io/infinidat/infinidat-csi-driver-controller:v2.7.0-rc1"
+  csidriver_node: "docker.io/infinidat/infinidat-csi-driver-node:v2.7.0-rc1"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html

@@ -26,7 +26,8 @@ workflow:
 variables:
   MAINTENANCE_MODE: 1
   DOCKER_BASE_IMAGE: redhat/ubi8:latest
-  BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver:$CI_COMMIT_REF_NAME
+  CONTROLLER_BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver-controller:$CI_COMMIT_REF_NAME
+  NODE_BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver-node:$CI_COMMIT_REF_NAME
 
 
 stages:
@@ -102,8 +103,17 @@ build-image:
       --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $BUILD_IMAGE -f Dockerfile .
-    - docker push $BUILD_IMAGE
+      -t $CONTROLLER_BUILD_IMAGE -f Dockerfile.controller .
+    - docker push $CONTROLLER_BUILD_IMAGE
+    - > 
+      docker build --pull 
+      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
+      --build-arg BLAME_USER=$CI_REGISTRY_USER
+      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
+      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
+      -t $NODE_BUILD_IMAGE -f Dockerfile.node .
+    - docker push $NODE_BUILD_IMAGE
 
 test-merge-image-build:
   stage: docker_build
@@ -131,7 +141,15 @@ test-merge-image-build:
       --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $BUILD_IMAGE -f Dockerfile .
+      -t $CONTROLLER_BUILD_IMAGE -f Dockerfile.controller .
+    - > 
+      docker build --pull 
+      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
+      --build-arg BLAME_USER=$CI_REGISTRY_USER
+      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
+      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
+      -t $NODE_BUILD_IMAGE -f Dockerfile.node .
 
 
 include:

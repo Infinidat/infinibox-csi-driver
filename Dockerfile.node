@@ -56,7 +56,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/lsblk \
     && ln -s /ibox/host-chroot.sh /ibox/lsof \
     && ln -s /ibox/host-chroot.sh /ibox/lsscsi \
-    && ln -s /ibox/host-chroot.sh /ibox/mkdir \
+    && ln -s /ibox/host-chroot.sh /ibox/mkdir \ 
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.ext3 \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.ext4 \
     && ln -s /ibox/host-chroot.sh /ibox/mkfs.xfs \
@@ -67,8 +67,6 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \
     && ln -s /ibox/host-chroot.sh /ibox/rpcbind \
     && ln -s /ibox/host-chroot.sh /ibox/umount \
-    && ln -s /ibox/host-chroot.sh /ibox/vi \
-    && ln -s /ibox/host-chroot.sh /ibox/vim \
     && ln -s /ibox/host-chroot.sh /ibox/whoami \
     && ln -s /ibox/host-chroot.sh /ibox/xfs_admin \
     && ln -s /ibox/host-chroot.sh /ibox/xfs_db

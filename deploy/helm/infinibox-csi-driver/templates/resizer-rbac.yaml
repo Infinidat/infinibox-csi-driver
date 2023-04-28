@@ -51,7 +51,7 @@ metadata:
   name: {{ .Release.Name }}-csi-resizer-role
 subjects:
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-driver
+    name: {{ .Release.Name }}-controller
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole

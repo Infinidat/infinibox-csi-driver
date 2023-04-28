@@ -23,7 +23,6 @@ import (
 
 	"math/rand"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -647,6 +646,7 @@ func findLunOnDevice(devicePath string) (string, error) {
 	return lun, nil
 }
 
+/**
 func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args []string) ([]byte, error) {
 	klog.V(4).Infof("Executing command : {%v} with args : {%v}. and timeout : {%v} mseconds", command, args, mSeconds)
 
@@ -677,6 +677,7 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 	klog.V(4).Infof("Finished executing command")
 	return out, err
 }
+*/
 
 func (cs *commonservice) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)

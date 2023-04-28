@@ -1,0 +1,12 @@
+# vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
+
+##@ release targets
+.PHONY: release-backup
+release-backup:
+	@echo -e $(_begin)
+	docker save --output /tmp/infinidat-csi-driver-controller.$(_DOCKER_IMAGE_TAG).tar.gz git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-controller:$(_DOCKER_IMAGE_TAG)
+	scp /tmp/infinidat-csi-driver-controller.$(_DOCKER_IMAGE_TAG).tar.gz root@esx-gdc-kvm-01.lab.gdc.il.infinidat.com:/release-backups/
+	docker save --output /tmp/infinidat-csi-driver-node.$(_DOCKER_IMAGE_TAG).tar.gz git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-node:$(_DOCKER_IMAGE_TAG)
+	scp /tmp/infinidat-csi-driver-node.$(_DOCKER_IMAGE_TAG).tar.gz root@esx-gdc-kvm-01.lab.gdc.il.infinidat.com:/release-backups/
+	@echo -e $(_finish)
+
