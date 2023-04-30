@@ -113,9 +113,9 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 		case common.PROTOCOL_ISCSI:
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
 		case common.PROTOCOL_NFS:
-			return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+			return &nfsstorage{cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		case common.PROTOCOL_TREEQ:
-			nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
+			nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}
 			service := &TreeqService{nfsstorage: nfs, cs: comnserv}
 			return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
 		default:
