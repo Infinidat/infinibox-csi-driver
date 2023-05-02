@@ -31,8 +31,7 @@ _IMAGE_TAG   ?= v2.7.0-rc1
 
 _GITLAB_REPO        = git.infinidat.com:4567
 _BINARY_NAME        = infinibox-csi-driver
-_CONTROLLER_IMAGE   = infinidat-csi-driver-controller
-_NODE_IMAGE         = infinidat-csi-driver-node
+_DRIVER_IMAGE   = infinidat-csi-driver
 _art_dir            = artifact
 
 # For Development Build #################################################################
@@ -131,25 +130,16 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 	export BLAME_USER=$${USER}; \
 	export BLAME_BUILD_TIME="$$(date)"; \
 	echo "Building CSI driver image [$(_IMAGE_TAG)] from commit [$$HEAD] at [$$BLAME_BUILD_TIME]"; \
-	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_NODE_IMAGE):$(_IMAGE_TAG)" \
+	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG)" \
 		--build-arg IMAGE_TAG="$(_IMAGE_TAG)" \
 		--build-arg VCS_REF="$$HEAD" \
 		--build-arg BLAME_MACHINE="$$BLAME_MACHINE" \
 		--build-arg BLAME_USER="$$BLAME_USER" \
 		--build-arg BLAME_BUILD_TIME="$$BLAME_BUILD_TIME" \
 		--pull \
-		-f Dockerfile.node .
-	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG)" \
-		--build-arg IMAGE_TAG="$(_IMAGE_TAG)" \
-		--build-arg VCS_REF="$$HEAD" \
-		--build-arg BLAME_MACHINE="$$BLAME_MACHINE" \
-		--build-arg BLAME_USER="$$BLAME_USER" \
-		--build-arg BLAME_BUILD_TIME="$$BLAME_BUILD_TIME" \
-		--pull \
-		-f Dockerfile.controller .
+		-f Dockerfile .
 	@# TODO tag cmd needs review.
-	docker tag $(_DOCKER_USER)/$(_NODE_IMAGE):$(_IMAGE_TAG) $(_GITLAB_USER)/infinidat-csi-driver/$(_NODE_IMAGE):$(_IMAGE_TAG)
-	docker tag $(_DOCKER_USER)/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG) $(_GITLAB_USER)/infinidat-csi-driver/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG)
+	docker tag $(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG) $(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG)
 	@echo -e $(_finish)
 
 .PHONY: docker-login-docker
@@ -158,22 +148,17 @@ docker-login-docker:  ## Login to Dockerhub.
 
 .PHONY: docker-push-gitlab
 docker-push-gitlab:  # Tag and push to gitlab.
-	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_NODE_IMAGE):$(_IMAGE_TAG))
-	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_NODE_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
-	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_NODE_IMAGE):$(_IMAGE_TAG)
-	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG))
-	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
-	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG)
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG))
+	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
+	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG)
 
 .PHONY: docker-push-redhat
 docker-push-redhat:  ## Login, tag and push to Red Hat.
 	@# Ref: https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image
 	@echo "The password is a token acquired by https://connect.redhat.com/projects/5e9f4fa0ebed1415210b4b24/images/upload-image"
 	docker login -u unused scan.connect.redhat.com
-	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG)
-	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG)
-	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_NODE_IMAGE):$(_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_NODE_IMAGE):$(_IMAGE_TAG)
-	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_NODE_IMAGE):$(_IMAGE_TAG)
+	docker tag $(_GITLAB_REPO)/$(_GITLAB_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG) scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DRIVER_IMAGE):$(_IMAGE_TAG)
+	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DRIVER_IMAGE):$(_IMAGE_TAG)
 
 .PHONY: docker-push-all
 docker-push-all: docker-push-gitlab docker-push-redhat docker-push-dockerhub  ## Push to both Gitlab, Red Hat and Dockerhub.
@@ -187,10 +172,8 @@ all: build docker-build docker-push clean
 .PHONY: docker-image-save
 docker-image-save: ## Save image to gzipped tar file to _art_dir.
 	mkdir -p $(_art_dir) && \
-	docker save $(_DOCKER_USER)/$(_CONTROLLER_IMAGE):$(_IMAGE_TAG) \
-		| gzip > ./$(_art_dir)/$(_CONTROLLER_IMAGE)_$(_IMAGE_TAG)_docker-image.tar.gz
-	docker save $(_DOCKER_USER)/$(_NODE_IMAGE):$(_IMAGE_TAG) \
-		| gzip > ./$(_art_dir)/$(_NODE_IMAGE)_$(_IMAGE_TAG)_docker-image.tar.gz
+	docker save $(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG) \
+		| gzip > ./$(_art_dir)/$(_DRIVER_IMAGE)_$(_IMAGE_TAG)_docker-image.tar.gz
 
 .PHONY: docker-helm-chart-save
 docker-helm-chart-save:  ## Save the helm chart to a tarball in _art_dir.

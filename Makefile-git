@@ -21,34 +21,34 @@ _test-git-cherry:
 
 .PHONY: _test-git-tag-exists
 _test-git-tag-exists:
-	@# Test that there is a git commit matching _DOCKER_IMAGE_TAG.
+	@# Test that there is a git commit matching _IMAGE_TAG.
 	@echo -e $(_begin)
-	@test -n "$$(git tag --list $(_DOCKER_IMAGE_TAG) | grep $(_DOCKER_IMAGE_TAG))" || (echo -e "\nError: Git commit is not tagged as $(_DOCKER_IMAGE_TAG)\n         " && false)
+	@test -n "$$(git tag --list $(_IMAGE_TAG) | grep $(_IMAGE_TAG))" || (echo -e "\nError: Git commit is not tagged as $(_IMAGE_TAG)\n         " && false)
 	@echo -e $(_finish)
 
 .PHONY: _test-git-local-commit-tag-and-head-match
 _test-git-local-commit-tag-and-head-match:
 	@# Test that there is a local tag commit matching HEAD.
 	@echo -e $(_begin)
-	@local_tag_commit=$$(git rev-list -n 1 $(_DOCKER_IMAGE_TAG)) && \
+	@local_tag_commit=$$(git rev-list -n 1 $(_IMAGE_TAG)) && \
 	head_commit=$$(git rev-parse HEAD) && \
-	if [[ "$$local_tag_commit" != "$$head_commit" ]]; then echo -e "\nError: For tag $(_DOCKER_IMAGE_TAG), HEAD commit $$head_commit does not match local tag commit $$local_tag_commit" && false; fi
+	if [[ "$$local_tag_commit" != "$$head_commit" ]]; then echo -e "\nError: For tag $(_IMAGE_TAG), HEAD commit $$head_commit does not match local tag commit $$local_tag_commit" && false; fi
 	@echo -e $(_finish)
 
 .PHONY: _test-git-tag-exists-remote
 _test-git-tag-exists-remote:
 	@# Test that the git tag has been pushed to remote.
 	@echo -e $(_begin)
-	@test -n "$$(git ls-remote --tags origin $(_DOCKER_IMAGE_TAG) | grep $(_DOCKER_IMAGE_TAG))" || (echo -e "\nError: Git commit is not tagged as $(_DOCKER_IMAGE_TAG) on origin\n" && false)
+	@test -n "$$(git ls-remote --tags origin $(_IMAGE_TAG) | grep $(_IMAGE_TAG))" || (echo -e "\nError: Git commit is not tagged as $(_IMAGE_TAG) on origin\n" && false)
 	@echo -e $(_finish)
 
 .PHONY: _test-git-tag-remote-and-local-match
 _test-git-tag-remote-and-local-match:
 	@# Test that there is a remote tag commit matching the local tag commit.
 	@echo -e $(_begin)
-	@remote_tag_commit=$$(git ls-remote -t origin | grep $(_DOCKER_IMAGE_TAG) | awk '{ print $$1 }') && \
-	local_tag_commit=$$(git rev-list -n 1 $(_DOCKER_IMAGE_TAG)) && \
-	if [[ "$$local_tag_commit" != "$$remote_tag_commit" ]]; then echo -e "\nError: For tag $(_DOCKER_IMAGE_TAG), remote tag commit $$remote_tag_commit does not match local tag commit $$local_tag_commit" && false; fi
+	@remote_tag_commit=$$(git ls-remote -t origin | grep $(_IMAGE_TAG) | awk '{ print $$1 }') && \
+	local_tag_commit=$$(git rev-list -n 1 $(_IMAGE_TAG)) && \
+	if [[ "$$local_tag_commit" != "$$remote_tag_commit" ]]; then echo -e "\nError: For tag $(_IMAGE_TAG), remote tag commit $$remote_tag_commit does not match local tag commit $$local_tag_commit" && false; fi
 	@echo -e $(_finish)
 
 

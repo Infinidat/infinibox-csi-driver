@@ -46,7 +46,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true              
-          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver_node }}
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: CSI_ENDPOINT

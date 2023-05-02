@@ -26,8 +26,7 @@ workflow:
 variables:
   MAINTENANCE_MODE: 1
   DOCKER_BASE_IMAGE: redhat/ubi8:latest
-  CONTROLLER_BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver-controller:$CI_COMMIT_REF_NAME
-  NODE_BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver-node:$CI_COMMIT_REF_NAME
+  BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver:$CI_COMMIT_REF_NAME
 
 
 stages:
@@ -100,20 +99,11 @@ build-image:
       docker build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
-      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $CONTROLLER_BUILD_IMAGE -f Dockerfile.controller .
-    - docker push $CONTROLLER_BUILD_IMAGE
-    - > 
-      docker build --pull 
-      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
-      --build-arg BLAME_USER=$CI_REGISTRY_USER
-      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
-      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
-      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $NODE_BUILD_IMAGE -f Dockerfile.node .
-    - docker push $NODE_BUILD_IMAGE
+      -t $BUILD_IMAGE -f Dockerfile .
+    - docker push $BUILD_IMAGE
 
 test-merge-image-build:
   stage: docker_build
@@ -138,18 +128,10 @@ test-merge-image-build:
       docker build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
-      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
       --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $CONTROLLER_BUILD_IMAGE -f Dockerfile.controller .
-    - > 
-      docker build --pull 
-      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
-      --build-arg BLAME_USER=$CI_REGISTRY_USER
-      --build-arg DOCKER_IMAGE_TAG=$CI_COMMIT_REF_SLUG
-      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
-      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
-      -t $NODE_BUILD_IMAGE -f Dockerfile.node .
+      -t $BUILD_IMAGE -f Dockerfile .
 
 
 include:

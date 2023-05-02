@@ -6,7 +6,7 @@ metadata:
   namespace: {{ .Release.NameSpace }}
 spec:
   selector:
-    app: {{ .Release.Name }}-controller
+    app: {{ .Release.Name }}-driver
   type: NodePort
   ports:
     - protocol: TCP
@@ -17,18 +17,18 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: {{ .Release.Name }}-controller
+  name: {{ .Release.Name }}-driver
   namespace: {{ .Release.Namespace }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-controller
-  serviceName: {{ .Release.Name }}-controller
+      app: {{ .Release.Name }}-driver
+  serviceName: {{ .Release.Name }}-driver
   replicas: {{ required "count of instances required." .Values.instanceCount }}
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}-controller
+        app: {{ .Release.Name }}-driver
     spec:
       serviceAccount: {{ .Release.Name }}-controller
       containers:
@@ -129,7 +129,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true  
-          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver_controller }}
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: CSI_ENDPOINT
