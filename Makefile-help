@@ -1,7 +1,7 @@
 # vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
 # Use color in Makefiles.
 _USE_COLOR ?= true
-SHELL = bash
+export SHELL = bash
 
 .DEFAULT_GOAL := help
 
