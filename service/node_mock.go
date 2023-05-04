@@ -27,3 +27,8 @@ func (m *NodeMock) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolume
 	m.Called(ctx, req)
 	return &csi.NodeStageVolumeResponse{}, nil
 }
+
+func (m *NodeMock) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+	m.Called(ctx, req)
+	return &csi.NodeGetVolumeStatsResponse{}, nil
+}

@@ -157,6 +157,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 	if err != nil {
 		if strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
 			klog.V(4).Infof("Success: No need to add port '%s' to host with ID %d, port already belongs to host", portAddress, hostID)
+			return HostPort{}, nil
 		} else {
 			klog.Errorf("error adding port '%s' to host with ID %d, error: %+v", portAddress, hostID, err)
 			return hostPort, err

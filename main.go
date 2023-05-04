@@ -13,14 +13,10 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
-	"infinibox-csi-driver/provider"
 	"infinibox-csi-driver/service"
 	"os"
 
-	"github.com/rexray/gocsi"
-	csictx "github.com/rexray/gocsi/context"
 	"k8s.io/klog/v2"
 )
 
@@ -61,30 +57,37 @@ func main() {
 	klog.V(2).Infof("Log level: %s", appLogLevel)
 	klog.Flush()
 
-	configParams := getConfigParams()
-	gocsi.Run(
-		context.Background(),
-		service.ServiceName,
-		"An Infinibox CSI Driver Plugin",
-		usage,
-		provider.New(configParams))
-}
+	nodeIP := os.Getenv("NODE_IP")
+	if nodeIP == "" {
+		klog.Error("NODE_IP not set")
+		os.Exit(1)
+	}
+	driverName := os.Getenv("CSI_DRIVER_NAME")
+	if driverName == "" {
+		klog.Error("CSI_DRIVER_NAME not set")
+		os.Exit(1)
+	}
+	csiEndpoint := os.Getenv("CSI_ENDPOINT")
+	if csiEndpoint == "" {
+		klog.Error("CSI_ENDPOINT not set")
+		os.Exit(1)
+	}
+	if version == "" {
+		klog.Error("version not set")
+		os.Exit(1)
+	}
 
-func getConfigParams() map[string]string {
-	configParams := make(map[string]string)
-	if nodeip, ok := csictx.LookupEnv(context.Background(), "NODE_IP_ADDRESS"); ok {
-		configParams["nodeid"] = nodeip
-	}
-	if nodeName, ok := csictx.LookupEnv(context.Background(), "KUBE_NODE_NAME"); ok {
-		configParams["nodename"] = nodeName
-	}
-	if drivername, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_NAME"); ok {
-		configParams["drivername"] = drivername
-	}
-	if driverversion, ok := csictx.LookupEnv(context.Background(), "CSI_DRIVER_VERSION"); ok {
-		configParams["driverversion"] = driverversion
-	}
-	return configParams
-}
+	klog.V(2).Infof("NodeIP: %s", nodeIP)
+	klog.V(2).Infof("DriverName: %s", driverName)
+	klog.V(2).Infof("Endpoint: %s", csiEndpoint)
+	klog.V(2).Infof("Version: %s", version)
 
-const usage = `   `
+	driverOptions := service.DriverOptions{
+		NodeID:     nodeIP,
+		DriverName: driverName,
+		Endpoint:   csiEndpoint,
+		Version:    version,
+	}
+	d := service.NewDriver(&driverOptions)
+	d.Run(false)
+}

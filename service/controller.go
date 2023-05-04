@@ -20,6 +20,7 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -30,8 +31,13 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// ControllerServer controller server setting
+type ControllerServer struct {
+	Driver *Driver
+}
+
 // CreateVolume method create the volume
-func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
+func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
 	// TODO: validate the required parameter
 
 	volName := req.GetName()
@@ -44,8 +50,12 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	storageprotocol := reqParameters[common.SC_STORAGE_PROTOCOL]
 	reqCapabilities := req.GetVolumeCapabilities()
 
+	klog.V(2).Infof("CreateVolume called, capacity-range: %v ",
+		req.GetCapacityRange())
+	klog.V(2).Infof("CreateVolume called %v params: %v",
+		reqParameters)
 	klog.V(2).Infof("CreateVolume called, name: '%s' controller nodeid: '%s' storage_protocol: '%s' capacity-range: %v params: %v",
-		volName, s.nodeID, storageprotocol, req.GetCapacityRange(), reqParameters)
+		volName, s.Driver.nodeID, storageprotocol, req.GetCapacityRange(), reqParameters)
 
 	// Basic CSI parameter checking across protocols
 
@@ -68,8 +78,8 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
 
 	configparams := make(map[string]string)
-	configparams["nodeid"] = s.nodeID
-	configparams["driverversion"] = s.driverVersion
+	configparams["nodeid"] = s.Driver.nodeID
+	configparams["driverversion"] = s.Driver.version
 	configparams[common.SC_NFS_EXPORT_PERMISSIONS] = reqParameters[common.SC_NFS_EXPORT_PERMISSIONS]
 
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
@@ -100,10 +110,10 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 }
 
 // DeleteVolume method delete the volumne
-func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (deleteVolResp *csi.DeleteVolumeResponse, err error) {
+func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (deleteVolResp *csi.DeleteVolumeResponse, err error) {
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("DeleteVolume called with volume ID %s", volumeId)
-	volproto, err := s.validateVolumeID(volumeId)
+	volproto, err := validateVolumeID(volumeId)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			klog.Warningf("DeleteVolume was successful. However, no volume with ID %s was not found", volumeId)
@@ -113,7 +123,7 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 	config := make(map[string]string)
-	config["nodeid"] = s.nodeID
+	config["nodeid"] = s.Driver.nodeID
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
@@ -131,18 +141,18 @@ func (s *service) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest
 }
 
 // ControllerPublishVolume method
-func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (publishVolResp *csi.ControllerPublishVolumeResponse, err error) {
+func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (publishVolResp *csi.ControllerPublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerPublishVolume called with request volumeID %s and nodeID %s",
 		req.GetVolumeId(), req.GetNodeId())
 
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ControllerPublishVolume failed: %v", err)
 		return
 	}
 
-	err = s.validateNodeID(req.GetNodeId())
+	err = validateNodeID(req.GetNodeId())
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume failed to validate request: %v", err)
 		return nil, err
@@ -164,10 +174,10 @@ func (s *service) ControllerPublishVolume(ctx context.Context, req *csi.Controll
 }
 
 // ControllerUnpublishVolume method
-func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
+func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
 
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ControllerUnpublishVolume failed: %v", err)
@@ -176,7 +186,7 @@ func (s *service) ControllerUnpublishVolume(ctx context.Context, req *csi.Contro
 
 	nodeID := req.GetNodeId()
 	if nodeID != "" { // NodeId is optional, when empty we should unpublish the volume from any nodes it is published to
-		err = s.validateNodeID(nodeID)
+		err = validateNodeID(nodeID)
 		if err != nil {
 			klog.Errorf("ControllerUnpublishVolume failed to validate request: %v", err)
 			return nil, err
@@ -235,10 +245,10 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) error {
 	return nil
 }
 
-func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
+func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
 	klog.V(2).Infof("ValidateVolumeCapabilities called with req volumeID %s", req.GetVolumeId())
 
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ValidateVolumeCapabilities failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed: %v", err)
@@ -258,7 +268,7 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 	return
 }
 
-func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
+func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	klog.V(4).Infof("controller ListVolumes() called")
 	res := &csi.ListVolumesResponse{
 		Entries: make([]*csi.ListVolumesResponse_Entry, 0),
@@ -312,7 +322,7 @@ func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) 
 
 }
 
-func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	klog.V(4).Infof("controller ListSnapshots() called")
 	res := &csi.ListSnapshotsResponse{
 		Entries: make([]*csi.ListSnapshotsResponse_Entry, 0),
@@ -399,11 +409,11 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 	return res, nil
 }
 
-func (s *service) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
+func (s *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+func (s *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: []*csi.ControllerServiceCapability{
 			{
@@ -420,15 +430,6 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 					},
 				},
 			},
-
-			// {
-			// 	Type: &csi.ControllerServiceCapability_Rpc{
-			// 		Rpc: &csi.ControllerServiceCapability_RPC{
-			// 			Type: csi.ControllerServiceCapability_RPC_GET_CAPACITY,
-			// 		},
-			// 	},
-			// },
-
 			{
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
@@ -468,16 +469,16 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 	}, nil
 }
 
-func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshotResp *csi.CreateSnapshotResponse, err error) {
+func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshotResp *csi.CreateSnapshotResponse, err error) {
 
 	klog.V(2).Infof("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
-	volproto, err := s.validateVolumeID(req.GetSourceVolumeId())
+	volproto, err := validateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
 		klog.Errorf("failed to validate storage type %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to validate source Vol Id: %s", err.Error())
 	}
 	config := make(map[string]string)
-	config["nodeid"] = s.nodeID
+	config["nodeid"] = s.Driver.nodeID
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		klog.Errorf("Create snapshot failed: %s", err)
@@ -490,11 +491,11 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	return nil, errors.New("failed to create storageController for " + volproto.StorageType)
 }
 
-func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
+func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
 
 	snapshotID := req.GetSnapshotId()
 	klog.V(2).Infof("DeleteSnapshot called with snapshot Id %s", snapshotID)
-	volproto, err := s.validateVolumeID(snapshotID)
+	volproto, err := validateVolumeID(snapshotID)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			klog.Errorf("snapshot ID: '%s' not found, err: %v - return success", snapshotID, err)
@@ -506,7 +507,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	}
 
 	config := make(map[string]string)
-	config["nodeid"] = s.nodeID
+	config["nodeid"] = s.Driver.nodeID
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		klog.Errorf("delete snapshot failed: %s", err)
@@ -520,16 +521,16 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	return nil, errors.New("failed to create storageController for " + volproto.StorageType)
 }
 
-func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolResp *csi.ControllerExpandVolumeResponse, err error) {
+func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolResp *csi.ControllerExpandVolumeResponse, err error) {
 
-	err = s.validateExpandVolumeRequest(req)
+	err = validateExpandVolumeRequest(req)
 	if err != nil {
 		return
 	}
 
 	configparams := make(map[string]string)
-	configparams["nodeid"] = s.nodeID
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+	configparams["nodeid"] = s.Driver.nodeID
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		return
 	}
@@ -547,10 +548,46 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	return
 }
 
-func (s *service) ControllerGetVolume(
+func (s *ControllerServer) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
 
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func validateNodeID(nodeID string) error {
+	if nodeID == "" {
+		return status.Error(codes.InvalidArgument, "node ID empty")
+	}
+	nodeSplit := strings.Split(nodeID, "$$")
+	if len(nodeSplit) != 2 {
+		return status.Error(codes.NotFound, "node Id does not follow '<fqdn>$$<id>' pattern")
+	}
+	return nil
+}
+
+// Controller expand volume request validation
+func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
+	if req.GetVolumeId() == "" {
+		return status.Error(codes.InvalidArgument, "Volume ID cannot be empty")
+	}
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+	}
+	return nil
+}
+func validateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+	if str == "" {
+		return volprotoconf, status.Error(codes.InvalidArgument, "volume Id empty")
+	}
+	volproto := strings.Split(str, "$$")
+	if len(volproto) != 2 {
+		return volprotoconf, status.Error(codes.NotFound, "volume Id does not follow '<id>$$<proto>' pattern")
+	}
+	klog.V(2).Infof("volproto: %s", volproto)
+	volprotoconf.VolumeID = volproto[0]
+	volprotoconf.StorageType = volproto[1]
+	return volprotoconf, nil
 }

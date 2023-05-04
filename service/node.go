@@ -17,15 +17,24 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
+	"k8s.io/mount-utils"
 )
 
-func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+// NodeServer driver
+type NodeServer struct {
+	Driver  *Driver
+	mounter mount.Interface
+}
+
+func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
@@ -43,14 +52,14 @@ func (s *service) NodePublishVolume(ctx context.Context, req *csi.NodePublishVol
 	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		klog.V(2).Infof("NodePublishVolume - NewStorageNode succeeded with volume ID %s", volumeId)
-		req.VolumeContext["nodeID"] = s.nodeID
+		req.VolumeContext["nodeID"] = s.Driver.nodeID
 		return storageNode.NodePublishVolume(ctx, req)
 	}
 	klog.Errorf("NodePublishVolume - NewStorageNode error: %s", err)
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
-func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
@@ -61,7 +70,7 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 
 	klog.V(2).Infof("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 	klog.V(5).Infof("NodeUnpublishVolume called with req %+v", req)
-	volproto, err := s.validateVolumeID(req.GetVolumeId())
+	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.V(2).Infof("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -82,7 +91,7 @@ func (s *service) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublis
 	return resp, err
 }
 
-func (s *service) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{
 			{
@@ -110,16 +119,16 @@ func (s *service) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapab
 	}, nil
 }
 
-func (s *service) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	nodeFQDN := s.getNodeFQDN()
-	k8sNodeID := nodeFQDN + "$$" + s.nodeID
+func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	nodeFQDN := getNodeFQDN()
+	k8sNodeID := nodeFQDN + "$$" + s.Driver.nodeID
 	klog.V(2).Infof("NodeGetInfo NodeId: %s", k8sNodeID)
 	return &csi.NodeGetInfoResponse{
 		NodeId: k8sNodeID,
 	}, nil
 }
 
-func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
@@ -144,7 +153,7 @@ func (s service) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRe
 	return nil, status.Error(codes.Internal, err.Error())
 }
 
-func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", req.GetVolumeId())
@@ -156,7 +165,7 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
 
 	klog.V(2).Infof("NodeUnstageVolume called with volume name %s", volumeId)
-	volproto, err := s.validateVolumeID(volumeId)
+	volproto, err := validateVolumeID(volumeId)
 	if err != nil {
 		klog.Errorf("NodeUnstageVolume failed with volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -175,10 +184,31 @@ func (s *service) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVol
 	return resp, err
 }
 
-func (s *service) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
+func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 
-func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, time.Now().String())
+}
+
+func getNodeFQDN() string {
+	cmd := "hostname -f"
+	out, err := exec.Command("bash", "-c", cmd).Output()
+	if err != nil {
+		klog.Warningf("could not get fqdn with cmd : 'hostname -f', get hostname with 'echo $HOSTNAME'")
+		cmd = "echo $HOSTNAME"
+		out, err = exec.Command("bash", "-c", cmd).Output()
+		if err != nil {
+			klog.Errorf("Failed to execute command: %s", cmd)
+			return "unknown"
+		}
+	}
+	nodeFQDN := string(out)
+	if nodeFQDN == "" {
+		klog.Warningf("node fqnd not found, setting node name as node fqdn instead")
+		nodeFQDN = "unknown"
+	}
+	nodeFQDN = strings.TrimSuffix(nodeFQDN, "\n")
+	return nodeFQDN
 }

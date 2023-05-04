@@ -133,23 +133,15 @@ spec:
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: CSI_ENDPOINT
-              value: /var/run/csi/csi.sock
+              value: unix:///var/run/csi/csi.sock
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME
               value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
-            - name: CSI_DRIVER_VERSION
-              value: {{ required "Provide CSI Driver version"  .Values.csiDriverVersion }}
-            - name: X_CSI_MODE
-              value: controller
-            - name: X_CSI_SPEC_DISABLE_LEN_CHECK
-              value: "true"
-            - name: X_CSI_DEBUG
-              value: "false"
-            - name: KUBE_NODE_NAME
+            - name: NODE_IP
               valueFrom:
                 fieldRef:
-                  fieldPath: spec.nodeName
+                  fieldPath: status.hostIP
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:

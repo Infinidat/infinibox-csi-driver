@@ -24,49 +24,77 @@ func TestNodeTestSuite(t *testing.T) {
 func (suite *NodeTestSuite) Test_NodePublishVolume_invalid_protocol() {
 	nodePublishReq := getNodeNodePublishVolumeRequest()
 	nodePublishReq.VolumeContext = map[string]string{common.SC_STORAGE_PROTOCOL: "unknown"}
-	s := getService()
-	_, err := s.NodePublishVolume(context.Background(), nodePublishReq)
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodePublishVolume(context.Background(), nodePublishReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
 func (suite *NodeTestSuite) Test_NodeUnpublishVolume_invalid_protocol() {
 	nodeUnPublishReq := getNodeUnpublishVolumeRequest()
 	nodeUnPublishReq.VolumeId = "100"
-	s := getService()
-	_, err := s.NodeUnpublishVolume(context.Background(), nodeUnPublishReq)
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodeUnpublishVolume(context.Background(), nodeUnPublishReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
 func (suite *NodeTestSuite) Test_NodeGetCapabilities() {
-	s := getService()
-	_, err := s.NodeGetCapabilities(context.Background(), &csi.NodeGetCapabilitiesRequest{})
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodeGetCapabilities(context.Background(), &csi.NodeGetCapabilitiesRequest{})
 	assert.Nil(suite.T(), err)
 }
 
 func (suite *NodeTestSuite) Test_NodeGetInfo() {
-	s := getService()
-	_, err := s.NodeGetInfo(context.Background(), &csi.NodeGetInfoRequest{})
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodeGetInfo(context.Background(), &csi.NodeGetInfoRequest{})
 	assert.Nil(suite.T(), err)
 }
 
 func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 	nodeStageReq := getNodeStageVolumeRequest()
 	nodeStageReq.VolumeContext = map[string]string{common.SC_STORAGE_PROTOCOL: "unknown"}
-	s := getService()
-	_, err := s.NodeStageVolume(context.Background(), nodeStageReq)
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodeStageVolume(context.Background(), nodeStageReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
 func (suite *NodeTestSuite) Test_NodeGetVolumeStats() {
-	s := getService()
-	_, err := s.NodeGetVolumeStats(context.Background(), &csi.NodeGetVolumeStatsRequest{})
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodeGetVolumeStats(context.Background(), &csi.NodeGetVolumeStatsRequest{})
 	assert.NotNil(suite.T(), err)
 }
 
 func (suite *NodeTestSuite) Test_NodeExpandVolume_unimplemented() {
 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
-	s := getService()
-	_, err := s.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
+	cs := NodeServer{
+		Driver: &Driver{
+			nodeID: "n",
+		},
+	}
+	_, err := cs.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
 	assert.Error(suite.T(), err)
 }
 

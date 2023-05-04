@@ -6,6 +6,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ControllerMock struct {
@@ -38,7 +40,7 @@ func (m *ControllerMock) ListVolumes(context.Context, *csi.ListVolumesRequest) (
 }
 
 func (m *ControllerMock) GetCapacity(context.Context, *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	return &csi.GetCapacityResponse{}, nil
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (m *ControllerMock) ControllerGetCapabilities(context.Context, *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
