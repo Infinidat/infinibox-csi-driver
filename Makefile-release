@@ -4,9 +4,8 @@
 .PHONY: release-backup
 release-backup:
 	@echo -e $(_begin)
-	docker save --output /tmp/infinidat-csi-driver-controller.$(_IMAGE_TAG).tar.gz git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-controller:$(_IMAGE_TAG)
-	scp /tmp/infinidat-csi-driver-controller.$(_IMAGE_TAG).tar.gz root@esx-gdc-kvm-01.lab.gdc.il.infinidat.com:/release-backups/
-	docker save --output /tmp/infinidat-csi-driver-node.$(_IMAGE_TAG).tar.gz git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-node:$(_IMAGE_TAG)
-	scp /tmp/infinidat-csi-driver-node.$(_IMAGE_TAG).tar.gz root@esx-gdc-kvm-01.lab.gdc.il.infinidat.com:/release-backups/
+	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG) \
+		git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-driver:$(_IMAGE_TAG)
+	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-driver:$(_IMAGE_TAG)
 	@echo -e $(_finish)
 
