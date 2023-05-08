@@ -20,7 +20,7 @@ import (
 func (suite *ISCSIControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
+	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
 
 	tests.ConfigureKlog()
 }
@@ -29,7 +29,7 @@ type ISCSIControllerSuite struct {
 	suite.Suite
 	api        *api.MockApiService
 	accessMock *helper.MockAccessModesHelper
-	cs         *commonservice
+	cs         *Commonservice
 }
 
 func TestISCSIControllerSuite(t *testing.T) {

@@ -1242,7 +1242,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 		return targets, fmt.Errorf("no network spaces found")
 	}
 	klog.V(4).Infof("networkSpaces %v", networkSpaces)
-	if iscsi.cs.api == nil {
+	if iscsi.cs.Api == nil {
 		return targets, fmt.Errorf("no api found")
 	}
 
@@ -1250,7 +1250,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 
 	for i := 0; i < len(networkSpaces); i++ {
 		klog.V(4).Infof("getting nspace by name: %v", networkSpaces[i])
-		nspace, err := iscsi.cs.api.GetNetworkSpaceByName(networkSpaces[i])
+		nspace, err := iscsi.cs.Api.GetNetworkSpaceByName(networkSpaces[i])
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)
 			klog.Error(e)

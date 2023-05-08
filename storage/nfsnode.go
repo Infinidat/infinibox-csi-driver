@@ -160,7 +160,7 @@ func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 
 func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err error) {
 	//lookup file system information
-	fs, err := nfs.cs.api.GetFileSystemByID(filesystemId)
+	fs, err := nfs.cs.Api.GetFileSystemByID(filesystemId)
 	if err != nil {
 		e := fmt.Errorf("failed to get filesystem by id %d %v", filesystemId, err)
 		klog.Error(e)
@@ -184,7 +184,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 	}
 
 	// remove an existing export if it exists, this occurs when a pod restarts
-	resp, err := nfs.cs.api.GetExportByFileSystem(filesystemId)
+	resp, err := nfs.cs.Api.GetExportByFileSystem(filesystemId)
 	if err != nil {
 		klog.Errorf("error from GetExportByFileSystem filesystemId %d %v", filesystemId, err)
 		return err
@@ -197,7 +197,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 			if r.ExportPath == exportFileSystem.Export_path {
 				klog.V(4).Infof("export path was found to already exist %s", r.ExportPath)
 				// here is where we would delete the existing export
-				deleteResp, err := nfs.cs.api.DeleteExportPath(r.ID)
+				deleteResp, err := nfs.cs.Api.DeleteExportPath(r.ID)
 				if err != nil {
 					klog.Errorf("error from DeleteExportPath ID %d filesystemId %d %v", r.ID, filesystemId, err)
 					return err
@@ -210,7 +210,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 	// create the export rule
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	klog.V(4).Infof("exportFileSystem =%+v", exportFileSystem)
-	exportResp, err := nfs.cs.api.ExportFileSystem(exportFileSystem)
+	exportResp, err := nfs.cs.Api.ExportFileSystem(exportFileSystem)
 	if err != nil {
 		klog.Errorf("failed to create export path of filesystem %s %v", fs.Name, err)
 		return err

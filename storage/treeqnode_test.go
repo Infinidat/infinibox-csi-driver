@@ -38,7 +38,7 @@ func (suite *TreeqNodeSuite) SetupTest() {
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(MockStorageHelper)
 	suite.api = new(api.MockApiService)
-	suite.cs = &commonservice{api: suite.api, accessModesHelper: suite.accessMock}
+	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
 	tests.ConfigureKlog()
 }
 
@@ -48,7 +48,7 @@ type TreeqNodeSuite struct {
 	osHelperMock      *helper.MockOsHelper
 	accessMock        *helper.MockAccessModesHelper
 	api               *api.MockApiService
-	cs                *commonservice
+	cs                *Commonservice
 	storageHelperMock *MockStorageHelper
 }
 

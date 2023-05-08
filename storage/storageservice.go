@@ -59,11 +59,11 @@ type Storageoperations interface {
 // Mutex protecting device rescan and delete operations
 // var deviceMu sync.Mutex
 
-type commonservice struct {
-	api               api.Client
+type Commonservice struct {
+	Api               api.Client
 	storagePoolIdName map[int64]string
 	driverversion     string
-	accessModesHelper helper.AccessModesHelper
+	AccessModesHelper helper.AccessModesHelper
 }
 
 type nfsstorage struct {
@@ -78,7 +78,7 @@ type nfsstorage struct {
 	exportID               int64
 	exportBlock            string
 	ipAddress              string
-	cs                     commonservice
+	cs                     Commonservice
 	mounter                mount.Interface
 	osHelper               helper.OsHelper
 	storageHelper          StorageHelper
@@ -92,13 +92,13 @@ type treeqstorage struct {
 }
 
 type fcstorage struct {
-	cs            commonservice
+	cs            Commonservice
 	configmap     map[string]string
 	storageHelper StorageHelper
 }
 
 type iscsistorage struct {
-	cs       commonservice
+	cs       Commonservice
 	osHelper helper.OsHelper
 }
 
@@ -148,15 +148,15 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 	return nil, err
 }
 
-func BuildCommonService(config map[string]string, secretMap map[string]string) (commonservice, error) {
-	commonserv := commonservice{}
+func BuildCommonService(config map[string]string, secretMap map[string]string) (Commonservice, error) {
+	commonserv := Commonservice{}
 	if config != nil {
 		if secretMap == nil || len(secretMap) < 3 {
 			klog.Errorf("Api client cannot be initialized without proper secrets")
 			return commonserv, errors.New("secrets are missing or not valid")
 		}
-		commonserv = commonservice{
-			api: &api.ClientService{
+		commonserv = Commonservice{
+			Api: &api.ClientService{
 				SecretsMap: secretMap,
 			},
 		}
@@ -166,20 +166,20 @@ func BuildCommonService(config map[string]string, secretMap map[string]string) (
 			return commonserv, err
 		}
 		commonserv.driverversion = config["driverversion"]
-		commonserv.accessModesHelper = helper.AccessMode{}
+		commonserv.AccessModesHelper = helper.AccessMode{}
 	}
 	klog.V(2).Infof("buildCommonService commonservice configuration done. config %+v", config)
 	return commonserv, nil
 }
 
-func (cs *commonservice) verifyApiClient() error {
+func (cs *Commonservice) verifyApiClient() error {
 	klog.V(2).Infof("verifying api client")
-	c, err := cs.api.NewClient()
+	c, err := cs.Api.NewClient()
 	if err != nil {
 		klog.V(2).Infof("api client is not working.")
 		return errors.New("failed to create rest client")
 	}
-	cs.api = c
+	cs.Api = c
 	klog.V(2).Infof("api client is verified.")
 	return nil
 }
@@ -191,11 +191,11 @@ func (cs *commonservice) verifyApiClient() error {
 // 	return ""
 // }
 
-func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
-	luninfo, err = cs.api.MapVolumeToHost(hostID, volumeID, -1)
+func (cs *Commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
+	luninfo, err = cs.Api.MapVolumeToHost(hostID, volumeID, -1)
 	if err != nil {
 		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-			luninfo, err = cs.api.GetLunByHostVolume(hostID, volumeID)
+			luninfo, err = cs.Api.GetLunByHostVolume(hostID, volumeID)
 		}
 		if err != nil {
 			return luninfo, err
@@ -204,8 +204,8 @@ func (cs *commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.
 	return luninfo, nil
 }
 
-func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
-	err = cs.api.UnMapVolumeFromHost(hostID, volumeID)
+func (cs *Commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
+	err = cs.Api.UnMapVolumeFromHost(hostID, volumeID)
 	if err != nil {
 		// Ignore the following errors
 		successMsg := fmt.Sprintf("Success: No need to unmap volume with ID %d from host with ID %d", volumeID, hostID)
@@ -224,8 +224,8 @@ func (cs *commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 	return nil
 }
 
-func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) error {
-	_, err := cs.api.AddHostPort(portType, portName, hostID)
+func (cs *Commonservice) AddPortForHost(hostID int, portType, portName string) error {
+	_, err := cs.Api.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
 		klog.Errorf("failed to add host port with error %v", err)
 		return err
@@ -233,8 +233,8 @@ func (cs *commonservice) AddPortForHost(hostID int, portType, portName string) e
 	return nil
 }
 
-func (cs *commonservice) AddChapSecurityForHost(hostID int, credentials map[string]string) error {
-	_, err := cs.api.AddHostSecurity(credentials, hostID)
+func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[string]string) error {
+	_, err := cs.Api.AddHostSecurity(credentials, hostID)
 	if err != nil {
 		klog.Errorf("failed to add authentication for host %d with error %v", hostID, err)
 		return err
@@ -242,16 +242,16 @@ func (cs *commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 	return nil
 }
 
-func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
+func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 	klog.V(2).Infof("Check if host available, create if not available")
-	host, err := cs.api.GetHostByName(hostName)
+	host, err := cs.Api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 		klog.Errorf("failed to get host with error %v", err)
 		return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
 	}
 	if host.ID == 0 {
 		klog.V(2).Infof("Creating host with name: %s", hostName)
-		host, err = cs.api.CreateHost(hostName)
+		host, err = cs.Api.CreateHost(hostName)
 		if err != nil {
 			klog.Errorf("failed to create host with error %v", err)
 			return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
@@ -260,7 +260,7 @@ func (cs *commonservice) validateHost(hostName string) (*api.Host, error) {
 	return &host, nil
 }
 
-func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
+func (cs *Commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
 	klog.V(2).Infof("getCSIResponse called with volume %+v", vol)
 	storagePoolName := vol.PoolName
 	if storagePoolName == "" {
@@ -284,11 +284,11 @@ func (cs *commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 	return vi
 }
 
-func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
+func (cs *Commonservice) getStoragePoolNameFromID(id int64) string {
 	klog.V(2).Infof("getStoragePoolNameFromID called with storagepoolid %d", id)
 	storagePoolName := cs.storagePoolIdName[id]
 	if storagePoolName == "" {
-		pool, err := cs.api.FindStoragePool(id, "")
+		pool, err := cs.Api.FindStoragePool(id, "")
 		if err == nil {
 			storagePoolName = pool.Name
 			cs.storagePoolIdName[id] = pool.Name
@@ -299,8 +299,8 @@ func (cs *commonservice) getStoragePoolNameFromID(id int64) string {
 	return storagePoolName
 }
 
-func (cs *commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
-	nspace, err := cs.api.GetNetworkSpaceByName(networkSpace)
+func (cs *Commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
+	nspace, err := cs.Api.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return "", err
 	}
@@ -318,7 +318,7 @@ func getRandomIndex(max int) int {
 	return index
 }
 
-func (cs *commonservice) GetCreatedBy() string {
+func (cs *Commonservice) GetCreatedBy() string {
 	var createdBy string
 	createdBy = "CSI/" + cs.driverversion
 	k8version := getClusterVersion()
@@ -679,7 +679,7 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 }
 */
 
-func (cs *commonservice) pathExists(path string) (bool, error) {
+func (cs *Commonservice) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		klog.V(4).Infof("Path exists: %s", path)
@@ -696,7 +696,7 @@ func (cs *commonservice) pathExists(path string) (bool, error) {
 	}
 }
 
-func (cs *commonservice) isCorruptedMnt(err error) bool {
+func (cs *Commonservice) isCorruptedMnt(err error) bool {
 	if err == nil {
 		return false
 	}

@@ -99,7 +99,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 				klog.Errorf("error creating host port %v", err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			_, err := fc.cs.api.GetHostPort(hostId, fcp)
+			_, err := fc.cs.Api.GetHostPort(hostId, fcp)
 			if err != nil {
 				klog.Errorf("failed to get host port %s with error %v", fcp, err)
 				return nil, status.Error(codes.Internal, err.Error())
@@ -425,7 +425,7 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	wwids := req.GetVolumeContext()["WWIDs"]
 	wwidList := strings.Split(wwids, ",")
 	targetList := []string{}
-	fcNodes, err := fc.cs.api.GetFCPorts()
+	fcNodes, err := fc.cs.Api.GetFCPorts()
 	if err != nil {
 		klog.Error(err)
 		return nil, fmt.Errorf("error getting fiber channel details")

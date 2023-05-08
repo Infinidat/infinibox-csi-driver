@@ -29,13 +29,13 @@ import (
 
 func (suite *TreeqServiceSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
-	suite.cs = &commonservice{api: suite.api}
+	suite.cs = &Commonservice{Api: suite.api}
 }
 
 type TreeqServiceSuite struct {
 	suite.Suite
 	api *api.MockApiService
-	cs  *commonservice
+	cs  *Commonservice
 }
 
 func TestTreeqServiceSuite(t *testing.T) {

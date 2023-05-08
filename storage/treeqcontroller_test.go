@@ -35,7 +35,7 @@ func (suite *TreeqControllerSuite) SetupTest() {
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.filesystem = new(FileSystemInterfaceMock)
 	suite.api = new(api.MockApiService)
-	suite.cs = &commonservice{api: suite.api}
+	suite.cs = &Commonservice{Api: suite.api}
 
 	tests.ConfigureKlog()
 }
@@ -45,7 +45,7 @@ type TreeqControllerSuite struct {
 	osHelperMock      *helper.MockOsHelper
 	filesystem        *FileSystemInterfaceMock
 	api               *api.MockApiService
-	cs                *commonservice
+	cs                *Commonservice
 	storageHelperMock *MockStorageHelper
 	nfsMountMock      *MockNfsMounter
 }

@@ -3,7 +3,6 @@ module infinibox-csi-driver
 go 1.19
 
 require (
-	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.8.0
 	github.com/containerd/containerd v1.5.18
 	github.com/go-resty/resty/v2 v2.7.0

@@ -47,7 +47,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	err = validateStorageClassParameters(map[string]string{
 		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
-	}, nil, params, fc.cs.api)
+	}, nil, params, fc.cs.Api)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -75,7 +75,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// Pool name - already verified earlier
 	poolName := params[common.SC_POOL_NAME]
 
-	targetVol, err := fc.cs.api.GetVolumeByName(name)
+	targetVol, err := fc.cs.Api.GetVolumeByName(name)
 	if err != nil {
 		klog.Error(err)
 		if !strings.Contains(err.Error(), "volume with given name not found") {
@@ -107,7 +107,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		ProvisionType: volType,
 		SsdEnabled:    ssdEnabled,
 	}
-	volumeResp, err := fc.cs.api.CreateVolume(volumeParam, poolName)
+	volumeResp, err := fc.cs.Api.CreateVolume(volumeParam, poolName)
 	if err != nil {
 		klog.Errorf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
@@ -124,13 +124,13 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// confirm volume creation
 	var vol *api.Volume
 	var counter int
-	vol, err = fc.cs.api.GetVolume(volID)
+	vol, err = fc.cs.Api.GetVolume(volID)
 	if err != nil {
 		klog.Error(err)
 	}
 	for vol == nil && counter < 100 {
 		time.Sleep(3 * time.Millisecond)
-		vol, err = fc.cs.api.GetVolume(volID)
+		vol, err = fc.cs.Api.GetVolume(volID)
 		if err != nil {
 			klog.Error(err)
 		}
@@ -150,7 +150,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = volumeResp.Name
 	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = fc.cs.api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
+	_, err = fc.cs.Api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
 	if err != nil {
 		klog.Errorf("failed to attach metadata for volume: %s, err: %v", name, err)
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
@@ -208,7 +208,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		klog.Error(err)
 		return nil, status.Errorf(codes.InvalidArgument, restoreType+" invalid: %s", volumeContentID)
 	}
-	srcVol, err := fc.cs.api.GetVolume(ID)
+	srcVol, err := fc.cs.Api.GetVolume(ID)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", ID)
@@ -222,7 +222,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 
 	// Validate the storagePool is the same.
-	storagePoolID, err := fc.cs.api.GetStoragePoolIDByName(storagePool)
+	storagePoolID, err := fc.cs.Api.GetStoragePoolIDByName(storagePool)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.Internal,
@@ -244,7 +244,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		SsdEnabled:     ssdEnabled,
 	}
 	// Create snapshot
-	snapResponse, err := fc.cs.api.CreateSnapshotVolume(snapshotParam)
+	snapResponse, err := fc.cs.Api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.Internal, "failed to create snapshot: %s", err.Error())
@@ -252,7 +252,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 
 	// Retrieve created destination volume
 	volID := snapResponse.SnapShotID
-	dstVol, err := fc.cs.api.GetVolume(volID)
+	dstVol, err := fc.cs.Api.GetVolume(volID)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.Internal, "could not retrieve created volume: %d", volID)
@@ -265,7 +265,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	metadata := make(map[string]interface{})
 	metadata["host.k8s.pvname"] = dstVol.Name
 	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = fc.cs.api.AttachMetadataToObject(int64(dstVol.ID), metadata)
+	_, err = fc.cs.Api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
 		klog.Errorf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
@@ -296,20 +296,20 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	v, err := fc.cs.api.GetVolume(volID)
+	v, err := fc.cs.Api.GetVolume(volID)
 	if err != nil {
 		klog.Errorf("failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
 		return nil, errors.New("error getting volume by id")
 	}
 
 	// TODO: revisit this as part of CSIC-343
-	_, err = fc.cs.accessModesHelper.IsValidAccessMode(v, req)
+	_, err = fc.cs.AccessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	lunList, err := fc.cs.api.GetAllLunByHost(host.ID)
+	lunList, err := fc.cs.Api.GetAllLunByHost(host.ID)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -378,7 +378,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		return nil, errors.New("node ID not found")
 	}
 	hostName := nodeNameIP[0]
-	host, err := fc.cs.api.GetHostByName(hostName)
+	host, err := fc.cs.Api.GetHostByName(hostName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
@@ -396,12 +396,12 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		}
 	}
 	if len(host.Luns) < 2 {
-		luns, err := fc.cs.api.GetAllLunByHost(host.ID)
+		luns, err := fc.cs.Api.GetAllLunByHost(host.ID)
 		if err != nil {
 			klog.Errorf("failed to retrive luns for host %d with error %v", host.ID, err)
 		}
 		if len(luns) == 0 {
-			err = fc.cs.api.DeleteHost(host.ID)
+			err = fc.cs.Api.DeleteHost(host.ID)
 			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 				klog.Errorf("failed to delete host with error %v", err)
 				return nil, status.Error(codes.Internal, err.Error())
@@ -421,7 +421,7 @@ func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.Va
 	volID, _ := strconv.Atoi(volproto.VolumeID)
 
 	klog.V(4).Infof("volID: %d", volID)
-	v, err := fc.cs.api.GetVolume(volID)
+	v, err := fc.cs.Api.GetVolume(volID)
 	if err != nil {
 		klog.Errorf("Failed to find volume ID: %d, %v", volID, err)
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
@@ -470,7 +470,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	}
 
 	sourceVolumeID, _ := strconv.Atoi(volproto.VolumeID)
-	volumeSnapshot, err := fc.cs.api.GetVolumeByName(snapshotName)
+	volumeSnapshot, err := fc.cs.Api.GetVolumeByName(snapshotName)
 	if err != nil {
 		klog.Error(err)
 		klog.V(4).Infof("Snapshot with given name not found : %s", snapshotName)
@@ -495,7 +495,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		WriteProtected: true,
 	}
 
-	snapshot, err := fc.cs.api.CreateSnapshotVolume(snapshotParam)
+	snapshot, err := fc.cs.Api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		klog.Errorf("Failed to create snapshot %s error %v", snapshotName, err)
 		return
@@ -526,7 +526,7 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 }
 
 func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
-	vol, err := fc.cs.api.GetVolume(volumeID)
+	vol, err := fc.cs.Api.GetVolume(volumeID)
 	if err != nil {
 		klog.Error(err)
 		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
@@ -537,14 +537,14 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 			"error while validating volume status : %s",
 			err.Error())
 	}
-	childVolumes, err := fc.cs.api.GetVolumeSnapshotByParentID(vol.ID)
+	childVolumes, err := fc.cs.Api.GetVolumeSnapshotByParentID(vol.ID)
 	if err != nil {
 		klog.Error(err)
 	}
 	if len(*childVolumes) > 0 {
 		metadata := make(map[string]interface{})
 		metadata[TOBEDELETED] = true
-		_, err = fc.cs.api.AttachMetadataToObject(int64(vol.ID), metadata)
+		_, err = fc.cs.Api.AttachMetadataToObject(int64(vol.ID), metadata)
 		if err != nil {
 			klog.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
@@ -552,7 +552,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return
 	}
 	klog.V(4).Infof("Deleting volume name: %s id: %d", vol.Name, vol.ID)
-	err = fc.cs.api.DeleteVolume(vol.ID)
+	err = fc.cs.Api.DeleteVolume(vol.ID)
 	if err != nil {
 		klog.Error(err)
 		return status.Errorf(codes.Internal,
@@ -560,7 +560,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	}
 	if vol.ParentId != 0 {
 		klog.V(2).Infof("checkingif parent volume can be name: %s id: %d", vol.Name, vol.ID)
-		tobedel := fc.cs.api.GetMetadataStatus(int64(vol.ParentId))
+		tobedel := fc.cs.Api.GetMetadataStatus(int64(vol.ParentId))
 		if tobedel {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
 			if err != nil {
@@ -590,7 +590,7 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	// Expand volume size
 	var volume api.Volume
 	volume.Size = capacity
-	_, err = fc.cs.api.UpdateVolume(volumeID, volume)
+	_, err = fc.cs.Api.UpdateVolume(volumeID, volume)
 	if err != nil {
 		klog.Errorf("Failed to update file system %v", err)
 		return

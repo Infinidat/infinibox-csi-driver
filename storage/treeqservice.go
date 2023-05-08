@@ -48,7 +48,7 @@ const (
 // TreeqService file system services
 type TreeqService struct {
 	nfsstorage nfsstorage
-	cs         commonservice
+	cs         Commonservice
 	poolID     int64
 	treeqCnt   int
 }
@@ -73,7 +73,7 @@ func (ts *TreeqService) checkTreeqName(FileSystems []api.FileSystem, pVName stri
 		go func(f api.FileSystem) {
 			var it item
 			defer wg.Done()
-			it.treeq, it.err = ts.cs.api.GetTreeqByName(f.ID, pVName)
+			it.treeq, it.err = ts.cs.Api.GetTreeqByName(f.ID, pVName)
 			itmArry = append(itmArry, it)
 		}(f)
 	}
@@ -91,7 +91,7 @@ func (ts *TreeqService) checkTreeqName(FileSystems []api.FileSystem, pVName stri
 func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName string) (treeqVolumeContext map[string]string, err error) {
 	klog.V(4).Infof("IsTreeqAlreadyExist called pool %s netspace %s pVName %s", poolName, networkSpace, pVName)
 	treeqVolumeContext = make(map[string]string)
-	poolID, err := ts.cs.api.GetStoragePoolIDByName(poolName)
+	poolID, err := ts.cs.Api.GetStoragePoolIDByName(poolName)
 	if err != nil {
 		klog.Errorf("failed to get poolID from poolName %s", poolName)
 		return
@@ -100,7 +100,7 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName strin
 	page := 1
 	for {
 		klog.V(4).Infof("IsTreeqAlreadyExist looking for file systems page %d", page)
-		fsMetaData, poolErr := ts.cs.api.GetFileSystemsByPoolID(poolID, page)
+		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(poolID, page)
 		if poolErr != nil {
 			klog.Errorf("failed to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
 			err = errors.New("failed to get filesystems from poolName " + poolName)
@@ -151,7 +151,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 		return
 	}
 
-	maxTreeqPerFS, err := ts.cs.api.GetMaxTreeqPerFs()
+	maxTreeqPerFS, err := ts.cs.Api.GetMaxTreeqPerFs()
 	if err != nil {
 		klog.Errorf("error getting ibox %s limit %s", common.SC_MAX_TREEQS_PER_FILESYSTEM, err.Error())
 		return nil, err
@@ -171,7 +171,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 
 	page := 1
 	for {
-		fsMetaData, poolErr := ts.cs.api.GetFileSystemsByPoolID(ts.poolID, page)
+		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(ts.poolID, page)
 		if poolErr != nil {
 			klog.Errorf("failed to get filesystems from poolID %d and page no %d error %v", ts.poolID, page, err)
 			err = errors.New("failed to get filesystems from poolName " + ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
@@ -183,7 +183,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 		}
 		for _, fs := range fsMetaData.FileSystemArry {
 			if fs.Size+ts.nfsstorage.capacity < maxFileSystemSize {
-				treeqCnt, treeqCnterr := ts.cs.api.GetFilesytemTreeqCount(fs.ID)
+				treeqCnt, treeqCnterr := ts.cs.Api.GetFilesytemTreeqCount(fs.ID)
 				if treeqCnterr != nil {
 					klog.Errorf("failed to get treeq count of filesystemID %d error %v", fs.ID, err)
 					err = errors.New("failed to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
@@ -229,7 +229,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 	ts.nfsstorage.ipAddress = ipAddress
 
 	var poolID int64
-	poolID, err = ts.cs.api.GetStoragePoolIDByName(ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
+	poolID, err = ts.cs.Api.GetStoragePoolIDByName(ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
 	if err != nil {
 		klog.Errorf("failed to get poolID from poolName %s", ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
 		return
@@ -289,11 +289,11 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		"name":          ts.nfsstorage.pVName,
 		"hard_capacity": ts.nfsstorage.capacity,
 	}
-	treeqResponse, createTreeqerr := ts.cs.api.CreateTreeq(filesystemID, treeqParameters)
+	treeqResponse, createTreeqerr := ts.cs.Api.CreateTreeq(filesystemID, treeqParameters)
 	if createTreeqerr != nil {
 		klog.Errorf("failed to create treeq  %s error %v", ts.nfsstorage.pVName, err)
 		if filesys == nil { // if the file system created at the time of creating first treeq ,then delete the complete filesystem with export and metata
-			deleteFilesystemErr := ts.cs.api.DeleteFileSystemComplete(filesystemID)
+			deleteFilesystemErr := ts.cs.Api.DeleteFileSystemComplete(filesystemID)
 			if deleteFilesystemErr != nil {
 				klog.Errorf("failed to delete filesystem ,filesystemID = %d", filesystemID)
 			}
@@ -314,7 +314,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		// if AttachMetadataToObject - failed to add metadata then delete the created treeq
 		if ts.nfsstorage.fileSystemID != 0 {
 			klog.V(2).Infof("error reverting treeq: %s", ts.nfsstorage.pVName)
-			_, errDelTreeq := ts.cs.api.DeleteTreeq(ts.nfsstorage.fileSystemID, treeqResponse.ID)
+			_, errDelTreeq := ts.cs.Api.DeleteTreeq(ts.nfsstorage.fileSystemID, treeqResponse.ID)
 			if errDelTreeq != nil {
 				klog.Errorf("failed to delete treeq: %s", ts.nfsstorage.pVName)
 			}
@@ -326,7 +326,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 	if filesys != nil {
 		var updateFileSys api.FileSystem
 		updateFileSys.Size = filesys.Size + ts.nfsstorage.capacity
-		_, updateFileSizeErr := ts.cs.api.UpdateFilesystem(filesystemID, updateFileSys)
+		_, updateFileSizeErr := ts.cs.Api.UpdateFilesystem(filesystemID, updateFileSys)
 		if updateFileSizeErr != nil {
 			klog.Errorf("failed to update File Size %v", err)
 			err = errors.New("failed to update files size")
@@ -367,7 +367,7 @@ func convertToByte(size string) (bytes int64, err error) {
 }
 
 func (ts *TreeqService) getExportPath(filesystemID int64) error {
-	exportResponse, exportErr := ts.cs.api.GetExportByFileSystem(filesystemID)
+	exportResponse, exportErr := ts.cs.Api.GetExportByFileSystem(filesystemID)
 	if exportErr != nil {
 		klog.Errorf("failed to create export path of filesystem %d", filesystemID)
 		return exportErr
@@ -385,7 +385,7 @@ var deleteMutex sync.Mutex
 func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
 	// 1. treeq exist or not checked
 	var treeq *api.Treeq
-	treeq, err = ts.cs.api.GetTreeq(filesystemID, treeqID)
+	treeq, err = ts.cs.Api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
 			err = errors.New("treeq does not exist on infinibox")
@@ -413,7 +413,7 @@ func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err erro
 		return
 	}
 	// 4.delete the treeq
-	_, err = ts.cs.api.DeleteTreeq(filesystemID, treeqID)
+	_, err = ts.cs.Api.DeleteTreeq(filesystemID, treeqID)
 	if err != nil {
 		klog.Errorf("failed to delete treeq")
 		if _, errUpdTreeq := ts.UpdateTreeqCnt(filesystemID, IncrementTreeqCount, 0); errUpdTreeq != nil {
@@ -424,7 +424,7 @@ func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err erro
 
 	// 5.Delete file system if all treeq are delete
 	if treeqCnt == 0 { // means all tree are delete. then delete the complete filesystem with exportPath ,metadata..etc
-		err = ts.cs.api.DeleteFileSystemComplete(filesystemID)
+		err = ts.cs.Api.DeleteFileSystemComplete(filesystemID)
 		if err != nil {
 			klog.Errorf("failed to delete filesystem filesystemID %d error %v", filesystemID, err)
 			return
@@ -437,7 +437,7 @@ func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err erro
 // UpdateTreeqCnt method
 func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqCnt int) (treeqCount int, err error) {
 	if treeqCnt == 0 {
-		treeqCnt, err = ts.cs.api.GetFilesytemTreeqCount(fileSystemID)
+		treeqCnt, err = ts.cs.Api.GetFilesytemTreeqCount(fileSystemID)
 		if err != nil {
 			return
 		}
@@ -453,7 +453,7 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqC
 	metadataParamter := map[string]interface{}{
 		TREEQCOUNT: treeqCnt,
 	}
-	_, err = ts.cs.api.AttachMetadataToObject(fileSystemID, metadataParamter)
+	_, err = ts.cs.Api.AttachMetadataToObject(fileSystemID, metadataParamter)
 	if err != nil {
 		klog.Errorf("failed to update treeq count for filesystemID : %d error %v", fileSystemID, err)
 		return
@@ -468,14 +468,14 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqC
 func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxFileSystemSize string) (err error) {
 
 	// Get Filesystem
-	fileSystemResponse, err := svc.cs.api.GetFileSystemByID(filesystemID)
+	fileSystemResponse, err := svc.cs.Api.GetFileSystemByID(filesystemID)
 	if err != nil {
 		klog.Errorf("failed to get file system %v", err)
 		return
 	}
 
 	// Get a treeq
-	treeq, err := svc.cs.api.GetTreeq(filesystemID, treeqID)
+	treeq, err := svc.cs.Api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
 			klog.V(4).Infof("treeq not found %d", treeqID)
@@ -486,7 +486,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 	}
 
 	// Get sum of all the treeq size of filesystem
-	totalTreeqSize, err := svc.cs.api.GetTreeqSizeByFileSystemID(filesystemID)
+	totalTreeqSize, err := svc.cs.Api.GetTreeqSizeByFileSystemID(filesystemID)
 	if err != nil {
 		klog.Errorf("failed to get sum of all the treeq sizes in a filesystem")
 		return
@@ -513,7 +513,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 		}
 
 		// Expand file system size
-		_, err = svc.cs.api.UpdateFilesystem(filesystemID, fileSys)
+		_, err = svc.cs.Api.UpdateFilesystem(filesystemID, fileSys)
 		if err != nil {
 			klog.Errorf("failed to update file system %v", err)
 			return err
@@ -522,7 +522,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 
 	// Expand Treeq size
 	body := map[string]interface{}{"hard_capacity": capacity}
-	_, err = svc.cs.api.UpdateTreeq(filesystemID, treeqID, body)
+	_, err = svc.cs.Api.UpdateTreeq(filesystemID, treeqID, body)
 	if err != nil {
 		klog.Errorf("failed to update treeq size %v", err)
 		return

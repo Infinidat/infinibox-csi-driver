@@ -38,7 +38,6 @@ type ControllerServer struct {
 
 // CreateVolume method create the volume
 func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
-	// TODO: validate the required parameter
 
 	volName := req.GetName()
 	reqParameters := req.GetParameters()

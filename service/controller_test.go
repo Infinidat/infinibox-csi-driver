@@ -15,12 +15,13 @@ package service
 
 import (
 	"context"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
-	"bou.ke/monkey"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -28,8 +29,24 @@ import (
 
 type ControllerTestSuite struct {
 	suite.Suite
+	api            *api.MockApiService
+	accessMock     *helper.MockAccessModesHelper
+	cs             *storage.Commonservice
+	mockController *ControllerMock
 }
 
+func (suite *ControllerTestSuite) SetupTest() {
+	suite.mockController = &ControllerMock{}
+	x := new(api.MockApiService)
+	suite.api = x
+	suite.accessMock = new(helper.MockAccessModesHelper)
+	suite.cs = &storage.Commonservice{
+		Api:               x,
+		AccessModesHelper: suite.accessMock,
+	}
+
+	tests.ConfigureKlog()
+}
 func TestControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(ControllerTestSuite))
 }
@@ -94,53 +111,19 @@ func (suite *ControllerTestSuite) Test_CreateVolume_VolumeCapabilities_MultiNode
 	var arr []*csi.VolumeCapability
 	arr = append(arr, &capa)
 	createVolumeReq.VolumeCapabilities = arr
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "n",
-		},
-	}
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.CreateVolume(context.Background(), createVolumeReq)
+	_, err := suite.mockController.CreateVolume(context.Background(), createVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume VolumeCapabilities with MULTI_NODE_READER access")
 }
-
-/** I currently don't see any value in this unit test, of course the CreateVolume
- will fail if its not mocked.
-
-func (suite *ControllerTestSuite) Test_CreateVolume_UnmockedFail() {
-	parameterMap := getControllerCreateVolumeParameters()
-	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
-	//s := getController()
-	driver := &Driver{
-		nodeID: "na",
-	}
-	cs := ControllerServer{
-		Driver: driver,
-	}
-	_, err := cs.CreateVolume(context.Background(), createVolumeReq)
-	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume with unmocked Controller")
+func getNetworkSpace() api.NetworkSpace {
+	portalArry := []api.Portal{{IpAdress: "10.20.20.50"}}
+	return api.NetworkSpace{Portals: portalArry, Service: common.NS_NFS_SVC}
 }
-*/
 
 func (suite *ControllerTestSuite) Test_CreateVolume_success() {
 	parameterMap := getControllerCreateVolumeParameters()
 	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
-
-	resp, err := cs.CreateVolume(context.Background(), createVolumeReq)
+	resp, err := suite.mockController.CreateVolume(context.Background(), createVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume")
 	assert.NotNil(suite.T(), resp)
 }
@@ -171,18 +154,7 @@ func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidProtocol() {
 
 func (suite *ControllerTestSuite) Test_DeleteVolume_Success() {
 	deleteVolumeReq := getControllerDeleteVolumeRequest()
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
-
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.DeleteVolume(context.Background(), deleteVolumeReq)
+	_, err := suite.mockController.DeleteVolume(context.Background(), deleteVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteVolume")
 }
 
@@ -213,18 +185,8 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_Invalid_protocol(
 func (suite *ControllerTestSuite) Test_ControllerPublishVolume_success() {
 	publishVolReq := getControllerPublishVolumeRequest()
 	publishVolReq.VolumeId = "100$$nfs"
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
 
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.ControllerPublishVolume(context.Background(), publishVolReq)
+	_, err := suite.mockController.ControllerPublishVolume(context.Background(), publishVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller PublishVolume")
 }
 
@@ -255,18 +217,7 @@ func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_InvalidProtocol
 func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_success() {
 	unpublishVolReq := getControllerUnpublishVolumeRequest()
 	unpublishVolReq.VolumeId = "100$$nfs"
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
-
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	_, err := suite.mockController.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller UnpublishVolume")
 }
 
@@ -297,18 +248,7 @@ func (suite *ControllerTestSuite) Test_CreateSnapshot_Invalid_protocol() {
 func (suite *ControllerTestSuite) Test_CreateSnapshot_success() {
 	createSnapshotReq := getControllerCreateSnapshotRequest()
 	createSnapshotReq.SourceVolumeId = "100$$nfs"
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
-
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.CreateSnapshot(context.Background(), createSnapshotReq)
+	_, err := suite.mockController.CreateSnapshot(context.Background(), createSnapshotReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateSnapshot")
 }
 
@@ -338,18 +278,8 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_Invalid_protocol() {
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_success() {
 	deleteSnapshotReq := getControllerDeleteSnapshotRequest()
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
+	_, err := suite.mockController.DeleteSnapshot(context.Background(), deleteSnapshotReq)
 
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.DeleteSnapshot(context.Background(), deleteSnapshotReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot")
 }
 
@@ -379,18 +309,7 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_Invalid_protocol()
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 	expandVolReq := getControllerExpandVolumeRequest()
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
-
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.ControllerExpandVolume(context.Background(), expandVolReq)
+	_, err := suite.mockController.ControllerExpandVolume(context.Background(), expandVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller ExpandVolume")
 }
 
@@ -408,18 +327,7 @@ func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_success() {
 
 func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
 	validateVolCapsReq := getControllerValidateVolumeCapabilitiesRequest()
-	cs := ControllerServer{
-		Driver: &Driver{
-			nodeID: "na",
-		},
-	}
-
-	patch := monkey.Patch(storage.NewStorageController, func(_ string, _ ...map[string]string) (storage.Storageoperations, error) {
-		return &ControllerMock{}, nil
-	})
-	defer patch.Unpatch()
-
-	_, err := cs.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
+	_, err := suite.mockController.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller ValidateVolumeCapabilities")
 }
 

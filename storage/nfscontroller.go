@@ -74,7 +74,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	capacity, err := nfsSanityCheck(req, map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, nil, nfs.cs.api)
+	}, nil, nfs.cs.Api)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -119,7 +119,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	klog.V(4).Infof("getNetworkSpaceIP ipAddress %s", nfs.ipAddress)
 
 	// check if volume with given name already exists
-	volume, err := nfs.cs.api.GetFileSystemByName(pvName)
+	volume, err := nfs.cs.Api.GetFileSystemByName(pvName)
 	if err != nil {
 		klog.Error(err)
 	}
@@ -130,7 +130,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	if volume != nil {
 		// return existing volume
 		nfs.fileSystemID = volume.ID
-		exportArray, err := nfs.cs.api.GetExportByFileSystem(nfs.fileSystemID)
+		exportArray, err := nfs.cs.Api.GetExportByFileSystem(nfs.fileSystemID)
 		if err != nil {
 			klog.Error(err)
 			return nil, status.Errorf(codes.Internal, "error CreateVolume failed: %v", err)
@@ -140,7 +140,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		}
 		if capacity != volume.Size {
 			err = status.Errorf(codes.AlreadyExists, "error CreateVolume failed: volume exists but has different size")
-			klog.Errorf("volume: %s id: %d, %v", pvName, nfs.fileSystemID, err)
+			klog.Errorf("capacity %d volume: %+v", capacity, volume)
 			return nil, err
 		}
 		for _, export := range *exportArray {
@@ -196,7 +196,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	}
 
 	// Look up the source volume
-	srcfsys, err := nfs.cs.api.GetFileSystemByID(sourceVolumeID)
+	srcfsys, err := nfs.cs.Api.GetFileSystemByID(sourceVolumeID)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.NotFound, "volume not found: %d", sourceVolumeID)
@@ -209,7 +209,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	}
 
 	// Check that the requested storagePool matches the source
-	storagePoolID, err := nfs.cs.api.GetStoragePoolIDByName(storagePool)
+	storagePoolID, err := nfs.cs.Api.GetStoragePoolIDByName(storagePool)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Errorf(codes.InvalidArgument, "error GetStoragePoolIDByName: %s", storagePool)
@@ -223,7 +223,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	newSnapshotParams := &api.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: newSnapshotName, WriteProtected: false}
 	klog.V(4).Infof("CreateFileSystemSnapshot: %v", newSnapshotParams)
 	// Create snapshot
-	newSnapshot, err := nfs.cs.api.CreateFileSystemSnapshot(newSnapshotParams)
+	newSnapshot, err := nfs.cs.Api.CreateFileSystemSnapshot(newSnapshotParams)
 	if err != nil {
 		e := fmt.Errorf("failed to create snapshot: %s error: %v", newSnapshotParams.SnapshotName, err)
 		klog.Error(e)
@@ -242,7 +242,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 
 // CreateNFSVolume create volume method
 func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
-	validnwlist, err := nfs.cs.api.OneTimeValidation(nfs.storageClassParameters[common.SC_POOL_NAME], nfs.storageClassParameters[common.SC_NETWORK_SPACE])
+	validnwlist, err := nfs.cs.Api.OneTimeValidation(nfs.storageClassParameters[common.SC_POOL_NAME], nfs.storageClassParameters[common.SC_NETWORK_SPACE])
 	if err != nil {
 		klog.Error(err)
 		return nil, err
@@ -267,7 +267,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	defer func() {
 		if err != nil && nfs.fileSystemID != 0 {
 			klog.V(4).Infof("seems to be some problem reverting filesystem: %s", nfs.pVName)
-			if _, errDelFS := nfs.cs.api.DeleteFileSystem(nfs.fileSystemID); errDelFS != nil {
+			if _, errDelFS := nfs.cs.Api.DeleteFileSystem(nfs.fileSystemID); errDelFS != nil {
 				klog.Errorf("failed to delete file system id: %d %v", nfs.fileSystemID, errDelFS)
 			}
 		}
@@ -287,7 +287,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	defer func() {
 		if err != nil && nfs.exportID != 0 {
 			klog.V(4).Infof("seems to be some problem reverting created export id: %d", nfs.exportID)
-			if _, errDelExport := nfs.cs.api.DeleteExportPath(nfs.exportID); errDelExport != nil {
+			if _, errDelExport := nfs.cs.Api.DeleteExportPath(nfs.exportID); errDelExport != nil {
 				klog.Errorf("failed to delete export path for file system id: %d %v", nfs.fileSystemID, errDelExport)
 			}
 		}
@@ -298,7 +298,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 		"host.created_by": nfs.cs.GetCreatedBy(),
 	}
 
-	_, err = nfs.cs.api.AttachMetadataToObject(nfs.fileSystemID, metadata)
+	_, err = nfs.cs.Api.AttachMetadataToObject(nfs.fileSystemID, metadata)
 	if err != nil {
 		klog.Errorf("failed to attach metadata for file system %s, %v", nfs.pVName, err)
 		return
@@ -323,7 +323,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 	}
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	var exportResp *api.ExportResponse
-	exportResp, err = nfs.cs.api.ExportFileSystem(exportFileSystem)
+	exportResp, err = nfs.cs.Api.ExportFileSystem(exportFileSystem)
 	if err != nil {
 		klog.Errorf("failed to create export path of filesystem %s %v", nfs.pVName, err)
 		return err
@@ -336,7 +336,7 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 
 func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 	namepool := nfs.storageClassParameters[common.SC_POOL_NAME]
-	poolID, err := nfs.cs.api.GetStoragePoolIDByName(namepool)
+	poolID, err := nfs.cs.Api.GetStoragePoolIDByName(namepool)
 	if err != nil {
 		klog.Errorf("failed to get GetPoolID by pool_name %s %v", namepool, err)
 		return err
@@ -353,7 +353,7 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 		"provtype":            strings.ToUpper(nfs.storageClassParameters[common.SC_PROVISION_TYPE]),
 		"size":                nfs.capacity,
 	}
-	fileSystem, err := nfs.cs.api.CreateFilesystem(mapRequest)
+	fileSystem, err := nfs.cs.Api.CreateFilesystem(mapRequest)
 	if err != nil {
 		klog.Errorf("failed to create filesystem %s %v", fileSystemName, err)
 		return err
@@ -418,18 +418,18 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 // DeleteNFSVolume delete volume method
 func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 
-	_, fileSystemErr := nfs.cs.api.GetFileSystemByID(nfs.uniqueID)
+	_, fileSystemErr := nfs.cs.Api.GetFileSystemByID(nfs.uniqueID)
 	if fileSystemErr != nil {
 		klog.Errorf("failed to get file system by ID %d %v", nfs.uniqueID, fileSystemErr)
 		err = fileSystemErr
 		return
 	}
-	hasChild := nfs.cs.api.FileSystemHasChild(nfs.uniqueID)
+	hasChild := nfs.cs.Api.FileSystemHasChild(nfs.uniqueID)
 	if hasChild {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
-		_, err = nfs.cs.api.AttachMetadataToObject(nfs.uniqueID, metadata)
+		_, err = nfs.cs.Api.AttachMetadataToObject(nfs.uniqueID, metadata)
 		if err != nil {
 			klog.Errorf("failed to update host.k8s.to_be_deleted for filesystem %s error: %v", nfs.pVName, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
@@ -437,14 +437,14 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 		return
 	}
 
-	parentID := nfs.cs.api.GetParentID(nfs.uniqueID)
-	err = nfs.cs.api.DeleteFileSystemComplete(nfs.uniqueID)
+	parentID := nfs.cs.Api.GetParentID(nfs.uniqueID)
+	err = nfs.cs.Api.DeleteFileSystemComplete(nfs.uniqueID)
 	if err != nil {
 		klog.Errorf("failed to delete filesystem %s error: %v", nfs.pVName, err)
 		err = errors.New("error while delete file system")
 	}
 	if parentID != 0 {
-		err = nfs.cs.api.DeleteParentFileSystem(parentID)
+		err = nfs.cs.Api.DeleteParentFileSystem(parentID)
 		if err != nil {
 			klog.Errorf("failed to delete filesystem's %s parent filesystems error: %v", nfs.pVName, err)
 		}
@@ -468,7 +468,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 
 	// TODO: revisit this as part of CSIC-343
-	_, err = nfs.cs.accessModesHelper.IsValidAccessModeNfs(req)
+	_, err = nfs.cs.AccessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
 		klog.Error(err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -500,7 +500,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	}
 	nodeIP := nodeNameIP[1]
 	exportid, _ := strconv.Atoi(exportID)
-	_, err = nfs.cs.api.AddNodeInExport(exportid, access, noRootSquash, nodeIP)
+	_, err = nfs.cs.Api.AddNodeInExport(exportid, access, noRootSquash, nodeIP)
 	if err != nil {
 		klog.Errorf("failed to add export rule, %v", err)
 		return nil, status.Errorf(codes.Internal, "failed to add export rule  %s", err)
@@ -514,7 +514,7 @@ func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.C
 	voltype := req.GetVolumeId()
 	volproto := strings.Split(voltype, "$$")
 	fileID, _ := strconv.ParseInt(volproto[0], 10, 64)
-	err := nfs.cs.api.DeleteExportRule(fileID, req.GetNodeId())
+	err := nfs.cs.Api.DeleteExportRule(fileID, req.GetNodeId())
 	if err != nil {
 		klog.Errorf("failed to delete Export Rule fileystemID %d error %v", fileID, err)
 		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
@@ -536,7 +536,7 @@ func (nfs *nfsstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.
 	}
 
 	klog.V(4).Infof("volID: %d", volID)
-	fs, err := nfs.cs.api.GetFileSystemByID(volID)
+	fs, err := nfs.cs.Api.GetFileSystemByID(volID)
 	if err != nil {
 		klog.Errorf("failed to find volume ID: %d, %v", volID, err)
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
@@ -586,7 +586,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	}
 
 	sourceFilesystemID, _ := strconv.ParseInt(volproto.VolumeID, 10, 64)
-	snapshotArray, err := nfs.cs.api.GetSnapshotByName(snapshotName)
+	snapshotArray, err := nfs.cs.Api.GetSnapshotByName(snapshotName)
 	if err != nil {
 		klog.Errorf("error GetSnapshotByName %s, %v", volproto.VolumeID, err)
 		return
@@ -619,7 +619,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		WriteProtected: true,
 	}
 
-	resp, err := nfs.cs.api.CreateFileSystemSnapshot(fileSystemSnapshot)
+	resp, err := nfs.cs.Api.CreateFileSystemSnapshot(fileSystemSnapshot)
 	if err != nil {
 		klog.Errorf("failed to create snapshot %s error %v", snapshotName, err)
 		return
@@ -676,7 +676,7 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 	// Expand file system size
 	var fileSys api.FileSystem
 	fileSys.Size = capacity
-	_, err = nfs.cs.api.UpdateFilesystem(ID, fileSys)
+	_, err = nfs.cs.Api.UpdateFilesystem(ID, fileSys)
 	if err != nil {
 		klog.Errorf("failed to update file system %v", err)
 		return
