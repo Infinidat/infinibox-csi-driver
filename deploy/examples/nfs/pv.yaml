@@ -12,17 +12,17 @@ spec:
   csi:
     controllerExpandSecretRef:
       name: infinibox-creds
-      namespace: infi
+      namespace: infinidat-csi
     controllerPublishSecretRef:
       name: infinibox-creds
-      namespace: infi
+      namespace: infinidat-csi
     driver: infinibox-csi-driver
     nodePublishSecretRef:
       name: infinibox-creds
-      namespace: infi
+      namespace: infinidat-csi
     nodeStageSecretRef:
       name: infinibox-creds
-      namespace: infi
+      namespace: infinidat-csi
     volumeAttributes:
       exportID: 3000
       ipAddress: 172.17.35.45

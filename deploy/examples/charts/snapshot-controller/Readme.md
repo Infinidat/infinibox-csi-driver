@@ -5,7 +5,7 @@ This is a Helm chart to deploy the snapshot controller. Not all kubernetes distr
 ## Install snapshot controller
  - Modify `values.yaml` to include an imagePullSecret if required
  - Install the snapshot controller
-   `helm -n infi install snap-release ./`
+   `helm -n infinidat-csi install snap-release ./`
 
 ## Uninstall snapshot controller
-   `helm -n infi uninstall snap-release`
+   `helm -n infinidat-csi uninstall snap-release`

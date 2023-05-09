@@ -18,15 +18,15 @@ parameters:
     fs_prefix: csit_
     ssd_enabled: "true"
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
-    csi.storage.k8s.io/provisioner-secret-namespace: infi
+    csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
-    csi.storage.k8s.io/controller-publish-secret-namespace: infi
+    csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
     csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
-    csi.storage.k8s.io/node-stage-secret-namespace: infi
+    csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
     csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
-    csi.storage.k8s.io/node-publish-secret-namespace: infi
+    csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
-    csi.storage.k8s.io/controller-expand-secret-namespace: infi
+    csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
     # optional parameters
     # the following parameters can be used to override ibox limits
     # max_filesystems: "999"

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: sticky-treeq-pv
-  namespace: infi
+  namespace: infinidat-csi
 spec:
   accessModes:
   - ReadWriteMany

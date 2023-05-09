@@ -1,4 +1,4 @@
-_namespace = infi
+_namespace = infinidat-csi
 # _namespace = infinibox-operator-system
 _helm_release = infiniboxcsidriver-sample
 _private_docker_reg = git.infinidat.com:4567 

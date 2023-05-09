@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: pod-with-block-volume
-  namespace: infi
+  namespace: infinidat-csi
 spec:
   containers:
     - name: fc-container

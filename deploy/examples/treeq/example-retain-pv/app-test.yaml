@@ -2,7 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: treeq-sticky-pvc-test
-  namespace: infi
+  namespace: infinidat-csi
 spec:
   containers:
     - name: my-frontend

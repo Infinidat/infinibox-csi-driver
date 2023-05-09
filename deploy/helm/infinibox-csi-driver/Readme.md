@@ -4,10 +4,10 @@ This is a Helm chart to deploy the InfiniBox CSI driver. See more details and re
 # Usage
 ## Install driver
  - Modify `values.yaml` to include InfiniBox hostname, Pool Admin credentials, and Kubernetes secret name
- - Create a namespace for CSI driver deployment - e.g. `infi`
-   `kubectl create namespace infi`
+ - Create a namespace for CSI driver deployment - e.g. `infinidat-csi`
+   `kubectl create namespace infinidat-csi`
  - Install the driver
-   `helm install csi-infinibox -n=infi ./`
+   `helm install csi-infinibox -n=infinidat-csi ./`
 
 ## Uninstall driver
-   `helm uninstall csi-infinibox -n=infi`
+   `helm uninstall csi-infinibox -n=infinidat-csi`

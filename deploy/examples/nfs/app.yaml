@@ -2,7 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: ibox-pod-pvc-demo
-  namespace: infi
+  namespace: infinidat-csi
 spec:
   containers:
     - name: my-busybox

@@ -40,15 +40,15 @@ created to hold this PVC treeq.
 At this point you can view the PVC and the PV that were created:
 
     kubectl get pv
-    kubectl -n infi get pvc
+    kubectl -n infinidat-csi get pvc
 
 You should see output similar to this:
 
     kubectl get pv
     NAME             CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                      STORAGECLASS                   REASON   AGE
-    csi-43eaa20364   1Gi        RWX            Delete           Bound    infi/      ibox-treeq-pvc-demo   ibox-treeq-storageclass-demo            67m
+    csi-43eaa20364   1Gi        RWX            Delete           Bound    infinidat-csi/             ibox-treeq-pvc-demo   ibox-treeq-storageclass-demo            67m
 
-    kubectl -n infi get pvc
+    kubectl -n infinidat-csiget pvc
     NAME                  STATUS   VOLUME           CAPACITY   ACCESS MODES   STORAGECLASS                   AGE
     ibox-treeq-pvc-demo   Bound    csi-43eaa20364   1Gi        RWX            ibox-treeq-storageclass-demo   70m
 
@@ -61,7 +61,7 @@ Next, create the sample application which will use the PVC;
 Lastly, test the application using 'exec' to get into the application, notice that the PVC is mounted at /tmp/data,
 create a sample file on the mounted directory, this tests write access:
 
-    kubectl -n infi exec -it ibox-pod-treeq-demo sh
+    kubectl -n infinidat-csiexec -it ibox-pod-treeq-demo sh
     cd /tmp/data
     touch it
     echo "foo" > /tmp/data/it
@@ -141,15 +141,15 @@ At this point, you should see two PV's that essentially map to the same treeq on
 ibox:
 
     kubectl get pv
-    NAME              CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                  STORAGECLASS                          REASON   AGE
-    csi-bf4d7e4f43    1Gi        RWX            Retain           Released    infi/pvc-existing-pv   ibox-treeq-storageclass-demo-retain            48m
-    sticky-treeq-pv   1Gi        RWX            Retain           Available                          ibox-treeq-storageclass-demo-retain            4s
+    NAME              CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM                              STORAGECLASS                          REASON   AGE
+    csi-bf4d7e4f43    1Gi        RWX            Retain           Released    infinidat-csi/pvc-existing-pv      ibox-treeq-storageclass-demo-retain            48m
+    sticky-treeq-pv   1Gi        RWX            Retain           Available                                      ibox-treeq-storageclass-demo-retain            4s
 
 You can now create a PVC that references the sticky-treeq-pv volume:
 
     kubectl create -f example-retain-pv/pvc-test-sticky.yaml
 
-    kubectl -n infi get pvc
+    kubectl -n infinidat-csiget pvc
     NAME               STATUS   VOLUME            CAPACITY   ACCESS MODES   STORAGECLASS                          AGE
     treeq-sticky-pvc   Bound    sticky-treeq-pv   1Gi        RWX            ibox-treeq-storageclass-demo-retain   3s
 
@@ -157,13 +157,13 @@ You can test an application can bind to the PVC using the following:
 
     kubectl create -f example-retain-pv/app-test.yaml
 
-    kubectl -n infi get pod
+    kubectl -n infinidat-csiget pod
     NAME                              READY   STATUS    RESTARTS   AGE
     infinidat-csi-driver-node-t5r5s   2/2     Running   0          123m
     infinidat-csi-driver-driver-0     5/5     Running   0          123m
     treeq-sticky-pvc-test             1/1     Running   0          4s
 
-    kubectl -n infi exec -it treeq-sticky-pvc-test sh
+    kubectl -n infinidat-csiexec -it treeq-sticky-pvc-test sh
     touch /tmp/data/foo
     echo "foo" > /tmp/data/foo
     cat /tmp/data/foo
@@ -201,13 +201,13 @@ Next, create a PVC that maps to the PV you just created:
 
 You should end up with a bound PVC similar to this:
 
-    kubectl -n infi get pvc
+    kubectl -n infinidat-csiget pvc
     NAME             STATUS   VOLUME              CAPACITY   ACCESS MODES   STORAGECLASS                          AGE
     existing-treeq   Bound    existing-treeq-pv   1Gi        RWX            ibox-treeq-storageclass-demo-retain   102m
 
-    kubectl -n infi get pv
-    NAME                CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM                   STORAGECLASS                          REASON   AGE
-    existing-treeq-pv   1Gi        RWX            Retain           Bound      infi/existing-treeq     ibox-treeq-storageclass-demo-retain            103m
+    kubectl -n infinidat-csiget pv
+    NAME                CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS     CLAIM                            STORAGECLASS                          REASON   AGE
+    existing-treeq-pv   1Gi        RWX            Retain           Bound      infinidat-csi/existing-treeq     ibox-treeq-storageclass-demo-retain            103m
 
 Lastly, create a sample application that uses the PVC:
 
