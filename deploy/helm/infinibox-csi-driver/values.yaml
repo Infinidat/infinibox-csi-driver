@@ -45,8 +45,9 @@ images:
   resizersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/external-snapshotter.html
-  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:89e900a160a986a1a7a4eba7f5259e510398fa87ca9b8a729e7dec59e04c7709" # v5.0.1
+  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:714aa06ccdd3781f1a76487e2dc7592ece9a12ae9e0b726e4f93d1639129b771" # v6.2.1
   snapshottersidecar_pull_policy: "IfNotPresent"
+
   # https://kubernetes-csi.github.io/docs/livenessprobe.html
   livenesssidecar: "registry.k8s.io/sig-storage/livenessprobe@sha256:406f59599991916d2942d8d02f076d957ed71b541ee19f09fc01723a6e6f5932" # v2.6.0
   livenesssidecar_pull_policy: "IfNotPresent"
