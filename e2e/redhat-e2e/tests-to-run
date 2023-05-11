@@ -1,1 +1,0 @@
-"External Storage [Driver: infinibox-csi-driver] [Testpattern: Dynamic PV (filesystem volmode)] multiVolume [Slow] should concurrently access the single volume from pods on different node"

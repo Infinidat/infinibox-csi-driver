@@ -3,12 +3,12 @@ _GITLAB_USER=username
 _TEST_ONE_THING_DIR=storage
 _TEST_ONE_THING=TestISCSIControllerSuite/Test_CreateVolume_content_success
 
-_E2E_NAMESPACE=openshift-operators
+_E2E_NAMESPACE=infinidat-csi
 _E2E_POOL=csitesting
 _E2E_PROTOCOL=nfs
 _E2E_NETWORK_SPACE=NAS
-_E2E_OCP_VERSION=v4.11
-_E2E_IBOX_USERNAME=csitesting
-_E2E_IBOX_PASSWORD=csitestingisfun
-_E2E_IBOX_HOSTNAME=ibox1521.lab.wt.us.infinidat.com
+_E2E_OCP_VERSION=v4.12
+_E2E_IBOX_USERNAME=someusername
+_E2E_IBOX_PASSWORD=somepassword
+_E2E_IBOX_HOSTNAME=somehost
 

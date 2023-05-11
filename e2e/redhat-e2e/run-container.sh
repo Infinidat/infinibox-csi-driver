@@ -1,5 +1,4 @@
 #!/bin/sh
-echo 'Running redhat openshift/csi tests on nfs'
 if [[ -z "$_E2E_PROTOCOL" ]]; then
     echo "Must provide _E2E_PROTOCOL in environment" 1>&2
     exit 1
@@ -39,14 +38,11 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # copy test manifests to working dir
 cp $KUBECONFIG $WORKDIR/kubeconfig.yaml
-cp $SCRIPT_DIR/tests-to-run $WORKDIR
+cp $SCRIPT_DIR/$_E2E_PROTOCOL-tests-to-run $WORKDIR/tests-to-run
 cp $SCRIPT_DIR/e2e-manifest-$_E2E_PROTOCOL.yaml  $WORKDIR/e2e-manifest.yaml
 envsubst < $SCRIPT_DIR/e2e-storageclass-$_E2E_PROTOCOL.yaml > $WORKDIR/e2e-storageclass-$_E2E_PROTOCOL.yaml
 envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snapshotclass.yaml
 
 export TEST_CSI_DRIVER_FILES=$WORKDIR/e2e-manifest-$_E2E_PROTOCOL.yaml 
 echo $OPTIONAL_DOCKER_BUILD_FLAGS are the docker flags
-docker run  $OPTIONAL_DOCKER_BUILD_FLAGS -v $WORKDIR:/data:z --rm -it registry.redhat.io/openshift4/ose-tests:$_E2E_OCP_VERSION sh -c "KUBECONFIG=/data/kubeconfig.yaml TEST_CSI_DRIVER_FILES=/data/e2e-manifest.yaml /usr/bin/openshift-tests run openshift/csi --junit-dir /data/results"
-
-# example:  to run a set of tests
-#docker run  $OPTIONAL_DOCKER_BUILD_FLAGS -v $WORKDIR:/data:z --rm -it registry.redhat.io/openshift4/ose-tests:v4.11 sh -c "KUBECONFIG=/data/kubeconfig.yaml TEST_CSI_DRIVER_FILES=/data/e2e-manifest-nfs.yaml /usr/bin/openshift-tests run openshift/csi --file /data/tests-to-run --junit-dir /data/results_nfs_all"
+docker run  $OPTIONAL_DOCKER_BUILD_FLAGS -v $WORKDIR:/data:z --rm -it registry.redhat.io/openshift4/ose-tests:$_E2E_OCP_VERSION sh -c "KUBECONFIG=/data/kubeconfig.yaml TEST_CSI_DRIVER_FILES=/data/e2e-manifest.yaml /usr/bin/openshift-tests run openshift/csi --file /data/tests-to-run --junit-dir /data/results"
