@@ -52,7 +52,7 @@ _test-git-tag-remote-and-local-match:
 	@echo -e $(_finish)
 
 
-.PHONY: releaseable  ## Test that this git clone is checked in and tagged and is ready for building a release.
+.PHONY: releaseable  
 releaseable:   ## Test that the project is git clean and therefore may be used for a release.
 	@echo -e $(_begin)
 	@$(_make) _test-git-porcelain-clean

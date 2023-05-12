@@ -120,8 +120,8 @@ build-linux:  ## Cross compile CSI driver for Linux
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(_GOBUILD) -o $(_BINARY_NAME) -v
 
 ##@ Docker
-.PHONY: docker-build-docker
-docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
+.PHONY: image
+image: build lint test  ## Build and tag CSI driver docker image.
 	@echo -e $(_begin)
 	@echo "Pulling base image $(_DOCKER_BASE_IMAGE)"
 	@docker pull $(_DOCKER_BASE_IMAGE)
@@ -146,8 +146,8 @@ docker-build-docker: build lint test  ## Build and tag CSI driver docker image.
 docker-login-docker:  ## Login to Dockerhub.
 	@docker login
 
-.PHONY: docker-push-gitlab
-docker-push-gitlab:  # Tag and push to gitlab.
+.PHONY: image-push 
+image-push:  ## Tag and push CSI driver image to gitlab.
 	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG))
 	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
 	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG)
@@ -161,7 +161,7 @@ docker-push-redhat:  ## Login, tag and push to Red Hat.
 	docker push scan.connect.redhat.com/ospid-956ccd64-1dcf-4d00-ba98-336497448906/$(_DRIVER_IMAGE):$(_IMAGE_TAG)
 
 .PHONY: docker-push-all
-docker-push-all: docker-push-gitlab docker-push-redhat docker-push-dockerhub  ## Push to both Gitlab, Red Hat and Dockerhub.
+docker-push-all: image-push docker-push-redhat docker-push-dockerhub  ## Push to both Gitlab, Red Hat and Dockerhub.
 
 .PHONY: buildlocal
 buildlocal: build docker-build clean
