@@ -26,6 +26,8 @@ _GOMOD              = $(_GOCMD) mod
 _GOFMT              = gofmt
 _GOLINT             = golangci-lint
 
+_LOCALDIR ?= $(shell pwd)
+
 # Docker image tag. Read from env or use default
 _IMAGE_TAG   ?= v2.7.0-rc1
 

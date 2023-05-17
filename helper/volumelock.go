@@ -28,13 +28,15 @@ func GetMutex() *VolumeMutex {
 }
 
 type VolumeLocks struct {
-	locks sets.String
+	//deprecated locks sets.String
+	locks sets.Set[string]
 	mux   sync.Mutex
 }
 
 func NewVolumeLocks() *VolumeLocks {
 	return &VolumeLocks{
-		locks: sets.NewString(),
+		//deprecated locks: sets.NewString(),
+		locks: sets.New[string](),
 	}
 }
 

@@ -15,11 +15,11 @@ install-csi-sanity: ## install the upstream e2e sanity test binary
 	./e2e/csi-sanity/install.sh
 	@echo -e $(_finish)
 
-.PHONY: e2e
-e2e:  ## run the infinidat developed e2e tests
+.PHONY: e2e-grpc
+e2e-grpc:  ## run the infinidat developed grpc e2e test
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -v ./... -tags e2e
+	$(_GOTEST) -v ./e2e/grpc -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: external-e2e
@@ -56,3 +56,16 @@ e2e-redhat-sanity:  ## run the redhat e2e tests
 		&& ./e2e/redhat-e2e/run-container.sh
 	@echo -e $(_finish)
 
+.PHONY: e2e-treeq
+e2e-treeq:  ## run the infinidat developed e2e treeq tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -v ./e2e/e2e-treeq -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: e2e-test-image
+e2e-test-image:  ## build the e2e test image
+	@echo -e $(_begin)
+	docker build  $(OPTIONAL_DOCKER_BUILD_FLAGS) -t git.infinidat.com:4567/host-opensource/infinidat-csi-driver/e2e-test:latest -f $(_LOCALDIR)/e2e/Dockerfile .
+	docker push  git.infinidat.com:4567/host-opensource/infinidat-csi-driver/e2e-test:latest 
+	@echo -e $(_finish)
