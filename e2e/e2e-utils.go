@@ -34,7 +34,7 @@ var (
 	StorageClassPath = flag.String(
 		"storageclass", "", "path to the storageclass file")
 	OperatorNamespace = flag.String(
-		"operatornamespace", "infindat-csi", "namespace the operator runs within")
+		"operatornamespace", "infinidat-csi", "namespace the operator runs within")
 	CleanUp = flag.Bool(
 		"cleanup", true, "clean up test namespace on exit")
 )

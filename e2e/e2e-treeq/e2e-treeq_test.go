@@ -12,13 +12,16 @@ import (
 
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
 	VOLUME_SNAPSHOT_CLASS = "e2e-infinidat-volumesnapshotclass-"
+	IMAGE_PULL_SECRET     = "private-docker-reg-secret"
 	OPERATOR_NAMESPACE    = "infinidat-csi"
 	DRIVER_NAME           = "infinidat-csi-driver"
 	E2E_NAMESPACE         = "e2e-treeq-"
@@ -61,6 +64,11 @@ func TestTreeq(t *testing.T) {
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
+	err = createImagePullSecret(t, testNames.NSName, clientSet)
+	if err != nil {
+		t.Fatalf("error creating image pull secret %s", err.Error())
+	}
+
 	err = createPod(testNames.NSName, clientSet)
 	if err != nil {
 		t.Fatalf("error creating test pod %s", err.Error())
@@ -139,6 +147,34 @@ func tearDown(t *testing.T, testNames TestResourceNames, client *kubernetes.Clie
 	t.Log("TEARDOWN ENDS")
 }
 
+func createImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Clientset) error {
+	result, err := clientset.CoreV1().Secrets(*e2e.OperatorNamespace).Get(context.TODO(), IMAGE_PULL_SECRET, metav1.GetOptions{})
+	if err != nil {
+		t.Error(err)
+		if apierrors.IsNotFound(err) {
+			t.Logf("image pull secret %s not found in operator namespace %s\n", IMAGE_PULL_SECRET, *e2e.OperatorNamespace)
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	t.Logf("found image pull secret %s in operator namespace %s\n", IMAGE_PULL_SECRET, "infinidat-csi")
+	result.ObjectMeta.Namespace = ns
+	result.Namespace = ns
+	result.ResourceVersion = ""
+	createOptions := metav1.CreateOptions{}
+
+	_, err = clientset.CoreV1().Secrets(ns).Create(context.TODO(), result, createOptions)
+	if err != nil {
+		return err
+
+	}
+	t.Logf("imagepullsecret %s created in ns %s\n", IMAGE_PULL_SECRET, ns)
+
+	return nil
+}
+
 func createPod(ns string, clientset *kubernetes.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
 
@@ -178,6 +214,11 @@ func createPod(ns string, clientset *kubernetes.Clientset) (err error) {
 	pod := &v1.Pod{
 		ObjectMeta: m,
 		Spec: v1.PodSpec{
+			ImagePullSecrets: []v1.LocalObjectReference{
+				{
+					Name: "private-docker-reg-secret",
+				},
+			},
 			Containers: []v1.Container{container},
 			Volumes:    []v1.Volume{volume},
 		},
