@@ -1,0 +1,42 @@
+# vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
+
+##@ infinidat-csi-metrics targets
+
+_METRICS_BINARY_NAME        = infinibox-csi-metrics
+_METRICS_IMAGE   = infinidat-csi-metrics
+
+.PHONY: metrics
+metrics: build-metrics image-metrics push-metrics ## build and push the metrics image
+
+.PHONY: build-metrics
+build-metrics: ## build metrics binary
+	@echo -e $(_begin)
+	$(_GOBUILD) -o $(_METRICS_BINARY_NAME) -v cmd/infinidat-csi-metrics/main.go
+	@echo -e $(_finish)
+.PHONY: image-metrics
+image-metrics: ## build metrics image
+	@echo -e $(_begin)
+	@docker pull $(_DOCKER_BASE_IMAGE)
+	@export HEAD=$$(git rev-parse --short HEAD); \
+	export BLAME_MACHINE=$$(hostname); \
+	export BLAME_USER=$${USER}; \
+	export BLAME_BUILD_TIME="$$(date)"; \
+	echo "Building CSI metrics image [$(_IMAGE_TAG)] from commit [$$HEAD] at [$$BLAME_BUILD_TIME]"; \
+	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_METRICS_IMAGE):$(_IMAGE_TAG)" \
+                --build-arg IMAGE_TAG="$(_IMAGE_TAG)" \
+                --build-arg VCS_REF="$$HEAD" \
+                --build-arg BLAME_MACHINE="$$BLAME_MACHINE" \
+                --build-arg BLAME_USER="$$BLAME_USER" \
+                --build-arg BLAME_BUILD_TIME="$$BLAME_BUILD_TIME" \
+                --pull \
+                -f cmd/infinidat-csi-metrics/Dockerfile .
+	@# TODO tag cmd needs review.
+	docker tag $(_DOCKER_USER)/$(_METRICS_IMAGE):$(_IMAGE_TAG) $(_GITLAB_USER)/infinidat-csi-driver/$(_METRICS_IMAGE):$(_IMAGE_TAG)
+	@echo -e $(_finish)
+.PHONY: push-metrics
+push-metrics: ## push metrics image
+	@echo -e $(_begin)
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_METRICS_IMAGE):$(_IMAGE_TAG))
+	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_METRICS_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
+	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_METRICS_IMAGE):$(_IMAGE_TAG)
+	@echo -e $(_finish)

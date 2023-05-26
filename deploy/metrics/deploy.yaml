@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: infinidat-csi-metrics
+  name: infinidat-csi-metrics
+  namespace: infinidat-csi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: infinidat-csi-metrics
+  template:
+    metadata:
+      labels:
+        app: infinidat-csi-metrics
+    spec:
+      serviceAccount: infinidat-csi-metrics
+      containers:
+      - image: git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-csi-metrics:v2.7.0-rc1
+        imagePullPolicy: Always
+        name: metrics
+        volumeMounts:
+          - name: config-volume
+            readOnly: true
+            mountPath: /tmp/infinidat-csi-metrics-config
+          - name: secret-volume
+            readOnly: true
+            mountPath: /tmp/infinibox-creds
+      volumes:
+        - name: config-volume
+          configMap:
+            name: infinidat-csi-metrics-config
+        - name: secret-volume
+          secret:
+            secretName: infinibox-creds
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: infinidat-csi-metrics
+  name: infinidat-csi-metrics
+  namespace: infinidat-csi
+spec:
+  ports:
+  - port: 11007
+    protocol: TCP
+    targetPort: 11007
+    name: web
+  selector:
+    app: infinidat-csi-metrics
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: infinidat-csi-metrics
+  namespace: infinidat-csi
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: infinibox-csi-metrics
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumes
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: infinibox-csi-metrics
+  namespace: infinidat-csi
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: infinibox-csi-metrics
+subjects:
+- kind: ServiceAccount
+  name: infinidat-csi-metrics
+  namespace: infinidat-csi

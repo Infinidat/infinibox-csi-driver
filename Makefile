@@ -14,6 +14,7 @@ include Makefile-help
 include Makefile-git
 include Makefile-e2e
 include Makefile-release
+include Makefile-metrics
 
 _GOCMD              ?= $(shell which go)
 

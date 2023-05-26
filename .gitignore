@@ -16,6 +16,7 @@ go.sum
 
 deploy/helm/infinibox-csi-driver/values_gitlab_registry.yaml
 infinibox-csi-driver
+infinibox-csi-metrics
 
 # vim
 *.swp
