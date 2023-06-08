@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 if [[ -z "$_E2E_PROTOCOL" ]]; then
     echo "Must provide _E2E_PROTOCOL in environment" 1>&2
     exit 1
