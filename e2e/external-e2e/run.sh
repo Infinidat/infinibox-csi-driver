@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ -z "$_E2E_PROTOCOL" ]]; then
     echo "Must provide _E2E_PROTOCOL in environment" 1>&2
@@ -40,7 +40,7 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 # -ginkgo.focus='External.Storage' \
 # -ginkgo.focus='External.Storage.*Dynamic*'  \
 # -ginkgo.focus='External.Storage.*infinibox-csi-driver'  \
-e2e.test -ginkgo.focus='External.Storage.*infinibox-csi-driver' \
+./e2e.test -ginkgo.focus='External.Storage.*infinibox-csi-driver' \
 	-ginkgo.progress \
 	-storage.testdriver=$WORKDIR/e2e-manifest.yaml \
 	> $WORKDIR/results.log
