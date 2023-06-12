@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ -z "$_E2E_IBOX_HOSTNAME" ]]; then
     echo "Must provide _E2E_IBOX_HOSTNAME in environment" 1>&2

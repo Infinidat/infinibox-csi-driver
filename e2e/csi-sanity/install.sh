@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 echo 'Installing CSI sanity test binary...'
 WORKDIR=/tmp/kubernetes-csi
 rm -rf $WORKDIR
