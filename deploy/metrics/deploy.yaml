@@ -17,7 +17,7 @@ spec:
     spec:
       serviceAccount: infinidat-csi-metrics
       containers:
-      - image: git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-csi-metrics:v2.7.0-rc1
+      - image: git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-csi-metrics:v2.7.0
         imagePullPolicy: Always
         name: metrics
         volumeMounts:
