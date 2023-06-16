@@ -25,25 +25,28 @@ func RecordPVMetrics(config *MetricsConfig) {
 	klog.V(4).Infof("pv metrics recording...")
 	go func() {
 		for {
+			time.Sleep(config.GetDuration(METRIC_PV_METRICS))
+
 			pvInfo, err := getPVInfo()
 			if err != nil {
 				klog.Error(err)
-			} else {
-				for i := 0; i < len(*pvInfo); i++ {
-					p := (*pvInfo)[i]
-					labels := prometheus.Labels{
-						METRIC_PV_NAME:             p.PVol.Name,
-						METRIC_PV_STORAGE_CLASS:    p.SClass.Name,
-						METRIC_PV_PROVISION_TYPE:   p.SClass.Parameters["provision_type"],
-						METRIC_PV_SSD_ENABLED:      p.SClass.Parameters["ssd_enabled"],
-						METRIC_PV_NETWORK_SPACE:    p.SClass.Parameters["network_space"],
-						METRIC_PV_STORAGE_PROTOCOL: p.SClass.Parameters["storage_protocol"],
-					}
-					MetricPVTotalSizeGauge.With(labels).Set(float64(p.PVol.Spec.Capacity.Storage().Value()))
-				}
+				continue
 			}
 
-			time.Sleep(config.GetDuration(METRIC_PV_METRICS))
+			klog.V(4).Infof("creating metrics for %d PVs", len(*pvInfo))
+			for i := 0; i < len(*pvInfo); i++ {
+				p := (*pvInfo)[i]
+				labels := prometheus.Labels{
+					METRIC_PV_NAME:             p.PVol.Name,
+					METRIC_PV_STORAGE_CLASS:    p.SClass.Name,
+					METRIC_PV_PROVISION_TYPE:   p.SClass.Parameters["provision_type"],
+					METRIC_PV_SSD_ENABLED:      p.SClass.Parameters["ssd_enabled"],
+					METRIC_PV_NETWORK_SPACE:    p.SClass.Parameters["network_space"],
+					METRIC_PV_STORAGE_PROTOCOL: p.SClass.Parameters["storage_protocol"],
+				}
+				MetricPVTotalSizeGauge.With(labels).Set(float64(p.PVol.Spec.Capacity.Storage().Value()))
+			}
+
 		}
 	}()
 }
@@ -81,22 +84,22 @@ func getPVInfo() (*[]PVInfo, error) {
 			klog.V(4).Infof("pv metrics: pv %s sc %s found\n", pvItem.Name, pvItem.Spec.StorageClassName)
 			sc, err := clientset.StorageV1().StorageClasses().Get(context.Background(), pvItem.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
-				klog.Error(err)
-				return nil, err
+				klog.Errorf("error getting StorageClass %s error %s", pvItem.Spec.StorageClassName, err.Error())
+			} else {
+				/**
+				fmt.Printf("sc details name: %s \n", sc.Name)
+				fmt.Printf("provision_type %s \n", sc.Parameters["provision_type"])
+				fmt.Printf("ssd_enabled %s\n", sc.Parameters["ssd_enabled"])
+				fmt.Printf("network_space %s\n", sc.Parameters["network_space"])
+				fmt.Printf("storage_protocol %s\n", sc.Parameters["storage_protocol"])
+				fmt.Println("---------------------")
+				*/
+				info := PVInfo{
+					PVol:   pvItem,
+					SClass: *sc,
+				}
+				pvInfo = append(pvInfo, info)
 			}
-			/**
-			fmt.Printf("sc details name: %s \n", sc.Name)
-			fmt.Printf("provision_type %s \n", sc.Parameters["provision_type"])
-			fmt.Printf("ssd_enabled %s\n", sc.Parameters["ssd_enabled"])
-			fmt.Printf("network_space %s\n", sc.Parameters["network_space"])
-			fmt.Printf("storage_protocol %s\n", sc.Parameters["storage_protocol"])
-			fmt.Println("---------------------")
-			*/
-			info := PVInfo{
-				PVol:   pvItem,
-				SClass: *sc,
-			}
-			pvInfo = append(pvInfo, info)
 		}
 	}
 

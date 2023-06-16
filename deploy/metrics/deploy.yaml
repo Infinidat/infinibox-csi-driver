@@ -16,6 +16,8 @@ spec:
         app: infinidat-csi-metrics
     spec:
       serviceAccount: infinidat-csi-metrics
+      imagePullSecrets:
+      - name: private-docker-reg-secret
       containers:
       - image: git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-csi-metrics:v2.7.0
         imagePullPolicy: Always
@@ -67,6 +69,13 @@ rules:
   - ""
   resources:
   - persistentvolumes
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - "storage.k8s.io"
+  resources:
+  - storageclasses
   verbs:
   - get
   - list

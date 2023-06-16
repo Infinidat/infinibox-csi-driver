@@ -1,10 +1,10 @@
 spec:
   metrics:
-  - duration: 30s
+  - duration: 60s
     name: pool_metrics
-  - duration: 30s
+  - duration: 60s
     name: pv_metrics
-  - duration: 30s
+  - duration: 60s
     name: ibox_performance_metrics
-  - duration: 30s
+  - duration: 60s
     name: ibox_system_metrics

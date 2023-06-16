@@ -109,10 +109,14 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 	go func() {
 
 		for {
+			time.Sleep(cfg.GetDuration(METRIC_IBOX_SYSTEM_METRICS))
+
 			results, err := getResult(cfg)
 			if err != nil {
 				klog.Error(err)
+				continue
 			}
+
 			labels := prometheus.Labels{
 				METRIC_IBOX_NAME:     results.Name,
 				METRIC_IBOX_IP:       cfg.IboxIpAddress,
@@ -179,7 +183,6 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 			MetricIboxTestingDrivesGauge.With(labels).Set(float64(results.HealthState.TestingDrives))
 			MetricIboxUnknownDrivesGauge.With(labels).Set(float64(results.HealthState.UnknownDrives))
 
-			time.Sleep(cfg.GetDuration(METRIC_IBOX_SYSTEM_METRICS))
 		}
 	}()
 }

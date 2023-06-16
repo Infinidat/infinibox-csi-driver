@@ -22,9 +22,9 @@ const (
 	// pool metrics
 	METRIC_POOL_METRICS = "pool_metrics"
 
-	METRIC_POOL_AVAILABLE_CAP = "pool_available_cap"
-	METRIC_POOL_USED_CAP      = "pool_used_cap"
-	METRIC_POOL_PCT_UTILIZED  = "pool_pct_utilized"
+	METRIC_POOL_AVAILABLE_CAP = "ibox_pool_available_cap"
+	METRIC_POOL_USED_CAP      = "ibox_pool_used_cap"
+	METRIC_POOL_PCT_UTILIZED  = "ibox_pool_pct_utilized"
 
 	// pool metric general infomation
 	METRIC_POOL_NAME             = "pool_name"
@@ -36,7 +36,7 @@ const (
 	// pv metrics
 	METRIC_PV_METRICS = "pv_metrics"
 
-	METRIC_PV_TOTAL_SIZE = "pv_total_size"
+	METRIC_PV_TOTAL_SIZE = "ibox_pv_total_size"
 
 	// pv metric general information
 	METRIC_PV_NAME             = "pv_name"
@@ -58,7 +58,7 @@ const (
 	METRIC_IBOX_NODE_NAME      = "node"
 	METRIC_IBOX_SYSTEM_METRICS = "ibox_system_metrics"
 
-	METRIC_IBOX_ERROR_RATES                         = "ibox_error_rates"
+	METRIC_IBOX_ERROR_RATES                         = "ibox_error_rates" //TODO
 	METRIC_IBOX_ACTIVE_CACHE_SSD_DEVICES            = "ibox_active_cache_ssd_devices"
 	METRIC_IBOX_ACTIVE_DRIVES                       = "ibox_active_drives"
 	METRIC_IBOX_ACTIVE_ENCRYPTED_CACHE_SSD_DEVICES  = "ibox_active_encrypted_cache_ssd_devices"

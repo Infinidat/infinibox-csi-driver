@@ -26,39 +26,43 @@ var (
 	MetricPerfIOPSGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: METRIC_IBOX_PERFORMANCE_IOPS,
 		Help: "The ibox IOPs",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
+	}, []string{METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
 	MetricPerfThroughputGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: METRIC_IBOX_PERFORMANCE_THROUGHPUT,
 		Help: "The ibox throughput",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
+	}, []string{METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
 	MetricPerfLatencyGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: METRIC_IBOX_PERFORMANCE_LATENCY,
 		Help: "The ibox latency",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
+	}, []string{METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
 )
 
 func RecordPerformanceMetrics(config *MetricsConfig) {
 	klog.V(4).Infof("performance metrics recording...")
 	go func() {
 		for {
+			time.Sleep(config.GetDuration(METRIC_IBOX_PERFORMANCE_METRICS))
 
 			klog.V(4).Info("performance metrics: creating collectors...")
 			nasID, sanID, err := createCollectors(config)
 			if err != nil {
 				klog.Error(err)
+				continue
 			}
 
-			klog.V(4).Info("performance metrics: get NAS collector data")
+			time.Sleep(time.Second * 5) // this is necessary to give the ibox time to fire up the collectors
+
+			klog.V(4).Info("performance metrics: get NAS collector data nasID %d sanID %d", nasID, sanID)
 			nasResponse, err := getCollectorData(nasID, config)
 			if err != nil {
 				klog.Error(err)
+				continue
 			}
 			klog.V(4).Infof("performance metrics: nas data %+v\n", nasResponse)
 			opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
 			klog.V(4).Infof("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
 			if err == nil {
 				labels := prometheus.Labels{
-					METRIC_IBOX_NAME:     "TODO",
 					METRIC_IBOX_IP:       config.IboxIpAddress,
 					METRIC_IBOX_HOSTNAME: config.IboxHostname,
 					METRIC_IBOX_PROTOCOL: "NAS"}
@@ -71,6 +75,7 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 			sanResponse, err := getCollectorData(sanID, config)
 			if err != nil {
 				klog.Error(err)
+				continue
 			}
 			klog.V(4).Infof("performance metrics: san data %+v\n", sanResponse)
 			opsAverage, throughputAverage, latencyAverage = getCounterAverages(sanResponse.Result.Collectors[0].Fields, sanResponse.Result.Collectors[0].Data)
@@ -79,27 +84,25 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 			err = deleteCollector(nasID, config)
 			if err != nil {
 				klog.Error(err)
+				continue
 			}
 			klog.V(4).Infof("performance metrics: deleted NAS collector %d\n", nasID)
 			err = deleteCollector(sanID, config)
 			if err != nil {
 				klog.Error(err)
+				continue
 			}
 			klog.V(4).Infof("performance metrics: deleted SAN collector %d\n", sanID)
 
-			if err == nil {
-				labels := prometheus.Labels{
-					METRIC_IBOX_NAME:     "TODO",
-					METRIC_IBOX_IP:       config.IboxIpAddress,
-					METRIC_IBOX_HOSTNAME: config.IboxHostname,
-					METRIC_IBOX_PROTOCOL: "SAN"}
+			labels := prometheus.Labels{
+				METRIC_IBOX_IP:       config.IboxIpAddress,
+				METRIC_IBOX_HOSTNAME: config.IboxHostname,
+				METRIC_IBOX_PROTOCOL: "SAN"}
 
-				MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
-				MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
-				MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
-			}
+			MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
+			MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
+			MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
 
-			time.Sleep(config.GetDuration(METRIC_IBOX_PERFORMANCE_METRICS))
 		}
 	}()
 }
@@ -119,6 +122,7 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/api/rest/metrics/collectors/data?collector_id=%d", config.IboxHostname, collectorID), http.NoBody)
 	if err != nil {
+		klog.Error(err)
 		return nil, err
 	}
 
@@ -127,6 +131,7 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 
 	res, err := client.Do(req)
 	if err != nil {
+		klog.Error(err)
 		return nil, err
 	}
 
@@ -134,9 +139,9 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
+		klog.Error(err)
 		return nil, err
 	}
-	//fmt.Println(string(responseData))
 
 	response := &CollectorResponse{}
 	err = json.Unmarshal(responseData, response)

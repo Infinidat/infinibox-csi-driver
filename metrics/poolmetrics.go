@@ -39,27 +39,29 @@ func RecordPoolMetrics(config *MetricsConfig) {
 	klog.V(4).Infof("pool metrics recording...")
 	go func() {
 		for {
+			time.Sleep(config.GetDuration(METRIC_POOL_METRICS))
+
 			poolInfo, err := getPoolInfo(config)
 			if err != nil {
 				klog.Error(err)
-			} else {
-				for i := 0; i < len(poolInfo); i++ {
-					pi := poolInfo[i]
-					labels := prometheus.Labels{
-						METRIC_POOL_NAME:             pi.storageClass.Parameters["pool_name"],
-						METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters["provision_type"],
-						METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters["ssd_enabled"],
-						METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters["network_space"],
-						METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters["storage_protocol"],
-					}
-					MetricPoolAvailableCapGauge.With(labels).Set(float64(pi.pool.PhysicalCapacity))  // pool - physical_capacity
-					MetricPoolUsedCapGauge.With(labels).Set(float64(pi.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
-					pct := (pi.pool.AllocatedPhysicalSpace / pi.pool.PhysicalCapacity) * 100.00
-					MetricPoolPctUtilizedGauge.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
-				}
+				continue
 			}
 
-			time.Sleep(config.GetDuration(METRIC_POOL_METRICS))
+			for i := 0; i < len(poolInfo); i++ {
+				pi := poolInfo[i]
+				labels := prometheus.Labels{
+					METRIC_POOL_NAME:             pi.storageClass.Parameters["pool_name"],
+					METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters["provision_type"],
+					METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters["ssd_enabled"],
+					METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters["network_space"],
+					METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters["storage_protocol"],
+				}
+				MetricPoolAvailableCapGauge.With(labels).Set(float64(pi.pool.PhysicalCapacity))  // pool - physical_capacity
+				MetricPoolUsedCapGauge.With(labels).Set(float64(pi.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
+				pct := (pi.pool.AllocatedPhysicalSpace / pi.pool.PhysicalCapacity) * 100.00
+				MetricPoolPctUtilizedGauge.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
+			}
+
 		}
 	}()
 }
