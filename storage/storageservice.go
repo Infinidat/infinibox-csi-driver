@@ -312,7 +312,7 @@ func (cs *Commonservice) getNetworkSpaceIP(networkSpace string) (string, error) 
 }
 
 func getRandomIndex(max int) int {
-	rand.Seed(time.Now().UnixNano())
+	// rand.Seed(time.Now().UnixNano()) - not needed as of go1.20, automatically seeded by golang
 	min := 0
 	index := rand.Intn(max-min) + min
 	return index

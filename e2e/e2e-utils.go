@@ -64,7 +64,7 @@ func GetKubeClient(kubeConfigPath string) (*kubernetes.Clientset, dynamic.Interf
 var letters = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func RandSeq(n int) string {
-	rand.Seed(time.Now().UnixNano())
+	//rand.Seed(time.Now().UnixNano()) - not needed as of go 1.20 - automatically seeded
 	b := make([]rune, n)
 	for i := range b {
 		b[i] = letters[rand.Intn(len(letters))]
