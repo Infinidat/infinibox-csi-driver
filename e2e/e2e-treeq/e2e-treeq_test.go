@@ -103,6 +103,7 @@ func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient dynamic.Int
 	}
 	t.Logf("✓ StorageClass %s is created\n", testNames.SCName)
 
+	testNames.PVCName = PVC_NAME
 	err = e2e.CreatePVC(PVC_NAME, testNames.SCName, testNames.NSName, client)
 	if err != nil {
 		t.Fatalf("error creating PVC %s\n", err.Error())
@@ -121,7 +122,20 @@ func tearDown(t *testing.T, testNames TestResourceNames, client *kubernetes.Clie
 
 	t.Log("TEARDOWN STARTS")
 	ctx := context.Background()
-	err := e2e.DeleteStorageClass(ctx, testNames.SCName, client)
+
+	err := e2e.DeletePod(ctx, testNames.NSName, POD_NAME, client)
+	if err != nil {
+		t.Logf("error deleting pod %s\n", err.Error())
+	}
+	t.Logf("✓ pod %s is deleted\n", POD_NAME)
+
+	err = e2e.DeletePVC(ctx, testNames.NSName, testNames.PVCName, client)
+	if err != nil {
+		t.Logf("error deleting PVC %s\n", err.Error())
+	}
+	t.Logf("✓ PVC %s is deleted\n", PVC_NAME)
+
+	err = e2e.DeleteStorageClass(ctx, testNames.SCName, client)
 	if err != nil {
 		t.Logf("error deleting storage class %s\n", err.Error())
 	}
@@ -132,12 +146,6 @@ func tearDown(t *testing.T, testNames TestResourceNames, client *kubernetes.Clie
 		t.Logf("error deleting VolumeSnapshotClass %s\n", err.Error())
 	}
 	t.Logf("✓ VolumeSnapshotClass %s is deleted\n", testNames.SnapshotClassName)
-
-	err = e2e.DeletePVC(ctx, testNames.NSName, testNames.PVCName, client)
-	if err != nil {
-		t.Logf("error deleting PVC %s\n", err.Error())
-	}
-	t.Logf("✓ PVC %s is deleted\n", PVC_NAME)
 
 	err = e2e.DeleteNamespace(ctx, testNames.NSName, client)
 	if err != nil {

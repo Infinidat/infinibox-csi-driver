@@ -60,7 +60,7 @@ e2e-redhat-sanity:  ## run the redhat e2e tests
 e2e-treeq:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -v ./e2e/e2e-treeq -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/e2e-treeq -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2e-test-image

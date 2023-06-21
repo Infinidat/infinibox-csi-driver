@@ -12,7 +12,7 @@ mountOptions:
   - wsize=1048576
 parameters: 
     pool_name: csitesting
-    network_space: default_nas_space
+    network_space: NAS
     provision_type: THIN
     storage_protocol: nfs_treeq
     fs_prefix: csit_

@@ -65,9 +65,10 @@ var letters = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func RandSeq(n int) string {
 	//rand.Seed(time.Now().UnixNano()) - not needed as of go 1.20 - automatically seeded
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	b := make([]rune, n)
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[r.Intn(len(letters))]
 	}
 	return string(b)
 }
@@ -98,6 +99,17 @@ func DeleteVolumeSnapshotClass(ctx context.Context, snapshotClassName string, sn
 
 func DeletePVC(ctx context.Context, ns string, pvcName string, clientSet *kubernetes.Clientset) (err error) {
 	err = clientSet.CoreV1().PersistentVolumeClaims(ns).Delete(ctx, pvcName, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubernetes.Clientset) (err error) {
+	var sec int64
+	opts := metav1.DeleteOptions{
+		GracePeriodSeconds: &sec,
+	}
+	err = clientSet.CoreV1().Pods(ns).Delete(ctx, podName, opts)
 	if err != nil {
 		return err
 	}
