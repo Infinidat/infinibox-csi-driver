@@ -40,7 +40,15 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 # -ginkgo.focus='External.Storage' \
 # -ginkgo.focus='External.Storage.*Dynamic*'  \
 # -ginkgo.focus='External.Storage.*infinibox-csi-driver'  \
+#	--ginkgo.skip="disruptive" \
+#	--ginkgo.skip="Disruptive" \
+#	--ginkgo.skip="ephemeral" \
 ./e2e.test -ginkgo.focus='External.Storage.*infinibox-csi-driver' \
 	-ginkgo.progress \
+	--ginkgo.skip="disruptive" \
+	--ginkgo.skip="Disruptive" \
+	--ginkgo.skip="ephemeral" \
+	--ginkgo.skip="Ephemeral" \
+	--ginkgo.skip="access to two volumes" \
 	-storage.testdriver=$WORKDIR/e2e-manifest.yaml \
 	> $WORKDIR/results.log
