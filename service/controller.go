@@ -15,11 +15,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/storage"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -112,6 +114,11 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (deleteVolResp *csi.DeleteVolumeResponse, err error) {
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("DeleteVolume called with volume ID %s", volumeId)
+	if volumeId == "" {
+		err := fmt.Errorf("DeleteVolume error volumeId parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	volproto, err := validateVolumeID(volumeId)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
@@ -144,10 +151,30 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 	klog.V(2).Infof("ControllerPublishVolume called with request volumeID %s and nodeID %s",
 		req.GetVolumeId(), req.GetNodeId())
 
+	if req.VolumeCapability == nil {
+		err = fmt.Errorf("ControllerPublishVolume request VolumeCapability was nil")
+		klog.Error(err)
+		err = status.Errorf(codes.InvalidArgument, err.Error())
+		return
+	}
+	if req.GetVolumeId() == "" {
+		err = fmt.Errorf("ControllerPublishVolume request volumeId was empty")
+		klog.Error(err)
+		err = status.Errorf(codes.InvalidArgument, err.Error())
+		return
+	}
+
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerPublishVolume failed to validate request: %v", err)
 		err = status.Errorf(codes.NotFound, "ControllerPublishVolume failed: %v", err)
+		return
+	}
+
+	if req.GetNodeId() == "" {
+		err = fmt.Errorf("ControllerPublishVolume request nodeId was empty")
+		klog.Error(err)
+		err = status.Errorf(codes.InvalidArgument, err.Error())
 		return
 	}
 
@@ -176,6 +203,12 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
 	klog.V(2).Infof("ControllerUnpublishVolume called with req volume ID %s and node ID %s", req.GetVolumeId(), req.GetNodeId())
 
+	if req.GetVolumeId() == "" {
+		err = fmt.Errorf("ControllerUnpublishVolume request volumeId parameter was empty")
+		klog.Error(err)
+		err = status.Errorf(codes.InvalidArgument, err.Error())
+		return
+	}
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ControllerUnpublishVolume failed to validate request: %v", err)
@@ -247,6 +280,22 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) error {
 func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
 	klog.V(2).Infof("ValidateVolumeCapabilities called with req volumeID %s", req.GetVolumeId())
 
+	if req.GetVolumeId() == "" {
+		err := fmt.Errorf("ValidateVolumeCapabilities error volumeId parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.VolumeCapabilities == nil {
+		err := fmt.Errorf("ValidateVolumeCapabilities error volumeCapabilities parameter was nil")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if len(req.VolumeCapabilities) == 0 {
+		err := fmt.Errorf("ValidateVolumeCapabilities error volumeCapabilities parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		klog.Errorf("ValidateVolumeCapabilities failed to validate request: %v", err)
@@ -271,6 +320,13 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 	klog.V(4).Infof("controller ListVolumes() called")
 	res := &csi.ListVolumesResponse{
 		Entries: make([]*csi.ListVolumesResponse_Entry, 0),
+	}
+
+	if req.StartingToken == "" || req.StartingToken == "next-token" {
+	} else {
+		err := fmt.Errorf("ListVolumes error startingToken parameter was incorrect [%s]", req.StartingToken)
+		klog.Error(err)
+		return nil, status.Error(codes.Aborted, err.Error())
 	}
 
 	// Get a k8s go client for in-cluster use
@@ -361,6 +417,24 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
 	}
 	klog.V(4).Infof("got back %d snapshots", len(snapshots))
+
+	// handle the optional case where a SnapshotId is passed in the ListSnapshots request
+	var volProto api.VolumeProtocolConfig
+	var iValue int
+	if req.SnapshotId != "" {
+		volProto, err = validateVolumeID(req.SnapshotId)
+		if err != nil {
+			klog.Error(err)
+			return nil, status.Errorf(codes.Unavailable, "cannot validate req.SnapshotId: %s error %v", req.SnapshotId, err)
+		}
+		iValue, err = strconv.Atoi(volProto.VolumeID)
+		if err != nil {
+			klog.V(4).Infof("error converting VolumeID %s", &volProto.VolumeID)
+			klog.Error(err)
+			return nil, status.Errorf(codes.Unavailable, "cannot convert VolumeID: %s error %v", volProto.VolumeID, err)
+		}
+	}
+
 	for i := 0; i < len(snapshots); i++ {
 		cdt := snapshots[i].CreatedAt / 1000
 		tt := time.Unix(cdt, 0)
@@ -402,7 +476,21 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		entry := csi.ListSnapshotsResponse_Entry{
 			Snapshot: snapshot,
 		}
-		res.Entries = append(res.Entries, &entry)
+
+		if req.SourceVolumeId != "" {
+			if req.SourceVolumeId == entry.Snapshot.SourceVolumeId {
+				klog.V(4).Infof("comparing req.SourceVolumeId %s SourceVolumeId %s\n", req.SourceVolumeId, entry.Snapshot.SourceVolumeId)
+				res.Entries = append(res.Entries, &entry)
+			}
+		} else if req.SnapshotId != "" {
+			if iValue == snapshots[i].ID {
+				klog.V(4).Infof("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
+				entry.Snapshot.SnapshotId = req.SnapshotId
+				res.Entries = append(res.Entries, &entry)
+			}
+		} else {
+			res.Entries = append(res.Entries, &entry)
+		}
 
 	}
 	return res, nil

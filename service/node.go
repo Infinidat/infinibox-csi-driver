@@ -14,6 +14,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
@@ -35,6 +36,23 @@ type NodeServer struct {
 }
 
 func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	if req.GetVolumeId() == "" {
+		err := fmt.Errorf("NodePublishVolume error volumeId parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if req.GetStagingTargetPath() == "" {
+		err := fmt.Errorf("NodeUnstageVolume error stagingTargetPath parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	if req.VolumeCapability == nil {
+		err := fmt.Errorf("NodeUnstageVolume error volumeCapability parameter was nil")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
@@ -45,6 +63,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	volumeId := req.GetVolumeId()
 	klog.V(2).Infof("NodePublishVolume - volume ID '%s'", volumeId)
+
 	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
 	config := make(map[string]string)
 
@@ -60,6 +79,17 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 }
 
 func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	if req.GetTargetPath() == "" {
+		err := fmt.Errorf("NodeUnpublishVolume error targetPath parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.GetVolumeId() == "" {
+		err := fmt.Errorf("NodeUnpublishVolume error volumeId parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
@@ -129,6 +159,24 @@ func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 }
 
 func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	volumeId := req.GetVolumeId()
+	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
+	if volumeId == "" {
+		err := fmt.Errorf("NodeStageVolume error volumeId parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.VolumeCapability == nil {
+		err := fmt.Errorf("NodeStageVolume error volumeCapability parameter was nil")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.StagingTargetPath == "" {
+		err := fmt.Errorf("NodeStageVolume error stagingTargetPath parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
@@ -136,9 +184,6 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
-
-	volumeId := req.GetVolumeId()
-	klog.V(2).Infof("NodeStageVolume called with volume ID '%s'", volumeId)
 
 	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
 	config := make(map[string]string)
@@ -154,12 +199,22 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 }
 
 func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	volumeId := req.GetVolumeId()
+	if volumeId == "" {
+		err := fmt.Errorf("NodeUnstageVolume error volumeId parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.StagingTargetPath == "" {
+		err := fmt.Errorf("NodeUnstageVolume error stagingTargetPath parameter was empty")
+		klog.Error(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", req.GetVolumeId())
 	}()
-
-	volumeId := req.GetVolumeId()
 
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
