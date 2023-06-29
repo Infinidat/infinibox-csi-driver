@@ -147,8 +147,9 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 
 	// attach metadata to volume object
-	metadata := make(map[string]interface{})
-	metadata["host.k8s.pvname"] = volumeResp.Name
+	metadata := map[string]interface{}{
+		"host.k8s.pvname": volumeResp.Name,
+	}
 	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = fc.cs.Api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
 	if err != nil {
@@ -163,10 +164,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
 	klog.V(2).Infof("DeleteVolume")
-	if req.GetVolumeId() == "" {
-		return nil, status.Errorf(codes.Internal,
-			"error parsing volume id : %s", errors.New("volume id not found"))
-	}
 	id, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		klog.Error(err)
@@ -262,8 +259,9 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	csiVolume := fc.cs.getCSIResponse(dstVol, req)
 	copyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 
-	metadata := make(map[string]interface{})
-	metadata["host.k8s.pvname"] = dstVol.Name
+	metadata := map[string]interface{}{
+		"host.k8s.pvname": dstVol.Name,
+	}
 	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = fc.cs.Api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
@@ -327,10 +325,11 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	}
 	for _, lun := range lunList {
 		if lun.VolumeID == volID {
-			volCtx := make(map[string]string)
-			volCtx["lun"] = strconv.Itoa(lun.Lun)
-			volCtx["hostID"] = strconv.Itoa(host.ID)
-			volCtx["hostPorts"] = ports
+			volCtx := map[string]string{
+				"lun":       strconv.Itoa(lun.Lun),
+				"hostID":    strconv.Itoa(host.ID),
+				"hostPorts": ports,
+			}
 			klog.V(4).Infof("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: volCtx,
@@ -357,10 +356,11 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	volCtx := make(map[string]string)
-	volCtx["lun"] = strconv.Itoa(luninfo.Lun)
-	volCtx["hostID"] = strconv.Itoa(host.ID)
-	volCtx["hostPorts"] = ports
+	volCtx := map[string]string{
+		"lun":       strconv.Itoa(luninfo.Lun),
+		"hostID":    strconv.Itoa(host.ID),
+		"hostPorts": ports,
+	}
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: volCtx,
 	}, nil
@@ -542,8 +542,9 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		klog.Error(err)
 	}
 	if len(*childVolumes) > 0 {
-		metadata := make(map[string]interface{})
-		metadata[TOBEDELETED] = true
+		metadata := map[string]interface{}{
+			TOBEDELETED: true,
+		}
 		_, err = fc.cs.Api.AttachMetadataToObject(int64(vol.ID), metadata)
 		if err != nil {
 			klog.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)

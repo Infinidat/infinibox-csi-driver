@@ -122,8 +122,9 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	req.VolumeContext = getVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
 	req.VolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = ""
-	req.Secrets = make(map[string]string)
-	req.Secrets["nodeID"] = "192.168.0.110"
+	req.Secrets = map[string]string{
+		"nodeID": "192.168.0.110",
+	}
 	req.VolumeContext[common.SC_SNAPDIR_VISIBLE] = "true"
 	req.VolumeContext[common.SC_PRIV_PORTS] = "false"
 	_, err = service.NodePublishVolume(context.Background(), req)
@@ -211,11 +212,12 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_badNfsVersion() {
 	}
 
 	for _, test := range tests {
-		mountOptions := make([]string, 4)
-		mountOptions[0] = "tcp"
-		mountOptions[1] = "rsize=262144"
-		mountOptions[2] = "wsize=262144"
-		mountOptions[3] = test.version
+		mountOptions := []string{
+			"tcp",
+			"rsize=262144",
+			"wsize=262144",
+			test.version,
+		}
 
 		targetPath := "/var/lib/kublet/"
 		req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
@@ -238,11 +240,12 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_hard() {
 	}
 
 	for _, test := range tests {
-		mountOptions := make([]string, 4)
-		mountOptions[0] = "tcp"
-		mountOptions[1] = "rsize=262144"
-		mountOptions[2] = "wsize=262144"
-		mountOptions[3] = test.recovery
+		mountOptions := []string{
+			"tcp",
+			"rsize=262144",
+			"wsize=262144",
+			test.recovery,
+		}
 
 		targetPath := "/var/lib/kublet/"
 		req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
@@ -263,10 +266,11 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_ro() {
 	}
 
 	for _, test := range tests {
-		mountOptions := make([]string, 3)
-		mountOptions[0] = "tcp"
-		mountOptions[1] = "rsize=262144"
-		mountOptions[2] = "wsize=262144"
+		mountOptions := []string{
+			"tcp",
+			"rsize=262144",
+			"wsize=262144",
+		}
 
 		targetPath := "/var/lib/kublet/"
 		// Create req with Readonly option
@@ -278,10 +282,11 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_ro() {
 }
 
 func (suite *NodeSuite) Test_updateNfsMountOptions_no_ro() {
-	mountOptions := make([]string, 3)
-	mountOptions[0] = "tcp"
-	mountOptions[1] = "rsize=262144"
-	mountOptions[2] = "wsize=262144"
+	mountOptions := []string{
+		"tcp",
+		"rsize=262144",
+		"wsize=262144",
+	}
 
 	targetPath := "/var/lib/kublet/"
 	readonly := false
@@ -292,10 +297,11 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_no_ro() {
 }
 
 func (suite *NodeSuite) Test_updateNfsMountOptions_mustAddVers() {
-	mountOptions := make([]string, 3)
-	mountOptions[0] = "tcp"
-	mountOptions[1] = "rsize=262144"
-	mountOptions[2] = "wsize=262144"
+	mountOptions := []string{
+		"tcp",
+		"rsize=262144",
+		"wsize=262144",
+	}
 
 	targetPath := "/var/lib/kublet/"
 	req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
@@ -305,11 +311,12 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_mustAddVers() {
 }
 
 func (suite *NodeSuite) Test_updateNfsMountOptions_mustNotAddVersAgain() {
-	mountOptions := make([]string, 4)
-	mountOptions[0] = "tcp"
-	mountOptions[1] = "rsize=262144"
-	mountOptions[2] = "vers=3"
-	mountOptions[3] = "wsize=262144"
+	mountOptions := []string{
+		"tcp",
+		"rsize=262144",
+		"vers=3",
+		"wsize=262144",
+	}
 
 	targetPath := "/var/lib/kublet/"
 	req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
@@ -319,11 +326,12 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_mustNotAddVersAgain() {
 }
 
 func (suite *NodeSuite) Test_updateNfsMountOptions_mustNotAddVers() {
-	mountOptions := make([]string, 4)
-	mountOptions[0] = "tcp"
-	mountOptions[1] = "nfsvers=3"
-	mountOptions[2] = "rsize=262144"
-	mountOptions[3] = "wsize=262144"
+	mountOptions := []string{
+		"tcp",
+		"nfsvers=3",
+		"rsize=262144",
+		"wsize=262144",
+	}
 
 	targetPath := "/var/lib/kublet/"
 	req := getNodePublishVolumeRequest(targetPath, getPublishContexMap())
@@ -433,17 +441,18 @@ func getNodePublishVolumeRequestReadonly(targetPath string, readonly bool, publi
 }
 
 func getPublishContexMap() map[string]string {
-	contextMap := make(map[string]string)
-	contextMap["ipAddress"] = "10.2.2.112"
-	contextMap["volPathd"] = "12345"
-	contextMap["volPathd"] = "/fs/filesytem/"
-	contextMap["csiContainerHostMountPoint"] = "/host/"
+	contextMap := map[string]string{
+		"ipAddress":                  "10.2.2.112",
+		"volPathd":                   "/fs/filesytem/",
+		"csiContainerHostMountPoint": "/host/",
+	}
 	return contextMap
 }
 
 func getVolumeContexMap() map[string]string {
-	contextMap := make(map[string]string)
-	contextMap[common.SC_NFS_EXPORT_PERMISSIONS] = "{'access':'RW','client':'*','no_root_squash':true}"
+	contextMap := map[string]string{
+		common.SC_NFS_EXPORT_PERMISSIONS: "{'access':'RW','client':'*','no_root_squash':true}",
+	}
 	return contextMap
 }
 
@@ -513,5 +522,6 @@ func getExportResponseWithExports() (exportResp []api.ExportResponse) {
 	exportRespArry[0] = api.ExportResponse{
 		ExportPath: "/",
 	}
+
 	return exportRespArry
 }

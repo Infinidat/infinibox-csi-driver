@@ -81,9 +81,10 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
 
 	volumeResponse := getCreateVolumeResponse()
-	volumeRespoance := make(map[string]string)
-	volumeRespoance["ID"] = "100"
-	volumeRespoance["TREEQID"] = "200"
+	volumeRespoance := map[string]string{
+		"ID":      "100",
+		"TREEQID": "200",
+	}
 	networkSpace := getTreeQTestNetworkSpace()
 
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
@@ -201,9 +202,10 @@ func getExpandVolumeRequest(vID string) *csi.ControllerExpandVolumeRequest {
 }
 
 func getCreateVolumeResponse() map[string]string {
-	result := make(map[string]string)
-	result["ID"] = "100"
-	result["TREEQID"] = "200"
+	result := map[string]string{
+		"ID":      "100",
+		"TREEQID": "200",
+	}
 	return result
 }
 

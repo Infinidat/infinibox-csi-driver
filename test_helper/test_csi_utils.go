@@ -5,11 +5,11 @@ import (
 )
 
 func GetSecret() map[string]string {
-	secretMap := make(map[string]string)
-	secretMap["username"] = "admin"
-	secretMap["password"] = "123456"
-	secretMap["hostname"] = "https://172.17.35.61/"
-	return secretMap
+	return map[string]string{
+		"username": "admin",
+		"password": "123456",
+		"hostname": "https://172.17.35.61/",
+	}
 }
 
 // TODO: below only generates a MountVolume request, not a BlockVolume request. We should test both. CSIC-342

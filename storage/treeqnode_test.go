@@ -84,10 +84,11 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeId = "94148131#20000$$nfs_treeq"
-	req.Secrets = make(map[string]string)
-	req.Secrets["one"] = "one"
-	req.Secrets["two"] = "two"
-	req.Secrets["three"] = "three"
+	req.Secrets = map[string]string{
+		"one":   "one",
+		"two":   "two",
+		"three": "three",
+	}
 	responce, err := service.NodePublishVolume(context.Background(), req)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), responce, "empty object")
@@ -118,10 +119,11 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeId = "94148131#20000$$nfs_treeq"
-	req.Secrets = make(map[string]string)
-	req.Secrets["one"] = "one"
-	req.Secrets["two"] = "two"
-	req.Secrets["three"] = "three"
+	req.Secrets = map[string]string{
+		"one":   "one",
+		"two":   "two",
+		"three": "three",
+	}
 	_, err = service.NodePublishVolume(context.Background(), req)
 	assert.Nil(suite.T(), err, "empty error")
 }

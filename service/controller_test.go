@@ -425,14 +425,3 @@ func getControllerCreateVolumeParameters() map[string]string {
 		common.SC_NETWORK_SPACE:          "network_space1",
 		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
 }
-
-/**
-func getService() Service {
-	configParam := make(map[string]string)
-	configParam["nodeid"] = "10.20.30.50"
-	configParam["nodeName"] = "ubuntu"
-	configParam["drivername"] = "csi-driver"
-	configParam["driverversion"] = "1.1.0.5s"
-	return New(configParam)
-}
-*/

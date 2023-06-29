@@ -604,8 +604,9 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_Success() {
 	service := nfsstorage{cs: *suite.cs, uniqueID: 100}
 	var snapshotID, parentID int64 = 100, 200
 	fileSystem := api.FileSystem{}
-	metadata := make(map[string]interface{})
-	metadata["host.k8s.to_be_deleted"] = true
+	metadata := map[string]interface{}{
+		"host.k8s.to_be_deleted": true,
+	}
 	suite.api.On("GetFileSystemByID", snapshotID).Return(fileSystem, nil)
 	suite.api.On("FileSystemHasChild", snapshotID).Return(true)
 	suite.api.On("AttachMetadataToObject", snapshotID, metadata).Return(nil, nil)

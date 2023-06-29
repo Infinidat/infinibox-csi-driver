@@ -389,10 +389,6 @@ func (nfs *nfsstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.Crea
 }
 
 func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "volume ID missing in request")
-	}
-
 	volumeID := req.GetVolumeId()
 	volID, err := strconv.ParseInt(volumeID, 10, 64)
 	if err != nil {

@@ -78,10 +78,11 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
 
-	configparams := make(map[string]string)
-	configparams["nodeid"] = s.Driver.nodeID
-	configparams["driverversion"] = s.Driver.version
-	configparams[common.SC_NFS_EXPORT_PERMISSIONS] = reqParameters[common.SC_NFS_EXPORT_PERMISSIONS]
+	configparams := map[string]string{
+		"nodeid":                         s.Driver.nodeID,
+		"driverversion":                  s.Driver.version,
+		common.SC_NFS_EXPORT_PERMISSIONS: reqParameters[common.SC_NFS_EXPORT_PERMISSIONS],
+	}
 
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
 	if err != nil || storageController == nil {
@@ -128,8 +129,9 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		}
 		return &csi.DeleteVolumeResponse{}, nil
 	}
-	config := make(map[string]string)
-	config["nodeid"] = s.Driver.nodeID
+	config := map[string]string{
+		"nodeid": s.Driver.nodeID,
+	}
 
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
@@ -564,8 +566,9 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		klog.Errorf("failed to validate storage type %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to validate source Vol Id: %s", err.Error())
 	}
-	config := make(map[string]string)
-	config["nodeid"] = s.Driver.nodeID
+	config := map[string]string{
+		"nodeid": s.Driver.nodeID,
+	}
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		klog.Errorf("Create snapshot failed: %s", err)
@@ -593,8 +596,9 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		}
 	}
 
-	config := make(map[string]string)
-	config["nodeid"] = s.Driver.nodeID
+	config := map[string]string{
+		"nodeid": s.Driver.nodeID,
+	}
 	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		klog.Errorf("delete snapshot failed: %s", err)
@@ -615,8 +619,9 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		return
 	}
 
-	configparams := make(map[string]string)
-	configparams["nodeid"] = s.Driver.nodeID
+	configparams := map[string]string{
+		"nodeid": s.Driver.nodeID,
+	}
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		return

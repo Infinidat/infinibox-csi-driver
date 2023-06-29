@@ -141,8 +141,9 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	// attach metadata to volume object
-	metadata := make(map[string]interface{})
-	metadata["host.k8s.pvname"] = vol.Name
+	metadata := map[string]interface{}{
+		"host.k8s.pvname": vol.Name,
+	}
 	// metadata["host.filesystem_type"] = params["fstype"] // TODO: set this correctly according to what iscsinode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = iscsi.cs.Api.AttachMetadataToObject(int64(vol.ID), metadata)
 	if err != nil {
@@ -267,8 +268,9 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	csiVolume := iscsi.cs.getCSIResponse(dstVol, req)
 	copyRequestParameters(params, csiVolume.VolumeContext)
 
-	metadata := make(map[string]interface{})
-	metadata["host.k8s.pvname"] = dstVol.Name
+	metadata := map[string]interface{}{
+		"host.k8s.pvname": dstVol.Name,
+	}
 	// metadata["host.filesystem_type"] = params["fstype"] // TODO: set this correctly according to what iscsinode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
 	_, err = iscsi.cs.Api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
@@ -283,15 +285,9 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 }
 
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	var msg string
 	klog.V(2).Infof("ControllerPublishVolume node ID: %s volume ID: %s", req.GetNodeId(), req.GetVolumeId())
 
 	volIdStr := req.GetVolumeId()
-	if volIdStr == "" {
-		msg = "Volume ID is empty"
-		klog.Errorf(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
 	volproto, err := validateVolumeID(volIdStr)
 	if err != nil {
 		e := fmt.Errorf("failed to validate storage type for volume ID: %s, err: %v", volIdStr, err)
@@ -361,10 +357,11 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	klog.V(4).Infof("got LUNs for host: %s, LUNs: %+v", host.Name, lunList)
 	for _, lun := range lunList {
 		if lun.VolumeID == volID {
-			publishVolCtxt := make(map[string]string)
-			publishVolCtxt["lun"] = strconv.Itoa(lun.Lun)
-			publishVolCtxt["hostID"] = strconv.Itoa(host.ID)
-			publishVolCtxt["hostPorts"] = ports
+			publishVolCtxt := map[string]string{
+				"lun":       strconv.Itoa(lun.Lun),
+				"hostID":    strconv.Itoa(host.ID),
+				"hostPorts": ports,
+			}
 			klog.V(4).Infof("vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", volID, host.Name, host.ID, lun.Lun, ports)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: publishVolCtxt,
@@ -398,11 +395,12 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	publishVolCtxt := make(map[string]string)
-	publishVolCtxt["lun"] = strconv.Itoa(luninfo.Lun)
-	publishVolCtxt["hostID"] = strconv.Itoa(host.ID)
-	publishVolCtxt["hostPorts"] = ports
-	publishVolCtxt["securityMethod"] = host.SecurityMethod
+	publishVolCtxt := map[string]string{
+		"lun":            strconv.Itoa(luninfo.Lun),
+		"hostID":         strconv.Itoa(host.ID),
+		"hostPorts":      ports,
+		"securityMethod": host.SecurityMethod,
+	}
 	klog.V(4).Infof("mapped volume %d, publish context: %v", volID, publishVolCtxt)
 
 	klog.V(2).Infof("ControllerPublishVolume completed node ID: %s volume ID: %s", req.GetNodeId(), req.GetVolumeId())
@@ -613,8 +611,9 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return err
 	}
 	if len(*childVolumes) > 0 {
-		metadata := make(map[string]interface{})
-		metadata[TOBEDELETED] = true
+		metadata := map[string]interface{}{
+			TOBEDELETED: true,
+		}
 		_, err = iscsi.cs.Api.AttachMetadataToObject(int64(vol.ID), metadata)
 		if err != nil {
 			e := fmt.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
