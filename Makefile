@@ -149,6 +149,16 @@ image: build lint test  ## Build and tag CSI driver docker image.
 docker-login-docker:  ## Login to Dockerhub.
 	@docker login
 
+.PHONY: docker-pull-gitlab
+docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.7.0 make docker-pull-gitlab
+	@echo -e $(_begin)
+	@declare -a images=($(_IMAGE_NAMES)); \
+	for image in $${images[@]}; do \
+                docker pull $(_GITLAB_REPO)/host-opensource/infinidat-csi-releases/$${image}:$(_IMAGE_TAG) || \
+                        exit 1; \
+        done
+	@echo -e $(_finish)
+
 .PHONY: image-push 
 image-push:  ## Tag and push CSI driver image to gitlab.
 	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_DRIVER_IMAGE):$(_IMAGE_TAG))
@@ -211,12 +221,13 @@ docker-push-host-opensource:  ## Push CSI driver images to host-opensource.
 .PHONY: docker-push-dockerhub
 docker-push-dockerhub: docker-login-docker  ## Push host-opensource CSI driver images to dockerhub.
 	@echo -e $(_begin)
-	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-controller:$(_IMAGE_TAG) \
-		infinidat/infinidat-csi-driver-controller:$(_IMAGE_TAG)
-	docker push infinidat/infinidat-csi-driver-controller:$(_IMAGE_TAG)
-	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-node:$(_IMAGE_TAG) \
-		infinidat/infinidat-csi-driver-node:$(_IMAGE_TAG)
-	docker push infinidat/infinidat-csi-driver-node:$(_IMAGE_TAG)
+	@declare -a images=($(_IMAGE_NAMES)); \
+	for image in $${images[@]}; do \
+		docker tag $(_GITLAB_REPO)/host-opensource/infinidat-csi-releases/$${image}:$(_IMAGE_TAG) \
+			infinidat/$${image}:$(_IMAGE_TAG) && \
+		docker push infinidat/$${image}:$(_IMAGE_TAG) || \
+			exit 1; \
+	done
 	@echo -e $(_finish)
 
 .PHONY: github-push
