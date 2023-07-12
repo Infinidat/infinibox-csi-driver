@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"k8s.io/klog/v2"
 )
 
 func getYamlBoolsFalse() (bools []string) {
@@ -28,7 +26,7 @@ func YamlBoolToBool(b string) (myBool bool, err error) {
 		return false, nil
 	}
 	msg := fmt.Sprintf("'%s' is not a valid YAML boolean", b)
-	klog.Errorf(msg)
+	fmt.Print(msg)
 	return false, errors.New(msg)
 }
 

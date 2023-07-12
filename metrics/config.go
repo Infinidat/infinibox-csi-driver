@@ -7,14 +7,17 @@ import (
 	"os"
 	"time"
 
+	"infinibox-csi-driver/log"
+
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/klog/v2"
 )
 
 // command line flags
 var (
 	PortFlag *string
 )
+
+var zlog = log.Get() // grab the logger for package use
 
 const (
 	DEFAULT_INTERVAL = "30s"
@@ -110,20 +113,20 @@ type MetricsConfig struct {
 
 func NewConfig() (*MetricsConfig, error) {
 	var config MetricsConfig
-	klog.V(4).Info("getting metrics configuration...")
+	zlog.Info().Msg("getting metrics configuration...")
 	PortFlag = flag.String("port", "11007", "metrics port")
 
 	configFileData, err := os.ReadFile("/tmp/infinidat-csi-metrics-config/config.yaml")
 	if err != nil {
 		return nil, err
 	}
-	klog.V(4).Info("raw metrics configuration...%s", string(configFileData))
+	zlog.Info().Msgf("raw metrics configuration...%s", string(configFileData))
 
 	err = yaml.Unmarshal(configFileData, &config)
 	if err != nil {
 		return nil, err
 	}
-	klog.V(2).Infof("metrics config is ...%+v\n", config)
+	zlog.Info().Msgf("metrics config is ...%+v\n", config)
 
 	errorsFound := config.Validate()
 	if errorsFound {
@@ -167,13 +170,13 @@ func (c *MetricsConfig) GetDuration(name string) time.Duration {
 		if metrics[i].Name == name {
 			t, e := time.ParseDuration(metrics[i].Duration)
 			if e != nil {
-				klog.V(2).Infof("error:  duration found for metrics config %s did not parse, using default %s, %s", name, DEFAULT_INTERVAL, e.Error())
+				zlog.Info().Msgf("error:  duration found for metrics config %s did not parse, using default %s, %s", name, DEFAULT_INTERVAL, e.Error())
 				t, _ = time.ParseDuration(DEFAULT_INTERVAL)
 			}
 			return t
 		}
 	}
-	klog.V(2).Infof("warning:  no value found for metrics config %s, using default %s", name, DEFAULT_INTERVAL)
+	zlog.Info().Msgf("warning:  no value found for metrics config %s, using default %s", name, DEFAULT_INTERVAL)
 	t, _ := time.ParseDuration(DEFAULT_INTERVAL)
 	return t
 }
@@ -185,14 +188,14 @@ func (c *MetricsConfig) Validate() bool {
 		_, e := time.ParseDuration(metrics[i].Duration)
 		if e != nil {
 			errorFound = true
-			klog.V(2).Infof("error:  duration found for metrics config %s did not parse, %s", metrics[i].Name, e.Error())
+			zlog.Info().Msgf("error:  duration found for metrics config %s did not parse, %s", metrics[i].Name, e.Error())
 		}
 
 		switch metrics[i].Name {
 		case METRIC_POOL_METRICS, METRIC_PV_METRICS, METRIC_IBOX_PERFORMANCE_METRICS, METRIC_IBOX_SYSTEM_METRICS:
 		default:
 			errorFound = true
-			klog.V(2).Infof("error:  metric name %s invalid", metrics[i].Name)
+			zlog.Info().Msgf("error:  metric name %s invalid", metrics[i].Name)
 		}
 	}
 

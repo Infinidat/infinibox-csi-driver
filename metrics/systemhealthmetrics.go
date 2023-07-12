@@ -9,7 +9,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -105,7 +104,7 @@ var (
 )
 
 func RecordSystemHealthMetrics(cfg *MetricsConfig) {
-	klog.V(4).Infof("system health metrics recording...")
+	zlog.Info().Msgf("system health metrics recording...")
 	go func() {
 
 		for {
@@ -113,7 +112,7 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 
 			results, err := getResult(cfg)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
 
@@ -129,7 +128,7 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 			MetricIboxBBUAggregateChargePctGauge.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
 
 			for k, v := range results.HealthState.BbuChargeLevel {
-				klog.V(4).Infof("bbucharge level k %s v %f", k, v)
+				zlog.Info().Msgf("bbucharge level k %s v %f", k, v)
 				l := prometheus.Labels{
 					METRIC_IBOX_NAME:      results.Name,
 					METRIC_IBOX_IP:        cfg.IboxIpAddress,
@@ -152,9 +151,9 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 			MetricIboxInactiveNodesGauge.With(labels).Set(float64(results.HealthState.InactiveNodes))
 			MetricIboxMissingDrivesGauge.With(labels).Set(float64(results.HealthState.MissingDrives))
 
-			klog.V(4).Infof("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
+			zlog.Info().Msgf("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
 			for k, v := range results.HealthState.NodeBbuProtection {
-				klog.V(4).Infof("system health: nodebbuprotection k %s v %s", k, v)
+				zlog.Info().Msgf("system health: nodebbuprotection k %s v %s", k, v)
 				l := prometheus.Labels{
 					METRIC_IBOX_NAME:      results.Name,
 					METRIC_IBOX_IP:        cfg.IboxIpAddress,
@@ -344,7 +343,7 @@ func getResult(config *MetricsConfig) (Result, error) {
 
 	req, err := http.NewRequest(http.MethodGet, "https://"+config.IboxHostname+"/api/rest/system", http.NoBody)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return Result{}, err
 	}
 
@@ -353,7 +352,7 @@ func getResult(config *MetricsConfig) (Result, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return Result{}, err
 	}
 
@@ -361,7 +360,7 @@ func getResult(config *MetricsConfig) (Result, error) {
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return Result{}, err
 	}
 	//fmt.Println(string(responseData))
@@ -369,7 +368,7 @@ func getResult(config *MetricsConfig) (Result, error) {
 	r := SystemStatus{}
 	err = json.Unmarshal(responseData, &r)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return Result{}, err
 	}
 	//fmt.Printf("API Result %+v\n", r.Result)

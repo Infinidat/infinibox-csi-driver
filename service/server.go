@@ -11,7 +11,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
-	"k8s.io/klog/v2"
 )
 
 // Defines Non blocking GRPC server interfaces
@@ -59,19 +58,19 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
-		klog.Fatal(err.Error())
+		zlog.Fatal().Msgf(err.Error())
 	}
 
 	if proto == "unix" {
 		addr = "/" + addr
 		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
-			klog.Fatalf("Failed to remove %s, error: %s", addr, err.Error())
+			zlog.Fatal().Msgf("Failed to remove %s, error: %s", addr, err.Error())
 		}
 	}
 
 	listener, err := net.Listen(proto, addr)
 	if err != nil {
-		klog.Fatalf("Failed to listen: %v", err)
+		zlog.Fatal().Msgf("Failed to listen: %v", err)
 	}
 
 	opts := []grpc.ServerOption{
@@ -101,11 +100,11 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 		}()
 	}
 
-	klog.Infof("Listening for connections on address: %#v", listener.Addr())
+	zlog.Debug().Msgf("Listening on address: %s", listener.Addr().String())
 
 	err = server.Serve(listener)
 	if err != nil {
-		klog.Fatalf("Failed to serve grpc server: %v", err)
+		zlog.Fatal().Msgf("Failed to serve grpc server: %v", err)
 	}
 }
 

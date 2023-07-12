@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
-	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -36,8 +35,6 @@ func (suite *TreeqControllerSuite) SetupTest() {
 	suite.filesystem = new(FileSystemInterfaceMock)
 	suite.api = new(api.MockApiService)
 	suite.cs = &Commonservice{Api: suite.api}
-
-	tests.ConfigureKlog()
 }
 
 type TreeqControllerSuite struct {

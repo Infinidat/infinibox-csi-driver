@@ -11,8 +11,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"k8s.io/klog/v2"
 )
 
 // const (
@@ -69,12 +67,10 @@ func TestExecScsiCommand(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(wantedCount)
 
-		klog.V(4).Infof("here")
-
 		var i int
 		for i = 0; i < wantedCount; i++ {
 			go func(w *sync.WaitGroup, i int) {
-				klog.V(4).Infof("i: %d", i)
+				fmt.Printf("i: %d", i)
 				r := fmt.Sprintf("%d", rand.Int())
 				cmd := "echo"
 				args := fmt.Sprintf("'%s' > %s && cat %s", r, sharedFile, sharedFile)

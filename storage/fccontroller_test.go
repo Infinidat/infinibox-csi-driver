@@ -21,7 +21,7 @@ func (suite *FCControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
-	tests.ConfigureKlog()
+
 }
 
 type FCControllerSuite struct {

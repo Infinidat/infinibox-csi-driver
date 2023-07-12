@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
-	tests "infinibox-csi-driver/test_helper"
 	"math/rand"
 	"os"
 	"testing"
@@ -39,7 +38,6 @@ func (suite *TreeqNodeSuite) SetupTest() {
 	suite.storageHelperMock = new(MockStorageHelper)
 	suite.api = new(api.MockApiService)
 	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
-	tests.ConfigureKlog()
 }
 
 type TreeqNodeSuite struct {

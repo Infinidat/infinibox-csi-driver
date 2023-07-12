@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -22,18 +21,18 @@ var (
 )
 
 func RecordPVMetrics(config *MetricsConfig) {
-	klog.V(4).Infof("pv metrics recording...")
+	zlog.Info().Msgf("pv metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_PV_METRICS))
 
 			pvInfo, err := getPVInfo()
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
 
-			klog.V(4).Infof("creating metrics for %d PVs", len(*pvInfo))
+			zlog.Info().Msgf("creating metrics for %d PVs", len(*pvInfo))
 			for i := 0; i < len(*pvInfo); i++ {
 				p := (*pvInfo)[i]
 				labels := prometheus.Labels{
@@ -62,29 +61,29 @@ func getPVInfo() (*[]PVInfo, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
 	pVols, err := clientset.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 	for i := 0; i < len(pVols.Items); i++ {
 		pvItem := pVols.Items[i]
 		if pvItem.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
-			klog.V(4).Infof("pv metrics: pv %s sc %s found\n", pvItem.Name, pvItem.Spec.StorageClassName)
+			zlog.Info().Msgf("pv metrics: pv %s sc %s found\n", pvItem.Name, pvItem.Spec.StorageClassName)
 			sc, err := clientset.StorageV1().StorageClasses().Get(context.Background(), pvItem.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
-				klog.Errorf("error getting StorageClass %s error %s", pvItem.Spec.StorageClassName, err.Error())
+				zlog.Error().Msgf("error getting StorageClass %s error %s", pvItem.Spec.StorageClassName, err.Error())
 			} else {
 				/**
 				fmt.Printf("sc details name: %s \n", sc.Name)

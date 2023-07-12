@@ -20,11 +20,13 @@ import (
 	"strconv"
 	"sync"
 
+	"infinibox-csi-driver/log"
+
 	"github.com/stretchr/testify/mock"
-	"k8s.io/klog/v2"
 )
 
 var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
+var zlog = log.Get()           // grab the logger for package use
 
 // OsHelper interface
 type OsHelper interface {
@@ -41,27 +43,21 @@ type OsHelper interface {
 type Service struct{}
 
 // Lock or unlock NodeVolumeMutex. Log taking care to write to log while locked.
-// Flush klog for improved mutex log tracing.
 func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeId string) (err error) {
 	defer func() {
 		// This might happen if unlocking a mutex that was not locked.
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
-			klog.V(4).Infof("manageNodeVolumeMutex, called by %s with volume ID %s, failed with run-time error: %s", callingFunction, volumeId, err)
+			zlog.Info().Msgf("manageNodeVolumeMutex, called by %s with volume ID %s, failed with run-time error: %s", callingFunction, volumeId, err)
 		}
 	}()
-
-	//klog.V(4).Info("Node.*Volume() mutex is disabled")
-	//return
 
 	err = nil
 	if isLocking {
 		nodeVolumeMutex.Lock()
-		klog.V(4).Infof("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
-		klog.Flush()
+		zlog.Info().Msgf("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
 	} else {
-		klog.V(4).Infof("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
-		klog.Flush()
+		zlog.Info().Msgf("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
 		nodeVolumeMutex.Unlock()
 	}
 	return
@@ -69,10 +65,10 @@ func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeId stri
 
 // MkdirAll method create dir
 func (h Service) MkdirAll(path string, perm os.FileMode) error {
-	klog.V(4).Infof("MkdirAll with path %s perm %v\n", path, perm)
+	zlog.Info().Msgf("MkdirAll with path %s perm %v\n", path, perm)
 	err := os.MkdirAll(path, perm)
 	if err != nil {
-		klog.Errorf("error os.MkdirAll %s", err.Error())
+		zlog.Error().Msgf("error os.MkdirAll %s", err.Error())
 	}
 	return err
 }
@@ -84,7 +80,7 @@ func (h Service) IsNotExist(err error) bool {
 
 // Remove method delete the dir
 func (h Service) Remove(name string) error {
-	klog.V(4).Infof("Calling Remove with name %s", name)
+	zlog.Info().Msgf("Calling Remove with name %s", name)
 	// debugWalkDir(name)
 	return os.Remove(name)
 }
@@ -96,7 +92,7 @@ func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 		uid_int, err := strconv.Atoi(uid)
 		if err != nil || uid_int < 0 {
 			msg := fmt.Sprintf("Storage class specifies an invalid volume UID with value [%s]: %s", uid, err)
-			klog.Errorf(msg)
+			zlog.Error().Msgf(msg)
 			return errors.New(msg)
 		}
 	}
@@ -104,7 +100,7 @@ func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 		gid_int, err := strconv.Atoi(gid)
 		if err != nil || gid_int < 0 {
 			msg := fmt.Sprintf("Storage class specifies an invalid volume GID with value [%s]: %s", gid, err)
-			klog.Errorf(msg)
+			zlog.Error().Msgf(msg)
 			return errors.New(msg)
 		}
 	}
@@ -115,21 +111,21 @@ func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
 // ChownVolumeExec method Execute chown.
 func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) error {
 	if uid != "" || gid != "" {
-		klog.V(4).Infof("Setting volume %s ownership: UID: '%s', GID: '%s'", targetPath, uid, gid)
+		zlog.Info().Msgf("Setting volume %s ownership: UID: '%s', GID: '%s'", targetPath, uid, gid)
 		ownerGroup := fmt.Sprintf("%s:%s", uid, gid)
 		chown := fmt.Sprintf("chown %s %s ", ownerGroup, targetPath)
-		klog.V(4).Infof("Run: %s", chown)
+		zlog.Info().Msgf("Run: %s", chown)
 		cmd := exec.Command("bash", "-c", chown)
 		err := cmd.Run()
 		if err != nil {
 			msg := fmt.Sprintf("For mount path %s, failed to execute '%s': %s", targetPath, chown, err)
-			klog.Errorf(msg)
+			zlog.Error().Msgf(msg)
 			return errors.New(msg)
 		} else {
-			klog.V(4).Infof("Set mount point directory ownership for mount point %s to %s", targetPath, ownerGroup)
+			zlog.Info().Msgf("Set mount point directory ownership for mount point %s to %s", targetPath, ownerGroup)
 		}
 	} else {
-		klog.V(4).Infof("Using default ownership for mount point %s", targetPath)
+		zlog.Info().Msgf("Using default ownership for mount point %s", targetPath)
 	}
 	return nil
 }
@@ -144,10 +140,10 @@ func ValidateUnixPermissions(unixPermissions string) (err error) {
 	err = nil
 	if _, err8 := strconv.ParseUint(unixPermissions, 8, 32); err8 != nil {
 		msg := fmt.Sprintf("Unix permissions [%s] are invalid. Value must be uint32 in octal format. Error: %s", unixPermissions, err8)
-		klog.Errorf(msg)
+		zlog.Error().Msgf(msg)
 		err = errors.New(msg)
 	} else {
-		klog.V(4).Infof("Unix permissions [%s] is a valid octal value", unixPermissions)
+		zlog.Info().Msgf("Unix permissions [%s] is a valid octal value", unixPermissions)
 	}
 	return err
 }
@@ -158,21 +154,21 @@ func (h Service) ChmodVolumeExec(unixPermissions string, targetPath string) erro
 		if err := ValidateUnixPermissions(unixPermissions); err != nil {
 			return err
 		}
-		klog.V(4).Infof("Specified unix permissions: '%s'", unixPermissions)
+		zlog.Info().Msgf("Specified unix permissions: '%s'", unixPermissions)
 		// .snapshot within the mounted volume is readonly. Find will ignore.
 		chmod := fmt.Sprintf("find %s -maxdepth 1 -name '*' -exec chmod --recursive %s '{}' \\;", targetPath, unixPermissions)
-		klog.V(4).Infof("Run: %s", chmod)
+		zlog.Info().Msgf("Run: %s", chmod)
 		cmd := exec.Command("bash", "-c", chmod)
 		err := cmd.Run()
 		if err != nil {
 			msg := fmt.Sprintf("Failed to execute '%s': error: %s", chmod, err)
-			klog.Errorf(msg)
+			zlog.Error().Msgf(msg)
 			return errors.New(msg)
 		} else {
-			klog.V(4).Infof("Set mount point directory and contents mode bits.")
+			zlog.Info().Msgf("Set mount point directory and contents mode bits.")
 		}
 	} else {
-		klog.V(4).Infof("Using default mode bits for mount point %s", targetPath)
+		zlog.Info().Msgf("Using default mode bits for mount point %s", targetPath)
 	}
 	return nil
 }

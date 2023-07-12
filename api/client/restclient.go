@@ -20,11 +20,12 @@ import (
 	"net/http"
 	"time"
 
-	//"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/log"
 
 	resty "github.com/go-resty/resty/v2"
-	"k8s.io/klog/v2"
 )
+
+var zlog = log.Get() // grab the logger for package use
 
 type HostConfig struct {
 	ApiHost  string
@@ -75,23 +76,23 @@ type restclient struct {
 
 func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig, expectedResp interface{}) (interface{}, error) {
 	if err := checkHttpClient(); err != nil {
-		klog.Errorf("checkHttpClient returned err %v ", err)
+		zlog.Error().Msgf("checkHttpClient returned err %v ", err)
 		return nil, err
 	}
 	response, err := rClient.SetBaseURL(hostconfig.ApiHost).
 		SetBasicAuth(hostconfig.UserName, hostconfig.Password).R().Get(url)
 	resp, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		klog.Errorf("error in validating response %v", err)
+		zlog.Error().Msgf("error in validating response %v", err)
 		return nil, err
 	}
 	return resp, err
 }
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
-	klog.V(2).Infof("GetWithQueryString url %s?%s", url, queryString)
+	zlog.Info().Msgf("GetWithQueryString url %s?%s", url, queryString)
 	if err := checkHttpClient(); err != nil {
-		klog.Errorf("checkHttpClient returned err %v  ", err)
+		zlog.Error().Msgf("checkHttpClient returned err %v  ", err)
 		return nil, err
 	}
 	response, err := rClient.SetBaseURL(hostconfig.ApiHost).
@@ -100,16 +101,16 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		klog.Errorf("error in validating response %v ", err)
+		zlog.Error().Msgf("error in validating response %v ", err)
 		return nil, err
 	}
-	klog.V(2).Infof("GetWithQueryString request completed.")
+	zlog.Info().Msgf("GetWithQueryString request completed.")
 	return res, err
 }
 
 func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
 	if err := checkHttpClient(); err != nil {
-		klog.Errorf("checkHttpClient returned err %v  ", err)
+		zlog.Error().Msgf("checkHttpClient returned err %v  ", err)
 		return nil, err
 	}
 	response, err := rClient.SetBaseURL(hostconfig.ApiHost).
@@ -118,7 +119,7 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 		Post(url)
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		klog.Errorf("error in validating response %v ", err)
+		zlog.Error().Msgf("error in validating response %v ", err)
 		return nil, err
 	}
 	return res, err
@@ -126,7 +127,7 @@ func (rc *restclient) Post(ctx context.Context, url string, hostconfig HostConfi
 
 func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig, body, expectedResp interface{}) (interface{}, error) {
 	if err := checkHttpClient(); err != nil {
-		klog.Errorf("checkHttpClient returned err %v ", err)
+		zlog.Error().Msgf("checkHttpClient returned err %v ", err)
 		return nil, err
 	}
 	response, err := rClient.SetBaseURL(hostconfig.ApiHost).
@@ -134,7 +135,7 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 		R().SetBody(body).Put(url)
 	res, err := rc.checkResponse(response, err, expectedResp)
 	if err != nil {
-		klog.Errorf("error in validating response %v ", err)
+		zlog.Error().Msgf("error in validating response %v ", err)
 		return nil, err
 	}
 	return res, err
@@ -142,7 +143,7 @@ func (rc *restclient) Put(ctx context.Context, url string, hostconfig HostConfig
 
 func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostConfig) (interface{}, error) {
 	if err := checkHttpClient(); err != nil {
-		klog.Errorf("checkHttpClient returned err %v ", err)
+		zlog.Error().Msgf("checkHttpClient returned err %v ", err)
 		return nil, err
 	}
 	response, err := rClient.SetBaseURL(hostconfig.ApiHost).
@@ -150,7 +151,7 @@ func (rc *restclient) Delete(ctx context.Context, url string, hostconfig HostCon
 		R().Delete(url)
 	res, err := rc.checkResponse(response, err, nil)
 	if err != nil {
-		klog.Errorf("checkResponse returned error: %+v", err)
+		zlog.Error().Msgf("checkResponse returned error: %+v", err)
 		return nil, err
 	}
 	return res, err
@@ -176,20 +177,20 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 	}
 
 	if err != nil {
-		klog.Errorf("Error in Resty call: " + err.Error() + " for " + res.Request.URL)
+		zlog.Error().Msgf("Error in Resty call: " + err.Error() + " for " + res.Request.URL)
 		return apiresp, err
 	}
 	if respStruct != nil {
 		// start: bind to given struct type
 		apiresp.Result = respStruct
 		if err := json.Unmarshal(res.Body(), &apiresp); err != nil {
-			klog.Errorf("checkResponse with expected response struct provided, err: %v", err)
+			zlog.Error().Msgf("checkResponse with expected response struct provided, err: %v", err)
 			return apiresp, err
 		}
 		if res != nil {
 			if str, iserr := rc.parseError(apiresp.Error); iserr {
-				klog.Errorf("checkResponse: %s", res)
-				klog.Errorf("checkResponse parseError, err: %s", str)
+				zlog.Error().Msgf("checkResponse: %s", res)
+				zlog.Error().Msgf("checkResponse parseError, err: %s", str)
 				return apiresp, errors.New(str)
 			}
 			if apiresp.Result == nil {
@@ -201,17 +202,17 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 		}
 		// end: bind to given struct
 	} else {
-		klog.V(2).Infof("checkResponse with no expected response struct")
+		zlog.Info().Msgf("checkResponse with no expected response struct")
 		var response interface{}
 		if err := json.Unmarshal(res.Body(), &response); err != nil {
-			klog.Errorf("checkResponse with no expected response struct, err: %v", err)
+			zlog.Error().Msgf("checkResponse with no expected response struct, err: %v", err)
 			return apiresp, err
 		}
 		if res != nil {
 			responseinmap := response.(map[string]interface{})
 			if responseinmap != nil {
 				if str, iserr := rc.parseError(responseinmap["error"]); iserr {
-					klog.Errorf("checkResponse parseError, err: %s", str)
+					zlog.Error().Msgf("checkResponse parseError, err: %s", str)
 					return apiresp, errors.New(str)
 				}
 				apiresp.Result = responseinmap["result"]

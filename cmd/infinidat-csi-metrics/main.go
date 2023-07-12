@@ -1,14 +1,14 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	metric "infinibox-csi-driver/metrics"
 	"net/http"
 	"os"
 
+	"infinibox-csi-driver/log"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"k8s.io/klog/v2"
 )
 
 var version string
@@ -17,41 +17,19 @@ var gitHash string
 
 func main() {
 
-	klog.InitFlags(nil)
-	_ = flag.Set("logtostderr", "true")
-	_ = flag.Set("stderrthreshold", "WARNING")
+	var zlog = log.Get() // grab the logger for package use
 
-	var verbosity string
-	appLogLevel := os.Getenv("APP_LOG_LEVEL")
-	switch appLogLevel {
-	case "quiet":
-		verbosity = "1"
-	case "info":
-		verbosity = "2"
-	case "extended":
-		verbosity = "3"
-	case "debug":
-		verbosity = "4"
-	case "trace":
-		verbosity = "5"
-	default:
-		verbosity = "5"
-	}
-	_ = flag.Set("v", verbosity)
-	flag.Parse()
-
-	klog.V(2).Infof("infinidat CSI metrics starting")
-	klog.V(2).Infof("version: %s", version)
-	klog.V(2).Infof("compile date: %s", compileDate)
-	klog.V(2).Infof("compile git hash: %s", gitHash)
-	klog.Flush()
+	zlog.Info().Msgf("infinidat CSI metrics starting")
+	zlog.Info().Msgf("version: %s", version)
+	zlog.Info().Msgf("compile date: %s", compileDate)
+	zlog.Info().Msgf("compile git hash: %s", gitHash)
 
 	config, err := metric.NewConfig()
 	if err != nil {
-		klog.Errorf("could not read metrics config file", err.Error())
+		zlog.Error().Msgf("could not read metrics config file: %s", err.Error())
 		os.Exit(1)
 	}
-	klog.V(4).Infof("config is %+v", config)
+	zlog.Info().Msgf("config is %+v", config)
 
 	metric.RecordPVMetrics(config)
 	metric.RecordPerformanceMetrics(config)

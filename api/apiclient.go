@@ -23,8 +23,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"k8s.io/klog/v2"
 )
 
 // Client interface
@@ -111,13 +109,13 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 // DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
-	klog.V(4).Infof("Delete Volume with ID %d", volumeID)
+	zlog.Info().Msgf("Delete Volume with ID %d", volumeID)
 	_, err = c.DetachMetadataFromObject(int64(volumeID))
 	if err != nil {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		} else {
-			klog.Errorf("failed to delete metadata %v", err)
+			zlog.Error().Msgf("failed to delete metadata %v", err)
 			return
 		}
 	}
@@ -127,39 +125,39 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	if err != nil {
 		return err
 	}
-	klog.V(4).Infof("Deleted Volume : %d", volumeID)
+	zlog.Info().Msgf("Deleted Volume : %d", volumeID)
 	return
 }
 
 // AddHostSecurity - add chap security for host with given details
 func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
-	klog.V(4).Infof("add chap atuhentication for hostID %d : ", hostID)
+	zlog.Info().Msgf("add chap atuhentication for hostID %d : ", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
 	resp, err := c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
 	if err != nil {
-		klog.Errorf("failed to add chap security to host %d with error %v", hostID, err)
+		zlog.Error().Msgf("failed to add chap security to host %d with error %v", hostID, err)
 		return host, err
 	}
 	if reflect.DeepEqual(host, (Host{})) {
 		apiresp := resp.(client.ApiResponse)
 		host, _ = apiresp.Result.(Host)
 	}
-	klog.V(4).Infof("created chap authentication for host %s: ", host.Name)
+	zlog.Info().Msgf("created chap authentication for host %s: ", host.Name)
 	return host, nil
 }
 
 // AddHostPort - add port for host with given details
 func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error) {
-	klog.V(4).Infof("add port for hostID %s %d : ", portAddress, hostID)
+	zlog.Info().Msgf("add port for hostID %s %d : ", portAddress, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports?approved=true"
 	body := map[string]interface{}{"address": portAddress, "type": portType}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
 	if err != nil {
 		if strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-			klog.V(4).Infof("Success: No need to add port '%s' to host with ID %d, port already belongs to host", portAddress, hostID)
+			zlog.Info().Msgf("Success: No need to add port '%s' to host with ID %d, port already belongs to host", portAddress, hostID)
 			return HostPort{}, nil
 		} else {
-			klog.Errorf("error adding port '%s' to host with ID %d, error: %+v", portAddress, hostID, err)
+			zlog.Error().Msgf("error adding port '%s' to host with ID %d, error: %+v", portAddress, hostID, err)
 			return hostPort, err
 		}
 	}
@@ -168,7 +166,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 		hostPort, _ = apiresp.Result.(HostPort)
 	}
 
-	klog.V(4).Infof("created host port: %s", hostPort.PortAddress)
+	zlog.Info().Msgf("created host port: %s", hostPort.PortAddress)
 	return hostPort, nil
 }
 
@@ -176,7 +174,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
 	path := "/api/rest/volumes"
 	poolID, err := c.GetStoragePoolIDByName(storagePoolName)
-	klog.V(4).Infof("Creating volume in storage pool named %s (pool ID %d) of size %d bytes", storagePoolName, poolID, volume.VolumeSize)
+	zlog.Info().Msgf("Creating volume in storage pool named %s (pool ID %d) of size %d bytes", storagePoolName, poolID, volume.VolumeSize)
 	if err != nil {
 		return nil, err
 	}
@@ -196,13 +194,13 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 		apiresp := resp.(client.ApiResponse)
 		vol, _ = apiresp.Result.(Volume)
 	}
-	klog.V(4).Infof("Created Volume with ID %d", vol.ID)
+	zlog.Info().Msgf("Created Volume with ID %d", vol.ID)
 	return &vol, nil
 }
 
 // FindStoragePool : Find storage pool either by id or name
 func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, error) {
-	klog.V(4).Infof("FindStoragePool called with either id %d or name %s", id, name)
+	zlog.Info().Msgf("FindStoragePool called with either id %d or name %s", id, name)
 	storagePools, err := c.GetStoragePool(id, name)
 	if err != nil {
 		return StoragePool{}, fmt.Errorf("error getting storage pool %s", err)
@@ -210,7 +208,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 
 	for _, storagePool := range storagePools {
 		if storagePool.ID == id || storagePool.Name == name {
-			klog.V(4).Infof("Got storage pool: %s", storagePool.Name)
+			zlog.Info().Msgf("Got storage pool: %s", storagePool.Name)
 			return storagePool, nil
 		}
 	}
@@ -219,7 +217,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 
 // GetStoragePool : Get storage pool(s) either by id or name
 func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error) {
-	klog.V(4).Infof("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
+	zlog.Info().Msgf("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
 	storagePool := StoragePool{}
 	storagePools := []StoragePool{}
 
@@ -258,7 +256,7 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 
 // GetStoragePoolIDByName : Returns poolID of provided pool name
 func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error) {
-	klog.V(4).Infof("GetStoragePoolIDByName: %s", name)
+	zlog.Info().Msgf("GetStoragePoolIDByName: %s", name)
 	storagePools := []StoragePool{}
 	// To get the pool_id for corresponding poolname
 	var poolID int64 = -1
@@ -267,7 +265,7 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 	queryParam["name"] = name
 	resp, err := c.getResponseWithQueryString(urlpool, queryParam, &storagePools)
 	if err != nil {
-		klog.Errorf("error %s", err.Error())
+		zlog.Error().Msgf("error %s", err.Error())
 		return -1, fmt.Errorf("failed to get pool ID from pool Name: %s", name)
 	}
 	if len(storagePools) == 0 {
@@ -280,13 +278,13 @@ func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error
 	if poolID == -1 {
 		return poolID, errors.New("no such pool: " + name)
 	}
-	klog.V(4).Infof("got ID of a storage pool: %d", poolID)
+	zlog.Info().Msgf("got ID of a storage pool: %d", poolID)
 	return poolID, nil
 }
 
 // GetVolumeByName : find volume with given name
 func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
-	klog.V(4).Infof("Get a Volume by Name: %s", volumename)
+	zlog.Info().Msgf("Get a Volume by Name: %s", volumename)
 	voluri := "/api/rest/volumes"
 	volumes := []Volume{}
 	queryParam := make(map[string]interface{})
@@ -302,7 +300,7 @@ func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
 	}
 	for _, vol := range volumes {
 		if vol.Name == volumename {
-			klog.V(4).Infof("Got a Volume of Name: %s", volumename)
+			zlog.Info().Msgf("Got a Volume of Name: %s", volumename)
 			return &vol, nil
 		}
 	}
@@ -327,7 +325,7 @@ func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 
 // CreateSnapshotVolume : Create volume from snapshot
 func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
-	klog.V(4).Infof("Create a snapshot: %s", snapshotParam.SnapshotName)
+	zlog.Info().Msgf("Create a snapshot: %s", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
 	valumeParameter := make(map[string]interface{})
@@ -343,19 +341,19 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 		apiresp := resp.(client.ApiResponse)
 		snapResp, _ = apiresp.Result.(SnapshotVolumesResp)
 	}
-	klog.V(4).Infof("Created snapshot: %s", snapResp.Name)
+	zlog.Info().Msgf("Created snapshot: %s", snapResp.Name)
 	return &snapResp, nil
 }
 
 // GetNetworkSpaceByName - Get networkspace by name
 func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error) {
-	klog.V(4).Infof("Get network space by name: %s", networkSpaceName)
+	zlog.Info().Msgf("Get network space by name: %s", networkSpaceName)
 	netspaces := []NetworkSpace{}
 	path := "api/rest/network/spaces"
 	queryParam := map[string]interface{}{"name": networkSpaceName}
 	resp, err := c.getResponseWithQueryString(path, queryParam, &netspaces)
 	if err != nil {
-		klog.Errorf("no such network space: %s", networkSpaceName)
+		zlog.Error().Msgf("no such network space: %s", networkSpaceName)
 		return nspace, err
 	}
 	if len(netspaces) == 0 {
@@ -365,33 +363,33 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	if len(netspaces) > 0 {
 		nspace = netspaces[0]
 	}
-	klog.V(4).Infof("Got network space: %s", networkSpaceName)
+	zlog.Info().Msgf("Got network space: %s", networkSpaceName)
 	return nspace, nil
 }
 
 // DeleteHost - delete host by given host ID
 func (c *ClientService) DeleteHost(hostID int) (err error) {
-	klog.V(4).Infof("delete host with host ID %d", hostID)
+	zlog.Info().Msgf("delete host with host ID %d", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID)
 	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			klog.Errorf("failed to delete host with id %d with error %v", hostID, err)
+			zlog.Error().Msgf("failed to delete host with id %d with error %v", hostID, err)
 		}
 		return err
 	}
-	klog.V(4).Infof("delete host with id %d", hostID)
+	zlog.Info().Msgf("delete host with id %d", hostID)
 	return nil
 }
 
 // CreateHost - create host  with given details
 func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
-	klog.V(4).Infof("create host with name %s", hostName)
+	zlog.Info().Msgf("create host with name %s", hostName)
 	uri := "api/rest/hosts"
 	body := map[string]interface{}{"name": hostName}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &host)
 	if err != nil {
-		klog.Errorf("error creating host : %s error : %v", hostName, err)
+		zlog.Error().Msgf("error creating host : %s error : %v", hostName, err)
 		return host, err
 	}
 	if reflect.DeepEqual(host, (Host{})) {
@@ -399,18 +397,18 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 		host, _ = apiresp.Result.(Host)
 	}
 
-	klog.V(4).Infof("created host with name %s", host.Name)
+	zlog.Info().Msgf("created host with name %s", host.Name)
 	return host, nil
 }
 
 // GetHostPort - get host port details
 func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error) {
-	klog.V(4).Infof("get host port by port address %s", portAddress)
+	zlog.Info().Msgf("get host port by port address %s", portAddress)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports"
 	hostPorts := []HostPort{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &hostPorts)
 	if err != nil {
-		klog.Errorf("unable to get host port %s with error ", portAddress)
+		zlog.Error().Msgf("unable to get host port %s with error ", portAddress)
 		return hostPort, err
 	}
 	if len(hostPorts) == 0 {
@@ -426,19 +424,19 @@ func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort Ho
 	if hostPort.HostID == 0 && hostPort.PortAddress == "" {
 		return hostPort, errors.New("HOST_PORT_NOT_FOUND")
 	}
-	klog.V(4).Infof("fetched hostPort with address %s", hostPort.PortAddress)
+	zlog.Info().Msgf("fetched hostPort with address %s", hostPort.PortAddress)
 	return hostPort, nil
 }
 
 // GetHostByName - get host details for given hostname
 func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
-	klog.V(4).Infof("get host by name %s", hostName)
+	zlog.Info().Msgf("get host by name %s", hostName)
 	uri := "api/rest/hosts"
 	hosts := []Host{}
 	queryParam := map[string]interface{}{"name": hostName}
 	resp, err := c.getResponseWithQueryString(uri, queryParam, &hosts)
 	if err != nil {
-		klog.Errorf("host %s not found ", hostName)
+		zlog.Error().Msgf("host %s not found ", hostName)
 		return host, err
 	}
 	if len(hosts) == 0 {
@@ -452,17 +450,17 @@ func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
 	if host.ID == 0 && host.Name == "" {
 		return host, errors.New("HOST_NOT_FOUND")
 	}
-	klog.V(4).Infof("fetched host with name %s", host.Name)
+	zlog.Info().Msgf("fetched host with name %s", host.Name)
 	return host, nil
 }
 
 // GetFCPorts - get fc ports details
 func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
-	klog.V(4).Infof("get fc ports")
+	zlog.Info().Msgf("get fc ports")
 	uri := "api/rest/components/nodes?fields=fc_ports"
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &fcNodes)
 	if err != nil {
-		klog.Errorf("error occured while fetching fc_ports ")
+		zlog.Error().Msgf("error occured while fetching fc_ports ")
 		return fcNodes, err
 	}
 	if len(fcNodes) == 0 {
@@ -473,28 +471,28 @@ func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
 	if len(fcNodes) == 0 {
 		return fcNodes, errors.New("fc port not found")
 	}
-	klog.V(4).Infof("fetched fc ports successfully ")
+	zlog.Info().Msgf("fetched fc ports successfully ")
 	return fcNodes, nil
 }
 
 // UnMapVolumeFromHost - Remove mapping of volume with host
 func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
-	klog.V(4).Infof("Remove mapping of volume %d from host %d", volumeID, hostID)
+	zlog.Info().Msgf("Remove mapping of volume %d from host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") && !strings.Contains(err.Error(), "VOLUME_NOT_FOUND") && !strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-			klog.Errorf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
+			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
 		}
 		return err
 	}
-	klog.V(4).Infof("successfully unmapped volume %d from host %d", volumeID, hostID)
+	zlog.Info().Msgf("successfully unmapped volume %d from host %d", volumeID, hostID)
 	return nil
 }
 
 // MapVolumeToHost - Map volume with given volumeID to Host with given hostID
 func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error) {
-	klog.V(4).Infof("map volume %d to host %d", volumeID, hostID)
+	zlog.Info().Msgf("map volume %d to host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns?approved=true"
 	data := make(map[string]interface{})
 	data["volume_id"] = volumeID
@@ -505,7 +503,7 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunI
 	if err != nil {
 		// ignore logging for following error code
 		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-			klog.Errorf("error occured while mapping volume to host %v", err)
+			zlog.Error().Msgf("error occured while mapping volume to host %v", err)
 		}
 		return luninfo, err
 	}
@@ -513,19 +511,19 @@ func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunI
 		apiresp := resp.(client.ApiResponse)
 		luninfo, _ = apiresp.Result.(LunInfo)
 	}
-	klog.V(4).Infof("Successfully mapped volume %d to host %d", volumeID, hostID)
+	zlog.Info().Msgf("Successfully mapped volume %d to host %d", volumeID, hostID)
 	return luninfo, nil
 }
 
 // GetLunByHostVolume - Get Lun details for volume and host provided
 func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error) {
 	luns := []LunInfo{}
-	klog.V(4).Infof("get lun for volume %d and host %d", volumeID, hostID)
+	zlog.Info().Msgf("get lun for volume %d and host %d", volumeID, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
 	data := map[string]interface{}{"volume_id": volumeID}
 	resp, err := c.getResponseWithQueryString(uri, data, &luns)
 	if err != nil {
-		klog.Errorf("error occured while get luns for volumeID %d and host %d err %v", volumeID, hostID, err)
+		zlog.Error().Msgf("error occured while get luns for volumeID %d and host %d err %v", volumeID, hostID, err)
 		return luninfo, err
 	}
 	if len(luns) == 0 {
@@ -535,7 +533,7 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 	if len(luns) > 0 {
 		luninfo = luns[0]
 	}
-	klog.V(4).Infof("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
+	zlog.Info().Msgf("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
 	return luninfo, nil
 }
 
@@ -546,7 +544,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	total_pages := 1 // start with 1, update after first query.
 
-	klog.V(4).Infof("Get all lun for host %d", hostID)
+	zlog.Info().Msgf("Get all lun for host %d", hostID)
 
 	for ok := true; ok; ok = page <= total_pages {
 		uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns" + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
@@ -554,7 +552,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 		resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
 
 		if err != nil {
-			klog.Errorf("failed to get luns for host %d with error %v", hostID, err)
+			zlog.Error().Msgf("failed to get luns for host %d with error %v", hostID, err)
 			return luninfo, err
 		}
 
@@ -562,7 +560,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 		currentResults, _ := apiresp.Result.([]LunInfo)
 		luninfo = append(luninfo, currentResults...)
 		responseSize := apiresp.MetaData.NoOfObject
-		klog.Infof("added %d items to results", responseSize)
+		zlog.Info().Msgf("added %d items to results", responseSize)
 		if page == 1 {
 			total_pages = apiresp.MetaData.TotalPages
 		}
@@ -570,7 +568,7 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 	}
 	// loop ends here
 
-	klog.V(4).Infof("got %d Luns for host %d", len(luninfo), hostID)
+	zlog.Info().Msgf("got %d Luns for host %d", len(luninfo), hostID)
 	return luninfo, nil
 }
 
@@ -582,7 +580,7 @@ func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, er
 	queryParam["parent_id"] = volumeID
 	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
 	if err != nil {
-		klog.Errorf("failed to check GetVolumeSnapshotByParentID %v", err)
+		zlog.Error().Msgf("failed to check GetVolumeSnapshotByParentID %v", err)
 		return &volumes, err
 	}
 	if len(volumes) == 0 {
@@ -594,13 +592,13 @@ func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, er
 
 // UpdateVolume : update volume
 func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
-	klog.V(4).Infof("Update volume %d", volumeID)
+	zlog.Info().Msgf("Update volume %d", volumeID)
 	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
 	volumeResp := Volume{}
 
 	resp, err := c.getJSONResponse(http.MethodPut, uri, volume, &volumeResp)
 	if err != nil {
-		klog.Errorf("error occured while updating volume : %s", err)
+		zlog.Error().Msgf("error occured while updating volume : %s", err)
 		return nil, err
 	}
 
@@ -608,17 +606,16 @@ func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, erro
 		apiresp := resp.(client.ApiResponse)
 		volumeResp, _ = apiresp.Result.(Volume)
 	}
-	klog.V(4).Infof("Updated volume: %d", volumeID)
+	zlog.Info().Msgf("Updated volume: %d", volumeID)
 	return &volumeResp, nil
 }
 
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
 	hostsecret, err := c.getAPIConfig()
 	if err != nil {
-		klog.Errorf("error occured: %v ", err)
+		zlog.Error().Msgf("error occured: %v ", err)
 		return nil, err
 	}
-	//klog.V(4).Infof("Requesting method: %s , %s%s", method, hostsecret.ApiHost, apiuri)
 	if method == http.MethodPost {
 		resp, err = c.api.Post(context.Background(), apiuri, hostsecret, body, expectedResp)
 	} else if method == http.MethodGet {
@@ -629,20 +626,20 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 		resp, err = c.api.Put(context.Background(), apiuri, hostsecret, body, expectedResp)
 	}
 	if err != nil {
-		klog.Errorf("api json response error occured, method: %s URL: %s%s, error: %+v", hostsecret.ApiHost, apiuri, err)
+		zlog.Error().Msgf("api json response error occured, method: %s URL: %s, error: %+v", hostsecret.ApiHost, apiuri, err)
 		return
 	}
-	klog.V(4).Infof("Requesting method: %s , %s%s successful", method, hostsecret.ApiHost, apiuri)
+	zlog.Debug().Msgf("Requesting method: %s , %s%s successful", method, hostsecret.ApiHost, apiuri)
 	return
 }
 
 func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (resp interface{}, err error) {
 	hostsecret, err := c.getAPIConfig()
 	if err != nil {
-		klog.Errorf("error occured: %v ", err)
+		zlog.Error().Msgf("error occured: %v ", err)
 		return nil, err
 	}
-	klog.V(4).Infof("Requesting %s%s", hostsecret.ApiHost, apiuri)
+	zlog.Info().Msgf("Requesting %s%s", hostsecret.ApiHost, apiuri)
 
 	var queryString string
 	for key, val := range queryParam {
@@ -666,7 +663,7 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		} else {
 			hostconfig.ApiHost = hosturl.String()
 		}
-		//klog.V(4).Infof("setting url to %s", hostconfig.ApiHost)
+		//zlog.Info().Msgf("setting url to %s", hostconfig.ApiHost)
 		hostconfig.UserName = c.SecretsMap["username"]
 		hostconfig.Password = c.SecretsMap["password"]
 		return hostconfig, nil
@@ -693,11 +690,11 @@ func (c *ClientService) GetAllSnapshots() ([]Volume, error) {
 			volumes := []Volume{}
 			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &volumes)
 			if err != nil {
-				klog.Errorf("failed to check GetAllSnapshots %v response: %v", err, resp)
+				zlog.Error().Msgf("failed to check GetAllSnapshots %v response: %v", err, resp)
 				return allvolumes, err
 			}
 			apiresp := resp.(client.ApiResponse)
-			klog.Infof("uri %s page %d volumes %d", uriList[u], page, len(volumes))
+			zlog.Info().Msgf("uri %s page %d volumes %d", uriList[u], page, len(volumes))
 
 			allvolumes = append(allvolumes, volumes...)
 			if page == 1 {

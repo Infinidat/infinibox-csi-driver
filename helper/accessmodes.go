@@ -20,7 +20,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/mock"
-	"k8s.io/klog/v2"
 )
 
 // AccessModesHelper interface
@@ -43,7 +42,7 @@ func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPub
 
 	// warn about multi-writer with raw block volumes
 	if reqAccessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER && reqVolCapability.GetBlock() != nil {
-		klog.Warningf("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
+		zlog.Warn().Msgf("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
 		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
 	}
 

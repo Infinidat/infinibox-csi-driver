@@ -45,7 +45,6 @@ func (suite *ControllerTestSuite) SetupTest() {
 		AccessModesHelper: suite.accessMock,
 	}
 
-	tests.ConfigureKlog()
 }
 func TestControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(ControllerTestSuite))

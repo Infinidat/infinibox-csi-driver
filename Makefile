@@ -180,7 +180,7 @@ docker-push-all: image-push docker-push-redhat docker-push-dockerhub  ## Push to
 buildlocal: build docker-build clean
 
 .PHONY: all
-all: build docker-build docker-push clean
+all: build image image-push clean
 
 .PHONY: docker-image-save
 docker-image-save: ## Save image to gzipped tar file to _art_dir.

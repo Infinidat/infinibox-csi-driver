@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/log"
 	"io"
 	"os"
 	"os/exec"
@@ -30,7 +31,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
 
@@ -44,6 +44,8 @@ const (
 
 	bytesofGiB = kiBytesofGiB * bytesofKiB
 )
+
+var zlog = log.Get() // grab the logger for storage package use
 
 // used to look up expected service for protocol
 var protoToServiceMap = map[string]string{
@@ -66,14 +68,14 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	//    Pass   int
 	// }
 
-	klog.V(4).Infof("Checking mount path using mounter's List() and searching with path '%s'", targetHostPath)
+	zlog.Info().Msgf("Checking mount path using mounter's List() and searching with path '%s'", targetHostPath)
 	mounter := mount.NewWithoutSystemd("")
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
-		klog.Error(mountListErr)
+		zlog.Err(mountListErr)
 		return true, mountListErr
 	}
-	klog.V(5).Infof("Mount path list: %v", mountList)
+	zlog.Info().Msgf("Mount path list: %v", mountList)
 
 	// Search list for targetHostPath
 	isMountedByListMethod := false
@@ -83,38 +85,38 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 			break
 		}
 	}
-	klog.V(4).Infof("Path '%s' is mounted: %t", targetHostPath, isMountedByListMethod)
+	zlog.Info().Msgf("Path '%s' is mounted: %t", targetHostPath, isMountedByListMethod)
 	return isMountedByListMethod, nil
 }
 
 func cleanupOldMountDirectory(targetHostPath string) error {
-	klog.V(4).Infof("Cleaning up old mount directory at '%s'", targetHostPath)
+	zlog.Info().Msgf("Cleaning up old mount directory at '%s'", targetHostPath)
 	isMountEmpty, isMountEmptyErr := IsDirEmpty(targetHostPath)
 	// Verify mount/ directory is empty. Fail if mount/ is not empty as that may be volume data.
 	if isMountEmptyErr != nil {
 		err := fmt.Errorf("failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
-		klog.Errorf(err.Error())
+		zlog.Error().Msgf(err.Error())
 		return err
 	}
 	if !isMountEmpty {
 		err := fmt.Errorf("error: mount/ directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
-		klog.Errorf(err.Error())
+		zlog.Error().Msgf(err.Error())
 		return err
 	}
-	klog.V(4).Infof("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
+	zlog.Info().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
 
 	// Clean up mount/
 	if _, statErr := os.Stat(targetHostPath); os.IsNotExist(statErr) {
-		klog.V(4).Infof("mount point targetHostPath '%s' already removed", targetHostPath)
+		zlog.Info().Msgf("mount point targetHostPath '%s' already removed", targetHostPath)
 	} else {
-		klog.V(4).Infof("removing mount point targetHostPath '%s'", targetHostPath)
+		zlog.Info().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-			klog.Errorf(err.Error())
+			zlog.Error().Msgf(err.Error())
 			return err
 		}
 	}
-	klog.V(4).Infof("Removed mount point targetHostPath '%s'", targetHostPath)
+	zlog.Info().Msgf("Removed mount point targetHostPath '%s'", targetHostPath)
 
 	csiHostPath := strings.TrimSuffix(targetHostPath, "/mount")
 	volData := "vol_data.json"
@@ -122,59 +124,59 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 
 	// Clean up csi-NNNNNNN/vol_data.json file
 	if _, statErr := os.Stat(volDataPath); os.IsNotExist(statErr) {
-		klog.V(4).Infof("%s already removed from path '%s'", volData, csiHostPath)
+		zlog.Info().Msgf("%s already removed from path '%s'", volData, csiHostPath)
 	} else {
-		klog.V(4).Infof("removing %s from path '%s'", volData, volDataPath)
+		zlog.Info().Msgf("removing %s from path '%s'", volData, volDataPath)
 		if err := os.Remove(volDataPath); err != nil {
-			klog.Warningf("after unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
+			zlog.Warn().Msgf("after unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
 		}
-		klog.V(4).Infof("Successfully removed %s from path '%s'", volData, volDataPath)
+		zlog.Info().Msgf("Successfully removed %s from path '%s'", volData, volDataPath)
 	}
 
 	// Clean up csi-NNNNNNN directory
 	if _, statErr := os.Stat(csiHostPath); os.IsNotExist(statErr) {
-		klog.V(4).Infof("CSI volume directory '%s' already removed", csiHostPath)
+		zlog.Info().Msgf("CSI volume directory '%s' already removed", csiHostPath)
 	} else {
-		klog.V(4).Infof("Removing CSI volume directory '%s'", csiHostPath)
+		zlog.Info().Msgf("Removing CSI volume directory '%s'", csiHostPath)
 		if err := os.Remove(csiHostPath); err != nil {
-			klog.Errorf("After unmounting, failed to remove CSI volume directory '%s': %v", csiHostPath, err)
+			zlog.Error().Msgf("After unmounting, failed to remove CSI volume directory '%s': %v", csiHostPath, err)
 		}
-		klog.V(4).Infof("Successfully removed CSI volume directory'%s'", csiHostPath)
+		zlog.Info().Msgf("Successfully removed CSI volume directory'%s'", csiHostPath)
 	}
 	return nil
 }
 
 // Unmount using targetPath and cleanup directories and files.
 func unmountAndCleanUp(targetPath string) (err error) {
-	klog.V(4).Infof("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
+	zlog.Info().Msgf("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
 
 	mounter := mount.NewWithoutSystemd("")
 	targetHostPath := path.Join("/host", targetPath)
 
-	klog.V(4).Infof("Unmounting targetPath '%s'", targetPath)
+	zlog.Info().Msgf("Unmounting targetPath '%s'", targetPath)
 	if err := mounter.Unmount(targetPath); err != nil {
-		klog.Warningf("failed to unmount targetPath '%s' but rechecking: %v", targetPath, err)
+		zlog.Warn().Msgf("failed to unmount targetPath '%s' but rechecking: %v", targetPath, err)
 	} else {
-		klog.V(4).Infof("Successfully unmounted targetPath '%s'", targetPath)
+		zlog.Info().Msgf("Successfully unmounted targetPath '%s'", targetPath)
 	}
 
 	isMounted, isMountedErr := isMountedByListMethod(targetHostPath)
 	if isMountedErr != nil {
 		err := fmt.Errorf("error: failed to check if targetHostPath '%s' is unmounted after unmounting %v", targetHostPath, isMountedErr)
-		klog.Errorf(err.Error())
+		zlog.Error().Msgf(err.Error())
 		return err
 	}
 	if isMounted {
 		// TODO - Should include volume ID
 		err := fmt.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
-		klog.Errorf(err.Error())
+		zlog.Error().Msgf(err.Error())
 		return err
 	}
-	klog.V(4).Infof("Verified that targetHostPath '%s' is not mounted", targetHostPath)
+	zlog.Info().Msgf("Verified that targetHostPath '%s' is not mounted", targetHostPath)
 
 	// Check if targetHostPath exists
 	if _, err := os.Stat(targetHostPath); os.IsNotExist(err) {
-		klog.V(4).Infof("targetHostPath '%s' does not exist and does not need to be cleaned up", targetHostPath)
+		zlog.Info().Msgf("targetHostPath '%s' does not exist and does not need to be cleaned up", targetHostPath)
 		return nil
 	}
 
@@ -182,26 +184,26 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	isADir, isADirError := IsDirectory(targetHostPath)
 	if isADirError != nil {
 		err := fmt.Errorf("failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
-		klog.Errorf(err.Error())
+		zlog.Error().Msgf(err.Error())
 		return err
 	}
 
 	if isADir {
-		klog.V(4).Infof("targetHostPath '%s' is a directory, not a file", targetHostPath)
+		zlog.Info().Msgf("targetHostPath '%s' is a directory, not a file", targetHostPath)
 		if err := cleanupOldMountDirectory(targetHostPath); err != nil {
-			klog.Error(err)
+			zlog.Err(err)
 			return err
 		}
-		klog.V(4).Infof("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
+		zlog.Info().Msgf("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
 	} else {
 		// TODO - Could check this is a file using IsDirectory().
-		klog.V(4).Infof("targetHostPath '%s' is a file, not a directory", targetHostPath)
+		zlog.Info().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-			klog.Errorf(err.Error())
+			zlog.Error().Msgf(err.Error())
 			return err
 		}
-		klog.V(4).Infof("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
+		zlog.Info().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
 	}
 
 	return nil
@@ -226,7 +228,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 	// validate network protocol / networkspace compatability
 	if scProtocol != common.PROTOCOL_FC {
 		if err := validateProtocolToNetworkSpace(scProtocol, scNetSpace, api); err != nil {
-			klog.Error(err)
+			zlog.Err(err)
 			return err
 		}
 	}
@@ -241,7 +243,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 
 	if len(badParamsMap) > 0 {
 		e := fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
-		klog.Error(e)
+		zlog.Err(e)
 		return e
 	}
 
@@ -258,7 +260,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 		} else {
 			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS])
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				return err
 			}
 
@@ -268,7 +270,7 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 					noRootSquash := permissionsMapArray[0]["no_root_squash"]
 					if noRootSquash == false {
 						e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
-						klog.Error(e)
+						zlog.Err(e)
 						return e
 					}
 				}
@@ -284,31 +286,31 @@ func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
-		klog.Error(err)
+		zlog.Err(err)
 		return err
 	}
 
 	for _, ns := range networkSpaces {
-		klog.Infof("validating ns=%s protocol=%s", ns, protocol)
+		zlog.Info().Msgf("validating ns=%s protocol=%s", ns, protocol)
 		nSpace, err := api.GetNetworkSpaceByName(ns)
 		if err != nil {
 			// api call throws error
-			klog.Error(err)
+			zlog.Err(err)
 			return err
 		}
 		if len(nSpace.Service) == 0 {
 			// handle empty result - nSpace doesn't exist
 			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", ns)
-			klog.Error(e)
+			zlog.Err(e)
 			return e
 		}
 		if nSpace.Service != protoToServiceMap[protocol] {
 			// handle invalid protocol/networkspace configuration
 			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", ns, protocol, nSpace.Service)
-			klog.Error(e)
+			zlog.Err(e)
 			return e
 		}
-		klog.Infof("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
+		zlog.Info().Msgf("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
 	}
 
 	return nil // returns here if all network spaces pass validation for protocol.
@@ -337,7 +339,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
-		klog.Errorf("invalid %s format %v raw [%s] fixed [%s]", common.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
+		zlog.Error().Msgf("invalid %s format %v raw [%s] fixed [%s]", common.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
 		return permissionsMapArray, err
 	}
 
@@ -346,7 +348,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 		if ok {
 			rootsq, err := strconv.ParseBool(no_root_squash_str)
 			if err != nil {
-				klog.V(4).Infof("failed to cast no_root_squash value in export permission - setting default value 'true'")
+				zlog.Info().Msgf("failed to cast no_root_squash value in export permission - setting default value 'true'")
 				rootsq = true
 			}
 			pass["no_root_squash"] = rootsq
@@ -400,7 +402,7 @@ func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOpt
 
 	mountOptions, err = updateNfsMountOptions(mountOptions, req)
 	if err != nil {
-		klog.Errorf("failed updateNfsMountOptions(): %s", err)
+		zlog.Error().Msgf("failed updateNfsMountOptions(): %s", err)
 		return mountOptions, err
 	}
 
@@ -409,7 +411,7 @@ func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOpt
 		mountOptions = append(mountOptions, "ro")
 	}
 
-	klog.V(4).Infof("nfs mount options are [%v]", mountOptions)
+	zlog.Info().Msgf("nfs mount options are [%v]", mountOptions)
 
 	return mountOptions, nil
 }
@@ -423,7 +425,7 @@ func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 			version := matches[2]
 			if version != "3" {
 				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS version 3 is supported", opt)
-				klog.Error(e)
+				zlog.Err(e)
 				return nil, e
 			}
 		}
@@ -480,7 +482,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		uid_int, err = strconv.Atoi(tmp)
 		if err != nil || uid_int < -1 {
 			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
-			klog.Error(e)
+			zlog.Err(e)
 			return e
 		}
 	}
@@ -492,7 +494,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		gid_int, err = strconv.Atoi(tmp)
 		if err != nil || gid_int < -1 {
 			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
-			klog.Error(e)
+			zlog.Err(e)
 			return e
 		}
 	}
@@ -500,10 +502,10 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	err = os.Chown(hostTargetPath, uid_int, gid_int)
 	if err != nil {
 		e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
-		klog.Error(e)
+		zlog.Err(e)
 		return status.Errorf(codes.Internal, e.Error())
 	}
-	klog.V(4).Infof("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
+	zlog.Info().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 
 	// Chmod
 	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
@@ -511,17 +513,17 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
 			e := fmt.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
-			klog.Error(e)
+			zlog.Err(e)
 			return status.Errorf(codes.Internal, e.Error())
 		}
 		mode := uint(tempVal)
 		err = os.Chmod(hostTargetPath, os.FileMode(mode))
 		if err != nil {
 			e := fmt.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err)
-			klog.Error(e)
+			zlog.Err(e)
 			return status.Errorf(codes.Internal, e.Error())
 		}
-		klog.V(4).Infof("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
+		zlog.Info().Msgf("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
 	}
 
 	// print out the target permissions
@@ -535,9 +537,9 @@ func logPermissions(note, hostTargetPath string) {
 	cmd := exec.Command("ls", "-l", hostTargetPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		klog.Errorf("error in doing ls command on %s error is  %s\n", hostTargetPath, err.Error())
+		zlog.Error().Msgf("error in doing ls command on %s error is  %s\n", hostTargetPath, err.Error())
 	}
-	klog.V(4).Infof("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
+	zlog.Info().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
 }
 
 func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, optionalParams map[string]string, api api.Client) (capacity int64, err error) {
@@ -545,26 +547,26 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 
 	err = validateStorageClassParameters(scParams, optionalParams, params, api)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return capacity, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	capacity = int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
-		klog.Warningf("volume Minimum capacity should be greater 1 GB")
+		zlog.Warn().Msgf("volume Minimum capacity should be greater 1 GB")
 	}
 
 	useChap := params[common.SC_USE_CHAP]
 	if useChap != "" {
-		klog.Warningf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
+		zlog.Warn().Msgf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
 	}
 
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
 			e := fmt.Errorf("block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
-			klog.Error(e)
+			zlog.Err(e)
 			return capacity, status.Error(codes.InvalidArgument, e.Error())
 		}
 	}

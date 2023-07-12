@@ -17,7 +17,6 @@ import (
 	"runtime"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"k8s.io/klog/v2"
 	"k8s.io/mount-utils"
 )
 
@@ -46,7 +45,7 @@ type Driver struct {
 }
 
 func NewDriver(options *DriverOptions) *Driver {
-	klog.V(2).Infof("Driver: %v version: %v", options.DriverName, options.Version)
+	zlog.Info().Msgf("Driver: %v version: %v", options.DriverName, options.Version)
 
 	n := &Driver{
 		name:             options.DriverName,

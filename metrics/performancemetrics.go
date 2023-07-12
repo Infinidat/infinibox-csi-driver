@@ -12,7 +12,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -38,29 +37,29 @@ var (
 )
 
 func RecordPerformanceMetrics(config *MetricsConfig) {
-	klog.V(4).Infof("performance metrics recording...")
+	zlog.Info().Msgf("performance metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_IBOX_PERFORMANCE_METRICS))
 
-			klog.V(4).Info("performance metrics: creating collectors...")
+			zlog.Info().Msg("performance metrics: creating collectors...")
 			nasID, sanID, err := createCollectors(config)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
 
 			time.Sleep(time.Second * 5) // this is necessary to give the ibox time to fire up the collectors
 
-			klog.V(4).Info("performance metrics: get NAS collector data nasID %d sanID %d", nasID, sanID)
+			zlog.Info().Msgf("performance metrics: get NAS collector data nasID %d sanID %d", nasID, sanID)
 			nasResponse, err := getCollectorData(nasID, config)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
-			klog.V(4).Infof("performance metrics: nas data %+v\n", nasResponse)
+			zlog.Info().Msgf("performance metrics: nas data %+v\n", nasResponse)
 			opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
-			klog.V(4).Infof("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
+			zlog.Info().Msgf("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
 			if err == nil {
 				labels := prometheus.Labels{
 					METRIC_IBOX_IP:       config.IboxIpAddress,
@@ -74,25 +73,25 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 
 			sanResponse, err := getCollectorData(sanID, config)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
-			klog.V(4).Infof("performance metrics: san data %+v\n", sanResponse)
+			zlog.Info().Msgf("performance metrics: san data %+v\n", sanResponse)
 			opsAverage, throughputAverage, latencyAverage = getCounterAverages(sanResponse.Result.Collectors[0].Fields, sanResponse.Result.Collectors[0].Data)
-			klog.V(4).Infof("performance metrics: san metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
+			zlog.Info().Msgf("performance metrics: san metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
 
 			err = deleteCollector(nasID, config)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
-			klog.V(4).Infof("performance metrics: deleted NAS collector %d\n", nasID)
+			zlog.Info().Msgf("performance metrics: deleted NAS collector %d\n", nasID)
 			err = deleteCollector(sanID, config)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
-			klog.V(4).Infof("performance metrics: deleted SAN collector %d\n", sanID)
+			zlog.Info().Msgf("performance metrics: deleted SAN collector %d\n", sanID)
 
 			labels := prometheus.Labels{
 				METRIC_IBOX_IP:       config.IboxIpAddress,
@@ -122,7 +121,7 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/api/rest/metrics/collectors/data?collector_id=%d", config.IboxHostname, collectorID), http.NoBody)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
@@ -131,7 +130,7 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 
 	res, err := client.Do(req)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
@@ -139,7 +138,7 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
@@ -212,13 +211,13 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 	var jsonData []byte
 	jsonData, err = json.Marshal(params)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 	buff := bytes.NewBuffer(jsonData)
 	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", config.IboxHostname), buff)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
@@ -228,7 +227,7 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 	var res *http.Response
 	res, err = client.Do(req)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
@@ -237,15 +236,15 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 	var sanResponseData []byte
 	sanResponseData, err = io.ReadAll(res.Body)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
-	klog.V(4).Infof("san collector create response %s\n", string(sanResponseData))
+	zlog.Info().Msgf("san collector create response %s\n", string(sanResponseData))
 
 	sanresponse := &CreateCollectorResponse{}
 	err = json.Unmarshal(sanResponseData, sanresponse)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 	//TODO proper check of error code/message goes here
@@ -262,13 +261,13 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 
 	jsonData, err = json.Marshal(params)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 	buff = bytes.NewBuffer(jsonData)
 	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", config.IboxHostname), buff)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
@@ -277,7 +276,7 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 
 	res, err = client.Do(req)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
@@ -286,16 +285,16 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 	var nasResponseData []byte
 	nasResponseData, err = io.ReadAll(res.Body)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
-	klog.V(4).Infof("nas collector post response %s\n", string(nasResponseData))
+	zlog.Info().Msgf("nas collector post response %s\n", string(nasResponseData))
 
 	nasresponse := &CreateCollectorResponse{}
 	err = json.Unmarshal(nasResponseData, nasresponse)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 	//TODO proper check of error code/message goes here
@@ -328,7 +327,7 @@ func deleteCollector(collectorID int64, config *MetricsConfig) error {
 
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("https://%s/api/rest/metrics/collectors/%d", config.IboxHostname, collectorID), http.NoBody)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return err
 	}
 
@@ -338,7 +337,7 @@ func deleteCollector(collectorID int64, config *MetricsConfig) error {
 	var res *http.Response
 	res, err = client.Do(req)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return err
 	}
 
@@ -358,17 +357,17 @@ func deleteCollector(collectorID int64, config *MetricsConfig) error {
 	}
 	response, err := io.ReadAll(res.Body)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return err
 	}
 
 	deleteresponse := &DeleteCollectorResponse{}
 	err = json.Unmarshal(response, deleteresponse)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return err
 	}
-	klog.V(4).Infof("delete collector response %+v\n", deleteresponse)
+	zlog.Info().Msgf("delete collector response %+v\n", deleteresponse)
 
 	//TODO proper check of error code/message goes here
 	return nil

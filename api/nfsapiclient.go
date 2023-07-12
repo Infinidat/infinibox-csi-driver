@@ -22,8 +22,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"k8s.io/klog/v2"
 )
 
 // OneTimeValidation :
@@ -41,7 +39,7 @@ func (c *ClientService) OneTimeValidation(poolname string, networkspace string) 
 	for _, name := range arrayofNetworkSpaces {
 		nspace, err := c.GetNetworkSpaceByName(name)
 		if err != nil {
-			klog.Errorf(err.Error())
+			zlog.Error().Msgf(err.Error())
 		}
 		if nspace.Name == name {
 			arrayOfValidnetspaces = append(arrayOfValidnetspaces, name)
@@ -57,61 +55,61 @@ func (c *ClientService) OneTimeValidation(poolname string, networkspace string) 
 
 // DeleteExportPath :
 func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error) {
-	klog.V(2).Infof("Deleting export path with ID %d", exportID)
+	zlog.Info().Msgf("Deleting export path with ID %d", exportID)
 	uri := "api/rest/exports/" + strconv.FormatInt(exportID, 10) + "?approved=true"
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &eResp)
 	if err != nil {
-		klog.Errorf("Error occured while deleting export path : %s ", err)
+		zlog.Error().Msgf("Error occured while deleting export path : %s ", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, (ExportResponse{})) {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(ExportResponse)
 	}
-	klog.V(2).Infof("Deleted export path with ID %d", exportID)
+	zlog.Info().Msgf("Deleted export path with ID %d", exportID)
 	return &eResp, nil
 }
 
 // DeleteFileSystem :
 func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error) {
-	klog.V(2).Infof("Delete filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Delete filesystem with ID %d", fileSystemID)
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "?approved=true"
 	fileSystem := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &fileSystem)
 	if err != nil {
-		klog.Errorf("Error occured while deleting file System : %s ", err)
+		zlog.Error().Msgf("Error occured while deleting file System : %s ", err)
 		return nil, err
 	}
 	if fileSystem == (FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
 		fileSystem, _ = apiresp.Result.(FileSystem)
 	}
-	klog.V(2).Infof("Deleted filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Deleted filesystem with ID %d", fileSystemID)
 	return &fileSystem, nil
 }
 
 // AttachMetadataToObject :
 func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error) {
-	klog.V(2).Infof("Attach metadata: %v to object id: %d", body, objectID)
+	zlog.Info().Msgf("Attach metadata: %v to object id: %d", body, objectID)
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &metadata)
 	if err != nil {
-		klog.Errorf("Error occured while attaching metadata to object id: %d, %s", objectID, err)
+		zlog.Error().Msgf("Error occured while attaching metadata to object id: %d, %s", objectID, err)
 		return nil, err
 	}
 	if len(metadata) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.([]Metadata)
 	}
-	klog.V(4).Infof("Attached metadata to object id: %d", objectID)
+	zlog.Info().Msgf("Attached metadata to object id: %d", objectID)
 	return &metadata, nil
 }
 
 // DetachMetadataFromObject :
 func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, error) {
-	klog.V(2).Infof("Detach metadata from object with ID %d", objectID)
+	zlog.Info().Msgf("Detach metadata from object with ID %d", objectID)
 	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10) + "?approved=true"
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &metadata)
@@ -119,38 +117,38 @@ func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, e
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		}
-		klog.Errorf("Error occured while detaching metadata from object : %s ", err)
+		zlog.Error().Msgf("Error occured while detaching metadata from object : %s ", err)
 		return nil, err
 	}
 	if len(metadata) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		metadata, _ = apiresp.Result.([]Metadata)
 	}
-	klog.V(2).Infof("Detached metadata from object with ID %d", objectID)
+	zlog.Info().Msgf("Detached metadata from object with ID %d", objectID)
 	return &metadata, nil
 }
 
 // CreateFilesystem :
 func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
-	klog.V(2).Infof("Create filesystem")
+	zlog.Info().Msgf("Create filesystem")
 	uri := "api/rest/filesystems/"
 	fileSystemResp := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
 	if err != nil {
-		klog.Errorf("Error occured while creating filesystem : %s", err)
+		zlog.Error().Msgf("Error occured while creating filesystem : %s", err)
 		return nil, err
 	}
 	if fileSystemResp == (FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
 		fileSystemResp, _ = apiresp.Result.(FileSystem)
 	}
-	klog.V(2).Infof("Created filesystem: %s", fileSystemResp.Name)
+	zlog.Info().Msgf("Created filesystem: %s", fileSystemResp.Name)
 	return &fileSystemResp, nil
 }
 
 // ExportFileSystem :
 func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
-	klog.V(2).Infof("Export FileSystem with ID %d", export.FilesystemID)
+	zlog.Info().Msgf("Export FileSystem with ID %d", export.FilesystemID)
 	urlPost := "api/rest/exports"
 	exportResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
@@ -162,25 +160,25 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 		apiresp := resp.(client.ApiResponse)
 		exportResp, _ = apiresp.Result.(ExportResponse)
 	}
-	klog.V(2).Infof("Exported FileSystem with ID %d", exportResp.FilesystemId)
+	zlog.Info().Msgf("Exported FileSystem with ID %d", exportResp.FilesystemId)
 	return &exportResp, nil
 }
 
 // GetExportByFileSystem :
 func (c *ClientService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
-	klog.V(2).Infof("Get export paths of filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Get export paths of filesystem with ID %d", fileSystemID)
 	uri := "api/rest/exports?filesystem_id=" + strconv.FormatInt(fileSystemID, 10)
 	eResp := []ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		klog.Errorf("Error occured while getting export path : %s", err)
+		zlog.Error().Msgf("Error occured while getting export path : %s", err)
 		return nil, err
 	}
 	if len(eResp) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.([]ExportResponse)
 	}
-	klog.V(2).Infof("Got export paths of filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Got export paths of filesystem with ID %d", fileSystemID)
 	return &eResp, nil
 }
 
@@ -202,8 +200,8 @@ func compareClientIP(permissionIP, ip string) bool {
 
 // AddNodeInExport : Export should be updated in case of node addition in k8s cluster
 func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
-	klog.V(2).Infof("AddNodeInExport() called")
-	klog.V(2).Infof("Adding node with IP %s to export with export ID %d using access '%s'", ip, exportID, access)
+	zlog.Info().Msgf("AddNodeInExport() called")
+	zlog.Info().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ip, exportID, access)
 	flag := false
 
 	uri := "api/rest/exports/" + strconv.Itoa(exportID)
@@ -211,42 +209,42 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		klog.Errorf("Error occurred while getting export path for export with ID %d: %s", exportID, err)
+		zlog.Error().Msgf("Error occurred while getting export path for export with ID %d: %s", exportID, err)
 		return nil, err
 	}
 
-	klog.V(4).Infof("Current export with export ID %d. Response type: %T,  response: %v", exportID, resp, resp)
+	zlog.Info().Msgf("Current export with export ID %d. Response type: %T,  response: %v", exportID, resp, resp)
 	if respApiResponse, ok := resp.(client.ApiResponse); !ok {
 		msg := fmt.Sprintf("Getting current export with ID %d returned a resp that is not of type client.ApiResponse", exportID)
-		klog.Errorf(msg)
+		zlog.Error().Msgf(msg)
 		err = errors.New(msg)
 		return nil, err
 	} else {
 		var respResult interface{} = respApiResponse.Result
 		//var respMetaData client.Resultmetadata = respApiResponse.MetaData
 		//var respError interface{} = respApiResponse.Error
-		// klog.V(4).Infof("Current export with export ID %d. GET response Result: %v", exportID, respResult)
-		// klog.V(4).Infof("Current export with export ID %d. GET response MetaData: %v", exportID, respMetaData)
-		// klog.V(4).Infof("Current export with export ID %d. GET response Error: %v", exportID, respError)
+		// zlog.Info().Msgf("Current export with export ID %d. GET response Result: %v", exportID, respResult)
+		// zlog.Info().Msgf("Current export with export ID %d. GET response MetaData: %v", exportID, respMetaData)
+		// zlog.Info().Msgf("Current export with export ID %d. GET response Error: %v", exportID, respError)
 
 		if exportResponse, ok := respResult.(*ExportResponse); !ok {
 			msg := fmt.Sprintf("Export response for export with ID %d is not of type ExportResponse", exportID)
-			klog.Infof(msg)
+			zlog.Info().Msgf(msg)
 		} else {
-			klog.V(4).Infof("Current export with export ID %d. exportResponse: %v", exportID, *exportResponse)
+			zlog.Info().Msgf("Current export with export ID %d. exportResponse: %v", exportID, *exportResponse)
 		}
 	}
 
 	// TODO - Remove this block. Needed only for allowing UT to pass.
 	//        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		klog.V(4).Infof("DeepEqual(eResp, ExportResponse{}) is true")
+		zlog.Info().Msgf("DeepEqual(eResp, ExportResponse{}) is true")
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(ExportResponse)
-		klog.V(4).Infof("Current export with export ID %d. apiresp type: %T, apiresp: %v", exportID, apiresp, apiresp)
-		klog.V(4).Infof("Current export with export ID %d. eResp type: %T, eResp: %v", exportID, eResp, eResp)
+		zlog.Info().Msgf("Current export with export ID %d. apiresp type: %T, apiresp: %v", exportID, apiresp, apiresp)
+		zlog.Info().Msgf("Current export with export ID %d. eResp type: %T, eResp: %v", exportID, eResp, eResp)
 	} else {
-		klog.V(4).Infof("DeepEqual(eResp, ExportResponse{}) is false")
+		zlog.Info().Msgf("DeepEqual(eResp, ExportResponse{}) is false")
 	}
 
 	index := -1
@@ -254,11 +252,11 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	for i, permission := range permissionList {
 		if compareClientIP(permission.Client, ip) {
 			flag = true
-			klog.V(4).Infof("Node IP address %s already added in export rule with ID %d", ip, exportID)
+			zlog.Info().Msgf("Node IP address %s already added in export rule with ID %d", ip, exportID)
 		} else if permission.Client == "*" {
 			index = i
 			flag = true
-			klog.V(4).Infof("Node IP address %s already covered by '*' export rule for export ID %d", ip, exportID)
+			zlog.Info().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ip, exportID)
 		}
 	}
 	if index != -1 {
@@ -274,25 +272,25 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 
 		exportPermissions := ExportPermissions{}
 		exportPermissions.Permissions = permissionList
-		klog.V(4).Infof("Setting export with ID %d permissions to %+v", exportID, exportPermissions)
+		zlog.Info().Msgf("Setting export with ID %d permissions to %+v", exportID, exportPermissions)
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPermissions, &eResp)
 		if err != nil {
-			klog.Errorf("Error occurred while updating export rule for export with ID %d: %s", exportID, err)
+			zlog.Error().Msgf("Error occurred while updating export rule for export with ID %d: %s", exportID, err)
 			return nil, err
 		} else {
-			klog.Infof("Updated export rule for export with ID %d, resp %v, eResp %v", exportID, resp, eResp)
+			zlog.Info().Msgf("Updated export rule for export with ID %d, resp %v, eResp %v", exportID, resp, eResp)
 		}
 	}
-	klog.V(2).Infof("Completed adding node %s to export with export ID %d: %+v", ip, exportID, eResp)
+	zlog.Info().Msgf("Completed adding node %s to export with export ID %d: %+v", ip, exportID, eResp)
 	return &eResp, nil
 }
 
 // DeleteExportRule method
 func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) error {
-	klog.V(2).Infof("Delete export rule from filesystem with file system ID %d", fileSystemID)
+	zlog.Info().Msgf("Delete export rule from filesystem with file system ID %d", fileSystemID)
 	exportArray, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
-		klog.Errorf("Error occured while getting export : %v", err)
+		zlog.Error().Msgf("Error occured while getting export : %v", err)
 		return err
 	}
 	for _, export := range *exportArray {
@@ -300,7 +298,7 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 		eResp := ExportResponse{}
 		resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 		if err != nil {
-			klog.Errorf("Error occured while getting export path : %s", err)
+			zlog.Error().Msgf("Error occured while getting export path : %s", err)
 			return err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
@@ -312,19 +310,19 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 			if permission.Client == ipAddress {
 				_, err = c.DeleteNodeFromExport(export.ID, permission.Access, permission.NoRootSquash, ipAddress)
 				if err != nil {
-					klog.Errorf("Error occured while getting export path : %s", err)
+					zlog.Error().Msgf("Error occured while getting export path : %s", err)
 					return err
 				}
 			}
 		}
 	}
-	klog.V(2).Infof("Deleted export rule from filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Deleted export rule from filesystem with ID %d", fileSystemID)
 	return nil
 }
 
 // DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
 func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
-	klog.V(2).Infof("Delete node from export with export ID %d", exportID)
+	zlog.Info().Msgf("Delete node from export with export ID %d", exportID)
 	flag := false
 	var index int
 	exportPathRef := ExportPathRef{}
@@ -332,7 +330,7 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		klog.Errorf("Error occured while getting export path : %s", err)
+		zlog.Error().Msgf("Error occured while getting export path : %s", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, ExportResponse{}) {
@@ -359,34 +357,34 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 		exportPathRef.Permissions = permissionList
 		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {
-			klog.Errorf("Error occured while updating permission : %s", err)
+			zlog.Error().Msgf("Error occured while updating permission : %s", err)
 			return nil, err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
 			eResp, _ = resp.(ExportResponse)
 		}
 	} else {
-		klog.Errorf("Given Ip %s address not found in the list", ip)
+		zlog.Error().Msgf("Given Ip %s address not found in the list", ip)
 	}
-	klog.V(2).Infof("Deleted node from export with ID %d", exportID)
+	zlog.Info().Msgf("Deleted node from export with ID %d", exportID)
 	return &eResp, nil
 }
 
 // CreateFileSystemSnapshot method create the filesystem snapshot
 func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
-	klog.V(2).Infof("Create a snapshot of filesystem ID %d", snapshotParam.ParentID)
+	zlog.Info().Msgf("Create a snapshot of filesystem ID %d", snapshotParam.ParentID)
 	path := "/api/rest/filesystems"
 	snapShotResponse := FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
 	if err != nil {
-		klog.Errorf("failed to create %v", err)
+		zlog.Error().Msgf("failed to create %v", err)
 		return nil, err
 	}
 	if (FileSystemSnapshotResponce{}) == snapShotResponse {
 		apiresp := resp.(client.ApiResponse)
 		snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
 	}
-	klog.V(2).Infof("Created snapshot: %s", snapShotResponse.Name)
+	zlog.Info().Msgf("Created snapshot: %s", snapShotResponse.Name)
 	return &snapShotResponse, nil
 }
 
@@ -399,7 +397,7 @@ func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
 	queryParam["parent_id"] = fileSystemID
 	resp, err := c.getResponseWithQueryString(voluri, queryParam, &filesystem)
 	if err != nil {
-		klog.Errorf("failed to check FileSystemHasChild %v", err)
+		zlog.Error().Msgf("failed to check FileSystemHasChild %v", err)
 		return hasChild
 	}
 	if len(filesystem) == 0 {
@@ -419,16 +417,16 @@ const (
 
 // GetMetadataStatus :
 func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
-	klog.V(2).Infof("Get metadata status of IBox object with ID %d", fileSystemID)
+	zlog.Info().Msgf("Get metadata status of IBox object with ID %d", fileSystemID)
 	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TOBEDELETED
 	metadata := Metadata{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
 	if err != nil {
-		klog.V(4).Infof("Getting metadata did not return a value: %s", err)
+		zlog.Info().Msgf("Getting metadata did not return a value: %s", err)
 		return false
 	}
 
-	klog.V(4).Infof("GetMetadataStatus for IBox object with ID %d: %v", fileSystemID, resp)
+	zlog.Info().Msgf("GetMetadataStatus for IBox object with ID %d: %v", fileSystemID, resp)
 
 	if metadata == (Metadata{}) {
 		apiresp := resp.(client.ApiResponse)
@@ -436,17 +434,17 @@ func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
 	}
 	status, statusErr := strconv.ParseBool(metadata.Value)
 	if statusErr != nil {
-		klog.V(4).Infof("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
+		zlog.Info().Msgf("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
 		status = false
 	}
-	klog.V(2).Infof("Got metadata status of IBox object with ID %d", fileSystemID)
-	klog.V(2).Infof("Got metadata status of IBox object with ID %d: %t", fileSystemID, status)
+	zlog.Info().Msgf("Got metadata status of IBox object with ID %d", fileSystemID)
+	zlog.Info().Msgf("Got metadata status of IBox object with ID %d: %t", fileSystemID, status)
 	return status
 }
 
 // GetFileSystemByName :
 func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
-	klog.V(2).Infof("Get filesystem %s", fileSystemName)
+	zlog.Info().Msgf("Get filesystem %s", fileSystemName)
 	uri := "/api/rest/filesystems"
 	fsystems := []FileSystem{}
 	queryParam := make(map[string]interface{})
@@ -462,7 +460,7 @@ func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem,
 	}
 	for _, fsystem := range fsystems {
 		if fsystem.Name == fileSystemName {
-			klog.V(2).Infof("Got filesystem %s", fileSystemName)
+			zlog.Info().Msgf("Got filesystem %s", fileSystemName)
 			return &fsystem, nil
 		}
 	}
@@ -471,31 +469,31 @@ func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem,
 
 // GetFileSystemByID :
 func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, error) {
-	klog.V(2).Infof("Get filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Get filesystem with ID %d", fileSystemID)
 	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
 	eResp := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
-		klog.Errorf("Error occured while getting fileSystem: %s", err)
+		zlog.Error().Msgf("Error occured while getting fileSystem: %s", err)
 		return nil, err
 	}
 	if reflect.DeepEqual(eResp, FileSystem{}) {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(FileSystem)
 	}
-	klog.V(2).Infof("Got filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Got filesystem with ID %d", fileSystemID)
 	return &eResp, nil
 }
 
 // GetParentID method return the
 func (c *ClientService) GetParentID(fileSystemID int64) int64 {
-	klog.V(2).Infof("Get parent of file system with ID %d", fileSystemID)
+	zlog.Info().Msgf("Get parent of file system with ID %d", fileSystemID)
 	fileSystem, err := c.GetFileSystemByID(fileSystemID)
 	if err != nil {
-		klog.Errorf("Error occured while getting file system: %s", err)
+		zlog.Error().Msgf("Error occured while getting file system: %s", err)
 		return 0
 	}
-	klog.V(2).Infof("Got parent of file system with ID %d", fileSystemID)
+	zlog.Info().Msgf("Got parent of file system with ID %d", fileSystemID)
 	return fileSystem.ParentID
 }
 
@@ -507,13 +505,13 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) // delete the filesystem
 		if err != nil {
-			klog.Errorf("Failed to delete filesystem with ID %d: %v", fileSystemID, err)
+			zlog.Error().Msgf("Failed to delete filesystem with ID %d: %v", fileSystemID, err)
 			return
 		}
 		if parentID != 0 {
 			err = c.DeleteParentFileSystem(parentID)
 			if err != nil {
-				klog.Errorf("Failed to delete parent filesystem with parent ID %d: %v", fileSystemID, err)
+				zlog.Error().Msgf("Failed to delete parent filesystem with parent ID %d: %v", fileSystemID, err)
 				return
 			}
 		}
@@ -529,7 +527,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 			err = nil
 		} else {
-			klog.Errorf("failed to delete export path %v", err)
+			zlog.Error().Msgf("failed to delete export path %v", err)
 			return
 		}
 	}
@@ -540,14 +538,14 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 				if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 					err = nil
 				} else {
-					klog.Errorf("failed to delete export path %v", err)
+					zlog.Error().Msgf("failed to delete export path %v", err)
 					return
 				}
 			}
 		}
 	}
 
-	klog.V(4).Infof("Export path deleted successfully")
+	zlog.Info().Msgf("Export path deleted successfully")
 
 	// 2.delete metadata
 	_, err = c.DetachMetadataFromObject(fileSystemID)
@@ -555,16 +553,16 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
 		} else {
-			klog.Errorf("failed to delete metadata %v", err)
+			zlog.Error().Msgf("failed to delete metadata %v", err)
 			return
 		}
 	}
 
 	// 3. delete file system
-	klog.V(2).Infof("delete FileSystem FileSystemID %d", fileSystemID)
+	zlog.Info().Msgf("delete FileSystem FileSystemID %d", fileSystemID)
 	_, err = c.DeleteFileSystem(fileSystemID)
 	if err != nil {
-		klog.Errorf("failed to delete filesystem %v", err)
+		zlog.Error().Msgf("failed to delete filesystem %v", err)
 		return
 	}
 	return
@@ -572,13 +570,13 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 
 // UpdateFilesystem : update file system
 func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
-	klog.V(2).Infof("Update filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Update filesystem with ID %d", fileSystemID)
 	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
 	fileSystemResp := FileSystem{}
 
 	resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
 	if err != nil {
-		klog.Errorf("Error occured while updating filesystem : %s", err)
+		zlog.Error().Msgf("Error occured while updating filesystem : %s", err)
 		return nil, err
 	}
 
@@ -586,19 +584,19 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSyst
 		apiresp := resp.(client.ApiResponse)
 		fileSystemResp, _ = apiresp.Result.(FileSystem)
 	}
-	klog.V(2).Infof("Updated filesystem with ID %d", fileSystemID)
+	zlog.Info().Msgf("Updated filesystem with ID %d", fileSystemID)
 	return &fileSystemResp, nil
 }
 
 // RestoreFileSystemFromSnapShot :
 func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error) {
-	klog.V(2).Infof("Restore filesystem from snapshot with snapshot ID %d", srcSnapShotID)
+	zlog.Info().Msgf("Restore filesystem from snapshot with snapshot ID %d", srcSnapShotID)
 	uri := "api/rest/filesystems/" + strconv.FormatInt(parentID, 10) + "/restore?approved=true"
 	var result bool
 	body := map[string]interface{}{"source_id": srcSnapShotID}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &result)
 	if err != nil {
-		klog.Errorf("Error occured while updating filesystem : %s", err)
+		zlog.Error().Msgf("Error occured while updating filesystem : %s", err)
 		return false, err
 	}
 
@@ -606,7 +604,7 @@ func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID in
 		apiresp := resp.(client.ApiResponse)
 		result, _ = apiresp.Result.(bool)
 	}
-	klog.V(2).Infof("Restored filesystem from snapshot with snapsshot ID %d", srcSnapShotID)
+	zlog.Info().Msgf("Restored filesystem from snapshot with snapsshot ID %d", srcSnapShotID)
 	return result, nil
 }
 
@@ -616,29 +614,29 @@ func removeIndex(s []Permissions, index int) []Permissions {
 
 // GetSnapshotByName :
 func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
-	klog.V(2).Infof("Get snapshot %s", snapshotName)
+	zlog.Info().Msgf("Get snapshot %s", snapshotName)
 	uri := "api/rest/filesystems?name=" + snapshotName
 	snapshot := []FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
 	if err != nil {
-		klog.Errorf("Error occured while getting snapshot : %s ", err)
+		zlog.Error().Msgf("Error occured while getting snapshot : %s ", err)
 		return nil, err
 	}
 	if len(snapshot) == 0 {
 		snapshot, _ = resp.([]FileSystemSnapshotResponce)
 	}
-	klog.V(2).Infof("Got snapshot %s", snapshotName)
+	zlog.Info().Msgf("Got snapshot %s", snapshotName)
 	return &snapshot, nil
 }
 
 // GetFileSystemCountByPoolID :
 func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int, err error) {
-	klog.V(2).Infof("Get FileSystem Count")
+	zlog.Info().Msgf("Get FileSystem Count")
 	uri := "api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10)
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {
-		klog.Errorf("error occured while fetching filesystems : %s ", err)
+		zlog.Error().Msgf("error occured while fetching filesystems : %s ", err)
 		return
 	}
 	apiresp := resp.(client.ApiResponse)
@@ -646,7 +644,7 @@ func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int
 	if len(filesystems) == 0 {
 		filesystems, _ = apiresp.Result.([]FileSystem)
 	}
-	klog.V(2).Infof("Total number of filesystems: %d", metadata.NoOfObject)
+	zlog.Info().Msgf("Total number of filesystems: %d", metadata.NoOfObject)
 	fileSysCnt = metadata.NoOfObject
 	return
 }

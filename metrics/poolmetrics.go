@@ -17,7 +17,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -36,14 +35,14 @@ var (
 )
 
 func RecordPoolMetrics(config *MetricsConfig) {
-	klog.V(4).Infof("pool metrics recording...")
+	zlog.Info().Msgf("pool metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_POOL_METRICS))
 
 			poolInfo, err := getPoolInfo(config)
 			if err != nil {
-				klog.Error(err)
+				zlog.Err(err)
 				continue
 			}
 
@@ -75,19 +74,19 @@ func getPoolInfo(config *MetricsConfig) ([]PoolInfo, error) {
 	poolInfo := make([]PoolInfo, 0)
 	storageClasses, err := getStorageClasses()
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 	allPools, err := getPools(config)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return poolInfo, err
 	}
 	for i := 0; i < len(*storageClasses); i++ {
 		sc := (*storageClasses)[i]
 		p, err := lookupPool(allPools, sc.Parameters["pool_name"])
 		if err != nil {
-			klog.Error("pool_name not found from storage classes %s", sc.Parameters["pool_name"])
+			zlog.Error().Msgf("pool_name not found from storage classes %s", sc.Parameters["pool_name"])
 		} else {
 			pi := PoolInfo{
 				storageClass: sc,
@@ -102,20 +101,20 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
 	storageClasses, err := clientset.StorageV1().StorageClasses().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
@@ -124,13 +123,13 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 		s := storageClasses.Items[i]
 		if s.Provisioner == "infinibox-csi-driver" {
 			// this is a storageclass used by our driver
-			klog.V(4).Infof("storageclass name %s\n", s.Name)
-			klog.V(4).Infof("storage_protocol %s\n", s.Parameters["storage_protocol"])
-			klog.V(4).Infof("network_space %s\n", s.Parameters["network_space"])
-			klog.V(4).Infof("pool_name %s\n", s.Parameters["pool_name"])
-			klog.V(4).Infof("provision_type %s\n", s.Parameters["provision_type"])
-			klog.V(4).Infof("ssd_enabled %s\n", s.Parameters["ssd_enabled"])
-			klog.V(4).Infof("--------------------------------------")
+			zlog.Info().Msgf("storageclass name %s\n", s.Name)
+			zlog.Info().Msgf("storage_protocol %s\n", s.Parameters["storage_protocol"])
+			zlog.Info().Msgf("network_space %s\n", s.Parameters["network_space"])
+			zlog.Info().Msgf("pool_name %s\n", s.Parameters["pool_name"])
+			zlog.Info().Msgf("provision_type %s\n", s.Parameters["provision_type"])
+			zlog.Info().Msgf("ssd_enabled %s\n", s.Parameters["ssd_enabled"])
+			zlog.Info().Msgf("--------------------------------------")
 			ourStorageClasses = append(ourStorageClasses, s)
 		}
 	}
@@ -153,7 +152,7 @@ func getPools(config *MetricsConfig) (*Pools, error) {
 
 	req, err := http.NewRequest(http.MethodGet, "https://"+config.IboxHostname+"/api/rest/pools", http.NoBody)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
@@ -162,7 +161,7 @@ func getPools(config *MetricsConfig) (*Pools, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 
@@ -170,7 +169,7 @@ func getPools(config *MetricsConfig) (*Pools, error) {
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
-		klog.Error(err)
+		zlog.Err(err)
 		return nil, err
 	}
 	//fmt.Println(string(responseData))

@@ -6,7 +6,6 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,8 +18,6 @@ func (suite *StorageHelperSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
-
-	tests.ConfigureKlog()
 }
 
 type StorageHelperSuite struct {

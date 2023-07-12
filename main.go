@@ -13,11 +13,9 @@ limitations under the License.
 package main
 
 import (
-	"flag"
+	"infinibox-csi-driver/log"
 	"infinibox-csi-driver/service"
 	"os"
-
-	"k8s.io/klog/v2"
 )
 
 var version string
@@ -26,61 +24,41 @@ var gitHash string
 
 // starting method of CSI-Driver
 func main() {
-	defer klog.Flush() // Flush pending log IO
-	klog.InitFlags(nil)
-	_ = flag.Set("logtostderr", "true")
-	_ = flag.Set("stderrthreshold", "WARNING")
 
-	var verbosity string
-	appLogLevel := os.Getenv("APP_LOG_LEVEL")
-	switch appLogLevel {
-	case "quiet":
-		verbosity = "1"
-	case "info":
-		verbosity = "2"
-	case "extended":
-		verbosity = "3"
-	case "debug":
-		verbosity = "4"
-	case "trace":
-		verbosity = "5"
-	default:
-		verbosity = "2"
-	}
-	_ = flag.Set("v", verbosity)
-	flag.Parse()
+	// this call effectively initializes the logging system based on environment variables
+	// and default configurations.
+	zlog := log.Get()
 
-	klog.V(2).Infof("Infinidat CSI Driver is Starting")
-	klog.V(2).Infof("Version: %s", version)
-	klog.V(2).Infof("Compile date: %s", compileDate)
-	klog.V(2).Infof("Compile git hash: %s", gitHash)
-	klog.V(2).Infof("Log level: %s", appLogLevel)
-	klog.Flush()
+	zlog.Info().Msg("Infinidat CSI Driver is Starting")
+	zlog.Info().Msgf("Version: %s", version)
+	zlog.Info().Msgf("Compile date: %s", compileDate)
+	zlog.Info().Msgf("Compile git hash: %s", gitHash)
+	zlog.Info().Msgf("Log level: %s", os.Getenv("APP_LOG_LEVEL"))
 
 	nodeIP := os.Getenv("NODE_IP")
 	if nodeIP == "" {
-		klog.Error("NODE_IP not set")
+		zlog.Error().Msg("NODE_IP not set")
 		os.Exit(1)
 	}
 	driverName := os.Getenv("CSI_DRIVER_NAME")
 	if driverName == "" {
-		klog.Error("CSI_DRIVER_NAME not set")
+		zlog.Error().Msg("CSI_DRIVER_NAME not set")
 		os.Exit(1)
 	}
 	csiEndpoint := os.Getenv("CSI_ENDPOINT")
 	if csiEndpoint == "" {
-		klog.Error("CSI_ENDPOINT not set")
+		zlog.Error().Msg("CSI_ENDPOINT not set")
 		os.Exit(1)
 	}
 	if version == "" {
-		klog.Error("version not set")
+		zlog.Error().Msg("version not set")
 		os.Exit(1)
 	}
 
-	klog.V(2).Infof("NodeIP: %s", nodeIP)
-	klog.V(2).Infof("DriverName: %s", driverName)
-	klog.V(2).Infof("Endpoint: %s", csiEndpoint)
-	klog.V(2).Infof("Version: %s", version)
+	zlog.Info().Msgf("NodeIP: %s", nodeIP)
+	zlog.Info().Msgf("DriverName: %s", driverName)
+	zlog.Info().Msgf("Endpoint: %s", csiEndpoint)
+	zlog.Info().Msgf("Version: %s", version)
 
 	driverOptions := service.DriverOptions{
 		NodeID:     nodeIP,

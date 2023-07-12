@@ -10,7 +10,6 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -34,7 +33,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 	defer func() {
 		out = strings.TrimSpace(out)
 		s.mu.Unlock()
-		klog.V(4).Infof("%s", follower)
+		zlog.Info().Msgf("%s", follower)
 	}()
 
 	var result []byte
@@ -47,7 +46,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 		pipefailCmd += " " + args
 	}
 
-	klog.V(4).Infof("%s %s", leader, pipefailCmd)
+	zlog.Info().Msgf("%s %s", leader, pipefailCmd)
 
 	result, cmdErr := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 
@@ -55,7 +54,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 		if nativeError, nativeGetOK := cmdErr.(*exec.ExitError); nativeGetOK {
 			var errCode codes.Code
 			exitCode := nativeError.ExitCode()
-			//klog.V(4).Infof("Command %s had exit code %s", cmd, exitCode)
+			//zlog.Info().Msgf("Command %s had exit code %s", cmd, exitCode)
 			if cmd == "iscsiadm" {
 				switch exitCode {
 				case 2:
@@ -76,7 +75,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 		} else {
 			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s", cmd, cmdErr))
 		}
-		klog.Errorf("'%s' failed: %s", pipefailCmd, err)
+		zlog.Error().Msgf("'%s' failed: %s", pipefailCmd, err)
 		return "", err
 	}
 
@@ -85,7 +84,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 	// Logging is optional, defaults to logged
 	if len(isToLogOutput) == 0 || isToLogOutput[0] {
 		if len(out) != 0 {
-			klog.V(4).Infof("Output:\n%s", out)
+			zlog.Info().Msgf("Output:\n%s", out)
 		}
 	}
 
