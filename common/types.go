@@ -53,3 +53,5 @@ const (
 	SERVICE_NAME                 = "infinibox-csi-driver"
 	IBOX_DEFAULT_QUERY_PAGE_SIZE = 1000
 )
+
+const LOCK_EXPIRES_AT_PARAMETER = "lock_expires_at"

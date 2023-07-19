@@ -3,10 +3,12 @@
 package storage
 
 import (
+	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -149,4 +151,47 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_NFS_NO_NETWORKSPACES_Fail
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 	err := validateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
 	assert.NotNil(suite.T(), err, "Expected non-nil for empty network space list")
+}
+
+// validate snapshot locking expression
+func (suite *StorageHelperSuite) Test_Snapshot_Locking_Expression_Validation() {
+
+	errString := "expected nil for valid lock_expires_at parameters"
+	inParam := "1 Hours"
+	futureTime, err := validateSnapshotLockingParameter(inParam)
+	assert.Nil(suite.T(), err, errString)
+	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
+
+	inParam = "1 Days"
+	futureTime, err = validateSnapshotLockingParameter(inParam)
+	assert.Nil(suite.T(), err, errString)
+	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
+
+	inParam = "1 Weeks"
+	futureTime, err = validateSnapshotLockingParameter(inParam)
+	assert.Nil(suite.T(), err, errString)
+	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
+
+	inParam = "1 Months"
+	futureTime, err = validateSnapshotLockingParameter(inParam)
+	assert.Nil(suite.T(), err, errString)
+	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
+
+	inParam = "1 Years"
+	futureTime, err = validateSnapshotLockingParameter(inParam)
+	assert.Nil(suite.T(), err, errString)
+	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
+
+	// these next lock_expires parameters are invalid and should not validate
+	inParam = "1 BadValue"
+	_, err = validateSnapshotLockingParameter(inParam)
+	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
+
+	inParam = "X Years"
+	_, err = validateSnapshotLockingParameter(inParam)
+	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
+
+	inParam = "1 Years a"
+	_, err = validateSnapshotLockingParameter(inParam)
+	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
 }

@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -571,4 +572,64 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 		}
 	}
 	return capacity, err
+}
+
+// validateSnapshotLockingParameter validates an input lock_expires parameter string and returns
+// the time in Unix Milliseconds or an error if the validation fails
+func validateSnapshotLockingParameter(input string) (timeInUnixMilli int64, err error) {
+
+	parts := strings.Split(input, " ")
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid format of lock_expires_at parameter, should only have 2 values (int string)")
+	}
+
+	// we except the 1st part of the parameter to be an integer
+	count, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid format of lock_expires_at count, should be in the format of an integer")
+	}
+
+	if count < 1 {
+		return 0, fmt.Errorf("invalid lock_expires_at count, should be greater than 0")
+	}
+
+	var years, months, days int
+
+	var futureTime time.Time
+	nowTime := time.Now()
+
+	// input will look like '1 Hours', '1 Days', '1 Weeks', '1 Months', '1 Years'
+	// this function converts an input value into a numerical value representing
+	// a date in the future from the current time
+
+	switch parts[1] {
+	case "Hours":
+		var futureDuration time.Duration
+		futureDuration, err = time.ParseDuration(fmt.Sprintf("%dh", count))
+		if err != nil {
+			return 0, fmt.Errorf("invalid lock_expires_at, parse duration error %s", err.Error())
+		}
+		futureTime = nowTime.Add(futureDuration)
+	case "Days":
+		days = count
+		futureTime = nowTime.AddDate(years, months, days)
+	case "Weeks":
+		hoursInWeeks := 168 * count
+		var futureDuration time.Duration
+		futureDuration, err = time.ParseDuration(fmt.Sprintf("%dh", hoursInWeeks))
+		if err != nil {
+			return 0, fmt.Errorf("invalid lock_expires_at, parse duration error %s", err.Error())
+		}
+		futureTime = nowTime.Add(futureDuration)
+	case "Months":
+		months = count
+		futureTime = nowTime.AddDate(years, months, days)
+	case "Years":
+		years = count
+		futureTime = nowTime.AddDate(years, months, days)
+	default:
+		return 0, fmt.Errorf("invalid format of lock_expires_at frequency, should be either Days, Hours, Weeks, Months, Years")
+	}
+
+	return futureTime.UnixMilli(), nil
 }

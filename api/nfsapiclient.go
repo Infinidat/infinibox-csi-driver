@@ -374,6 +374,9 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
 	zlog.Debug().Msgf("Create a snapshot of filesystem ID %d", snapshotParam.ParentID)
 	path := "/api/rest/filesystems"
+	if snapshotParam.LockExpiresAt > 0 {
+		path = path + "?approved=true"
+	}
 	snapShotResponse := FileSystemSnapshotResponce{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
 	if err != nil {
@@ -623,6 +626,7 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 		return nil, err
 	}
 	if len(snapshot) == 0 {
+		zlog.Debug().Msgf("no snapshot found for name %s", snapshotName)
 		snapshot, _ = resp.([]FileSystemSnapshotResponce)
 	}
 	zlog.Debug().Msgf("Got snapshot %s", snapshotName)

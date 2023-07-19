@@ -493,6 +493,16 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		WriteProtected: true,
 	}
 
+	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
+	if lockExpiresAtParameter != "" {
+		snapshotParam.LockExpiresAt, err = validateSnapshotLockingParameter(lockExpiresAtParameter)
+		if err != nil {
+			zlog.Error().Msgf("failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
+			return nil, err
+		}
+		zlog.Info().Msgf("snapshot param has a lock_expires_at of %s", lockExpiresAtParameter)
+	}
+
 	snapshot, err := fc.cs.Api.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		zlog.Error().Msgf("Failed to create snapshot %s error %v", snapshotName, err)

@@ -295,6 +295,7 @@ type FileSystemSnapshot struct {
 	ParentID       int64  `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
+	LockExpiresAt  int64  `json:"lock_expires_at"`
 }
 
 // FileSystemSnapshotResponce file system snapshot Response
@@ -319,6 +320,7 @@ type VolumeSnapshot struct {
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
 	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
+	LockExpiresAt  int64  `json:"lock_expires_at"`
 }
 
 // FC

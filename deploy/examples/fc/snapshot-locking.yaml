@@ -1,0 +1,10 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: ibox-pvc-snapshot-demo-locking
+  namespace: infinidat-csi
+spec:
+  volumeSnapshotClassName: ibox-snapshotclass-demo-locking
+  source:
+    persistentVolumeClaimName: ibox-pvc-demo
+

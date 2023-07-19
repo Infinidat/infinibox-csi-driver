@@ -333,6 +333,11 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 	valumeParameter["name"] = snapshotParam.SnapshotName
 	valumeParameter["write_protected"] = snapshotParam.WriteProtected
 	valumeParameter[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
+	if snapshotParam.LockExpiresAt > 0 {
+		path = path + "?approved=true"
+		valumeParameter["lock_expires_at"] = snapshotParam.LockExpiresAt
+	}
+
 	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
 	if err != nil {
 		return nil, err
