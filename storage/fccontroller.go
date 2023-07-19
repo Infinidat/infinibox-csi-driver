@@ -35,11 +35,11 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		zlog.Err(err)
 		return nil, err
 	}
-	zlog.Info().Msgf("requested size in bytes is %d ", sizeBytes)
+	zlog.Debug().Msgf("requested size in bytes is %d ", sizeBytes)
 
 	params := req.GetParameters()
 	fc.configmap = params
-	zlog.Info().Msgf("csi request parameters %v", params)
+	zlog.Debug().Msgf("csi request parameters %v", params)
 
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
@@ -65,7 +65,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	gid := params[common.SC_GID]
 	uid := params[common.SC_UID]
 	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
-	zlog.Info().Msgf("storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
+	zlog.Debug().Msgf("storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
 
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
@@ -81,7 +81,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		}
 	}
 	if targetVol != nil {
-		zlog.Info().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
+		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
 		if targetVol.Size == sizeBytes {
 			existingVolumeInfo := fc.cs.getCSIResponse(targetVol, req)
 			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
@@ -155,13 +155,13 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
 	}
 
-	zlog.Info().Msgf("CreateVolume resp: %v", *csiResp)
-	zlog.Info().Msgf("created volume: %s id: %d", name, volID)
+	zlog.Debug().Msgf("CreateVolume resp: %v", *csiResp)
+	zlog.Debug().Msgf("created volume: %s id: %d", name, volID)
 	return csiResp, err
 }
 
 func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
-	zlog.Info().Msgf("DeleteVolume")
+	zlog.Debug().Msgf("DeleteVolume")
 	id, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		zlog.Err(err)
@@ -272,7 +272,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 }
 
 func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	zlog.Info().Msgf("ControllerPublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("ControllerPublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("failed to validate storage type %v", err)
@@ -328,7 +328,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 				"hostID":    strconv.Itoa(host.ID),
 				"hostPorts": ports,
 			}
-			zlog.Info().Msgf("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
+			zlog.Debug().Msgf("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: volCtx,
 			}, nil
@@ -340,14 +340,14 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		zlog.Error().Msgf("invalid parameter max_vols_per_host error:  %v", err)
 		return nil, err
 	}
-	zlog.Info().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
-	zlog.Info().Msgf("host %s has %d volume mapped", host.Name, len(lunList))
+	zlog.Debug().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
+	zlog.Debug().Msgf("host %s has %d volume mapped", host.Name, len(lunList))
 	if len(lunList) >= maxAllowedVol {
 		zlog.Error().Msgf("unable to publish volume on host %s, maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
 		return nil, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
 	}
 	// map volume to host
-	zlog.Info().Msgf("mapping volume %d to host %s", volID, host.Name)
+	zlog.Debug().Msgf("mapping volume %d to host %s", volID, host.Name)
 	luninfo, err := fc.cs.mapVolumeTohost(volID, host.ID)
 	if err != nil {
 		zlog.Error().Msgf("failed to map volume to host with error %v", err)
@@ -365,7 +365,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 }
 
 func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	zlog.Info().Msgf("ControllerUnpublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("ControllerUnpublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("failed to validate storage type %v", err)
@@ -386,7 +386,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 	}
 	if len(host.Luns) > 0 {
 		volID, _ := strconv.Atoi(volproto.VolumeID)
-		zlog.Info().Msgf("unmap volume %d from host %d", volID, host.ID)
+		zlog.Debug().Msgf("unmap volume %d from host %d", volID, host.ID)
 		err = fc.cs.unmapVolumeFromHost(host.ID, volID)
 		if err != nil {
 			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", volID, host.ID, err)
@@ -410,7 +410,7 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 }
 
 func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	zlog.Info().Msgf("ValidateVolumeCapabilities called with volumeId %s", req.GetVolumeId())
+	zlog.Debug().Msgf("ValidateVolumeCapabilities called with volumeId %s", req.GetVolumeId())
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("Failed to validate storage type %v", err)
@@ -418,13 +418,13 @@ func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.Va
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
 
-	zlog.Info().Msgf("volID: %d", volID)
+	zlog.Debug().Msgf("volID: %d", volID)
 	v, err := fc.cs.Api.GetVolume(volID)
 	if err != nil {
 		zlog.Error().Msgf("Failed to find volume ID: %d, %v", volID, err)
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find volume ID: %d, %v", volID, err)
 	}
-	zlog.Info().Msgf("volID: %d colume: %v", volID, v)
+	zlog.Debug().Msgf("volID: %d colume: %v", volID, v)
 
 	// TODO: revisit this as part of CSIC-343
 	// _, err = iscsi.cs.accessModesHelper.IsValidAccessMode(v, req)
@@ -459,8 +459,8 @@ func (fc *fcstorage) ControllerGetCapabilities(ctx context.Context, req *csi.Con
 func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	var snapshotID string
 	snapshotName := req.GetName()
-	zlog.Info().Msgf("Create Snapshot of name %s", snapshotName)
-	zlog.Info().Msgf("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
+	zlog.Debug().Msgf("Create Snapshot of name %s", snapshotName)
+	zlog.Debug().Msgf("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
 	volproto, err := validateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("failed to validate storage type %v", err)
@@ -471,7 +471,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	volumeSnapshot, err := fc.cs.Api.GetVolumeByName(snapshotName)
 	if err != nil {
 		zlog.Err(err)
-		zlog.Info().Msgf("Snapshot with given name not found : %s", snapshotName)
+		zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
 	} else if volumeSnapshot.ParentId == sourceVolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
 		return &csi.CreateSnapshotResponse{
@@ -507,7 +507,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		CreationTime:   timestamppb.Now(),
 		SizeBytes:      snapshot.Size,
 	}
-	zlog.Info().Msgf("CreateFileSystemSnapshot resp: %v", csiSnapshot)
+	zlog.Debug().Msgf("CreateFileSystemSnapshot resp: %v", csiSnapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
 	return snapshotResp, nil
 }
@@ -528,7 +528,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	if err != nil {
 		zlog.Err(err)
 		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			zlog.Info().Msgf("volume is already deleted %d", volumeID)
+			zlog.Debug().Msgf("volume is already deleted %d", volumeID)
 			return nil
 		}
 		return status.Errorf(codes.Internal,
@@ -550,7 +550,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		}
 		return
 	}
-	zlog.Info().Msgf("Deleting volume name: %s id: %d", vol.Name, vol.ID)
+	zlog.Debug().Msgf("Deleting volume name: %s id: %d", vol.Name, vol.ID)
 	err = fc.cs.Api.DeleteVolume(vol.ID)
 	if err != nil {
 		zlog.Err(err)
@@ -558,7 +558,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 			"error removing volume: %s", err.Error())
 	}
 	if vol.ParentId != 0 {
-		zlog.Info().Msgf("checkingif parent volume can be name: %s id: %d", vol.Name, vol.ID)
+		zlog.Debug().Msgf("checkingif parent volume can be name: %s id: %d", vol.Name, vol.ID)
 		tobedel := fc.cs.Api.GetMetadataStatus(int64(vol.ParentId))
 		if tobedel {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
@@ -573,7 +573,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
 
-	zlog.Info().Msg("ControllerExpandVolume")
+	zlog.Debug().Msg("ControllerExpandVolume")
 	volumeID, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("Invalid Volume ID %v", err)
@@ -594,7 +594,7 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 		zlog.Error().Msgf("Failed to update file system %v", err)
 		return
 	}
-	zlog.Info().Msg("Volume size updated successfully")
+	zlog.Debug().Msg("Volume size updated successfully")
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: false,

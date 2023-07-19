@@ -124,7 +124,7 @@ type StatFunc func(string) (os.FileInfo, error)
 type GlobFunc func(string) ([]string, error)
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	zlog.Info().Msgf("NodeStageVolume called with publish context: %s", req.GetPublishContext())
+	zlog.Debug().Msgf("NodeStageVolume called with publish context: %s", req.GetPublishContext())
 
 	hostIDString := req.GetPublishContext()["hostID"]
 	hostID, err := strconv.Atoi(hostIDString)
@@ -136,7 +136,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	ports := req.GetPublishContext()["hostPorts"]
 	hostSecurity := req.GetPublishContext()["securityMethod"]
 	useChap := req.GetVolumeContext()[common.SC_USE_CHAP]
-	zlog.Info().Msgf("Publishing volume to host with hostID %d", hostID)
+	zlog.Debug().Msgf("Publishing volume to host with hostID %d", hostID)
 
 	// validate host exists
 	if hostID < 1 {
@@ -150,14 +150,14 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	if !strings.Contains(ports, initiatorName) {
-		zlog.Info().Msgf("host port is not created, creating one")
+		zlog.Debug().Msgf("host port is not created, creating one")
 		err = iscsi.cs.AddPortForHost(hostID, "ISCSI", initiatorName)
 		if err != nil {
 			zlog.Err(err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-	zlog.Info().Msgf("setup chap auth as '%s'", useChap)
+	zlog.Debug().Msgf("setup chap auth as '%s'", useChap)
 	if strings.ToLower(hostSecurity) != useChap || !strings.Contains(ports, initiatorName) {
 		secrets := req.GetSecrets()
 		chapCreds := make(map[string]string)
@@ -185,7 +185,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				}
 			}
 			if len(chapCreds) > 1 {
-				zlog.Info().Msgf("create chap authentication for host %d", hostID)
+				zlog.Debug().Msgf("create chap authentication for host %d", hostID)
 				err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 				if err != nil {
 					zlog.Err(err)
@@ -193,7 +193,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				}
 			}
 		} else if hostSecurity != "NONE" {
-			zlog.Info().Msgf("remove chap authentication for host %d", hostID)
+			zlog.Debug().Msgf("remove chap authentication for host %d", hostID)
 			chapCreds["security_method"] = "NONE"
 			err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 			if err != nil {
@@ -208,14 +208,14 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
-	zlog.Info().Msgf("NodePublishVolume volume ID %s, network_space %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE])
+	zlog.Debug().Msgf("NodePublishVolume volume ID %s, network_space %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE])
 
 	targets, err := iscsi.getISCSITargets(req)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	zlog.Info().Msgf("NodePublishVolume iscsi targets  %v", targets)
+	zlog.Debug().Msgf("NodePublishVolume iscsi targets  %v", targets)
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
@@ -223,7 +223,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	iscsiDisk.Targets = targets
-	zlog.Info().Msgf("iscsiDisk: %v", iscsiDisk)
+	zlog.Debug().Msgf("iscsiDisk: %v", iscsiDisk)
 
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	if err != nil {
@@ -235,7 +235,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		zlog.Err(err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	zlog.Info().Msgf("iscsi attachDisk succeeded")
+	zlog.Debug().Msgf("iscsi attachDisk succeeded")
 
 	// Chown
 	uid := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
@@ -250,7 +250,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	// Chmod
 	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
-	zlog.Info().Msgf("unixPermissions: %s", unixPermissions)
+	zlog.Debug().Msgf("unixPermissions: %s", unixPermissions)
 	err = iscsi.osHelper.ChmodVolume(unixPermissions, targetPath)
 	if err != nil {
 		e := fmt.Errorf("failed to chmod path '%s': %v", targetPath, err)
@@ -266,7 +266,7 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 	volumeId := req.GetVolumeId()
 	targetPath := req.GetTargetPath()
 
-	zlog.Info().Msgf("NodeUnpublishVolume volume ID %s and targetPath '%s'", volumeId, targetPath)
+	zlog.Debug().Msgf("NodeUnpublishVolume volume ID %s and targetPath '%s'", volumeId, targetPath)
 
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
@@ -278,30 +278,30 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 
 func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (res *csi.NodeUnstageVolumeResponse, err error) {
 
-	zlog.Info().Msgf("NodeUnstageVolume volume ID %s", req.GetVolumeId())
+	zlog.Debug().Msgf("NodeUnstageVolume volume ID %s", req.GetVolumeId())
 
 	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
 	var mpathDevice string
 
-	zlog.Info().Msgf("staging target path: %s", stagePath)
+	zlog.Debug().Msgf("staging target path: %s", stagePath)
 
 	// Load iscsi disk config from json file
 	// diskConfigFound := true
 	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
-		zlog.Info().Msgf("successfully loaded disk information from %s", stagePath)
+		zlog.Debug().Msgf("successfully loaded disk information from %s", stagePath)
 		mpathDevice = diskUnmounter.iscsiDisk.MpathDevice
 	} else {
 		confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
-		zlog.Info().Msgf("check if config file exists")
+		zlog.Debug().Msgf("check if config file exists")
 		pathExist, pathErr := iscsi.cs.pathExists(confFile)
 		if pathErr != nil {
 			zlog.Err(pathErr)
 		}
 		if pathErr == nil {
 			if !pathExist {
-				zlog.Info().Msgf("config file does not exist")
-				zlog.Info().Msgf("calling RemoveAll with stagePath %s", stagePath)
+				zlog.Debug().Msgf("config file does not exist")
+				zlog.Debug().Msgf("calling RemoveAll with stagePath %s", stagePath)
 
 				_ = debugWalkDir(stagePath)
 
@@ -310,7 +310,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 					zlog.Err(err)
 					zlog.Warn().Msgf("failed to RemoveAll stage path '%s': %v", stagePath, err)
 				}
-				zlog.Info().Msgf("removed stage path '%s'", stagePath)
+				zlog.Debug().Msgf("removed stage path '%s'", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
@@ -328,7 +328,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	}
 
 	removePath := path.Join("/host", stagePath)
-	zlog.Info().Msgf("calling RemoveAll with removePath '%s'", removePath)
+	zlog.Debug().Msgf("calling RemoveAll with removePath '%s'", removePath)
 
 	_ = debugWalkDir(removePath)
 
@@ -347,20 +347,20 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		// Found path /host/var/lib/kubelet/plugins/kubernetes.io/csi/pv/csi-6e48953803/globalmount/93642552.json
 		// 93642552.json: {"Portals":["172.31.32.145:3260","172.31.32.146:3260","172.31.32.147:3260","172.31.32.148:3260","172.31.32.149:3260","172.31.32.150:3260"],"Iqn":"iqn.2009-11.com.infinidat:storage:infinibox-sn-1521","Iface":"172.31.32.145:3260","InitiatorName":"iqn.1994-05.com.redhat:462c9b4cda1","VolName":"93642189","MpathDevice":"/dev/dm-8"}
 
-		zlog.Info().Msgf("removePath '%s' is a directory", removePath)
+		zlog.Debug().Msgf("removePath '%s' is a directory", removePath)
 		volumeId := strings.Split(req.GetVolumeId(), "$$")[0]
 		jsonPath := fmt.Sprintf("%s/%s.json", removePath, volumeId)
-		zlog.Info().Msgf("removing json file '%s'", jsonPath)
+		zlog.Debug().Msgf("removing json file '%s'", jsonPath)
 		if err := os.Remove(jsonPath); err != nil {
 			zlog.Error().Msgf("failed to remove json file '%s': %v", jsonPath, err)
 			return nil, err
 		}
 	} else {
-		zlog.Info().Msgf("removePath '%s' is not a directory", removePath)
+		zlog.Debug().Msgf("removePath '%s' is not a directory", removePath)
 	}
 
 	// Remove directory or file
-	zlog.Info().Msgf("removing removePath '%s'", removePath)
+	zlog.Debug().Msgf("removing removePath '%s'", removePath)
 	if err := os.Remove(removePath); err != nil {
 		zlog.Error().Msgf("failed to remove path '%s': %v", removePath, err)
 		return nil, err
@@ -402,7 +402,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 
 	// deviceMu.Lock()
-	zlog.Info().Msgf("rescan hosts for volume %s and lun %s", volumeId, lun)
+	zlog.Debug().Msgf("rescan hosts for volume %s and lun %s", volumeId, lun)
 
 	// Find hosts. TODO - take heed of portals.
 	hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
@@ -431,12 +431,12 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 	}
 
 	if err := waitForMultipath(hosts[0], lun); err != nil {
-		zlog.Info().Msgf("rescan hosts failed for volume ID %s and lun %s", volumeId, lun)
+		zlog.Debug().Msgf("rescan hosts failed for volume ID %s and lun %s", volumeId, lun)
 		zlog.Err(err)
 		return err
 	}
 
-	zlog.Info().Msgf("rescan hosts complete for volume ID %s and lun %s", volumeId, lun)
+	zlog.Debug().Msgf("rescan hosts complete for volume ID %s and lun %s", volumeId, lun)
 	return err
 }
 
@@ -446,10 +446,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	var iscsiTransport string
 	var lastErr error
 
-	zlog.Info().Msgf("AttachDisk, disk: %v fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s",
+	zlog.Debug().Msgf("AttachDisk, disk: %v fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s",
 		b.iscsiDisk, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
 
-	zlog.Info().Msgf("check that provided interface '%s' is available", b.Iface)
+	zlog.Debug().Msgf("check that provided interface '%s' is available", b.Iface)
 	isToLogOutput := false
 	out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface), isToLogOutput)
 	if err != nil {
@@ -457,10 +457,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		zlog.Err(e)
 		return "", e
 	}
-	zlog.Info().Msgf("provided interface '%s': ", b.Iface) //, out)
+	zlog.Debug().Msgf("provided interface '%s': ", b.Iface) //, out)
 
 	iscsiTransport = iscsi.extractTransportName(string(out))
-	zlog.Info().Msgf("iscsiTransport: %s", iscsiTransport)
+	zlog.Debug().Msgf("iscsiTransport: %s", iscsiTransport)
 	if iscsiTransport == "" {
 		e := fmt.Errorf("could not find transport name in iface %s", b.Iface) // TODO - b.Iface here realy should be newIface...or does it matter?
 		zlog.Err(e)
@@ -474,32 +474,32 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	if b.InitiatorName != "" {
 		for i := 0; i < len(targets); i++ {
 			// Look for existing interface named newIface. Clone default iface, if not found.
-			zlog.Info().Msgf("initiatorName: %s", b.InitiatorName)
+			zlog.Debug().Msgf("initiatorName: %s", b.InitiatorName)
 			newIface := targets[i].Portals[0] // Do not append ':$volume_id'
-			zlog.Info().Msgf("required iface name: '%s'", newIface)
+			zlog.Debug().Msgf("required iface name: '%s'", newIface)
 			isToLogOutput := false
 			_, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
 			if err != nil {
-				zlog.Info().Msgf("creating new iface (clone) and copying parameters from pre-configured iface to it")
+				zlog.Debug().Msgf("creating new iface (clone) and copying parameters from pre-configured iface to it")
 				err = iscsi.cloneIface(b, newIface)
 				if err != nil {
 					zlog.Error().Msgf("failed to clone iface: %s error: %v", b.Iface, err)
 					return "", err
 				}
-				zlog.Info().Msgf("new iface created '%s'", newIface)
+				zlog.Debug().Msgf("new iface created '%s'", newIface)
 			} else {
-				zlog.Info().Msgf("required iface '%s' already exists", newIface)
+				zlog.Debug().Msgf("required iface '%s' already exists", newIface)
 			}
 			// update iface name. TODO - Seems bad form to change a func param.
 			//b.Iface = newIface
 		}
 	} else {
-		zlog.Info().Msgf("Using existing initiator name'%s'", b.InitiatorName)
+		zlog.Debug().Msgf("Using existing initiator name'%s'", b.InitiatorName)
 	}
 
 	for i := 0; i < len(targets); i++ {
 		for p := 0; p < len(targets[i].Portals); p++ {
-			zlog.Info().Msgf("Discover targets at portal '%s'", targets[i].Portals[p])
+			zlog.Debug().Msgf("Discover targets at portal '%s'", targets[i].Portals[p])
 			// Discover all targets associated with a portal.
 			_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", targets[i].Portals[p]))
 			if err != nil {
@@ -511,13 +511,13 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	}
 
 	if !b.chap_session {
-		zlog.Info().Msgf("target iqn: %s - Not using CHAP", targets[0].Iqn)
+		zlog.Debug().Msgf("target iqn: %s - Not using CHAP", targets[0].Iqn)
 	} else {
 		// Loop over portals:
 		// - Set CHAP usage and update discoverydb with CHAP secret
 		for i := 0; i < len(targets); i++ {
 			for p := 0; p < len(targets[i].Portals); p++ {
-				zlog.Info().Msgf("target iface: %s iqn: %s - use CHAP at portal: %s", b.Iface, targets[i].Iqn, targets[i].Portals[p])
+				zlog.Debug().Msgf("target iface: %s iqn: %s - use CHAP at portal: %s", b.Iface, targets[i].Iqn, targets[i].Portals[p])
 				err = iscsi.updateISCSINode(b, b.Iface, targets[i].Iqn, targets[i].Portals[p])
 				if err != nil {
 					zlog.Err(err)
@@ -530,11 +530,11 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	}
 
 	sessionDetails := getSessionDetails()
-	zlog.Info().Msgf("list sessions before any logins: %v", sessionDetails)
+	zlog.Debug().Msgf("list sessions before any logins: %v", sessionDetails)
 
 	for i := 0; i < len(targets); i++ {
 		// Check for at least one session. If none, login.
-		zlog.Info().Msgf("list sessions to target iqn: %s", targets[i].Iqn)
+		zlog.Debug().Msgf("list sessions to target iqn: %s", targets[i].Iqn)
 
 		iqnFound := false
 		for j := 0; j < len(sessionDetails); j++ {
@@ -544,7 +544,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 		if !iqnFound {
 			for p := 0; p < len(targets[i].Portals); p++ {
-				zlog.Info().Msgf("login to iscsi target iqn %s at all portals using interface %s", targets[i].Iqn, targets[i].Portals[p])
+				zlog.Debug().Msgf("login to iscsi target iqn %s at all portals using interface %s", targets[i].Iqn, targets[i].Portals[p])
 				_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[i].Iqn, targets[i].Portals[p]))
 				if err != nil {
 					if err != nil {
@@ -555,17 +555,17 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 						zlog.Error().Msgf(msg)
 						return "", err
 					} else {
-						zlog.Info().Msgf("already logged in to target iqn: %s portal %s", targets[i].Iqn, targets[i].Portals[p])
+						zlog.Debug().Msgf("already logged in to target iqn: %s portal %s", targets[i].Iqn, targets[i].Portals[p])
 					}
 				}
 			}
 		} else {
-			zlog.Info().Msgf("already logged into iscsi target iqn %s using interface %s", targets[i].Iqn, targets[i].Portals[0])
+			zlog.Debug().Msgf("already logged into iscsi target iqn %s using interface %s", targets[i].Iqn, targets[i].Portals[0])
 		}
 
 	}
 	sessionDetails = getSessionDetails()
-	zlog.Info().Msgf("list sessions after any logins: %v", sessionDetails)
+	zlog.Debug().Msgf("list sessions after any logins: %v", sessionDetails)
 
 	// Rescan for LUN b.lun
 	if err := iscsi.rescanDeviceMap(b.VolName, b.lun); err != nil {
@@ -581,10 +581,10 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				devicePath = strings.Join([]string{"/host/dev/disk/by-path/pci", "*", "ip", targets[i].Portals[j], "iscsi", targets[i].Iqn, "lun", b.lun}, "-")
 			}
 
-			// zlog.Info().Msgf("Wait for iscsi device path: %s to appear", devicePath)
+			// zlog.Debug().Msgf("Wait for iscsi device path: %s to appear", devicePath)
 			timeout := 10
 			if devExists := iscsi.waitForPathToExist(&devicePath, timeout, iscsiTransport); devExists {
-				zlog.Info().Msgf("iscsi device path found: %s", devicePath)
+				zlog.Debug().Msgf("iscsi device path found: %s", devicePath)
 				devicePaths = append(devicePaths, devicePath)
 			} else {
 				msg := fmt.Sprintf("failed to attach iqn: %s lun: %s portal: %s - timeout after %ds", targets[i].Iqn, b.lun, targets[i].Portals[j], timeout)
@@ -612,7 +612,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	notMnt, err := b.mounter.IsLikelyNotMountPoint(mntPath)
 	if err == nil {
 		if !notMnt {
-			zlog.Info().Msgf("%s already mounted", mntPath)
+			zlog.Debug().Msgf("%s already mounted", mntPath)
 			return "", nil
 		}
 	} else if !os.IsNotExist(err) {
@@ -634,14 +634,14 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	if b.isBlock {
 		// A block volume is a volume that will appear as a block device inside the container.
-		zlog.Info().Msgf("mounting raw block volume at given path %s", mntPath)
+		zlog.Debug().Msgf("mounting raw block volume at given path %s", mntPath)
 		if b.readOnly {
 			// TODO: actually implement this - CSIC-343
 			return "", status.Error(codes.Internal, "iscsi: Read-only is not supported for Block Volume")
 		}
 
-		zlog.Info().Msgf("mount point does not exist, creating mount point.")
-		zlog.Info().Msgf("run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(mntPath))
+		zlog.Debug().Msgf("mount point does not exist, creating mount point.")
+		zlog.Debug().Msgf("run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(mntPath))
 		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 		// MkdirAll() will cause hard-to-grok mount errors.
 		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", filepath.Dir(mntPath))
@@ -670,13 +670,13 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			zlog.Error().Msgf("failed to save iscsi config with error: %v", err)
 			return "", err
 		}
-		zlog.Info().Msgf("block volume bind mounted successfully to %s", mntPath)
+		zlog.Debug().Msgf("block volume bind mounted successfully to %s", mntPath)
 		return devicePath, nil
 	} else {
 		// A mounted (file) volume is volume that will be mounted using a specified file system
 		// and appear as a directory inside the container.
 		mountPoint := mntPath
-		zlog.Info().Msgf("mounting volume %s with filesystem at given path %s", devicePath, mountPoint)
+		zlog.Debug().Msgf("mounting volume %s with filesystem at given path %s", devicePath, mountPoint)
 
 		// Attempt to find a mapper device to use rather than a bare devicePath.
 		// If not found, use the devicePath.
@@ -685,11 +685,11 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			zlog.Error().Msgf("Failed to get dmsetup info for: '%s', err: %s", devicePath, dmsetupErr)
 		} else {
 			for i, info := range dmsetupInfo {
-				zlog.Info().Msgf("dmsetupInfo[%d]: %+v", i, *info)
+				zlog.Debug().Msgf("dmsetupInfo[%d]: %+v", i, *info)
 			}
 			if len(dmsetupInfo) == 1 { // One and only one mapper should be in the slice since the devicePath was given.
 				mapperPath := devMapperDir + dmsetupInfo[0].Name
-				zlog.Info().Msgf("using mapper device: '%s' mapped to path: '%s'", devicePath, mapperPath)
+				zlog.Debug().Msgf("using mapper device: '%s' mapped to path: '%s'", devicePath, mapperPath)
 				devicePath = mapperPath
 			}
 		}
@@ -697,7 +697,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// Create mountPoint if it does not exist.
 		_, err := os.Stat(mountPoint)
 		if os.IsNotExist(err) {
-			zlog.Info().Msgf("mount point does not exist. creating mount point.")
+			zlog.Debug().Msgf("mount point does not exist. creating mount point.")
 			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 			// MkdirAll() will cause hard-to-grok mount errors.
 			_, err := execScsi.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", mountPoint))
@@ -706,41 +706,41 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				return "", err
 			}
 		} else {
-			zlog.Info().Msgf("mkdir of mountPoint not required. '%s' already exists", mountPoint)
+			zlog.Debug().Msgf("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
 
 		var options []string
 		if b.readOnly {
-			zlog.Info().Msgf("volume is read-only")
+			zlog.Debug().Msgf("volume is read-only")
 			options = append(options, "ro") // BUG: what if user separately specified "rw" option? address in CSIC-343
 		} else {
-			zlog.Info().Msgf("volume is read-write")
+			zlog.Debug().Msgf("volume is read-write")
 			options = append(options, "rw") // BUG: what if user separately specified "ro" option? address in CSIC-343
 		}
 		options = append(options, b.mountOptions...)
 
-		zlog.Info().Msgf("strip /host from %s", devicePath)
+		zlog.Debug().Msgf("strip /host from %s", devicePath)
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
 		// Persist here so that even if mount fails, the globalmount metadata json
 		// file will contain an mpath to use during clean up.
-		zlog.Info().Msgf("persist iscsi disk config to json file for later use, when detaching the disk")
+		zlog.Debug().Msgf("persist iscsi disk config to json file for later use, when detaching the disk")
 		if err = iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
 			zlog.Error().Msgf("failed to save iscsi config with error: %v", err)
 			return "", err
 		}
 
 		if b.fsType == "xfs" {
-			zlog.Info().Msgf("device %s is of type XFS. Mounting without regard to its XFS UUID.", devicePath)
+			zlog.Debug().Msgf("device %s is of type XFS. Mounting without regard to its XFS UUID.", devicePath)
 			options = append(options, "nouuid")
 		}
 
-		zlog.Info().Msgf("format '%s' (if needed) and mount volume", devicePath)
+		zlog.Debug().Msgf("format '%s' (if needed) and mount volume", devicePath)
 		err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
-		zlog.Info().Msgf("formatAndMount returned: %+v", err)
+		zlog.Debug().Msgf("formatAndMount returned: %+v", err)
 		if err != nil {
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			zlog.Info().Msgf("search error for matches to handle: %+v", err)
+			zlog.Debug().Msgf("search error for matches to handle: %+v", err)
 
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				zlog.Error().Msgf("device %s is already mounted on %s", devicePath, mountPoint)
@@ -751,18 +751,18 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			}
 		}
 	}
-	zlog.Info().Msgf("mounted volume with device path %s successfully at '%s'", devicePath, mntPath)
+	zlog.Debug().Msgf("mounted volume with device path %s successfully at '%s'", devicePath, mntPath)
 	return devicePath, nil
 }
 
 func mountPathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		zlog.Info().Msgf("mountPathExists: Path " + path + " exists")
+		zlog.Debug().Msgf("mountPathExists: Path " + path + " exists")
 		return true, nil
 	}
 	if os.IsNotExist(err) {
-		zlog.Info().Msgf("mountPathExists: Path " + path + " does not exist")
+		zlog.Debug().Msgf("mountPathExists: Path " + path + " does not exist")
 		return false, nil
 	}
 	return false, err
@@ -784,7 +784,7 @@ func getInitiatorName() string {
 	}
 	initiatorName := string(out)
 	initiatorName = strings.TrimSuffix(initiatorName, "\n")
-	zlog.Info().Msgf("host initiator name %s ", initiatorName)
+	zlog.Debug().Msgf("host initiator name %s ", initiatorName)
 	arr := strings.Split(initiatorName, "=")
 	return arr[1]
 }
@@ -797,7 +797,7 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 
 	volContext := req.GetVolumeContext()
 	publishContext := req.GetPublishContext()
-	zlog.Info().Msgf("volume: %s context: %v publish context: %v", volName, volContext, publishContext)
+	zlog.Debug().Msgf("volume: %s context: %v publish context: %v", volName, volContext, publishContext)
 
 	lun := publishContext["lun"]
 	if lun == "" {
@@ -951,7 +951,7 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iface string, iqn
 		return nil
 	}
 
-	zlog.Info().Msgf("update node with CHAP")
+	zlog.Debug().Msgf("update node with CHAP")
 	//out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn, iface))
 	out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
 	if err != nil {
@@ -961,7 +961,7 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iface string, iqn
 	for _, k := range chap_sess {
 		v := b.secret[k]
 		if len(v) > 0 {
-			zlog.Info().Msgf("update node session key/value")
+			zlog.Debug().Msgf("update node session key/value")
 			//out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name %q --value %q", portal, iqn, iface, k, v))
 			out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, k, v))
 			if err != nil {
@@ -1003,10 +1003,10 @@ func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRet
 		}
 
 		if err == nil {
-			zlog.Info().Msgf("device path %s exists", *devicePath)
+			zlog.Debug().Msgf("device path %s exists", *devicePath)
 			return true
 		}
-		zlog.Info().Msgf("device path %s does not exist: %v", *devicePath, err)
+		zlog.Debug().Msgf("device path %s does not exist: %v", *devicePath, err)
 		if !errors.Is(err, os.ErrNotExist) {
 			// os.Stat did not return ErrNotExist, so we assume there is a problem anyway
 			return false
@@ -1022,7 +1022,7 @@ func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRet
 
 func (iscsi *iscsistorage) createISCSIConfigFile(conf iscsiDisk, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
-	zlog.Info().Msgf("creating iscsi config file at path %s", file)
+	zlog.Debug().Msgf("creating iscsi config file at path %s", file)
 	fp, err := os.Create(file)
 	if err != nil {
 		zlog.Err(err)
@@ -1091,14 +1091,14 @@ func (iscsi *iscsistorage) parseIscsiadmShow(output string) (map[string]string, 
 
 func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error {
 	var lastErr error
-	zlog.Info().Msgf("find pre-configured iface records")
+	zlog.Debug().Msgf("find pre-configured iface records")
 	out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface))
 	if err != nil {
 		zlog.Err(err)
 		lastErr = fmt.Errorf("iscsi: failed to show iface records: %s (%v)", string(out), err)
 		return lastErr
 	}
-	zlog.Info().Msgf("pre-configured iface records found: %s", out)
+	zlog.Debug().Msgf("pre-configured iface records found: %s", out)
 
 	// parse obtained records
 	params, err := iscsi.parseIscsiadmShow(string(out))
@@ -1110,7 +1110,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	// update initiatorname
 	params["iface.initiatorname"] = b.InitiatorName
 
-	zlog.Info().Msgf("create new interface")
+	zlog.Debug().Msgf("create new interface")
 	out, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op new", newIface))
 	if err != nil {
 		lastErr = fmt.Errorf("iscsi: failed to create new iface: %s (%v)", string(out), err)
@@ -1119,7 +1119,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 
 	// update new iface records
 	for key, val := range params {
-		zlog.Info().Msgf("update records of interface '%s'", newIface)
+		zlog.Debug().Msgf("update records of interface '%s'", newIface)
 		_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op update --name %q --value %q", newIface, key, val))
 		if err != nil {
 			zlog.Err(err)
@@ -1181,13 +1181,13 @@ func findDeviceForPath(path string) (string, error) {
 // Flush a multipath device map for device.
 /**
 func multipathFlush(mpath string) {
-	zlog.Info().Msgf("Running multipath -f '%s'", mpath)
+	zlog.Debug().Msgf("Running multipath -f '%s'", mpath)
 
 	isToLogOutput := true
 	if out, err := execScsi.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput); err != nil {
 		zlog.Error().Msgf("multipath -f '%s' failed - ignored: %s", mpath, err)
 	} else {
-		zlog.Info().Msgf("multipath -f '%s' succeeded: %s", mpath, out)
+		zlog.Debug().Msgf("multipath -f '%s' succeeded: %s", mpath, out)
 	}
 
 	_, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)
@@ -1209,7 +1209,7 @@ func findMpathFromDevice(device string) (mpath string, err error) {
 		zlog.Err(e)
 		return mpath, e
 	}
-	zlog.Info().Msgf("device %s corresponds to multipath %s", device, mpath)
+	zlog.Debug().Msgf("device %s corresponds to multipath %s", device, mpath)
 	return
 }
 
@@ -1219,13 +1219,13 @@ func debugLogPath(path string, info os.FileInfo, err error) error {
 		zlog.Err(err)
 		return err
 	}
-	zlog.Info().Msgf("found path %s", path)
+	zlog.Debug().Msgf("found path %s", path)
 	return nil
 }
 
 // Used for debugging. For given walk_path, log all files found within.
 func debugWalkDir(walkPath string) (err error) {
-	zlog.Info().Msgf("walkPath %s", walkPath)
+	zlog.Debug().Msgf("walkPath %s", walkPath)
 	err = filepath.Walk(walkPath, debugLogPath)
 	if err != nil {
 		zlog.Err(err)
@@ -1239,7 +1239,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 	if len(networkSpaces) == 0 {
 		return targets, fmt.Errorf("no network spaces found")
 	}
-	zlog.Info().Msgf("networkSpaces %v", networkSpaces)
+	zlog.Debug().Msgf("networkSpaces %v", networkSpaces)
 	if iscsi.cs.Api == nil {
 		return targets, fmt.Errorf("no api found")
 	}
@@ -1247,7 +1247,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 	targets = make([]iscsiTarget, len(networkSpaces))
 
 	for i := 0; i < len(networkSpaces); i++ {
-		zlog.Info().Msgf("getting nspace by name: %v", networkSpaces[i])
+		zlog.Debug().Msgf("getting nspace by name: %v", networkSpaces[i])
 		nspace, err := iscsi.cs.Api.GetNetworkSpaceByName(networkSpaces[i])
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)

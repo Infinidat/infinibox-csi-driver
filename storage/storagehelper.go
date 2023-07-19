@@ -68,14 +68,14 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	//    Pass   int
 	// }
 
-	zlog.Info().Msgf("Checking mount path using mounter's List() and searching with path '%s'", targetHostPath)
+	zlog.Debug().Msgf("Checking mount path using mounter's List() and searching with path '%s'", targetHostPath)
 	mounter := mount.NewWithoutSystemd("")
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
 		zlog.Err(mountListErr)
 		return true, mountListErr
 	}
-	zlog.Info().Msgf("Mount path list: %v", mountList)
+	zlog.Debug().Msgf("Mount path list: %v", mountList)
 
 	// Search list for targetHostPath
 	isMountedByListMethod := false
@@ -85,12 +85,12 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 			break
 		}
 	}
-	zlog.Info().Msgf("Path '%s' is mounted: %t", targetHostPath, isMountedByListMethod)
+	zlog.Debug().Msgf("Path '%s' is mounted: %t", targetHostPath, isMountedByListMethod)
 	return isMountedByListMethod, nil
 }
 
 func cleanupOldMountDirectory(targetHostPath string) error {
-	zlog.Info().Msgf("Cleaning up old mount directory at '%s'", targetHostPath)
+	zlog.Debug().Msgf("Cleaning up old mount directory at '%s'", targetHostPath)
 	isMountEmpty, isMountEmptyErr := IsDirEmpty(targetHostPath)
 	// Verify mount/ directory is empty. Fail if mount/ is not empty as that may be volume data.
 	if isMountEmptyErr != nil {
@@ -103,20 +103,20 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 		zlog.Error().Msgf(err.Error())
 		return err
 	}
-	zlog.Info().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
+	zlog.Debug().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
 
 	// Clean up mount/
 	if _, statErr := os.Stat(targetHostPath); os.IsNotExist(statErr) {
-		zlog.Info().Msgf("mount point targetHostPath '%s' already removed", targetHostPath)
+		zlog.Debug().Msgf("mount point targetHostPath '%s' already removed", targetHostPath)
 	} else {
-		zlog.Info().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
+		zlog.Debug().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 			zlog.Error().Msgf(err.Error())
 			return err
 		}
 	}
-	zlog.Info().Msgf("Removed mount point targetHostPath '%s'", targetHostPath)
+	zlog.Debug().Msgf("Removed mount point targetHostPath '%s'", targetHostPath)
 
 	csiHostPath := strings.TrimSuffix(targetHostPath, "/mount")
 	volData := "vol_data.json"
@@ -124,40 +124,40 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 
 	// Clean up csi-NNNNNNN/vol_data.json file
 	if _, statErr := os.Stat(volDataPath); os.IsNotExist(statErr) {
-		zlog.Info().Msgf("%s already removed from path '%s'", volData, csiHostPath)
+		zlog.Debug().Msgf("%s already removed from path '%s'", volData, csiHostPath)
 	} else {
-		zlog.Info().Msgf("removing %s from path '%s'", volData, volDataPath)
+		zlog.Debug().Msgf("removing %s from path '%s'", volData, volDataPath)
 		if err := os.Remove(volDataPath); err != nil {
 			zlog.Warn().Msgf("after unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
 		}
-		zlog.Info().Msgf("Successfully removed %s from path '%s'", volData, volDataPath)
+		zlog.Debug().Msgf("Successfully removed %s from path '%s'", volData, volDataPath)
 	}
 
 	// Clean up csi-NNNNNNN directory
 	if _, statErr := os.Stat(csiHostPath); os.IsNotExist(statErr) {
-		zlog.Info().Msgf("CSI volume directory '%s' already removed", csiHostPath)
+		zlog.Debug().Msgf("CSI volume directory '%s' already removed", csiHostPath)
 	} else {
-		zlog.Info().Msgf("Removing CSI volume directory '%s'", csiHostPath)
+		zlog.Debug().Msgf("Removing CSI volume directory '%s'", csiHostPath)
 		if err := os.Remove(csiHostPath); err != nil {
 			zlog.Error().Msgf("After unmounting, failed to remove CSI volume directory '%s': %v", csiHostPath, err)
 		}
-		zlog.Info().Msgf("Successfully removed CSI volume directory'%s'", csiHostPath)
+		zlog.Debug().Msgf("Successfully removed CSI volume directory'%s'", csiHostPath)
 	}
 	return nil
 }
 
 // Unmount using targetPath and cleanup directories and files.
 func unmountAndCleanUp(targetPath string) (err error) {
-	zlog.Info().Msgf("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
+	zlog.Debug().Msgf("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
 
 	mounter := mount.NewWithoutSystemd("")
 	targetHostPath := path.Join("/host", targetPath)
 
-	zlog.Info().Msgf("Unmounting targetPath '%s'", targetPath)
+	zlog.Debug().Msgf("Unmounting targetPath '%s'", targetPath)
 	if err := mounter.Unmount(targetPath); err != nil {
 		zlog.Warn().Msgf("failed to unmount targetPath '%s' but rechecking: %v", targetPath, err)
 	} else {
-		zlog.Info().Msgf("Successfully unmounted targetPath '%s'", targetPath)
+		zlog.Debug().Msgf("Successfully unmounted targetPath '%s'", targetPath)
 	}
 
 	isMounted, isMountedErr := isMountedByListMethod(targetHostPath)
@@ -172,11 +172,11 @@ func unmountAndCleanUp(targetPath string) (err error) {
 		zlog.Error().Msgf(err.Error())
 		return err
 	}
-	zlog.Info().Msgf("Verified that targetHostPath '%s' is not mounted", targetHostPath)
+	zlog.Debug().Msgf("Verified that targetHostPath '%s' is not mounted", targetHostPath)
 
 	// Check if targetHostPath exists
 	if _, err := os.Stat(targetHostPath); os.IsNotExist(err) {
-		zlog.Info().Msgf("targetHostPath '%s' does not exist and does not need to be cleaned up", targetHostPath)
+		zlog.Debug().Msgf("targetHostPath '%s' does not exist and does not need to be cleaned up", targetHostPath)
 		return nil
 	}
 
@@ -189,21 +189,21 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	}
 
 	if isADir {
-		zlog.Info().Msgf("targetHostPath '%s' is a directory, not a file", targetHostPath)
+		zlog.Debug().Msgf("targetHostPath '%s' is a directory, not a file", targetHostPath)
 		if err := cleanupOldMountDirectory(targetHostPath); err != nil {
 			zlog.Err(err)
 			return err
 		}
-		zlog.Info().Msgf("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
+		zlog.Debug().Msgf("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
 	} else {
 		// TODO - Could check this is a file using IsDirectory().
-		zlog.Info().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
+		zlog.Debug().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 			zlog.Error().Msgf(err.Error())
 			return err
 		}
-		zlog.Info().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
+		zlog.Debug().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
 	}
 
 	return nil
@@ -291,7 +291,7 @@ func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 	}
 
 	for _, ns := range networkSpaces {
-		zlog.Info().Msgf("validating ns=%s protocol=%s", ns, protocol)
+		zlog.Debug().Msgf("validating ns=%s protocol=%s", ns, protocol)
 		nSpace, err := api.GetNetworkSpaceByName(ns)
 		if err != nil {
 			// api call throws error
@@ -310,7 +310,7 @@ func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 			zlog.Err(e)
 			return e
 		}
-		zlog.Info().Msgf("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
+		zlog.Debug().Msgf("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
 	}
 
 	return nil // returns here if all network spaces pass validation for protocol.
@@ -348,7 +348,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 		if ok {
 			rootsq, err := strconv.ParseBool(no_root_squash_str)
 			if err != nil {
-				zlog.Info().Msgf("failed to cast no_root_squash value in export permission - setting default value 'true'")
+				zlog.Debug().Msgf("failed to cast no_root_squash value in export permission - setting default value 'true'")
 				rootsq = true
 			}
 			pass["no_root_squash"] = rootsq
@@ -411,7 +411,7 @@ func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOpt
 		mountOptions = append(mountOptions, "ro")
 	}
 
-	zlog.Info().Msgf("nfs mount options are [%v]", mountOptions)
+	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
 
 	return mountOptions, nil
 }
@@ -505,7 +505,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		zlog.Err(e)
 		return status.Errorf(codes.Internal, e.Error())
 	}
-	zlog.Info().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
+	zlog.Debug().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 
 	// Chmod
 	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
@@ -523,7 +523,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 			zlog.Err(e)
 			return status.Errorf(codes.Internal, e.Error())
 		}
-		zlog.Info().Msgf("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
+		zlog.Debug().Msgf("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
 	}
 
 	// print out the target permissions
@@ -539,7 +539,7 @@ func logPermissions(note, hostTargetPath string) {
 	if err != nil {
 		zlog.Error().Msgf("error in doing ls command on %s error is  %s\n", hostTargetPath, err.Error())
 	}
-	zlog.Info().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
+	zlog.Debug().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
 }
 
 func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, optionalParams map[string]string, api api.Client) (capacity int64, err error) {

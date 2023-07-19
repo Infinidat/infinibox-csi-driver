@@ -27,7 +27,7 @@ import (
 const DEFAULT_HOST_MOUNT_POINT = "/host/"
 
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	zlog.Info().Msg("NodePublishVolume")
+	zlog.Debug().Msg("NodePublishVolume")
 
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
@@ -36,7 +36,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Info().Msgf("NodePublishVolume with targetPath %s volumeId %s\n", hostTargetPath, req.GetVolumeId())
+	zlog.Debug().Msgf("NodePublishVolume with targetPath %s volumeId %s\n", hostTargetPath, req.GetVolumeId())
 
 	fileSystemId, treeqId, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
@@ -44,9 +44,9 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		zlog.Err(e)
 		return nil, e
 	}
-	zlog.Info().Msgf("fileSystemId %d treeqId %d\n", fileSystemId, treeqId)
-	zlog.Info().Msgf("volumeContext=%+v", req.GetVolumeContext())
-	zlog.Info().Msgf("treeq.nfsstorage.configmap=%+v", treeq.nfsstorage.storageClassParameters)
+	zlog.Debug().Msgf("fileSystemId %d treeqId %d\n", fileSystemId, treeqId)
+	zlog.Debug().Msgf("volumeContext=%+v", req.GetVolumeContext())
+	zlog.Debug().Msgf("treeq.nfsstorage.configmap=%+v", treeq.nfsstorage.storageClassParameters)
 
 	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		treeq.nfsstorage.snapdirVisible = false
@@ -74,12 +74,12 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			return nil, err
 		}
 	} else {
-		zlog.Info().Msgf("%s was specified %s, will not create default export rule", common.SC_NFS_EXPORT_PERMISSIONS, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+		zlog.Debug().Msgf("%s was specified %s, will not create default export rule", common.SC_NFS_EXPORT_PERMISSIONS, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)
 	if os.IsNotExist(err) {
-		zlog.Info().Msgf("targetPath %s does not exist, will create", targetPath)
+		zlog.Debug().Msgf("targetPath %s does not exist, will create", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
 			zlog.Error().Msgf("error in MkdirAll %s", err.Error())
 			return nil, err
@@ -88,7 +88,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		if err != nil {
 			zlog.Err(err)
 		}
-		zlog.Info().Msgf("targetPath %s already exists, will not do anything", targetPath)
+		zlog.Debug().Msgf("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
 		// don't return, this may be a second call after a mount timeout
 	}
@@ -102,17 +102,17 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	zlog.Info().Msgf("mount sourcePath %v, targetPath %v", source, targetPath)
+	zlog.Debug().Msgf("mount sourcePath %v, targetPath %v", source, targetPath)
 	err = treeq.nfsstorage.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		e := fmt.Errorf("failed to mount targetPath %s sourcePath '%s' : %v", targetPath, source, err)
 		zlog.Err(e)
 		return nil, status.Errorf(codes.Internal, e.Error())
 	}
-	zlog.Info().Msgf("mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
+	zlog.Debug().Msgf("mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
 
 	if req.GetReadonly() {
-		zlog.Info().Msg("this is a readonly volume, skipping setting volume permissions")
+		zlog.Debug().Msg("this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -127,12 +127,12 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 }
 
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	zlog.Info().Msg("NodeUnpublishVolume")
+	zlog.Debug().Msg("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
 	notMnt, err := treeq.nfsstorage.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.nfsstorage.osHelper.IsNotExist(err) {
-			zlog.Info().Msgf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
+			zlog.Debug().Msgf("mount point '%s' already doesn't exist: '%s', return OK", targetPath, err)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
 		if err != nil {
@@ -150,7 +150,7 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 		zlog.Err(err)
 		return nil, status.Errorf(codes.Internal, "cannot remove unmounted target path '%s': %v", targetPath, err)
 	}
-	zlog.Info().Msgf("pod successfully unmounted from volumeID %s", req.GetVolumeId())
+	zlog.Debug().Msgf("pod successfully unmounted from volumeID %s", req.GetVolumeId())
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

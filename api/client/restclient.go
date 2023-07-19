@@ -90,7 +90,7 @@ func (rc *restclient) Get(ctx context.Context, url string, hostconfig HostConfig
 }
 
 func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostconfig HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
-	zlog.Info().Msgf("GetWithQueryString url %s?%s", url, queryString)
+	zlog.Debug().Msgf("GetWithQueryString url %s?%s", url, queryString)
 	if err := checkHttpClient(); err != nil {
 		zlog.Error().Msgf("checkHttpClient returned err %v  ", err)
 		return nil, err
@@ -104,7 +104,7 @@ func (rc *restclient) GetWithQueryString(ctx context.Context, url string, hostco
 		zlog.Error().Msgf("error in validating response %v ", err)
 		return nil, err
 	}
-	zlog.Info().Msgf("GetWithQueryString request completed.")
+	zlog.Debug().Msgf("GetWithQueryString request completed.")
 	return res, err
 }
 
@@ -202,7 +202,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 		}
 		// end: bind to given struct
 	} else {
-		zlog.Info().Msgf("checkResponse with no expected response struct")
+		zlog.Debug().Msgf("checkResponse with no expected response struct")
 		var response interface{}
 		if err := json.Unmarshal(res.Body(), &response); err != nil {
 			zlog.Error().Msgf("checkResponse with no expected response struct, err: %v", err)

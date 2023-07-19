@@ -33,7 +33,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 	defer func() {
 		out = strings.TrimSpace(out)
 		s.mu.Unlock()
-		zlog.Info().Msgf("%s", follower)
+		zlog.Debug().Msgf("%s", follower)
 	}()
 
 	var result []byte
@@ -46,7 +46,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 		pipefailCmd += " " + args
 	}
 
-	zlog.Info().Msgf("%s %s", leader, pipefailCmd)
+	zlog.Debug().Msgf("%s %s", leader, pipefailCmd)
 
 	result, cmdErr := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 
@@ -54,7 +54,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 		if nativeError, nativeGetOK := cmdErr.(*exec.ExitError); nativeGetOK {
 			var errCode codes.Code
 			exitCode := nativeError.ExitCode()
-			//zlog.Info().Msgf("Command %s had exit code %s", cmd, exitCode)
+			//zlog.Debug().Msgf("Command %s had exit code %s", cmd, exitCode)
 			if cmd == "iscsiadm" {
 				switch exitCode {
 				case 2:
@@ -84,7 +84,7 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 	// Logging is optional, defaults to logged
 	if len(isToLogOutput) == 0 || isToLogOutput[0] {
 		if len(out) != 0 {
-			zlog.Info().Msgf("Output:\n%s", out)
+			zlog.Trace().Msgf("Output:\n%s", out)
 		}
 	}
 

@@ -65,7 +65,7 @@ var execFc helper.ExecScsi
 
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	var err error
-	zlog.Info().Msgf("NodeStageVolume called with PublishContext: %+v", req.GetPublishContext())
+	zlog.Debug().Msgf("NodeStageVolume called with PublishContext: %+v", req.GetPublishContext())
 	hostIdString := req.GetPublishContext()["hostID"]
 	ports := req.GetPublishContext()["hostPorts"]
 
@@ -77,7 +77,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	zlog.Info().Msgf("Publishing volume to host with host ID %d", hostId)
+	zlog.Debug().Msgf("Publishing volume to host with host ID %d", hostId)
 	// validate host exists
 	if hostId < 1 {
 		err := fmt.Errorf("hostId %d is not valid host Id", hostId)
@@ -92,7 +92,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 	for _, fcp := range fcPorts {
 		if !strings.Contains(ports, fcp) {
-			zlog.Info().Msgf("host port %s is not created, creating it", fcp)
+			zlog.Debug().Msgf("host port %s is not created, creating it", fcp)
 			err = fc.cs.AddPortForHost(hostId, "FC", fcp)
 			if err != nil {
 				zlog.Error().Msgf("error creating host port %v", err)
@@ -113,15 +113,15 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	var err error
 	defer func() {
 		if err == nil {
-			zlog.Info().Msgf("NodePublishVolume succeeded with volume ID %s", req.GetVolumeId())
+			zlog.Debug().Msgf("NodePublishVolume succeeded with volume ID %s", req.GetVolumeId())
 		} else {
-			zlog.Info().Msgf("NodePublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
+			zlog.Debug().Msgf("NodePublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
 		}
 	}()
 
-	zlog.Info().Msgf("NodePublishVolume volumecontext %v", req.GetVolumeContext())
-	zlog.Info().Msgf("uid %s gid %s unix_perm %s", req.GetVolumeContext()[common.SC_UID], req.GetVolumeContext()[common.SC_GID], req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS])
-	zlog.Info().Msgf("NodePublishVolume called with volume ID %s", req.GetVolumeId())
+	zlog.Debug().Msgf("NodePublishVolume volumecontext %v", req.GetVolumeContext())
+	zlog.Debug().Msgf("uid %s gid %s unix_perm %s", req.GetVolumeContext()[common.SC_UID], req.GetVolumeContext()[common.SC_GID], req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS])
+	zlog.Debug().Msgf("NodePublishVolume called with volume ID %s", req.GetVolumeId())
 
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {
@@ -145,7 +145,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	// remove the leading "/host" to reveal the path on the actual node host
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	zlog.Info().Msgf("FC device path %s found", devicePath)
+	zlog.Debug().Msgf("FC device path %s found", devicePath)
 
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
 	if err != nil {
@@ -160,7 +160,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 
 	// set volume permissions based on uid/uid/unix_permissions
-	zlog.Info().Msgf("after mount targetPath %s, devicePath %s ", diskMounter.TargetPath, devicePath)
+	zlog.Debug().Msgf("after mount targetPath %s, devicePath %s ", diskMounter.TargetPath, devicePath)
 	// print out the target permissions
 	logPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
 	logPermissions("after mount devicePath ", "/host"+devicePath)
@@ -178,14 +178,14 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	/**
 	defer func() {
 		if err == nil {
-			zlog.Info().Msgf("NodeUnpublishVolume succeeded with volume ID %s", req.GetVolumeId())
+			zlog.Debug().Msgf("NodeUnpublishVolume succeeded with volume ID %s", req.GetVolumeId())
 		} else {
-			zlog.Info().Msgf("NodeUnpublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
+			zlog.Debug().Msgf("NodeUnpublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
 		}
 	}()
 	*/
 
-	zlog.Info().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
+	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 
 	targetPath := req.GetTargetPath()
 	err = unmountAndCleanUp(targetPath)
@@ -197,7 +197,7 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 }
 
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	zlog.Info().Msgf("Called FC NodeUnstageVolume")
+	zlog.Debug().Msgf("Called FC NodeUnstageVolume")
 	var mpathDevice string
 	stagePath := req.GetStagingTargetPath()
 
@@ -208,23 +208,23 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	dskInfo.VolName = volName
 
 	// load fc disk config from json file
-	zlog.Info().Msgf("read fc config from staging path")
+	zlog.Debug().Msgf("read fc config from staging path")
 	if err := fc.loadFcDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
-		zlog.Info().Msgf("fc config: mpathDevice %s", mpathDevice)
+		zlog.Debug().Msgf("fc config: mpathDevice %s", mpathDevice)
 	} else {
-		zlog.Info().Msgf("fc config not existing at staging path")
+		zlog.Debug().Msgf("fc config not existing at staging path")
 		confFile := path.Join("/host", stagePath, volName+".json")
-		zlog.Info().Msgf("check if fc config file exists")
+		zlog.Debug().Msgf("check if fc config file exists")
 		pathExist, pathErr := fc.cs.pathExists(confFile)
 		if pathErr == nil {
 			if !pathExist {
-				zlog.Info().Msgf("Config file not found at %s", confFile)
+				zlog.Debug().Msgf("Config file not found at %s", confFile)
 				if err := os.RemoveAll(stagePath); err != nil {
 					zlog.Error().Msgf("Failed to remove mount path Error: %v", err)
 					return nil, err
 				}
-				zlog.Info().Msgf("Removed stage path at %s", stagePath)
+				zlog.Debug().Msgf("Removed stage path at %s", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
@@ -286,7 +286,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	if err == nil {
 		if !notMnt {
 			// ToDo: check that it is mounted on the right directory
-			zlog.Info().Msgf("fc: %s already mounted", fm.TargetPath)
+			zlog.Debug().Msgf("fc: %s already mounted", fm.TargetPath)
 			return nil
 		}
 	} else if !os.IsNotExist(err) {
@@ -295,14 +295,14 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 
 	if fm.fcDisk.isBlock {
 		// option A: raw block volume access
-		zlog.Info().Msgf("mounting raw block volume at given path %s", fm.TargetPath)
+		zlog.Debug().Msgf("mounting raw block volume at given path %s", fm.TargetPath)
 		if fm.ReadOnly {
 			// TODO: actually implement this - CSIC-343
 			return status.Error(codes.Internal, "Read only is not supported for Block Volume")
 		}
 
-		zlog.Info().Msgf("Mount point does not exist. Creating mount point.")
-		zlog.Info().Msgf("Run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(fm.TargetPath))
+		zlog.Debug().Msgf("Mount point does not exist. Creating mount point.")
+		zlog.Debug().Msgf("Run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(fm.TargetPath))
 		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 		// MkdirAll() will cause hard-to-grok mount errors.
 		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", filepath.Dir(fm.TargetPath))
@@ -312,7 +312,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 
-		zlog.Info().Msgf("Creating file: /host/%s", fm.TargetPath)
+		zlog.Debug().Msgf("Creating file: /host/%s", fm.TargetPath)
 		_, err = os.Create("/host/" + fm.TargetPath)
 		if err != nil {
 			zlog.Error().Msgf("failed to create target path for raw bind mount: %q, err: %v", fm.TargetPath, err)
@@ -327,10 +327,10 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			zlog.Error().Msgf("fc: failed to mount fc volume %s to %s, error %v", devicePath, fm.TargetPath, err)
 			return err
 		}
-		zlog.Info().Msgf("Block volume mounted successfully")
+		zlog.Debug().Msgf("Block volume mounted successfully")
 	} else {
 		// option B: local filesystem access
-		zlog.Info().Msgf("mounting volume with filesystem at given path %s", fm.TargetPath)
+		zlog.Debug().Msgf("mounting volume with filesystem at given path %s", fm.TargetPath)
 
 		// Create mountPoint, with prepended /host, if it does not exist.
 		mountPoint := "/host" + fm.TargetPath
@@ -339,7 +339,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			zlog.Err(err)
 		}
 		if os.IsNotExist(err) {
-			zlog.Info().Msgf("Mount point does not exist. Creating mount point.")
+			zlog.Debug().Msgf("Mount point does not exist. Creating mount point.")
 			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 			// MkdirAll() will cause hard-to-grok mount errors.
 			_, err := execFc.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", fm.TargetPath))
@@ -351,9 +351,9 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			// // Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
 			// util.SetReady(mountPoint)
 			// is_ready := util.IsReady(mountPoint)
-			// zlog.Info().Msgf("Check that mountPoint is ready: %t", is_ready)
+			// zlog.Debug().Msgf("Check that mountPoint is ready: %t", is_ready)
 		} else {
-			zlog.Info().Msgf("mkdir of mountPoint not required. '%s' already exists", mountPoint)
+			zlog.Debug().Msgf("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
 
 		// TODO: validate this further, see CSIC-341
@@ -366,15 +366,15 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		options = append(options, fm.MountOptions...)
 
 		if fm.FsType == "xfs" {
-			zlog.Info().Msgf("Device %s is of type XFS. Mounting using 'nouuid' option.", devicePath)
+			zlog.Debug().Msgf("Device %s is of type XFS. Mounting using 'nouuid' option.", devicePath)
 			options = append(options, "nouuid")
 		}
 
 		err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options)
 		if err != nil {
-			zlog.Info().Msgf("FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
+			zlog.Debug().Msgf("FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			zlog.Info().Msgf("Search error for matches to handle: %s", err)
+			zlog.Debug().Msgf("Search error for matches to handle: %s", err)
 
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				zlog.Error().Msgf("Device %s is already mounted on %s", devicePath, mountPoint)
@@ -395,7 +395,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 	}
-	zlog.Info().Msgf("FormatAndMount succeeded. devicePath: %s, targetPath: %s, fsType: %s", devicePath, fm.TargetPath, fm.FsType)
+	zlog.Debug().Msgf("FormatAndMount succeeded. devicePath: %s, targetPath: %s, fsType: %s", devicePath, fm.TargetPath, fm.FsType)
 	return nil
 }
 
@@ -413,7 +413,7 @@ func getPortName() []string {
 			ports = append(ports, strings.Replace(port, "0x", "", 1))
 		}
 	}
-	zlog.Info().Msgf("fc ports found %v ", ports)
+	zlog.Debug().Msgf("fc ports found %v ", ports)
 	return ports
 }
 
@@ -436,7 +436,7 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 			}
 		}
 	}
-	zlog.Info().Msgf("lun %s , targetList %v , wwidList %v", lun, targetList, wwidList)
+	zlog.Debug().Msgf("lun %s , targetList %v , wwidList %v", lun, targetList, wwidList)
 	if lun == "" || (len(targetList) == 0 && len(wwidList) == 0) {
 		return nil, fmt.Errorf("FC target information is missing")
 	}
@@ -581,7 +581,7 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 
 // FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent
 func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (string, error) {
-	zlog.Info().Msgf("In findMultipathDeviceForDevice")
+	zlog.Debug().Msgf("In findMultipathDeviceForDevice")
 	disk, err := fc.findDeviceForPath(device)
 	if err != nil {
 		zlog.Err(err)
@@ -601,12 +601,12 @@ func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (
 		zlog.Error().Msgf("failed to find multipath device with error %v", err)
 		return "", err2
 	}
-	zlog.Info().Msgf("multipath not configured")
+	zlog.Debug().Msgf("multipath not configured")
 	return "", nil
 }
 
 func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
-	zlog.Info().Msgf("In findDeviceForPath")
+	zlog.Debug().Msgf("In findDeviceForPath")
 	devicePath, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		zlog.Err(err)
@@ -617,7 +617,7 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
 	parts := strings.Split(devicePath, "/")
 	if len(parts) == 3 && strings.HasPrefix(parts[1], "dev") {
-		zlog.Info().Msgf("found device: %s", parts[2])
+		zlog.Debug().Msgf("found device: %s", parts[2])
 		return parts[2], nil
 	}
 	return "", errors.New("Illegal path for device " + devicePath)
@@ -626,7 +626,7 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 
 	// deviceMu.Lock()
-	zlog.Info().Msgf("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
+	zlog.Debug().Msgf("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
 
 	fcHosts, err := findHosts("fc")
 	if err != nil {
@@ -637,7 +637,7 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 	// For each host, scan using lun
 	for _, fcHost := range fcHosts {
 		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", fcHost)
-		zlog.Info().Msgf("Rescanning host path at '%s' for volume ID '%s' and lun '%s'", scsiHostPath, volumeId, lun)
+		zlog.Debug().Msgf("Rescanning host path at '%s' for volume ID '%s' and lun '%s'", scsiHostPath, volumeId, lun)
 		_, err = execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
 			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, volumeId, lun, err)
@@ -652,16 +652,16 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 	}
 
 	if err := waitForMultipath(fcHosts[0], lun); err != nil {
-		zlog.Info().Msgf("Rescan hosts failed for volume ID '%s' and lun '%s'", volumeId, lun)
+		zlog.Debug().Msgf("Rescan hosts failed for volume ID '%s' and lun '%s'", volumeId, lun)
 		return err
 	}
 
-	zlog.Info().Msgf("Rescan hosts complete for volume ID '%s' and lun '%s'", volumeId, lun)
+	zlog.Debug().Msgf("Rescan hosts complete for volume ID '%s' and lun '%s'", volumeId, lun)
 	return err
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
-	zlog.Info().Msgf("Called searchDisk")
+	zlog.Debug().Msgf("Called searchDisk")
 	var diskIds []string // target wwns
 	var disk string
 	var dm string
@@ -672,7 +672,7 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 		diskIds = c.WWIDs
 	}
 
-	zlog.Info().Msgf("searchDisk rescan scsi host")
+	zlog.Debug().Msgf("searchDisk rescan scsi host")
 	_ = fc.rescanDeviceMap(diskIds[0], c.Lun)
 
 	for _, diskID := range diskIds {
@@ -682,7 +682,7 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 			disk, dm = fc.getDisksWwids(diskID, io)
 		}
 		// if multipath device is found, break
-		zlog.Info().Msgf("searchDisk() found disk '%s' and dm '%s'", disk, dm)
+		zlog.Debug().Msgf("searchDisk() found disk '%s' and dm '%s'", disk, dm)
 		if dm != "" {
 			break
 		}
@@ -695,16 +695,16 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 
 	// if multipath devicemapper device is found, use it; otherwise use raw disk
 	if dm != "" {
-		zlog.Info().Msgf("Multipath devicemapper device is found %s", disk)
+		zlog.Debug().Msgf("Multipath devicemapper device is found %s", disk)
 		return dm, nil
 	}
-	zlog.Info().Msgf("Multipath devicemapper device not found, using raw disk %s", disk)
+	zlog.Debug().Msgf("Multipath devicemapper device not found, using raw disk %s", disk)
 	return disk, nil
 }
 
 // find the fc device and device mapper parent
 func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) {
-	zlog.Info().Msgf("findFcDisk called with wwn %s and lun %s", wwn, lun)
+	zlog.Debug().Msgf("findFcDisk called with wwn %s and lun %s", wwn, lun)
 	FcPath := "-fc-0x" + wwn + "-lun-" + lun
 	DevPath := "/host/dev/disk/by-path/"
 	if dirs, err := io.ReadDir(DevPath); err == nil {
@@ -756,14 +756,14 @@ func (fc *fcstorage) getFCDisk2(c Connector, io ioHandler) (string, error) {
 	if io == nil {
 		io = &OSioHandler{}
 	}
-	zlog.Info().Msgf("getFCDisk() called")
+	zlog.Debug().Msgf("getFCDisk() called")
 	devicePath, err := fc.searchDisk(c, io)
 	if err != nil {
-		zlog.Info().Msgf("getFCDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
+		zlog.Debug().Msgf("getFCDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
 		return "", err
 	}
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	zlog.Info().Msgf("FC device path %s found", devicePath)
+	zlog.Debug().Msgf("FC device path %s found", devicePath)
 
 	return devicePath, nil
 }
@@ -782,7 +782,7 @@ func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 		zlog.Error().Msgf("fc: failed creating persist file with error %v", err)
 		return fmt.Errorf("fc: encode err: %v", err)
 	}
-	zlog.Info().Msgf("fc: created persist config file at path %s", file)
+	zlog.Debug().Msgf("fc: created persist config file at path %s", file)
 	return nil
 }
 

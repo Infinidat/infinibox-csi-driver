@@ -167,19 +167,19 @@ func BuildCommonService(config map[string]string, secretMap map[string]string) (
 		commonserv.driverversion = config["driverversion"]
 		commonserv.AccessModesHelper = helper.AccessMode{}
 	}
-	zlog.Info().Msgf("buildCommonService commonservice configuration done. config %+v", config)
+	zlog.Debug().Msgf("buildCommonService commonservice configuration done. config %+v", config)
 	return commonserv, nil
 }
 
 func (cs *Commonservice) verifyApiClient() error {
-	zlog.Info().Msgf("verifying api client")
+	zlog.Debug().Msgf("verifying api client")
 	c, err := cs.Api.NewClient()
 	if err != nil {
-		zlog.Info().Msgf("api client is not working.")
+		zlog.Debug().Msgf("api client is not working.")
 		return errors.New("failed to create rest client")
 	}
 	cs.Api = c
-	zlog.Info().Msgf("api client is verified.")
+	zlog.Debug().Msgf("api client is verified.")
 	return nil
 }
 
@@ -209,13 +209,13 @@ func (cs *Commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 		// Ignore the following errors
 		successMsg := fmt.Sprintf("Success: No need to unmap volume with ID %d from host with ID %d", volumeID, hostID)
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			zlog.Info().Msgf("%s, host not found", successMsg)
+			zlog.Debug().Msgf("%s, host not found", successMsg)
 			return nil
 		} else if strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-			zlog.Info().Msgf("%s, lun not found", successMsg)
+			zlog.Debug().Msgf("%s, lun not found", successMsg)
 			return nil
 		} else if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			zlog.Info().Msgf("%s, volume not found", successMsg)
+			zlog.Debug().Msgf("%s, volume not found", successMsg)
 			return nil
 		}
 		return err
@@ -242,14 +242,14 @@ func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 }
 
 func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
-	zlog.Info().Msgf("Check if host available, create if not available")
+	zlog.Debug().Msgf("Check if host available, create if not available")
 	host, err := cs.Api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 		zlog.Error().Msgf("failed to get host with error %v", err)
 		return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
 	}
 	if host.ID == 0 {
-		zlog.Info().Msgf("Creating host with name: %s", hostName)
+		zlog.Debug().Msgf("Creating host with name: %s", hostName)
 		host, err = cs.Api.CreateHost(hostName)
 		if err != nil {
 			zlog.Error().Msgf("failed to create host with error %v", err)
@@ -260,7 +260,7 @@ func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 }
 
 func (cs *Commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
-	zlog.Info().Msgf("getCSIResponse called with volume %+v", vol)
+	zlog.Debug().Msgf("getCSIResponse called with volume %+v", vol)
 	storagePoolName := vol.PoolName
 	if storagePoolName == "" {
 		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolId)
@@ -284,7 +284,7 @@ func (cs *Commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 }
 
 func (cs *Commonservice) getStoragePoolNameFromID(id int64) string {
-	zlog.Info().Msgf("getStoragePoolNameFromID called with storagepoolid %d", id)
+	zlog.Debug().Msgf("getStoragePoolNameFromID called with storagepoolid %d", id)
 	storagePoolName := cs.storagePoolIdName[id]
 	if storagePoolName == "" {
 		pool, err := cs.Api.FindStoragePool(id, "")
@@ -340,7 +340,7 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 	var err error
 	var devices []string
 	dstPath := mpathDevice
-	zlog.Info().Msgf("detachMpathDevice() called with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
+	zlog.Debug().Msgf("detachMpathDevice() called with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
 	if dstPath != "" {
 		if strings.HasPrefix(dstPath, "/host") {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
@@ -368,7 +368,7 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 			zlog.Error().Msgf("findMpathFromDevice for mpathDevice %s failed: %s", mpathDevice, err)
 			return err
 		}
-		zlog.Info().Msgf("mpath device is %s\n", mpath)
+		zlog.Debug().Msgf("mpath device is %s\n", mpath)
 
 		// multipathFlush(mpath)
 
@@ -384,7 +384,7 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 
 		_ = detachDiskByLun(hosts, lun)
 	}
-	zlog.Info().Msgf("detachMpathDevice() completed with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
+	zlog.Debug().Msgf("detachMpathDevice() completed with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
 	return nil
 }
 
@@ -404,16 +404,16 @@ func removeFromScsiSubsystemByHostLun(host string, lun string) (err error) {
 
 func removeOneFromScsiSubsystemByHostLun(host string, target string, lun string) (err error) {
 	// fileName := "/sys/block/" + deviceName + "/device/delete"
-	// zlog.Info().Msgf("remove device from scsi-subsystem: path: %s", fileName)
+	// zlog.Debug().Msgf("remove device from scsi-subsystem: path: %s", fileName)
 	// data := []byte("1\n")
 	// ioutil.WriteFile(fileName, data, 0666)
-	// zlog.Info().Msgf("Flush device '%s' output: %s", device, blockdevOut)
+	// zlog.Debug().Msgf("Flush device '%s' output: %s", device, blockdevOut)
 
 	defer func() {
-		zlog.Info().Msgf("removeFromScsiSubsystemByHostLun() with host %s, target %s and lun %s completed", host, target, lun)
+		zlog.Debug().Msgf("removeFromScsiSubsystemByHostLun() with host %s, target %s and lun %s completed", host, target, lun)
 	}()
 
-	zlog.Info().Msgf("removeFromScsiSubsystemByHostLun() called with host %s, target %s and lun %s", host, target, lun)
+	zlog.Debug().Msgf("removeFromScsiSubsystemByHostLun() called with host %s, target %s and lun %s", host, target, lun)
 
 	deletePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/delete", host, target, lun)
 	statePath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/state", host, target, lun)
@@ -423,7 +423,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, target string, lun string)
 	var sleepCount time.Duration
 	for i := 1; i <= 5; i++ {
 		// Get state of device
-		zlog.Info().Msgf("Checking device state of %s", statePath)
+		zlog.Debug().Msgf("Checking device state of %s", statePath)
 		output, err = execScsi.Command("cat", statePath)
 		if err != nil {
 			zlog.Error().Msgf("Failed: Cannot check state of %s", statePath)
@@ -444,7 +444,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, target string, lun string)
 	}
 
 	// Echo 1 to delete device
-	zlog.Info().Msgf("Running 'echo 1 > %s'", deletePath)
+	zlog.Debug().Msgf("Running 'echo 1 > %s'", deletePath)
 	output, err = execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if err != nil {
 		zlog.Error().Msgf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
@@ -455,10 +455,10 @@ func removeOneFromScsiSubsystemByHostLun(host string, target string, lun string)
 	if _, err := os.Stat(deletePath); err == nil {
 		zlog.Warn().Msgf("Device %s still exists", deletePath)
 	} else if errors.Is(err, os.ErrNotExist) {
-		zlog.Info().Msgf("Device %s no longer exists", deletePath)
+		zlog.Debug().Msgf("Device %s no longer exists", deletePath)
 		return nil
 	} else {
-		zlog.Info().Msgf("Device %s may or may not exist. See error: %s", deletePath, err)
+		zlog.Debug().Msgf("Device %s may or may not exist. See error: %s", deletePath, err)
 	}
 
 	return err
@@ -467,13 +467,13 @@ func removeOneFromScsiSubsystemByHostLun(host string, target string, lun string)
 // detachDisk removes scsi device file such as /dev/sdX from the node.
 func detachDiskByLun(hosts []string, lun string) error {
 	defer func() {
-		zlog.Info().Msgf("detachDiskByLun() with hosts '%+v' and lun %s completed", hosts, lun)
+		zlog.Debug().Msgf("detachDiskByLun() with hosts '%+v' and lun %s completed", hosts, lun)
 		// deviceMu.Unlock()
 		// May happen if unlocking a mutex that was not locked
-		zlog.Info().Msgf("detachDiskByLun succeeded for lun '%s'", lun)
+		zlog.Debug().Msgf("detachDiskByLun succeeded for lun '%s'", lun)
 	}()
 
-	zlog.Info().Msgf("detachDiskByLun() called with hosts %+v and lun %s", hosts, lun)
+	zlog.Debug().Msgf("detachDiskByLun() called with hosts %+v and lun %s", hosts, lun)
 	var err error
 
 	for _, host := range hosts {
@@ -502,7 +502,7 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 	hostPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/state", hostId, target, lun)
 	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/wwid", hostId, target, lun)
 
-	zlog.Info().Msgf("Checking device state within %s", hostPath)
+	zlog.Debug().Msgf("Checking device state within %s", hostPath)
 	for i := 1; i <= 5; i++ {
 		// Get state of device
 		hostOutput, err := execScsi.Command("cat", hostPath)
@@ -517,7 +517,7 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 			zlog.Warn().Msgf("Failed (%d): Cannot get wwid of wwid file %s: %s", i, wwidPath, err)
 		} else {
 			wwid := strings.TrimSpace(string(wwidOutput))
-			zlog.Info().Msgf("Device %s has wwid '%s'", wwidPath, wwid)
+			zlog.Debug().Msgf("Device %s has wwid '%s'", wwidPath, wwid)
 		}
 
 		if err != nil || deviceState != state {
@@ -527,7 +527,7 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 			}
 			time.Sleep(sleepCount * time.Second)
 		} else {
-			zlog.Info().Msgf("Device %s is in state '%s'", hostPath, state)
+			zlog.Debug().Msgf("Device %s is in state '%s'", hostPath, state)
 			break
 		}
 	}
@@ -541,9 +541,9 @@ func waitForMultipath(hostId string, lun string) error {
 	for i := 1; i <= loopCount; i++ {
 		devices, err := filepath.Glob(masterPath)
 		if err != nil {
-			zlog.Info().Msgf("Failed to Glob devices using path '%s': %+v", masterPath, err)
+			zlog.Debug().Msgf("Failed to Glob devices using path '%s': %+v", masterPath, err)
 		} else {
-			zlog.Info().Msgf("Glob devices '%s'", devices)
+			zlog.Debug().Msgf("Glob devices '%s'", devices)
 		}
 
 		if err != nil || len(devices) < mpathDeviceCount {
@@ -557,7 +557,7 @@ func waitForMultipath(hostId string, lun string) error {
 		}
 	}
 
-	zlog.Info().Msgf("Multipath device is online for host ID %s and lun '%s'", hostId, lun)
+	zlog.Debug().Msgf("Multipath device is online for host ID %s and lun '%s'", hostId, lun)
 	return nil
 }
 
@@ -646,7 +646,7 @@ func findLunOnDevice(devicePath string) (string, error) {
 
 /**
 func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args []string) ([]byte, error) {
-	zlog.Info().Msgf("Executing command : {%v} with args : {%v}. and timeout : {%v} mseconds", command, args, mSeconds)
+	zlog.Debug().Msgf("Executing command : {%v} with args : {%v}. and timeout : {%v} mseconds", command, args, mSeconds)
 
 	// Create a new context and add a timeout to it
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(mSeconds)*time.Millisecond)
@@ -662,17 +662,17 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 	// The error returned by cmd.Output() will be OS specific based on what
 	// happens when a process is killed.
 	if ctx.Err() == context.DeadlineExceeded {
-		zlog.Info().Msgf("Command %s timeout reached", command)
+		zlog.Debug().Msgf("Command %s timeout reached", command)
 		return nil, ctx.Err()
 	}
 
 	// If there's no context error, we know the command completed (or errored).
-	zlog.Info().Msgf("Output from command: %s", string(out))
+	zlog.Debug().Msgf("Output from command: %s", string(out))
 	if err != nil {
-		zlog.Info().Msgf("Non-zero exit code: %s", err)
+		zlog.Debug().Msgf("Non-zero exit code: %s", err)
 	}
 
-	zlog.Info().Msgf("Finished executing command")
+	zlog.Debug().Msgf("Finished executing command")
 	return out, err
 }
 */
@@ -680,16 +680,16 @@ func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args [
 func (cs *Commonservice) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		zlog.Info().Msgf("Path exists: %s", path)
+		zlog.Debug().Msgf("Path exists: %s", path)
 		return true, nil
 	} else if os.IsNotExist(err) {
-		zlog.Info().Msgf("Path not exists: %s", path)
+		zlog.Debug().Msgf("Path not exists: %s", path)
 		return false, nil
 	} else if cs.isCorruptedMnt(err) {
-		zlog.Info().Msgf("Path is currupted: %s", path)
+		zlog.Debug().Msgf("Path is currupted: %s", path)
 		return true, err
 	} else {
-		zlog.Info().Msgf("unable to validate path: %s", path)
+		zlog.Debug().Msgf("unable to validate path: %s", path)
 		return false, err
 	}
 }

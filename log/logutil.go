@@ -16,6 +16,8 @@ package log
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +36,9 @@ var logger zerolog.Logger
 func Get() zerolog.Logger {
 
 	once.Do(func() {
+
+		zerolog.CallerMarshalFunc = shortFileFormat
+
 		appLogLevel := os.Getenv("APP_LOG_LEVEL")
 		switch appLogLevel {
 		case "quiet":
@@ -52,13 +57,18 @@ func Get() zerolog.Logger {
 			logLevel = zerolog.InfoLevel
 		}
 
-		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339} // 2023-07-11T14:54:44Z
+		zerolog.TimeFieldFormat = time.RFC3339Nano
+
+		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339Nano} // 2023-07-11T14:54:44Z
 
 		output.FormatLevel = func(i interface{}) string {
 			return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 		}
 		output.FormatMessage = func(i interface{}) string {
 			return fmt.Sprintf("%s", i) // modify this line to adjust the actual message output
+		}
+		output.FormatCaller = func(i interface{}) string {
+			return filepath.Base(fmt.Sprintf("%s", i))
 		}
 		output.FormatFieldName = func(i interface{}) string {
 			return fmt.Sprintf("%s:", i)
@@ -69,9 +79,23 @@ func Get() zerolog.Logger {
 		logger = zerolog.New(output).
 			Level(zerolog.Level(logLevel)).
 			With().
+			Caller(). // calling file line #
 			Timestamp().
 			Logger()
 	})
 
 	return logger
+}
+
+// used to format calling file line to shorter version.
+func shortFileFormat(pc uintptr, file string, line int) string {
+	short := file
+	for i := len(file) - 1; i > 0; i-- {
+		if file[i] == '/' {
+			short = file[i+1:]
+			break
+		}
+	}
+	file = short
+	return file + ":" + strconv.Itoa(line)
 }

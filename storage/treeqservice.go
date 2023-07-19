@@ -87,7 +87,7 @@ func (ts *TreeqService) checkTreeqName(FileSystems []api.FileSystem, pVName stri
 
 // IsTreeqAlreadyExist check the treeq exist or not
 func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName string) (treeqVolumeContext map[string]string, err error) {
-	zlog.Info().Msgf("IsTreeqAlreadyExist called pool %s netspace %s pVName %s", poolName, networkSpace, pVName)
+	zlog.Debug().Msgf("IsTreeqAlreadyExist called pool %s netspace %s pVName %s", poolName, networkSpace, pVName)
 	treeqVolumeContext = make(map[string]string)
 	poolID, err := ts.cs.Api.GetStoragePoolIDByName(poolName)
 	if err != nil {
@@ -97,7 +97,7 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName strin
 	ts.poolID = poolID
 	page := 1
 	for {
-		zlog.Info().Msgf("IsTreeqAlreadyExist looking for file systems page %d", page)
+		zlog.Debug().Msgf("IsTreeqAlreadyExist looking for file systems page %d", page)
 		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(poolID, page)
 		if poolErr != nil {
 			zlog.Error().Msgf("failed to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
@@ -105,13 +105,13 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName strin
 			return
 		}
 		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
-			zlog.Info().Msgf("IsTreeqAlreadyExist no file systems for this pool found")
+			zlog.Debug().Msgf("IsTreeqAlreadyExist no file systems for this pool found")
 			return
 		}
-		zlog.Info().Msgf("IsTreeqAlreadyExist checking pv %s ", pVName)
+		zlog.Debug().Msgf("IsTreeqAlreadyExist checking pv %s ", pVName)
 		treeqData := ts.checkTreeqName(fsMetaData.FileSystemArry, pVName)
 		if treeqData != nil {
-			zlog.Info().Msgf("treeq %s found to already exist", pVName)
+			zlog.Debug().Msgf("treeq %s found to already exist", pVName)
 			exportErr := ts.getExportPath(treeqData.FilesystemID) // fetch export path and set to filesystem exportPath
 			if exportErr != nil {
 				zlog.Error().Msgf("error getting export path %v", exportErr)
@@ -128,17 +128,17 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName strin
 			treeqVolumeContext["TREEQID"] = strconv.FormatInt(treeqData.ID, 10)
 			treeqVolumeContext["ipAddress"] = ts.nfsstorage.ipAddress
 			treeqVolumeContext["volumePath"] = path.Join(ts.nfsstorage.exportPath, treeqData.Path)
-			zlog.Info().Msgf("IsTreeqAlreadyExist copied treeqVolume %v", treeqVolumeContext)
+			zlog.Debug().Msgf("IsTreeqAlreadyExist copied treeqVolume %v", treeqVolumeContext)
 			return
 		}
 		// inner for loop closed
 		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
-			zlog.Info().Msgf("IsTreeqAlreadyExist no more pages")
+			zlog.Debug().Msgf("IsTreeqAlreadyExist no more pages")
 			break
 		}
 		page++ // check the file system on next page
 	} // outer for loop closed
-	zlog.Info().Msgf("IsTreeqAlreadyExist existing treeq not found")
+	zlog.Debug().Msgf("IsTreeqAlreadyExist existing treeq not found")
 	return
 }
 
@@ -165,7 +165,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 			return nil, err
 		}
 	}
-	zlog.Info().Msgf("%s limit being used %d\n", common.SC_MAX_TREEQS_PER_FILESYSTEM, maxTreeqPerFS)
+	zlog.Debug().Msgf("%s limit being used %d\n", common.SC_MAX_TREEQS_PER_FILESYSTEM, maxTreeqPerFS)
 
 	page := 1
 	for {
@@ -176,7 +176,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 			return
 		}
 		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
-			zlog.Info().Msgf("NO filesystem found.filesystem array is empty")
+			zlog.Debug().Msgf("NO filesystem found.filesystem array is empty")
 			return
 		}
 		for _, fs := range fsMetaData.FileSystemArry {
@@ -189,7 +189,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 				}
 				if treeqCnt < maxTreeqPerFS {
 					ts.treeqCnt = treeqCnt
-					zlog.Info().Msgf("filesystem found to create treeQ,filesystemID %d", fs.ID)
+					zlog.Debug().Msgf("filesystem found to create treeQ,filesystemID %d", fs.ID)
 					exportErr := ts.getExportPath(fs.ID) // fetch export path and set to filesystem exportPath
 					if exportErr != nil {
 						err = exportErr
@@ -204,13 +204,13 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 		}
 		page++ // check the file system on next page
 	} // outer for loop closed
-	zlog.Info().Msgf("NO filesystem found to create treeQ")
+	zlog.Debug().Msgf("NO filesystem found to create treeQ")
 	return
 }
 
 // CreateTreeqVolume create volume method
 func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]string, capacity int64, pVName string) (treeqVolumeContext map[string]string, err error) {
-	zlog.Info().Msgf("CreateTreeqVolume filesystem.configmap %+v config %+v capacity %d pVName %s", ts.nfsstorage.storageClassParameters, storageClassParameters, capacity, pVName)
+	zlog.Debug().Msgf("CreateTreeqVolume filesystem.configmap %+v config %+v capacity %d pVName %s", ts.nfsstorage.storageClassParameters, storageClassParameters, capacity, pVName)
 
 	treeqVolumeContext = map[string]string{}
 
@@ -311,7 +311,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		err = errors.New("failed to increment treeq count as metadata")
 		// if AttachMetadataToObject - failed to add metadata then delete the created treeq
 		if ts.nfsstorage.fileSystemID != 0 {
-			zlog.Info().Msgf("error reverting treeq: %s", ts.nfsstorage.pVName)
+			zlog.Debug().Msgf("error reverting treeq: %s", ts.nfsstorage.pVName)
 			_, errDelTreeq := ts.cs.Api.DeleteTreeq(ts.nfsstorage.fileSystemID, treeqResponse.ID)
 			if errDelTreeq != nil {
 				zlog.Error().Msgf("failed to delete treeq: %s", ts.nfsstorage.pVName)
@@ -330,7 +330,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 			err = errors.New("failed to update files size")
 			// if UpdateFilesystem fails, descrement the metadata tree count
 			if filesystemID != 0 {
-				zlog.Info().Msgf("error reverting treeqcount")
+				zlog.Debug().Msgf("error reverting treeqcount")
 				_, errUpdTreeq := ts.UpdateTreeqCnt(filesystemID, DecrementTreeqCount, 0)
 				if errUpdTreeq != nil {
 					zlog.Error().Msgf("failed to update count for treeq: %s", ts.nfsstorage.pVName)
@@ -428,7 +428,7 @@ func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err erro
 			return
 		}
 	}
-	zlog.Info().Msgf("Treeq deleted successfully")
+	zlog.Debug().Msgf("Treeq deleted successfully")
 	return
 }
 
@@ -439,7 +439,7 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqC
 		if err != nil {
 			return
 		}
-		zlog.Info().Msgf("treeq count of fileSystemID: %d", fileSystemID)
+		zlog.Debug().Msgf("treeq count of fileSystemID: %d", fileSystemID)
 	}
 
 	switch action {
@@ -458,7 +458,7 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqC
 	}
 
 	treeqCount = treeqCnt
-	zlog.Info().Msgf("treeq count updated successfully of fileSystemID: %d", fileSystemID)
+	zlog.Debug().Msgf("treeq count updated successfully of fileSystemID: %d", fileSystemID)
 	return
 }
 
@@ -476,7 +476,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 	treeq, err := svc.cs.Api.GetTreeq(filesystemID, treeqID)
 	if err != nil {
 		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
-			zlog.Info().Msgf("treeq not found %d", treeqID)
+			zlog.Debug().Msgf("treeq not found %d", treeqID)
 			return nil
 		}
 		zlog.Error().Msgf("failed to get treeq: %s", err)
@@ -499,7 +499,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 
 		// check to see if storage class has max file system size parameter set, if so, enforce the limit
 		if maxFileSystemSize != "" {
-			zlog.Info().Msgf("performing max file system size limit check using storage class parameter %s", maxFileSystemSize)
+			zlog.Debug().Msgf("performing max file system size limit check using storage class parameter %s", maxFileSystemSize)
 			maxFileSystemSizeInBytes, err := convertToByte(maxFileSystemSize)
 			if err != nil {
 				zlog.Error().Msgf("failed to convert storage class parameter %s value %s to byte count", common.SC_MAX_FILESYSTEM_SIZE, maxFileSystemSize)
@@ -526,6 +526,6 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64
 		return
 	}
 
-	zlog.Info().Msg("treeq size updated successfully")
+	zlog.Debug().Msg("treeq size updated successfully")
 	return
 }

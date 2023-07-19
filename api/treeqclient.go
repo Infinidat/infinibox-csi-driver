@@ -85,13 +85,13 @@ func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int
 		treeqArry, _ = apiresp.Result.([]Treeq)
 	}
 
-	zlog.Info().Msgf("Total number of Treeq : %d", treeqCnt)
+	zlog.Debug().Msgf("Total number of Treeq : %d", treeqCnt)
 	return
 }
 
 // CreateTreeq method create treeq
 func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error) {
-	zlog.Info().Msgf("Create filesystem")
+	zlog.Debug().Msgf("Create filesystem")
 	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, treeqParameter, &treeq)
@@ -104,7 +104,7 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 		treeq, _ = apiresp.Result.(Treeq)
 	}
 
-	zlog.Info().Msgf("treeq created : %s", treeq.Name)
+	zlog.Debug().Msgf("treeq created : %s", treeq.Name)
 	return &treeq, nil
 }
 
@@ -137,7 +137,7 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 		apiresp := resp.(client.ApiResponse)
 		treeq, _ = apiresp.Result.(Treeq)
 	}
-	zlog.Info().Msgf("Treeq deleted successfully: %d", fileSystemID)
+	zlog.Debug().Msgf("Treeq deleted successfully: %d", fileSystemID)
 	return &treeq, nil
 }
 
@@ -169,7 +169,7 @@ func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string
 		apiresp := resp.(client.ApiResponse)
 		treeq, _ = apiresp.Result.(Treeq)
 	}
-	zlog.Info().Msgf("Treeq updated successfully: %d", fileSystemID)
+	zlog.Debug().Msgf("Treeq updated successfully: %d", fileSystemID)
 	return &treeq, nil
 }
 
@@ -189,7 +189,7 @@ func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*T
 	}
 	for _, fsystem := range treeq {
 		if fsystem.Name == treeqName {
-			zlog.Info().Msgf("Got treeq : %s", treeqName)
+			zlog.Debug().Msgf("Got treeq : %s", treeqName)
 			return &fsystem, nil
 		}
 	}

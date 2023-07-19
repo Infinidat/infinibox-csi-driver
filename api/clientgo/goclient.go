@@ -40,7 +40,7 @@ var clientapi kubeclient
 
 // BuildClient
 func BuildClient() (kc *kubeclient, err error) {
-	zlog.Info().Msgf("BuildClient called.")
+	zlog.Debug().Msgf("BuildClient called.")
 	if clientapi.client == nil {
 		config, err := rest.InClusterConfig()
 		if err != nil {
@@ -59,7 +59,7 @@ func BuildClient() (kc *kubeclient, err error) {
 }
 
 func (kc *kubeclient) GetSecret(secretName, nameSpace string) (map[string]string, error) {
-	zlog.Info().Msgf("get request for secret with namespace %s and secretname %s", nameSpace, secretName)
+	zlog.Debug().Msgf("get request for secret with namespace %s and secretname %s", nameSpace, secretName)
 	secretMap := make(map[string]string)
 	secret, err := kc.client.CoreV1().Secrets(nameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
@@ -91,19 +91,19 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 		zlog.Error().Msgf("Failed to get all persistent volumes: %s", err.Error())
 		return nil, err
 	}
-	zlog.Info().Msgf("GetAllPersistentVolumes() called")
-	zlog.Info().Msgf("There are %d persistent volumes in the cluster\n", len(persistentVolumes.Items))
+	zlog.Debug().Msgf("GetAllPersistentVolumes() called")
+	zlog.Debug().Msgf("There are %d persistent volumes in the cluster\n", len(persistentVolumes.Items))
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
 	for _, pv := range persistentVolumes.Items {
 		persistentVolumeName := pv.ObjectMeta.GetName()
 		provisionedBy := pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
-		zlog.Info().Msgf("pv name: %+v\n", persistentVolumeName)
+		zlog.Debug().Msgf("pv name: %+v\n", persistentVolumeName)
 		if provisionedBy == common.SERVICE_NAME {
-			zlog.Info().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
+			zlog.Debug().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
 			infiPersistentVolumeList.Items = append(infiPersistentVolumeList.Items, pv)
 		} else {
-			zlog.Info().Msgf("pv %s provisioned by foreign CSI driver %s", persistentVolumeName, provisionedBy)
+			zlog.Debug().Msgf("pv %s provisioned by foreign CSI driver %s", persistentVolumeName, provisionedBy)
 		}
 	}
 	return &infiPersistentVolumeList, nil
@@ -115,14 +115,14 @@ func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error
 		zlog.Error().Msgf(err.Error())
 		return nil, err
 	}
-	zlog.Info().Msgf("GetStorageClasses() called")
-	zlog.Info().Msgf("There are %d storageclasses in the cluster\n", len(storageclasses.Items))
+	zlog.Debug().Msgf("GetStorageClasses() called")
+	zlog.Debug().Msgf("There are %d storageclasses in the cluster\n", len(storageclasses.Items))
 	for _, sc := range storageclasses.Items {
 		storage_class_name := sc.ObjectMeta.GetName()
-		zlog.Info().Msgf("storageclass name: %+v\n", storage_class_name)
+		zlog.Debug().Msgf("storageclass name: %+v\n", storage_class_name)
 
 		pool_name := sc.Parameters["pool_name"]
-		zlog.Info().Msgf("pool name: %s\n", pool_name)
+		zlog.Debug().Msgf("pool name: %s\n", pool_name)
 	}
 	return storageclasses, nil
 }

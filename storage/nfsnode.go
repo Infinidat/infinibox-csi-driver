@@ -43,7 +43,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Info().Msgf("NodePublishVolume targetPath=%s", hostTargetPath)
+	zlog.Debug().Msgf("NodePublishVolume targetPath=%s", hostTargetPath)
 
 	tmp := strings.Split(req.GetVolumeId(), "$$")[0]
 	fileSystemId, err := strconv.ParseInt(tmp, 10, 64)
@@ -77,18 +77,18 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			return nil, err
 		}
 	} else {
-		zlog.Info().Msgf("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+		zlog.Debug().Msgf("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)
 	if os.IsNotExist(err) {
-		zlog.Info().Msgf("targetPath %s does not exist, will create", targetPath)
+		zlog.Debug().Msgf("targetPath %s does not exist, will create", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
 			zlog.Err(err)
 			return nil, err
 		}
 	} else {
-		zlog.Info().Msgf("targetPath %s already exists, will not do anything", targetPath)
+		zlog.Debug().Msgf("targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
 		// dont' return, this may be a second call after a mount timeout
 	}
@@ -99,22 +99,22 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return nil, status.Errorf(codes.Internal, "failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
 
-	zlog.Info().Msgf("nfs mount options are [%v]", mountOptions)
+	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	zlog.Info().Msgf("Mount sourcePath %v, targetPath %v", source, targetPath)
+	zlog.Debug().Msgf("Mount sourcePath %v, targetPath %v", source, targetPath)
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		e := fmt.Errorf("failed to mount source '%s ' target %s: %v", source, targetPath, err)
 		zlog.Err(e)
 		return nil, status.Errorf(codes.Internal, e.Error())
 	}
-	zlog.Info().Msgf("successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
+	zlog.Debug().Msgf("successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
 	if req.GetReadonly() {
-		zlog.Info().Msg("this is a readonly volume, skipping setting volume permissions")
+		zlog.Debug().Msg("this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -129,7 +129,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
-	zlog.Info().Msgf("NodeUnpublishVolume targetPath %s", targetPath)
+	zlog.Debug().Msgf("NodeUnpublishVolume targetPath %s", targetPath)
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
 		zlog.Err(err)
@@ -188,27 +188,27 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 		zlog.Error().Msgf("error from GetExportByFileSystem filesystemId %d %v", filesystemId, err)
 		return err
 	}
-	zlog.Info().Msgf("GetExportByFileSystem response =%+v", resp)
+	zlog.Debug().Msgf("GetExportByFileSystem response =%+v", resp)
 	if resp != nil {
 		responses := *resp
 		for i := 0; i < len(responses); i++ {
 			r := responses[i]
 			if r.ExportPath == exportFileSystem.Export_path {
-				zlog.Info().Msgf("export path was found to already exist %s", r.ExportPath)
+				zlog.Debug().Msgf("export path was found to already exist %s", r.ExportPath)
 				// here is where we would delete the existing export
 				deleteResp, err := nfs.cs.Api.DeleteExportPath(r.ID)
 				if err != nil {
 					zlog.Error().Msgf("error from DeleteExportPath ID %d filesystemId %d %v", r.ID, filesystemId, err)
 					return err
 				}
-				zlog.Info().Msgf("delete export path response %+v\n", deleteResp)
+				zlog.Debug().Msgf("delete export path response %+v\n", deleteResp)
 			}
 		}
 	}
 
 	// create the export rule
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
-	zlog.Info().Msgf("exportFileSystem =%+v", exportFileSystem)
+	zlog.Debug().Msgf("exportFileSystem =%+v", exportFileSystem)
 	exportResp, err := nfs.cs.Api.ExportFileSystem(exportFileSystem)
 	if err != nil {
 		zlog.Error().Msgf("failed to create export path of filesystem %s %v", fs.Name, err)
@@ -216,7 +216,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 	}
 	nfs.exportID = exportResp.ID
 	nfs.exportBlock = exportResp.ExportPath
-	zlog.Info().Msgf("created nfs export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
+	zlog.Debug().Msgf("created nfs export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
 
 	return nil
 }
