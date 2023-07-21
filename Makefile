@@ -40,7 +40,7 @@ _art_dir            = artifact
 # For Development Build #################################################################
 # Docker.io username and tag
 _DOCKER_USER        = infinidat
-_DOCKER_BASE_IMAGE  = redhat/ubi8:latest
+_DOCKER_BASE_IMAGE  = redhat/ubi9:latest
 
 # For Production Build ##################################################################
 ifeq ($(env),prod)
