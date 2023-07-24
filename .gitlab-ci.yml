@@ -25,7 +25,7 @@ workflow:
 
 variables:
   MAINTENANCE_MODE: 1
-  DOCKER_BASE_IMAGE: redhat/ubi8:latest
+  DOCKER_BASE_IMAGE: redhat/ubi9:latest
   BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver:$CI_COMMIT_REF_NAME
 
 
