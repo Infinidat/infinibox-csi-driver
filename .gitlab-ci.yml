@@ -27,7 +27,7 @@ variables:
   MAINTENANCE_MODE: 1
   DOCKER_BASE_IMAGE: redhat/ubi9:latest
   BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-driver:$CI_COMMIT_REF_NAME
-
+  METRICS_BUILD_IMAGE: $CI_REGISTRY_IMAGE/infinidat-csi-metrics:$CI_COMMIT_REF_NAME
 
 stages:
 - lint
@@ -79,6 +79,19 @@ go-build:
       - infinibox-csi-driver
     expire_in: 1 day
 
+go-metrics-build:
+  stage: build
+  tags:
+    - go-build
+  image: quay.io/projectquay/golang:1.20
+  script:
+    - make build-metrics
+  artifacts:
+    paths:
+      - infinibox-csi-metrics
+    expire_in: 1 day
+
+
 build-image:
   stage: docker_build
   tags:
@@ -104,6 +117,33 @@ build-image:
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
       -t $BUILD_IMAGE -f Dockerfile .
     - docker push $BUILD_IMAGE
+
+build-metrics-image:
+  stage: docker_build
+  tags:
+    - docker-build
+  image: docker:20.10.16
+  services:
+    - name: docker:20.10.16-dind
+      alias: dockerhost
+  variables:
+    DOCKER_HOST: tcp://dockerhost:2375/
+    # Use the overlayfs driver for improved performance:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+   - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+  script:
+    - > 
+      docker build --pull 
+      --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
+      --build-arg BLAME_USER=$CI_REGISTRY_USER
+      --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
+      --build-arg BLAME_BUILD_TIME=$CI_JOB_STARTED_AT
+      --build-arg BLAME_MACHINE=$CI_SERVER_HOST
+      -t $METRICS_BUILD_IMAGE -f cmd/infinidat-csi-metrics/Dockerfile .
+    - docker push $METRICS_BUILD_IMAGE
+
 
 test-merge-image-build:
   stage: docker_build
