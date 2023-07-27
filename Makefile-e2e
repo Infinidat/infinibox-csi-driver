@@ -60,7 +60,14 @@ e2e-redhat-sanity:  ## run the redhat e2e tests
 e2e-treeq:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/e2e-treeq -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-treeq/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-treeq -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: e2e-nfs
+e2e-nfs:  ## run the infinidat developed e2e nfs tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-nfs/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-nfs -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2e-test-image

@@ -261,7 +261,7 @@ func (m *MockApiService) ExportFileSystem(export ExportFileSys) (*ExportResponse
 }
 
 // CreateFileSystemSnapshot
-func (m *MockApiService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+func (m *MockApiService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
 	args := m.Called(snapshotParam)
 	resp, _ := args.Get(0).(FileSystemSnapshotResponce)
 	err, _ := args.Get(1).(error)
@@ -414,7 +414,7 @@ func (m *MockApiService) GetStoragePool(poolID int64, storagepoolname string) ([
 }
 
 // CreateSnapshotVolume
-func (m *MockApiService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
+func (m *MockApiService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
 	args := m.Called(snapshotParam)
 	snapshotVolumesResp, _ := args.Get(0).(SnapshotVolumesResp)
 	err, _ := args.Get(1).(error)

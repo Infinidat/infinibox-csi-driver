@@ -189,7 +189,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 
 	// Act
 	snapshotParams := VolumeSnapshot{ParentID: 1001}
-	_, err := service.CreateSnapshotVolume(&snapshotParams)
+	_, err := service.CreateSnapshotVolume(0, &snapshotParams)
 
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -205,7 +205,7 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 
 	// Act
 	snapshotParams := VolumeSnapshot{ParentID: 1001, SnapshotName: "test_volume_resp"}
-	response, _ := service.CreateSnapshotVolume(&snapshotParams)
+	response, _ := service.CreateSnapshotVolume(0, &snapshotParams)
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
@@ -394,7 +394,7 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Fail() {
 		ParentID:       1000,
 		WriteProtected: true,
 	}
-	_, err := service.CreateFileSystemSnapshot(fileSystemSnapshot)
+	_, err := service.CreateFileSystemSnapshot(0, fileSystemSnapshot)
 
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -413,7 +413,7 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
 	}
 
 	// Act
-	response, _ := service.CreateFileSystemSnapshot(fileSystemSnapshot)
+	response, _ := service.CreateFileSystemSnapshot(0, fileSystemSnapshot)
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")

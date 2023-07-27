@@ -371,21 +371,36 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 }
 
 // CreateFileSystemSnapshot method create the filesystem snapshot
-func (c *ClientService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
-	zlog.Debug().Msgf("Create a snapshot of filesystem ID %d", snapshotParam.ParentID)
+func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+	zlog.Debug().Msgf("Create a snapshot of filesystem params %+v", snapshotParam)
 	path := "/api/rest/filesystems"
-	if snapshotParam.LockExpiresAt > 0 {
-		path = path + "?approved=true"
-	}
 	snapShotResponse := FileSystemSnapshotResponce{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
-	if err != nil {
-		zlog.Error().Msgf("failed to create %v", err)
-		return nil, err
-	}
-	if (FileSystemSnapshotResponce{}) == snapShotResponse {
-		apiresp := resp.(client.ApiResponse)
-		snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
+	if lockExpiresAt > 0 {
+		path = path + "?approved=true"
+		tmp := &FileSystemSnapshotLocked{}
+		tmp.LockExpiresAt = lockExpiresAt
+		tmp.ParentID = snapshotParam.ParentID
+		tmp.SnapshotName = snapshotParam.SnapshotName
+		tmp.WriteProtected = snapshotParam.WriteProtected
+		resp, err := c.getJSONResponse(http.MethodPost, path, tmp, &snapShotResponse)
+		if err != nil {
+			zlog.Error().Msgf("failed to create %v", err)
+			return nil, err
+		}
+		if (FileSystemSnapshotResponce{}) == snapShotResponse {
+			apiresp := resp.(client.ApiResponse)
+			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
+		}
+	} else {
+		resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
+		if err != nil {
+			zlog.Error().Msgf("failed to create %v", err)
+			return nil, err
+		}
+		if (FileSystemSnapshotResponce{}) == snapShotResponse {
+			apiresp := resp.(client.ApiResponse)
+			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
+		}
 	}
 	zlog.Debug().Msgf("Created snapshot: %s", snapShotResponse.Name)
 	return &snapShotResponse, nil

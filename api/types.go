@@ -295,6 +295,11 @@ type FileSystemSnapshot struct {
 	ParentID       int64  `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
+}
+type FileSystemSnapshotLocked struct {
+	ParentID       int64  `json:"parent_id"`
+	SnapshotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
 	LockExpiresAt  int64  `json:"lock_expires_at"`
 }
 

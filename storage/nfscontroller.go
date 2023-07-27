@@ -222,7 +222,8 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	newSnapshotParams := &api.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: newSnapshotName, WriteProtected: false}
 	zlog.Info().Msgf("CreateFileSystemSnapshot: %v", newSnapshotParams)
 	// Create snapshot
-	newSnapshot, err := nfs.cs.Api.CreateFileSystemSnapshot(newSnapshotParams)
+	var lockExpiresAt int64
+	newSnapshot, err := nfs.cs.Api.CreateFileSystemSnapshot(lockExpiresAt, newSnapshotParams)
 	if err != nil {
 		e := fmt.Errorf("failed to create snapshot: %s error: %v", newSnapshotParams.SnapshotName, err)
 		zlog.Err(e)
@@ -614,16 +615,17 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		WriteProtected: true,
 	}
 
+	var lockExpiresAt int64
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	if lockExpiresAtParameter != "" {
-		fileSystemSnapshot.LockExpiresAt, err = validateSnapshotLockingParameter(lockExpiresAtParameter)
+		lockExpiresAt, err = validateSnapshotLockingParameter(lockExpiresAtParameter)
 		if err != nil {
 			zlog.Error().Msgf("failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
 			return nil, err
 		}
 		zlog.Debug().Msgf("snapshot param has a lock_expires_at of %s", lockExpiresAtParameter)
 	}
-	resp, err := nfs.cs.Api.CreateFileSystemSnapshot(fileSystemSnapshot)
+	resp, err := nfs.cs.Api.CreateFileSystemSnapshot(lockExpiresAt, fileSystemSnapshot)
 	if err != nil {
 		zlog.Error().Msgf("failed to create snapshot %s error %v", snapshotName, err)
 		return

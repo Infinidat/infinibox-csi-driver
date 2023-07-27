@@ -34,7 +34,7 @@ type Client interface {
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	GetVolumeByName(volumename string) (*Volume, error)
 	GetVolume(volumeid int) (*Volume, error)
-	CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
+	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
 	DeleteVolume(volumeID int) (err error)
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
@@ -64,7 +64,7 @@ type Client interface {
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error)
+	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error)
 	DeleteFileSystemComplete(fileSystemID int64) (err error)
 	DeleteParentFileSystem(fileSystemID int64) (err error)
 	GetParentID(fileSystemID int64) int64
@@ -324,7 +324,7 @@ func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
 }
 
 // CreateSnapshotVolume : Create volume from snapshot
-func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
+func (c *ClientService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
 	zlog.Debug().Msgf("Create a snapshot: %s", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
@@ -333,7 +333,7 @@ func (c *ClientService) CreateSnapshotVolume(snapshotParam *VolumeSnapshot) (*Sn
 	valumeParameter["name"] = snapshotParam.SnapshotName
 	valumeParameter["write_protected"] = snapshotParam.WriteProtected
 	valumeParameter[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
-	if snapshotParam.LockExpiresAt > 0 {
+	if lockExpiresAt > 0 {
 		path = path + "?approved=true"
 		valumeParameter["lock_expires_at"] = snapshotParam.LockExpiresAt
 	}
