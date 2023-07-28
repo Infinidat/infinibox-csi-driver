@@ -70,6 +70,13 @@ e2e-nfs:  ## run the infinidat developed e2e nfs tests
 	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-nfs/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-nfs -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2e-iscsi
+e2e-iscsi:  ## run the infinidat developed e2e nfs tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2e-test-image
 e2e-test-image:  ## build the e2e test image
 	@echo -e $(_begin)

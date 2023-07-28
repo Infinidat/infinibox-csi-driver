@@ -145,7 +145,6 @@ func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientS
 		return "", err
 	}
 	uniqueSCName := prefix + uniqueSuffix
-	fmt.Printf("unique sc %s\n", uniqueSCName)
 	sc := &storagev1.StorageClass{}
 
 	err = yaml.Unmarshal(fileContent, sc)
@@ -417,7 +416,7 @@ func CreateSnapshot(pvcName string, volumeSnapshotClassName string, ns string, c
 		Name:      SNAPSHOT_NAME,
 		Namespace: ns,
 	}
-	//volumeSnapshotClassName = "ibox-snapshotclass"
+	volumeSnapshotClassName = "ibox-snapshotclass-demo"
 	snapshot := snapshotapi.VolumeSnapshot{
 		ObjectMeta: m,
 		Spec: snapshotapi.VolumeSnapshotSpec{
@@ -437,7 +436,6 @@ func CreateSnapshot(pvcName string, volumeSnapshotClassName string, ns string, c
 func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Clientset) error {
 	result, err := clientset.CoreV1().Secrets(*OperatorNamespace).Get(context.TODO(), IMAGE_PULL_SECRET, metav1.GetOptions{})
 	if err != nil {
-		t.Error(err)
 		if apierrors.IsNotFound(err) {
 			t.Logf("image pull secret %s not found in operator namespace %s\n", IMAGE_PULL_SECRET, *OperatorNamespace)
 			return nil
@@ -447,6 +445,7 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	}
 
 	t.Logf("found image pull secret %s in operator namespace %s\n", IMAGE_PULL_SECRET, "infinidat-csi")
+
 	result.ObjectMeta.Namespace = ns
 	result.Namespace = ns
 	result.ResourceVersion = ""
