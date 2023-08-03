@@ -129,6 +129,12 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	zlog.Debug().Msg("NodeUnpublishVolume")
 	targetPath := req.GetTargetPath()
+	err := unmountAndCleanUp(targetPath)
+	if err != nil {
+		zlog.Err(err)
+		return nil, err
+	}
+	/**
 	notMnt, err := treeq.nfsstorage.mounter.IsLikelyNotMountPoint(targetPath)
 	if err != nil {
 		if treeq.nfsstorage.osHelper.IsNotExist(err) {
@@ -151,6 +157,7 @@ func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 		return nil, status.Errorf(codes.Internal, "cannot remove unmounted target path '%s': %v", targetPath, err)
 	}
 	zlog.Debug().Msgf("pod successfully unmounted from volumeID %s", req.GetVolumeId())
+	*/
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

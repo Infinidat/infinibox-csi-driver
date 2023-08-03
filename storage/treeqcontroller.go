@@ -119,6 +119,17 @@ func (treeq *treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi
 }
 
 func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+	zlog.Debug().Msgf("ControllerUnpublishVolume")
+	voltype := req.GetVolumeId()
+	volproto := strings.Split(voltype, "$$")
+	tmp := strings.Split(volproto[0], "#")
+	fileID, _ := strconv.ParseInt(tmp[0], 10, 64)
+	zlog.Debug().Msgf("ControllerUnpublishVolume volproto %+v fileId %d nodeId %s", volproto, fileID, req.GetNodeId())
+	err := treeq.nfsstorage.cs.Api.DeleteExportRule(fileID, req.GetNodeId())
+	if err != nil {
+		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", fileID, err)
+		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
+	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
