@@ -150,7 +150,7 @@ docker-login-docker:  ## Login to Dockerhub.
 	@docker login
 
 .PHONY: docker-pull-gitlab
-docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.7.0 make docker-pull-gitlab
+docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.8.0 make docker-pull-gitlab
 	@echo -e $(_begin)
 	@declare -a images=($(_IMAGE_NAMES)); \
 	for image in $${images[@]}; do \
