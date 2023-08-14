@@ -4,8 +4,10 @@
 .PHONY: release-backup
 release-backup:
 	@echo -e $(_begin)
+	docker pull git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG)
 	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG) \
 		git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-driver:$(_IMAGE_TAG)
+	docker pull git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:$(_IMAGE_TAG)
 	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:$(_IMAGE_TAG) \
 		git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-metrics:$(_IMAGE_TAG)
 	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-driver:$(_IMAGE_TAG)
