@@ -8,6 +8,12 @@ include ../../Makefile-help
 
 SHELL := bash
 
+CHDIR_SHELL := $(SHELL)
+define chdir
+   $(eval _D=$(firstword $(1) $(@D)))
+   $(info $(MAKE): cd $(_D)) $(eval SHELL = cd $(_D); $(CHDIR_SHELL))
+endef
+
 _purpose = The infindat-csi-driver-demo project demonstrates basic deployment and operatation of our CSI driver using a K3s cluster. Makefiles automate each step showing how this may be accomplished. See The README for details.
 
 _helm_chart_src_dir = ../helm/infinibox-csi-driver
@@ -134,3 +140,17 @@ _teardown-dependencies:
 	# 	$(_make) teardown-iscsi
 	# cd -
 	@$(_make) teardown-snapshot-controller
+
+.PHONY: setup
+setup:
+	make -C nfs setup
+	make -C iscsi setup
+	make -C fc setup
+	make -C treeq/example-basic setup
+
+.PHONY: teardown
+teardown:
+	make -C nfs teardown
+	make -C iscsi teardown
+	make -C fc teardown
+	make -C treeq/example-basic teardown
