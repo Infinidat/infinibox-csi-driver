@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ibox-treeq-pvc-demo
+  name: treeq-pvc
   namespace: infinidat-csi
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-treeq-storageclass-demo 
+  storageClassName: ibox-treeq

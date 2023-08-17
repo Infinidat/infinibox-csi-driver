@@ -6,7 +6,7 @@ metadata:
   name: sticky-treeq-pv
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   capacity:
     storage: 1Gi
   csi:
@@ -29,7 +29,7 @@ spec:
       volumePath: /csit_017d653f51/csi-bf4d7e4f43
     volumeHandle: 94199057#20001$$nfs_treeq
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: ibox-treeq-storageclass-demo-retain
+  storageClassName: ibox-treeq-retain
   volumeMode: Filesystem
   mountOptions:
     - hard

@@ -1,17 +1,17 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: ibox-pod-treeq-demo
+  name: treeq-test
   namespace: infinidat-csi
 spec:
   containers:
-    - name: my-frontend
-      image: busybox
+    - name: csitest
+      image: infinidat/csitestimage:latest
       volumeMounts:
-      - mountPath: "/tmp/data"
+      - mountPath: "/tmp/csitesting"
         name: ibox-csi-volume
-      command: [ "sleep", "1000" ]    
+      command: [ "csitestimage" ]
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: ibox-treeq-pvc-demo
+        claimName: treeq-pvc

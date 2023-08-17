@@ -1,10 +1,10 @@
 apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
-  name: ibox-pvc-clone-snapshot-demo
+  name: nfs-clone-snapshot
   namespace: infinidat-csi
 spec:
-  volumeSnapshotClassName: ibox-snapshotclass-demo
+  volumeSnapshotClassName: ibox-snapshotclass
   source:
-    persistentVolumeClaimName: ibox-pvc-clone-demo
+    persistentVolumeClaimName: nfs-pvc
 

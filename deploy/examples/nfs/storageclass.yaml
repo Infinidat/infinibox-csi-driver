@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ibox-nfs-storageclass-demo
+  name: ibox-nfs
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
@@ -27,15 +27,15 @@ parameters:
     # InfiniBox configuration
     storage_protocol: nfs
     network_space: NAS # InfiniBox network space name
-    pool_name: nfs-example-pool # InfiniBox pool name
+    pool_name: csitesting # InfiniBox pool name
     provision_type: THIN
     ssd_enabled: "true"
 
     # optional parameters
     # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
-    # uid: "1000"               # optional: override default UID for filesystem mount 
-    # gid: "1000"               # optional: override default GID for filesystem mount
+    uid: "3000"               # optional: override default UID for filesystem mount 
+    gid: "3000"               # optional: override default GID for filesystem mount
     # unix_permissions: "777"   # optional: override default permissions for filesystem mount
     # privileged_ports_only: no # optional: force use of  privileged ports only
     # 

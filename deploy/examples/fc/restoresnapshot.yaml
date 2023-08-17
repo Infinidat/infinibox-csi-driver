@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ibox-snapshot-pvc-restore-demo
+  name: fc-pvc-restore-from-snapshot
   namespace: infinidat-csi
 spec:
-  storageClassName: ibox-fc-storageclass-demo
+  storageClassName: ibox-fc
   dataSource:
-    name: ibox-pvc-snapshot-demo
+    name: fc-snapshot
     kind: VolumeSnapshot
     apiGroup: "snapshot.storage.k8s.io"
   accessModes:

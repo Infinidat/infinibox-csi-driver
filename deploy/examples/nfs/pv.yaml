@@ -6,7 +6,7 @@ metadata:
   name: csi-1c1324de94
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   capacity:
     storage: 2Gi
   csi:

@@ -24,6 +24,6 @@ parameters:
   csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
   # optional parameters
-  #uid: "1000"
-  #gid: "1000"
+  uid: "3000"
+  gid: "3000"
   #unix_permissions: "777"

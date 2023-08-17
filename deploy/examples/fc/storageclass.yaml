@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ibox-fc-storageclass-demo
+  name: ibox-fc
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
@@ -19,12 +19,12 @@ parameters:
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
-  pool_name: "FC-pool"
+  pool_name: "csitesting"
   provision_type: "THIN"
   storage_protocol: "fc"
   ssd_enabled: "false"
   max_vols_per_host: "20"
 # optional parameters
-# uid: "1000"                 # optional: override default UID for filesystem mount
-# gid: "1000"                 # optional: override default GID for filesystem mount
+  uid: "3000"                 # optional: override default UID for filesystem mount
+  gid: "3000"                 # optional: override default GID for filesystem mount
 # unix_permissions: "777"     # optional: override default permissions for filesystem mount

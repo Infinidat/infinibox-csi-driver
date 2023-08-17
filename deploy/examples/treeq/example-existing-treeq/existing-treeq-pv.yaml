@@ -6,7 +6,7 @@ metadata:
   name: existing-treeq-pv
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   capacity:
     storage: 1Gi
   csi:
@@ -29,7 +29,7 @@ spec:
       volumePath: /csit_cc3681284b/other-treeq
     volumeHandle: 94199058#20009$$nfs_treeq
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: ibox-treeq-storageclass-demo-retain
+  storageClassName: ibox-treeq-retain
   volumeMode: Filesystem
   mountOptions:
     - hard

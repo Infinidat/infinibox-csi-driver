@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nfs-test-using-clone
+  name: nfs-test-using-restore
   namespace: infinidat-csi
 spec:
   containers:
@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: nfs-pvc-clone
+        claimName: nfs-pvc-restore-from-snapshot

@@ -361,13 +361,13 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset) (err
 		Name: POD_NAME,
 	}
 	volumeMounts := v1.VolumeMount{
-		MountPath: "/tmp/data",
+		MountPath: "/tmp/csitesting",
 		Name:      "ibox-csi-volume",
 	}
 	noPriv := false
 	container := v1.Container{
 		Name:            "e2e-test",
-		Image:           "git.infinidat.com:4567/host-opensource/infinidat-csi-driver/e2e-test:latest",
+		Image:           "infinidat/csitestimage:latest",
 		ImagePullPolicy: v1.PullAlways,
 		VolumeMounts:    []v1.VolumeMount{volumeMounts},
 		SecurityContext: &v1.SecurityContext{
