@@ -103,7 +103,7 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
 
 	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
-	zlog.Debug().Msgf("NodeUnpublishVolume called with req %+v", req)
+	zlog.Trace().Msgf("NodeUnpublishVolume called with req %+v", req)
 	volproto, err := validateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
@@ -128,7 +128,8 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
 
-	zlog.Debug().Msgf("NodeGetCapabilities Requested - Node: %s", s.Driver.nodeID)
+	// set as trace because it happens frequently
+	zlog.Trace().Msgf("NodeGetCapabilities Requested - Node: %s", s.Driver.nodeID)
 
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: []*csi.NodeServiceCapability{

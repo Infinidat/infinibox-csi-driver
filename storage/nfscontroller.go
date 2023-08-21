@@ -62,7 +62,7 @@ const (
 )
 
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	zlog.Debug().Msgf("Creating Volume of nfs protocol")
+	zlog.Trace().Msgf("nfstorage.CreateVolume")
 	var err error
 	// Adding the the request parameter into Map config
 	config := req.GetParameters()

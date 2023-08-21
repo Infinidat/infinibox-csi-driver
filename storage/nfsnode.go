@@ -77,7 +77,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			return nil, err
 		}
 	} else {
-		zlog.Debug().Msgf("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+		zlog.Trace().Msgf("nfs_export_permissions was specified %s, will not create default export rule", req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)
@@ -188,7 +188,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 		zlog.Error().Msgf("error from GetExportByFileSystem filesystemId %d %v", filesystemId, err)
 		return err
 	}
-	zlog.Debug().Msgf("GetExportByFileSystem response =%+v", resp)
+	zlog.Trace().Msgf("GetExportByFileSystem response =%+v", resp)
 	if resp != nil {
 		responses := *resp
 		for i := 0; i < len(responses); i++ {
@@ -201,7 +201,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 					zlog.Error().Msgf("error from DeleteExportPath ID %d filesystemId %d %v", r.ID, filesystemId, err)
 					return err
 				}
-				zlog.Debug().Msgf("delete export path response %+v\n", deleteResp)
+				zlog.Trace().Msgf("delete export path response %+v\n", deleteResp)
 			}
 		}
 	}

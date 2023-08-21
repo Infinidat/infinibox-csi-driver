@@ -76,7 +76,7 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 		zlog.Err(mountListErr)
 		return true, mountListErr
 	}
-	zlog.Debug().Msgf("Mount path list: %v", mountList)
+	zlog.Trace().Msgf("Mount path list: %v", mountList)
 
 	// Search list for targetHostPath
 	isMountedByListMethod := false
@@ -104,13 +104,13 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 		zlog.Error().Msgf(err.Error())
 		return err
 	}
-	zlog.Debug().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
+	zlog.Trace().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
 
 	// Clean up mount/
 	if _, statErr := os.Stat(targetHostPath); os.IsNotExist(statErr) {
 		zlog.Debug().Msgf("mount point targetHostPath '%s' already removed", targetHostPath)
 	} else {
-		zlog.Debug().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
+		zlog.Trace().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 			zlog.Error().Msgf(err.Error())
@@ -125,9 +125,9 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 
 	// Clean up csi-NNNNNNN/vol_data.json file
 	if _, statErr := os.Stat(volDataPath); os.IsNotExist(statErr) {
-		zlog.Debug().Msgf("%s already removed from path '%s'", volData, csiHostPath)
+		zlog.Trace().Msgf("%s already removed from path '%s'", volData, csiHostPath)
 	} else {
-		zlog.Debug().Msgf("removing %s from path '%s'", volData, volDataPath)
+		zlog.Trace().Msgf("removing %s from path '%s'", volData, volDataPath)
 		if err := os.Remove(volDataPath); err != nil {
 			zlog.Warn().Msgf("after unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
 		}

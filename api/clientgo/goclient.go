@@ -92,7 +92,7 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 		return nil, err
 	}
 	zlog.Debug().Msgf("GetAllPersistentVolumes() called")
-	zlog.Debug().Msgf("There are %d persistent volumes in the cluster\n", len(persistentVolumes.Items))
+	zlog.Trace().Msgf("There are %d persistent volumes in the cluster\n", len(persistentVolumes.Items))
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
 	for _, pv := range persistentVolumes.Items {

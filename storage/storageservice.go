@@ -167,28 +167,21 @@ func BuildCommonService(config map[string]string, secretMap map[string]string) (
 		commonserv.driverversion = config["driverversion"]
 		commonserv.AccessModesHelper = helper.AccessMode{}
 	}
-	zlog.Debug().Msgf("buildCommonService commonservice configuration done. config %+v", config)
+	zlog.Trace().Msgf("buildCommonService commonservice configuration done. config %+v", config)
 	return commonserv, nil
 }
 
 func (cs *Commonservice) verifyApiClient() error {
-	zlog.Debug().Msgf("verifying api client")
+	zlog.Trace().Msgf("verifying api client")
 	c, err := cs.Api.NewClient()
 	if err != nil {
-		zlog.Debug().Msgf("api client is not working.")
+		zlog.Error().Msgf("api client is not working.")
 		return errors.New("failed to create rest client")
 	}
 	cs.Api = c
-	zlog.Debug().Msgf("api client is verified.")
+	zlog.Trace().Msgf("api client is verified.")
 	return nil
 }
-
-// func (cs *commonservice) getIscsiInitiatorName() string {
-// 	if ep, ok := csictx.LookupEnv(context.Background(), "ISCSI_INITIATOR_NAME"); ok {
-// 		return ep
-// 	}
-// 	return ""
-// }
 
 func (cs *Commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
 	luninfo, err = cs.Api.MapVolumeToHost(hostID, volumeID, -1)
