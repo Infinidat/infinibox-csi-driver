@@ -364,12 +364,13 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset) (err
 		MountPath: "/tmp/csitesting",
 		Name:      "ibox-csi-volume",
 	}
-	noPriv := false
+	//noPriv := true
 	container := v1.Container{
 		Name:            "e2e-test",
 		Image:           "infinidat/csitestimage:latest",
 		ImagePullPolicy: v1.PullAlways,
 		VolumeMounts:    []v1.VolumeMount{volumeMounts},
+		/**
 		SecurityContext: &v1.SecurityContext{
 			Privileged:               &noPriv,
 			AllowPrivilegeEscalation: &noPriv,
@@ -380,6 +381,7 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset) (err
 				Drop: []v1.Capability{"ALL"},
 			},
 		},
+		*/
 	}
 
 	volume := v1.Volume{
