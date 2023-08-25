@@ -63,7 +63,7 @@ DriverInfo:
     controllerExpansion: true
 
     # Support for volume expansion in nodes (csic-284)
-    nodeExpansion: false
+    nodeExpansion: true
 
     # Support volume that an run on single node only (like hostpath)
     singleNodeVolume: false
