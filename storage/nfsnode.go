@@ -154,7 +154,9 @@ func (nfs *nfsstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetV
 }
 
 func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not implemented")
+	zlog.Info().Msgf("nfs NodeExpandVolume called req %+v\n", req)
+	response := csi.NodeExpandVolumeResponse{}
+	return &response, nil
 }
 
 func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err error) {

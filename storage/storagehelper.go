@@ -386,9 +386,92 @@ func IsDirectory(path string) (bool, error) {
 type StorageHelper interface {
 	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
+	NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err error)
 }
 
 type Service struct{}
+
+func (n Service) NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err error) {
+	zlog.Debug().Msgf("NodeExpandVolumeSize req %+v\n", req)
+
+	// we only care about fc and iscsi, nfs takes care of the expansion already
+	// typical request contains stuff like this
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	if len(volproto) != 2 {
+		return status.Error(codes.NotFound, "volume Id does not follow '<id>$$<proto>' pattern")
+	}
+
+	// we dont' care about NFS since it resizes are handled already by NFS itself
+	if volproto[1] == common.PROTOCOL_NFS || volproto[1] == common.PROTOCOL_TREEQ {
+		zlog.Debug().Msg("skipping nfs or treeq, not handled by NodeExpandVolume")
+		return nil
+	}
+
+	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
+
+	command := fmt.Sprintf("mount | grep %s", req.GetVolumePath())
+	out, err := execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error getting multipath device name %s - from %s \n", err.Error(), req.GetVolumePath())
+		return err
+	}
+
+	output := strings.TrimSpace(string(out))
+	outputParts := strings.Split(output, " ")
+	multipathDevice := outputParts[0]
+
+	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
+	command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
+	out, err = execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
+		return err
+	}
+
+	output = strings.TrimSpace(string(out))
+	zlog.Debug().Msgf("output is [%s]\n", output)
+	outputParts = strings.Split(output, "\n")
+	zlog.Debug().Msgf("lines %d\n", len(outputParts))
+
+	// 3 - echo 1 > /sys/block/path_device/device/rescan  .... run those commands on each device from the previous step
+	for i := 0; i < len(outputParts); i++ {
+		line := strings.TrimSpace(outputParts[i])
+		lineParts := strings.Split(line, " ")
+		blockDevice := lineParts[2]
+		zlog.Debug().Msgf("device is [%s]\n", blockDevice)
+		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
+		command = fmt.Sprintf("echo 1 > %s", rescanPath)
+		out, err := execScsi.Command(command, "")
+		if err != nil {
+			zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
+			return err
+		}
+		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
+	}
+
+	// 4 - run multipathd resize map multipath_device - where multipath_device is like /dev/mapper/mpathwi from previous step,
+	// we need to strip off the /dev/mapper/ path prefix
+	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
+	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
+	out, err = execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error multipathd resize map multipath devices %s \n", err.Error())
+		return err
+	}
+	zlog.Debug().Msgf("multipathd resize map output is [%s]\n", strings.TrimSpace(string(out)))
+
+	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
+	time.Sleep(time.Second * 5)
+	command = fmt.Sprintf("resize2fs %s", multipathDevice)
+	out, err = execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error resize2fs %s \n", err.Error())
+		return err
+	}
+	zlog.Debug().Msgf("resize2fs output is [%s]\n", strings.TrimSpace(string(out)))
+
+	return nil
+}
 
 func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOptions []string, err error) {
 	// Get mount options from VolumeCapability - the standard way

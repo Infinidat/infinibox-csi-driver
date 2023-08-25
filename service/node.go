@@ -140,13 +140,13 @@ func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 					},
 				},
 			},
-			// {
-			// 	Type: &csi.NodeServiceCapability_Rpc{
-			// 		Rpc: &csi.NodeServiceCapability_RPC{
-			// 			Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
-			// 		},
-			// 	},
-			// },
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+					},
+				},
+			},
 			{
 				Type: &csi.NodeServiceCapability_Rpc{
 					Rpc: &csi.NodeServiceCapability_RPC{
@@ -261,7 +261,46 @@ func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 }
 
 func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	volumeId := req.GetVolumeId()
+	zlog.Info().Msgf("NodeExpandVolume Started - ID: '%s'", volumeId)
+
+	if volumeId == "" {
+		err := fmt.Errorf("NodeExpandVolume error volumeId parameter was empty")
+		zlog.Err(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.VolumeCapability == nil {
+		err := fmt.Errorf("NodeExpandVolume error volumeCapability parameter was nil")
+		zlog.Err(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.StagingTargetPath == "" {
+		err := fmt.Errorf("NodeExpandVolume error stagingTargetPath parameter was empty")
+		zlog.Err(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	defer func() {
+		isLocking := false
+		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeExpandVolume", volumeId)
+		zlog.Debug().Msgf("NodeExpandVolume unlocking - volume ID: '%s'", volumeId)
+	}()
+
+	zlog.Debug().Msgf("NodeExpandVolume locking - volume ID: '%s'", volumeId)
+	isLocking := true
+	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeExpandVolume", volumeId)
+
+	storageHelper := storage.Service{}
+
+	err := storageHelper.NodeExpandVolumeSize(req)
+	if err != nil {
+		zlog.Error().Msgf("NodeExpandVolume failed with volume ID %s: %s", volumeId, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	zlog.Info().Msgf("NodeExpandVolume Finished - ID: '%s'", volumeId)
+	response := csi.NodeExpandVolumeResponse{}
+	return &response, nil
 }
 
 func getNodeFQDN() string {

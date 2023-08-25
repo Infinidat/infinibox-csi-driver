@@ -396,7 +396,9 @@ func (iscsi *iscsistorage) NodeGetVolumeStats(ctx context.Context, req *csi.Node
 }
 
 func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	zlog.Info().Msgf("iscsi NodeExpandVolume called request %+v\n", req)
+	response := csi.NodeExpandVolumeResponse{}
+	return &response, nil
 }
 
 func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {

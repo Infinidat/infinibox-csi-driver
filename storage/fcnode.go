@@ -275,7 +275,9 @@ func (fc *fcstorage) NodeGetVolumeStats(
 }
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	zlog.Info().Msgf("fc NodeExpandVolume called request %+v\n", req)
+	response := csi.NodeExpandVolumeResponse{}
+	return &response, nil
 }
 
 func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
