@@ -256,8 +256,8 @@ func CreateNamespace(ctx context.Context, prefix string, suffix string, clientse
 }
 
 func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset) error {
-	pollInterval := 1 * time.Second
-	pollDuration := 2 * time.Minute
+	pollInterval := 5 * time.Second
+	pollDuration := 4 * time.Minute
 	err := wait.Poll(pollInterval, pollDuration, func() (bool, error) {
 		getOptions := metav1.GetOptions{}
 
@@ -286,7 +286,7 @@ func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.C
 }
 
 func WaitForSnapshot(t *testing.T, snapshotName string, ns string, clientset *snapshotv6.Clientset) error {
-	pollInterval := 1 * time.Second
+	pollInterval := 5 * time.Second
 	pollDuration := 2 * time.Minute
 	err := wait.Poll(pollInterval, pollDuration, func() (bool, error) {
 		getOptions := metav1.GetOptions{}

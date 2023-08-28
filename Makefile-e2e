@@ -77,6 +77,20 @@ e2e-iscsi:  ## run the infinidat developed e2e iscsi tests
 	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2e-iscsi-chap
+e2e-iscsi-chap:  ## run the infinidat developed e2e iscsi tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi-chap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi-chap -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: e2e-iscsi-mutual-chap
+e2e-iscsi-mutual-chap:  ## run the infinidat developed e2e iscsi tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi-mutual-chap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi-mutual-chap -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2e-fc
 e2e-fc:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
