@@ -94,14 +94,17 @@ const (
 	METRIC_IBOX_NODE_BBU_PROTECTION_VALUE = "ibox_node_bbu_protection_value"
 )
 
-type MetricsConfig struct {
-	// ibox credentials from the Secret that gets mounted at /tmp/infinibox-creds
-	// since the config gets passed pretty much everywhere, this is a reasonable
-	// place to store these credentials for invoking the ibox REST API
+type IboxCredentials struct {
 	IboxHostname  string
 	IboxIpAddress string
 	IboxPassword  string
 	IboxUsername  string
+}
+type MetricsConfig struct {
+	// ibox credentials from the Secret that gets mounted at /tmp/infinibox-creds
+	// since the config gets passed pretty much everywhere, this is a reasonable
+	// place to store these credentials for invoking the ibox REST API
+	Ibox []IboxCredentials
 
 	Spec struct {
 		Metrics []struct {
@@ -111,16 +114,16 @@ type MetricsConfig struct {
 	} `yaml:"spec"`
 }
 
-func NewConfig() (*MetricsConfig, error) {
+func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 	var config MetricsConfig
-	zlog.Info().Msg("getting metrics configuration...")
+	zlog.Trace().Msg("getting metrics configuration...")
 	PortFlag = flag.String("port", "11007", "metrics port")
 
 	configFileData, err := os.ReadFile("/tmp/infinidat-csi-metrics-config/config.yaml")
 	if err != nil {
 		return nil, err
 	}
-	zlog.Info().Msgf("raw metrics configuration...%s", string(configFileData))
+	zlog.Trace().Msgf("raw metrics configuration...%s", string(configFileData))
 
 	err = yaml.Unmarshal(configFileData, &config)
 	if err != nil {
@@ -133,32 +136,26 @@ func NewConfig() (*MetricsConfig, error) {
 		return nil, errors.New("validation of the metrics config file failed")
 	}
 
-	var tmp []byte
-	tmp, err = os.ReadFile("/tmp/infinibox-creds/username")
-	if err != nil {
-		return nil, err
-	}
-	config.IboxUsername = string(tmp)
+	// lookup all the credentials for n-number of iboxes
 
-	tmp, err = os.ReadFile("/tmp/infinibox-creds/password")
-	if err != nil {
-		return nil, err
-	}
-	config.IboxPassword = string(tmp)
+	config.Ibox = make([]IboxCredentials, 0)
 
-	tmp, err = os.ReadFile("/tmp/infinibox-creds/hostname")
-	if err != nil {
-		return nil, err
-	}
-	config.IboxHostname = string(tmp)
-
-	ips, err := net.LookupIP(config.IboxHostname)
-	if err != nil {
-		config.IboxIpAddress = "unknown"
-	} else {
-		for _, ip := range ips {
-			config.IboxIpAddress = ip.String()
+	for i := 0; i < len(secrets); i++ {
+		sMap := secrets[i]
+		ibox := IboxCredentials{
+			IboxHostname: sMap["hostname"],
+			IboxPassword: sMap["password"],
+			IboxUsername: sMap["username"],
 		}
+		ips, err := net.LookupIP(ibox.IboxHostname)
+		if err != nil {
+			ibox.IboxIpAddress = "unknown"
+		} else {
+			for _, ip := range ips {
+				ibox.IboxIpAddress = ip.String()
+			}
+		}
+		config.Ibox = append(config.Ibox, ibox)
 	}
 
 	return &config, nil
@@ -170,7 +167,7 @@ func (c *MetricsConfig) GetDuration(name string) time.Duration {
 		if metrics[i].Name == name {
 			t, e := time.ParseDuration(metrics[i].Duration)
 			if e != nil {
-				zlog.Info().Msgf("error:  duration found for metrics config %s did not parse, using default %s, %s", name, DEFAULT_INTERVAL, e.Error())
+				zlog.Error().Msgf("error:  duration found for metrics config %s did not parse, using default %s, %s", name, DEFAULT_INTERVAL, e.Error())
 				t, _ = time.ParseDuration(DEFAULT_INTERVAL)
 			}
 			return t
@@ -188,14 +185,14 @@ func (c *MetricsConfig) Validate() bool {
 		_, e := time.ParseDuration(metrics[i].Duration)
 		if e != nil {
 			errorFound = true
-			zlog.Info().Msgf("error:  duration found for metrics config %s did not parse, %s", metrics[i].Name, e.Error())
+			zlog.Error().Msgf("error:  duration found for metrics config %s did not parse, %s", metrics[i].Name, e.Error())
 		}
 
 		switch metrics[i].Name {
 		case METRIC_POOL_METRICS, METRIC_PV_METRICS, METRIC_IBOX_PERFORMANCE_METRICS, METRIC_IBOX_SYSTEM_METRICS:
 		default:
 			errorFound = true
-			zlog.Info().Msgf("error:  metric name %s invalid", metrics[i].Name)
+			zlog.Error().Msgf("error:  metric name %s invalid", metrics[i].Name)
 		}
 	}
 

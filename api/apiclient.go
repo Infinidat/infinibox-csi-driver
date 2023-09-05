@@ -707,6 +707,7 @@ func (c *ClientService) GetAllSnapshots() ([]Volume, error) {
 			if page == 1 {
 				total_pages = apiresp.MetaData.TotalPages
 			}
+			zlog.Trace().Msgf("total pages %d\n", total_pages)
 			page++
 		}
 	}

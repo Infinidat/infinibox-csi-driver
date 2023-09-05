@@ -75,6 +75,32 @@ func (kc *kubeclient) GetSecret(secretName, nameSpace string) (map[string]string
 	return secretMap, nil
 }
 
+func (kc *kubeclient) GetSecrets(nameSpace string) ([]map[string]string, error) {
+	zlog.Debug().Msgf("get request for secrets with namespace %s", nameSpace)
+	secretMaps := make([]map[string]string, 0)
+	options := metav1.ListOptions{
+		LabelSelector: "app=infinidat-csi-driver",
+	}
+	secrets, err := kc.client.CoreV1().Secrets(nameSpace).List(context.TODO(), options)
+	if err != nil {
+		zlog.Error().Msgf("Error Getting secrets with namespace %s Error: %v ", nameSpace, err)
+		return secretMaps, err
+	}
+	zlog.Debug().Msgf("got %d secrets for app=infinidat-csi-driver in namespace %s", len(secrets.Items), nameSpace)
+	for i := 0; i < len(secrets.Items); i++ {
+		m := make(map[string]string)
+		secret := secrets.Items[i]
+		for key, value := range secret.Data {
+			m[key] = string(value)
+		}
+		for key, value := range secret.StringData {
+			m[key] = string(value)
+		}
+		secretMaps = append(secretMaps, m)
+	}
+	return secretMaps, nil
+}
+
 func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.PersistentVolume, error) {
 	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(context.TODO(), volumeName, metav1.GetOptions{})
 	if err != nil {

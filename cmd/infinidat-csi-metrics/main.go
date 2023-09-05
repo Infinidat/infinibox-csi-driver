@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"infinibox-csi-driver/api/clientgo"
 	metric "infinibox-csi-driver/metrics"
 	"net/http"
 	"os"
@@ -24,12 +25,35 @@ func main() {
 	zlog.Info().Msgf("compile date: %s", compileDate)
 	zlog.Info().Msgf("compile git hash: %s", gitHash)
 
-	config, err := metric.NewConfig()
+	// Get a k8s go client for in-cluster use
+	cl, err := clientgo.BuildClient()
+	if err != nil {
+		zlog.Error().Msgf("error getting client-go connection %s", err.Error())
+		os.Exit(1)
+	}
+
+	ns := os.Getenv("POD_NAMESPACE")
+	zlog.Info().Msgf("POD_NAMESPACE=%s", ns)
+	if ns == "" {
+		zlog.Error().Msg("env var POD_NAMESPACE was not set, defaulting to infinidat-csi namespace")
+		ns = "infinidat-csi"
+	}
+
+	var secrets []map[string]string
+	secrets, err = cl.GetSecrets(ns)
+	if err != nil {
+		zlog.Error().Msgf("error getting secrets: %s", err.Error())
+	}
+	config, err := metric.NewConfig(secrets)
 	if err != nil {
 		zlog.Error().Msgf("could not read metrics config file: %s", err.Error())
 		os.Exit(1)
 	}
-	zlog.Info().Msgf("config is %+v", config)
+
+	for i := 0; i < len(config.Ibox); i++ {
+		tmp := config.Ibox[i]
+		zlog.Info().Msgf("config ibox hostname: %s username: %s", tmp.IboxHostname, tmp.IboxUsername)
+	}
 
 	metric.RecordPVMetrics(config)
 	metric.RecordPerformanceMetrics(config)

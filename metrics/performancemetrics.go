@@ -37,76 +37,79 @@ var (
 )
 
 func RecordPerformanceMetrics(config *MetricsConfig) {
-	zlog.Info().Msgf("performance metrics recording...")
+	zlog.Trace().Msgf("performance metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_IBOX_PERFORMANCE_METRICS))
 
-			zlog.Info().Msg("performance metrics: creating collectors...")
-			nasID, sanID, err := createCollectors(config)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
+			for i := 0; i < len(config.Ibox); i++ {
+				ibox := config.Ibox[i]
+				zlog.Trace().Msgf("performance metrics: creating collectors for %s...", ibox.IboxHostname)
+				nasID, sanID, err := createCollectors(ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
+				}
 
-			time.Sleep(time.Second * 5) // this is necessary to give the ibox time to fire up the collectors
+				time.Sleep(time.Second * 5) // this is necessary to give the ibox time to fire up the collectors
 
-			zlog.Info().Msgf("performance metrics: get NAS collector data nasID %d sanID %d", nasID, sanID)
-			nasResponse, err := getCollectorData(nasID, config)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
-			zlog.Info().Msgf("performance metrics: nas data %+v\n", nasResponse)
-			opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
-			zlog.Info().Msgf("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
-			if err == nil {
+				zlog.Trace().Msgf("performance metrics: get NAS collector data nasID %d sanID %d", nasID, sanID)
+				nasResponse, err := getCollectorData(nasID, ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
+				}
+				zlog.Trace().Msgf("performance metrics: nas data %+v\n", nasResponse)
+				opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
+				zlog.Trace().Msgf("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
+				if err == nil {
+					labels := prometheus.Labels{
+						METRIC_IBOX_IP:       ibox.IboxIpAddress,
+						METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
+						METRIC_IBOX_PROTOCOL: "NAS"}
+
+					MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
+					MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
+					MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
+				}
+
+				sanResponse, err := getCollectorData(sanID, ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
+				}
+				zlog.Trace().Msgf("performance metrics: san data %+v\n", sanResponse)
+				opsAverage, throughputAverage, latencyAverage = getCounterAverages(sanResponse.Result.Collectors[0].Fields, sanResponse.Result.Collectors[0].Data)
+				zlog.Trace().Msgf("performance metrics: san metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
+
+				err = deleteCollector(nasID, ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
+				}
+				zlog.Trace().Msgf("performance metrics: deleted NAS collector %d\n", nasID)
+				err = deleteCollector(sanID, ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
+				}
+				zlog.Trace().Msgf("performance metrics: deleted SAN collector %d\n", sanID)
+
 				labels := prometheus.Labels{
-					METRIC_IBOX_IP:       config.IboxIpAddress,
-					METRIC_IBOX_HOSTNAME: config.IboxHostname,
-					METRIC_IBOX_PROTOCOL: "NAS"}
+					METRIC_IBOX_IP:       ibox.IboxIpAddress,
+					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
+					METRIC_IBOX_PROTOCOL: "SAN"}
 
 				MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
 				MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
 				MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
+
 			}
-
-			sanResponse, err := getCollectorData(sanID, config)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
-			zlog.Info().Msgf("performance metrics: san data %+v\n", sanResponse)
-			opsAverage, throughputAverage, latencyAverage = getCounterAverages(sanResponse.Result.Collectors[0].Fields, sanResponse.Result.Collectors[0].Data)
-			zlog.Info().Msgf("performance metrics: san metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
-
-			err = deleteCollector(nasID, config)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
-			zlog.Info().Msgf("performance metrics: deleted NAS collector %d\n", nasID)
-			err = deleteCollector(sanID, config)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
-			zlog.Info().Msgf("performance metrics: deleted SAN collector %d\n", sanID)
-
-			labels := prometheus.Labels{
-				METRIC_IBOX_IP:       config.IboxIpAddress,
-				METRIC_IBOX_HOSTNAME: config.IboxHostname,
-				METRIC_IBOX_PROTOCOL: "SAN"}
-
-			MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
-			MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
-			MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
-
 		}
 	}()
 }
 
-func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorResponse, error) {
+func getCollectorData(collectorID int64, ibox IboxCredentials) (*CollectorResponse, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -119,13 +122,13 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/api/rest/metrics/collectors/data?collector_id=%d", config.IboxHostname, collectorID), http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("https://%s/api/rest/metrics/collectors/data?collector_id=%d", ibox.IboxHostname, collectorID), http.NoBody)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
 
-	req.SetBasicAuth(config.IboxUsername, config.IboxPassword)
+	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := client.Do(req)
@@ -154,7 +157,7 @@ func getCollectorData(collectorID int64, config *MetricsConfig) (*CollectorRespo
 	return response, nil
 }
 
-func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollectorID int64, err error) {
+func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorID int64, err error) {
 
 	type Filters struct {
 		ProtocolType string `json:"protocol_type"`
@@ -215,13 +218,13 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 		return NAScollectorID, SANcollectorID, err
 	}
 	buff := bytes.NewBuffer(jsonData)
-	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", config.IboxHostname), buff)
+	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", ibox.IboxHostname), buff)
 	if err != nil {
 		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
-	req.SetBasicAuth(config.IboxUsername, config.IboxPassword)
+	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
 	req.Header.Set("Content-Type", "application/json")
 
 	var res *http.Response
@@ -239,7 +242,7 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
-	zlog.Info().Msgf("san collector create response %s\n", string(sanResponseData))
+	zlog.Trace().Msgf("san collector create response %s\n", string(sanResponseData))
 
 	sanresponse := &CreateCollectorResponse{}
 	err = json.Unmarshal(sanResponseData, sanresponse)
@@ -265,13 +268,13 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 		return NAScollectorID, SANcollectorID, err
 	}
 	buff = bytes.NewBuffer(jsonData)
-	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", config.IboxHostname), buff)
+	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", ibox.IboxHostname), buff)
 	if err != nil {
 		zlog.Err(err)
 		return NAScollectorID, SANcollectorID, err
 	}
 
-	req.SetBasicAuth(config.IboxUsername, config.IboxPassword)
+	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err = client.Do(req)
@@ -289,7 +292,7 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 		return NAScollectorID, SANcollectorID, err
 	}
 
-	zlog.Info().Msgf("nas collector post response %s\n", string(nasResponseData))
+	zlog.Trace().Msgf("nas collector post response %s\n", string(nasResponseData))
 
 	nasresponse := &CreateCollectorResponse{}
 	err = json.Unmarshal(nasResponseData, nasresponse)
@@ -310,7 +313,8 @@ func createCollectors(config *MetricsConfig) (NAScollectorID int64, SANcollector
 	SANcollectorID = sanresponse.Result.ID
 	return NAScollectorID, SANcollectorID, nil
 }
-func deleteCollector(collectorID int64, config *MetricsConfig) error {
+
+func deleteCollector(collectorID int64, ibox IboxCredentials) error {
 	// curl -u "csitesting:csitestingisfun" -X DELETE http://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors/35184372295290   --insecure
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
@@ -325,13 +329,13 @@ func deleteCollector(collectorID int64, config *MetricsConfig) error {
 	}
 	var req *http.Request
 
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("https://%s/api/rest/metrics/collectors/%d", config.IboxHostname, collectorID), http.NoBody)
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("https://%s/api/rest/metrics/collectors/%d", ibox.IboxHostname, collectorID), http.NoBody)
 	if err != nil {
 		zlog.Err(err)
 		return err
 	}
 
-	req.SetBasicAuth(config.IboxUsername, config.IboxPassword)
+	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
 	req.Header.Set("Content-Type", "application/json")
 
 	var res *http.Response
@@ -367,7 +371,7 @@ func deleteCollector(collectorID int64, config *MetricsConfig) error {
 		zlog.Err(err)
 		return err
 	}
-	zlog.Info().Msgf("delete collector response %+v\n", deleteresponse)
+	zlog.Trace().Msgf("delete collector response %+v\n", deleteresponse)
 
 	//TODO proper check of error code/message goes here
 	return nil

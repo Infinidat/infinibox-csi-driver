@@ -35,32 +35,35 @@ var (
 )
 
 func RecordPoolMetrics(config *MetricsConfig) {
-	zlog.Info().Msgf("pool metrics recording...")
+	zlog.Debug().Msgf("pool metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_POOL_METRICS))
-
-			poolInfo, err := getPoolInfo(config)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
-
-			for i := 0; i < len(poolInfo); i++ {
-				pi := poolInfo[i]
-				labels := prometheus.Labels{
-					METRIC_POOL_NAME:             pi.storageClass.Parameters["pool_name"],
-					METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters["provision_type"],
-					METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters["ssd_enabled"],
-					METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters["network_space"],
-					METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters["storage_protocol"],
+			for i := 0; i < len(config.Ibox); i++ {
+				ibox := config.Ibox[i]
+				zlog.Trace().Msgf("pool metrics: creating collectors for %s...", ibox.IboxHostname)
+				poolInfo, err := getPoolInfo(ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
 				}
-				MetricPoolAvailableCapGauge.With(labels).Set(float64(pi.pool.PhysicalCapacity))  // pool - physical_capacity
-				MetricPoolUsedCapGauge.With(labels).Set(float64(pi.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
-				pct := (pi.pool.AllocatedPhysicalSpace / pi.pool.PhysicalCapacity) * 100.00
-				MetricPoolPctUtilizedGauge.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
-			}
 
+				for i := 0; i < len(poolInfo); i++ {
+					pi := poolInfo[i]
+					labels := prometheus.Labels{
+						METRIC_POOL_NAME:             pi.storageClass.Parameters["pool_name"],
+						METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters["provision_type"],
+						METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters["ssd_enabled"],
+						METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters["network_space"],
+						METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters["storage_protocol"],
+					}
+					MetricPoolAvailableCapGauge.With(labels).Set(float64(pi.pool.PhysicalCapacity))  // pool - physical_capacity
+					MetricPoolUsedCapGauge.With(labels).Set(float64(pi.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
+					pct := (pi.pool.AllocatedPhysicalSpace / pi.pool.PhysicalCapacity) * 100.00
+					MetricPoolPctUtilizedGauge.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
+				}
+
+			}
 		}
 	}()
 }
@@ -70,14 +73,14 @@ type PoolInfo struct {
 	pool         Pool
 }
 
-func getPoolInfo(config *MetricsConfig) ([]PoolInfo, error) {
+func getPoolInfo(ibox IboxCredentials) ([]PoolInfo, error) {
 	poolInfo := make([]PoolInfo, 0)
 	storageClasses, err := getStorageClasses()
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
-	allPools, err := getPools(config)
+	allPools, err := getPools(ibox)
 	if err != nil {
 		zlog.Err(err)
 		return poolInfo, err
@@ -123,13 +126,13 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 		s := storageClasses.Items[i]
 		if s.Provisioner == "infinibox-csi-driver" {
 			// this is a storageclass used by our driver
-			zlog.Info().Msgf("storageclass name %s\n", s.Name)
-			zlog.Info().Msgf("storage_protocol %s\n", s.Parameters["storage_protocol"])
-			zlog.Info().Msgf("network_space %s\n", s.Parameters["network_space"])
-			zlog.Info().Msgf("pool_name %s\n", s.Parameters["pool_name"])
-			zlog.Info().Msgf("provision_type %s\n", s.Parameters["provision_type"])
-			zlog.Info().Msgf("ssd_enabled %s\n", s.Parameters["ssd_enabled"])
-			zlog.Info().Msgf("--------------------------------------")
+			zlog.Debug().Msgf("storageclass name %s\n", s.Name)
+			zlog.Debug().Msgf("storage_protocol %s\n", s.Parameters["storage_protocol"])
+			zlog.Debug().Msgf("network_space %s\n", s.Parameters["network_space"])
+			zlog.Debug().Msgf("pool_name %s\n", s.Parameters["pool_name"])
+			zlog.Debug().Msgf("provision_type %s\n", s.Parameters["provision_type"])
+			zlog.Debug().Msgf("ssd_enabled %s\n", s.Parameters["ssd_enabled"])
+			zlog.Debug().Msgf("--------------------------------------")
 			ourStorageClasses = append(ourStorageClasses, s)
 		}
 	}
@@ -137,7 +140,7 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 	return &ourStorageClasses, nil
 }
 
-func getPools(config *MetricsConfig) (*Pools, error) {
+func getPools(ibox IboxCredentials) (*Pools, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -150,13 +153,13 @@ func getPools(config *MetricsConfig) (*Pools, error) {
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://"+config.IboxHostname+"/api/rest/pools", http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/pools", http.NoBody)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
 
-	req.SetBasicAuth(config.IboxUsername, config.IboxPassword)
+	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := client.Do(req)

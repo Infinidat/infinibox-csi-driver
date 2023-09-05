@@ -532,6 +532,7 @@ func waitForMultipath(hostId string, lun string) error {
 	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s/device/block/*/holders/*/slaves/*", hostId, lun)
 	loopCount := 7
 	for i := 1; i <= loopCount; i++ {
+		zlog.Debug().Msgf("looping in waitForMultipath host %s lun %s", hostId, lun)
 		devices, err := filepath.Glob(masterPath)
 		if err != nil {
 			zlog.Debug().Msgf("Failed to Glob devices using path '%s': %+v", masterPath, err)

@@ -59,6 +59,13 @@ View the deployment:
 kubectl get all -n prom
 ```
 
+## k8s - Install CSI Metrics Collectors
+
+```
+kubectl create configmap infinidat-csi-metrics-config --from-file=./config.yaml
+kubectl create -f deploy.yaml
+```
+
 ## k8s - Access Prometheus Dashboard
 
 ```

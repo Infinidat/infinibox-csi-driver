@@ -21,7 +21,7 @@ var (
 )
 
 func RecordPVMetrics(config *MetricsConfig) {
-	zlog.Info().Msgf("pv metrics recording...")
+	zlog.Trace().Msgf("pv metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_PV_METRICS))
@@ -32,7 +32,7 @@ func RecordPVMetrics(config *MetricsConfig) {
 				continue
 			}
 
-			zlog.Info().Msgf("creating metrics for %d PVs", len(*pvInfo))
+			zlog.Trace().Msgf("creating metrics for %d PVs", len(*pvInfo))
 			for i := 0; i < len(*pvInfo); i++ {
 				p := (*pvInfo)[i]
 				labels := prometheus.Labels{
@@ -80,7 +80,7 @@ func getPVInfo() (*[]PVInfo, error) {
 	for i := 0; i < len(pVols.Items); i++ {
 		pvItem := pVols.Items[i]
 		if pvItem.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
-			zlog.Info().Msgf("pv metrics: pv %s sc %s found\n", pvItem.Name, pvItem.Spec.StorageClassName)
+			zlog.Trace().Msgf("pv metrics: pv %s sc %s found\n", pvItem.Name, pvItem.Spec.StorageClassName)
 			sc, err := clientset.StorageV1().StorageClasses().Get(context.Background(), pvItem.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
 				zlog.Error().Msgf("error getting StorageClass %s error %s", pvItem.Spec.StorageClassName, err.Error())

@@ -104,84 +104,88 @@ var (
 )
 
 func RecordSystemHealthMetrics(cfg *MetricsConfig) {
-	zlog.Info().Msgf("system health metrics recording...")
+	zlog.Trace().Msgf("system health metrics recording...")
 	go func() {
 
 		for {
 			time.Sleep(cfg.GetDuration(METRIC_IBOX_SYSTEM_METRICS))
 
-			results, err := getResult(cfg)
-			if err != nil {
-				zlog.Err(err)
-				continue
-			}
-
-			labels := prometheus.Labels{
-				METRIC_IBOX_NAME:     results.Name,
-				METRIC_IBOX_IP:       cfg.IboxIpAddress,
-				METRIC_IBOX_HOSTNAME: cfg.IboxHostname,
-			}
-			MetricIboxActiveCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveCacheSsdDevices))
-			MetricIboxActiveDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveDrives))
-			MetricIboxActiveEncryptedCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedCacheSsdDevices))
-			MetricIboxActiveEncryptedDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedDrives))
-			MetricIboxBBUAggregateChargePctGauge.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
-
-			for k, v := range results.HealthState.BbuChargeLevel {
-				zlog.Info().Msgf("bbucharge level k %s v %f", k, v)
-				l := prometheus.Labels{
-					METRIC_IBOX_NAME:      results.Name,
-					METRIC_IBOX_IP:        cfg.IboxIpAddress,
-					METRIC_IBOX_HOSTNAME:  cfg.IboxHostname,
-					METRIC_IBOX_NODE_NAME: k}
-				MetricIboxBBUChargeLevelGauge.With(l).Set(v.(float64))
-			}
-			MetricIboxBBUProtectedNodesGauge.With(labels).Set(float64(results.HealthState.BbuProtectedNodes))
-			boolValue := 0
-			if results.HealthState.EnclosureFailureSafeDistribution {
-				boolValue = 1
-			}
-			MetricIboxEnclosureFailureSafeDistributionGauge.With(labels).Set(float64(boolValue))
-			boolValue = 0
-			if results.HealthState.EnclosureFailureSafeDistribution {
-				boolValue = 1
-			}
-			MetricIboxEncryptionEnabledGauge.With(labels).Set(float64(boolValue))
-			MetricIboxFailedDrivesGauge.With(labels).Set(float64(results.HealthState.FailedDrives))
-			MetricIboxInactiveNodesGauge.With(labels).Set(float64(results.HealthState.InactiveNodes))
-			MetricIboxMissingDrivesGauge.With(labels).Set(float64(results.HealthState.MissingDrives))
-
-			zlog.Info().Msgf("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
-			for k, v := range results.HealthState.NodeBbuProtection {
-				zlog.Info().Msgf("system health: nodebbuprotection k %s v %s", k, v)
-				l := prometheus.Labels{
-					METRIC_IBOX_NAME:      results.Name,
-					METRIC_IBOX_IP:        cfg.IboxIpAddress,
-					METRIC_IBOX_HOSTNAME:  cfg.IboxHostname,
-					METRIC_IBOX_NODE_NAME: k}
-				protectedValue := 0
-				if v == "protected" {
-					protectedValue = 1
+			for i := 0; i < len(cfg.Ibox); i++ {
+				ibox := cfg.Ibox[i]
+				zlog.Trace().Msgf("system health metrics: creating collectors for %s...", ibox.IboxHostname)
+				results, err := getResult(ibox)
+				if err != nil {
+					zlog.Err(err)
+					continue
 				}
-				MetricIboxNodeBBUProtectionGauge.With(l).Set(float64(protectedValue))
-			}
-			MetricIboxPhasingOutDrivesGauge.With(labels).Set(float64(results.HealthState.PhasingOutDrives))
-			MetricIboxRaidGroupsPendingRebuild1Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild1))
-			MetricIboxRaidGroupsPendingRebuild2Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild2))
-			MetricIboxReadyDrivesGauge.With(labels).Set(float64(results.HealthState.ReadyDrives))
-			boolValue = 0
-			if results.HealthState.Rebuild1Inprogress {
-				boolValue = 1
-			}
-			MetricIboxRebuild1InProgressGauge.With(labels).Set(float64(boolValue))
-			boolValue = 0
-			if results.HealthState.Rebuild2Inprogress {
-				boolValue = 1
-			}
-			MetricIboxRebuild2InProgressGauge.With(labels).Set(float64(boolValue))
-			MetricIboxTestingDrivesGauge.With(labels).Set(float64(results.HealthState.TestingDrives))
-			MetricIboxUnknownDrivesGauge.With(labels).Set(float64(results.HealthState.UnknownDrives))
 
+				labels := prometheus.Labels{
+					METRIC_IBOX_NAME:     results.Name,
+					METRIC_IBOX_IP:       ibox.IboxIpAddress,
+					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
+				}
+				MetricIboxActiveCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveCacheSsdDevices))
+				MetricIboxActiveDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveDrives))
+				MetricIboxActiveEncryptedCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedCacheSsdDevices))
+				MetricIboxActiveEncryptedDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedDrives))
+				MetricIboxBBUAggregateChargePctGauge.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
+
+				for k, v := range results.HealthState.BbuChargeLevel {
+					zlog.Trace().Msgf("bbucharge level k %s v %f", k, v)
+					l := prometheus.Labels{
+						METRIC_IBOX_NAME:      results.Name,
+						METRIC_IBOX_IP:        ibox.IboxIpAddress,
+						METRIC_IBOX_HOSTNAME:  ibox.IboxHostname,
+						METRIC_IBOX_NODE_NAME: k}
+					MetricIboxBBUChargeLevelGauge.With(l).Set(v.(float64))
+				}
+				MetricIboxBBUProtectedNodesGauge.With(labels).Set(float64(results.HealthState.BbuProtectedNodes))
+				boolValue := 0
+				if results.HealthState.EnclosureFailureSafeDistribution {
+					boolValue = 1
+				}
+				MetricIboxEnclosureFailureSafeDistributionGauge.With(labels).Set(float64(boolValue))
+				boolValue = 0
+				if results.HealthState.EnclosureFailureSafeDistribution {
+					boolValue = 1
+				}
+				MetricIboxEncryptionEnabledGauge.With(labels).Set(float64(boolValue))
+				MetricIboxFailedDrivesGauge.With(labels).Set(float64(results.HealthState.FailedDrives))
+				MetricIboxInactiveNodesGauge.With(labels).Set(float64(results.HealthState.InactiveNodes))
+				MetricIboxMissingDrivesGauge.With(labels).Set(float64(results.HealthState.MissingDrives))
+
+				zlog.Trace().Msgf("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
+				for k, v := range results.HealthState.NodeBbuProtection {
+					zlog.Trace().Msgf("system health: nodebbuprotection k %s v %s", k, v)
+					l := prometheus.Labels{
+						METRIC_IBOX_NAME:      results.Name,
+						METRIC_IBOX_IP:        ibox.IboxIpAddress,
+						METRIC_IBOX_HOSTNAME:  ibox.IboxHostname,
+						METRIC_IBOX_NODE_NAME: k}
+					protectedValue := 0
+					if v == "protected" {
+						protectedValue = 1
+					}
+					MetricIboxNodeBBUProtectionGauge.With(l).Set(float64(protectedValue))
+				}
+				MetricIboxPhasingOutDrivesGauge.With(labels).Set(float64(results.HealthState.PhasingOutDrives))
+				MetricIboxRaidGroupsPendingRebuild1Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild1))
+				MetricIboxRaidGroupsPendingRebuild2Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild2))
+				MetricIboxReadyDrivesGauge.With(labels).Set(float64(results.HealthState.ReadyDrives))
+				boolValue = 0
+				if results.HealthState.Rebuild1Inprogress {
+					boolValue = 1
+				}
+				MetricIboxRebuild1InProgressGauge.With(labels).Set(float64(boolValue))
+				boolValue = 0
+				if results.HealthState.Rebuild2Inprogress {
+					boolValue = 1
+				}
+				MetricIboxRebuild2InProgressGauge.With(labels).Set(float64(boolValue))
+				MetricIboxTestingDrivesGauge.With(labels).Set(float64(results.HealthState.TestingDrives))
+				MetricIboxUnknownDrivesGauge.With(labels).Set(float64(results.HealthState.UnknownDrives))
+
+			}
 		}
 	}()
 }
@@ -328,7 +332,7 @@ type Result struct {
 	Wwnn                   string           `json:"wwnn"`
 }
 
-func getResult(config *MetricsConfig) (Result, error) {
+func getResult(ibox IboxCredentials) (Result, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -341,13 +345,13 @@ func getResult(config *MetricsConfig) (Result, error) {
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://"+config.IboxHostname+"/api/rest/system", http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/system", http.NoBody)
 	if err != nil {
 		zlog.Err(err)
 		return Result{}, err
 	}
 
-	req.SetBasicAuth(config.IboxUsername, config.IboxPassword)
+	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := client.Do(req)

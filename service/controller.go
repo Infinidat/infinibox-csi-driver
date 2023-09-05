@@ -428,106 +428,111 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		zlog.Error().Msg("env var POD_NAMESPACE was not set, defaulting to openshift-operators namespace")
 		ns = "openshift-operators"
 	}
-	secret, err := cl.GetSecret("infinibox-creds", ns)
+	secrets, err := cl.GetSecrets(ns)
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, error getting secret: %v", err)
+		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, error getting secrets: %v", err)
 	}
 
-	x := api.ClientService{
-		ConfigMap:  make(map[string]string),
-		SecretsMap: secret,
-	}
+	//secrets := make([]map[string]string, 1)
+	//secrets[0] = secret
 
-	clientsvc, err := x.NewClient()
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Unavailable, "cannot get api client: %v", err)
-	}
-
-	snapshots, err := clientsvc.GetAllSnapshots()
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
-	}
-	zlog.Info().Msgf("got back %d snapshots", len(snapshots))
-
-	// handle the optional case where a SnapshotId is passed in the ListSnapshots request
-	var volProto api.VolumeProtocolConfig
-	var iValue int
-	if req.SnapshotId != "" {
-		volProto, err = validateVolumeID(req.SnapshotId)
-		if err != nil {
-			zlog.Err(err)
-			return nil, status.Errorf(codes.Unavailable, "cannot validate req.SnapshotId: %s error %v", req.SnapshotId, err)
-		}
-		iValue, err = strconv.Atoi(volProto.VolumeID)
-		if err != nil {
-			zlog.Info().Msgf("error converting VolumeID %s", volProto.VolumeID)
-			zlog.Err(err)
-			return nil, status.Errorf(codes.Unavailable, "cannot convert VolumeID: %s error %v", volProto.VolumeID, err)
-		}
-	}
-
-	for i := 0; i < len(snapshots); i++ {
-		cdt := snapshots[i].CreatedAt / 1000
-		tt := time.Unix(cdt, 0)
-		t := tspb.New(tt)
-		if err != nil {
-			zlog.Err(err)
+	for i := 0; i < len(secrets); i++ {
+		x := api.ClientService{
+			ConfigMap:  make(map[string]string),
+			SecretsMap: secrets[i],
 		}
 
-		var parentName string
-		switch snapshots[i].DatasetType {
-		case "VOLUME":
-			v, err := clientsvc.GetVolume(snapshots[i].ParentId)
+		clientsvc, err := x.NewClient()
+		if err != nil {
+			zlog.Err(err)
+			return nil, status.Errorf(codes.Unavailable, "cannot get api client: %v", err)
+		}
+
+		snapshots, err := clientsvc.GetAllSnapshots()
+		if err != nil {
+			zlog.Err(err)
+			return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
+		}
+		zlog.Info().Msgf("got back %d snapshots", len(snapshots))
+
+		// handle the optional case where a SnapshotId is passed in the ListSnapshots request
+		var volProto api.VolumeProtocolConfig
+		var iValue int
+		if req.SnapshotId != "" {
+			volProto, err = validateVolumeID(req.SnapshotId)
 			if err != nil {
-				zlog.Error().Msgf("snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
-				parentName = "unknown"
-			} else {
-				parentName = v.Name
+				zlog.Err(err)
+				return nil, status.Errorf(codes.Unavailable, "cannot validate req.SnapshotId: %s error %v", req.SnapshotId, err)
 			}
-		case "FILESYSTEM":
-			f, err := clientsvc.GetFileSystemByID(int64(snapshots[i].ParentId))
+			iValue, err = strconv.Atoi(volProto.VolumeID)
 			if err != nil {
-				zlog.Error().Msgf("snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
-				parentName = "unknown"
-			} else {
-				parentName = f.Name
+				zlog.Info().Msgf("error converting VolumeID %s", volProto.VolumeID)
+				zlog.Err(err)
+				return nil, status.Errorf(codes.Unavailable, "cannot convert VolumeID: %s error %v", volProto.VolumeID, err)
 			}
-		default:
-			zlog.Error().Msgf("snapshot %s unknown dataset type %s parentId %d ", snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
-			parentName = "unknown"
 		}
 
-		snapshot := &csi.Snapshot{
-			SnapshotId:     snapshots[i].Name,
-			SourceVolumeId: parentName,
-			SizeBytes:      snapshots[i].Size,
-			CreationTime:   t,
-			ReadyToUse:     true, //always true on the ibox according to Jason.
-		}
-		entry := csi.ListSnapshotsResponse_Entry{
-			Snapshot: snapshot,
-		}
+		for i := 0; i < len(snapshots); i++ {
+			cdt := snapshots[i].CreatedAt / 1000
+			tt := time.Unix(cdt, 0)
+			t := tspb.New(tt)
+			if err != nil {
+				zlog.Err(err)
+			}
 
-		if req.SourceVolumeId != "" {
-			if req.SourceVolumeId == entry.Snapshot.SourceVolumeId {
-				zlog.Info().Msgf("comparing req.SourceVolumeId %s SourceVolumeId %s\n", req.SourceVolumeId, entry.Snapshot.SourceVolumeId)
+			var parentName string
+			switch snapshots[i].DatasetType {
+			case "VOLUME":
+				v, err := clientsvc.GetVolume(snapshots[i].ParentId)
+				if err != nil {
+					zlog.Error().Msgf("snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
+					parentName = "unknown"
+				} else {
+					parentName = v.Name
+				}
+			case "FILESYSTEM":
+				f, err := clientsvc.GetFileSystemByID(int64(snapshots[i].ParentId))
+				if err != nil {
+					zlog.Error().Msgf("snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
+					parentName = "unknown"
+				} else {
+					parentName = f.Name
+				}
+			default:
+				zlog.Error().Msgf("snapshot %s unknown dataset type %s parentId %d ", snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
+				parentName = "unknown"
+			}
+
+			snapshot := &csi.Snapshot{
+				SnapshotId:     snapshots[i].Name,
+				SourceVolumeId: parentName,
+				SizeBytes:      snapshots[i].Size,
+				CreationTime:   t,
+				ReadyToUse:     true, //always true on the ibox according to Jason.
+			}
+			entry := csi.ListSnapshotsResponse_Entry{
+				Snapshot: snapshot,
+			}
+
+			if req.SourceVolumeId != "" {
+				if req.SourceVolumeId == entry.Snapshot.SourceVolumeId {
+					zlog.Info().Msgf("comparing req.SourceVolumeId %s SourceVolumeId %s\n", req.SourceVolumeId, entry.Snapshot.SourceVolumeId)
+					res.Entries = append(res.Entries, &entry)
+				}
+			} else if req.SnapshotId != "" {
+				if iValue == snapshots[i].ID {
+					zlog.Info().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
+					entry.Snapshot.SnapshotId = req.SnapshotId
+					res.Entries = append(res.Entries, &entry)
+				}
+			} else {
 				res.Entries = append(res.Entries, &entry)
 			}
-		} else if req.SnapshotId != "" {
-			if iValue == snapshots[i].ID {
-				zlog.Info().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
-				entry.Snapshot.SnapshotId = req.SnapshotId
-				res.Entries = append(res.Entries, &entry)
-			}
-		} else {
-			res.Entries = append(res.Entries, &entry)
-		}
 
+		}
 	}
 
-	zlog.Info().Msgf("ControllerListSnapshots Started")
+	zlog.Info().Msgf("ControllerListSnapshots Finished")
 
 	return res, nil
 }
