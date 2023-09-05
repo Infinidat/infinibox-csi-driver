@@ -43,6 +43,7 @@ var (
 )
 
 const (
+	SLEEP_BETWEEN_STEPS   = 5
 	VOLUME_SNAPSHOT_CLASS = "e2e-"
 	IMAGE_PULL_SECRET     = "private-docker-reg-secret"
 	POD_NAME              = "e2e-test-pod"
@@ -476,12 +477,16 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	}
 	t.Logf("✓ Namespace %s is created\n", testNames.NSName)
 
+	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
+
 	scName := fmt.Sprintf(SC_NAME, protocol)
 	testNames.SCName, err = CreateStorageClass(scName, uniqueSuffix, *StorageClassPath, client)
 	if err != nil {
 		t.Fatalf("error creating StorageClass %s\n", err.Error())
 	}
 	t.Logf("✓ StorageClass %s is created\n", testNames.SCName)
+
+	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	testNames.PVCName = pvcName
@@ -491,11 +496,15 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	}
 	t.Logf("✓ PVC %s is created\n", pvcName)
 
+	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
+
 	err = CreateImagePullSecret(t, testNames.NSName, client)
 	if err != nil {
 		t.Fatalf("error creating image pull secret %s", err.Error())
 	}
 	t.Logf("✓ Image Pull Secret %s is created\n", IMAGE_PULL_SECRET)
+
+	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	err = CreatePod(protocol, testNames.NSName, client)
 	if err != nil {
@@ -508,6 +517,8 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 		t.Fatalf("error waiting for pod %s", err.Error())
 	}
 	t.Logf("✓ Pod %s is running\n", POD_NAME)
+
+	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	//testNames.SnapshotClassName, err = CreateVolumeSnapshotClass(ctx, VOLUME_SNAPSHOT_CLASS, testNames.NSName, uniqueSuffix, snapshotClient)
 	testNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, uniqueSuffix, dynamicClient)
