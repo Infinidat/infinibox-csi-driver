@@ -56,46 +56,53 @@ e2e-redhat-sanity:  ## run the redhat e2e tests
 		&& ./e2e/redhat-e2e/run-container.sh
 	@echo -e $(_finish)
 
-.PHONY: e2e-treeq
-e2e-treeq:  ## run the infinidat developed e2e treeq tests
+.PHONY: e2emetrics
+e2emetrics:  ## test the metrics deployment on openshift
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-treeq/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-treeq -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/metrics/storageclass.yaml CONFIGFILE=$(_LOCALDIR)/e2e/metrics/config.yaml $(_GOTEST) -count=1 -v ./e2e/metrics -tags e2e
 	@echo -e $(_finish)
 
-.PHONY: e2e-nfs
-e2e-nfs:  ## run the infinidat developed e2e nfs tests
+.PHONY: e2etreeq
+e2etreeq:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-nfs/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-nfs -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/treeq/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/treeq -tags e2e
 	@echo -e $(_finish)
 
-.PHONY: e2e-iscsi
-e2e-iscsi:  ## run the infinidat developed e2e iscsi tests
+.PHONY: e2enfs
+e2enfs:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/nfs/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/nfs -tags e2e
 	@echo -e $(_finish)
 
-.PHONY: e2e-iscsi-chap
-e2e-iscsi-chap:  ## run the infinidat developed e2e iscsi tests
+.PHONY: e2eiscsi
+e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi-chap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi-chap -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/iscsi/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsi -tags e2e
 	@echo -e $(_finish)
 
-.PHONY: e2e-iscsi-mutual-chap
-e2e-iscsi-mutual-chap:  ## run the infinidat developed e2e iscsi tests
+.PHONY: e2eiscsichap
+e2eiscsichap:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-iscsi-mutual-chap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-iscsi-mutual-chap -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/iscsichap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsichap -tags e2e
 	@echo -e $(_finish)
 
-.PHONY: e2e-fc
-e2e-fc:  ## run the infinidat developed e2e fc tests
+.PHONY: e2eiscsimutualchap
+e2eiscsimutualchap:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/e2e-fc/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/e2e-fc -tags e2e
+	STORAGECLASS=$(_LOCALDIR)/e2e/iscsimutualchap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsimutualchap -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: e2efc
+e2efc:  ## run the infinidat developed e2e fc tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	STORAGECLASS=$(_LOCALDIR)/e2e/fc/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/fc -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: csitestimage

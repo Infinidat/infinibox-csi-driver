@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2enfs
+package fc
 
 import (
 	"infinibox-csi-driver/e2e"
@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	PROTOCOL = "iscsi"
+	PROTOCOL = "fc"
 )
 
-func TestIscsi(t *testing.T) {
+func TestFc(t *testing.T) {
 
 	e2e.GetFlags(t)
 

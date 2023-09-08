@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2etreeq
+package treeq
 
 import (
 	"infinibox-csi-driver/e2e"

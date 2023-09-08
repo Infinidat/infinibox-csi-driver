@@ -19,6 +19,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
+
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -566,4 +567,35 @@ func TearDown(t *testing.T, testNames TestResourceNames, client *kubernetes.Clie
 	}
 	t.Logf("✓ Namespace %s is deleted\n", testNames.NSName)
 	t.Log("TEARDOWN ENDS")
+}
+
+func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset *kubernetes.Clientset) error {
+	pollInterval := 5 * time.Second
+	pollDuration := 4 * time.Minute
+	err := wait.Poll(pollInterval, pollDuration, func() (bool, error) {
+		getOptions := metav1.GetOptions{}
+
+		t.Logf("waiting for deployment %s to show up in namespace %s", deploymentName, ns)
+		p, err := clientset.AppsV1().Deployments(ns).Get(context.TODO(), deploymentName, getOptions)
+		if err != nil && apierrors.IsNotFound(err) {
+			t.Logf("deployment %s pod not found!\n", deploymentName)
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+
+		if p != nil {
+			status := p.Status
+			if status.AvailableReplicas == 1 {
+				t.Logf("✓ deployment %s is created and ready\n", deploymentName)
+				return true, nil
+			}
+		}
+		t.Logf("deployment %s found but not ready\n", deploymentName)
+
+		return false, nil
+	})
+
+	return err
 }
