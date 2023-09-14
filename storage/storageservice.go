@@ -236,6 +236,12 @@ func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 
 func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 	zlog.Debug().Msgf("Check if host available, create if not available")
+	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
+	if removeDomainName != "" && removeDomainName == "true" {
+		shortName := strings.Split(hostName, ".")
+		zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
+		hostName = shortName[0]
+	}
 	host, err := cs.Api.GetHostByName(hostName)
 	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 		zlog.Error().Msgf("failed to get host with error %v", err)

@@ -134,6 +134,10 @@ spec:
           env:
             - name: CSI_ENDPOINT
               value: unix:///var/run/csi/csi.sock
+        {{- if eq .Values.removeDomainName "true" }}
+            - name: REMOVE_DOMAIN_NAME
+              value: "true"
+        {{- end }}
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME

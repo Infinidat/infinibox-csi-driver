@@ -23,6 +23,10 @@ csiDriverVersion: "2.9.0-rc1"
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
 
+# set to true in order to strip off domain names from the host name that is registered on the ibox, this
+# is useful if you have really long domain names which can exceed what the ibox can support for host name length
+removeDomainName: "false"
+
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html
