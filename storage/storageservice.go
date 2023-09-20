@@ -536,7 +536,7 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 func waitForMultipath(hostId string, lun string) error {
 	var sleepCount time.Duration = 1
 	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s/device/block/*/holders/*/slaves/*", hostId, lun)
-	loopCount := 7
+	loopCount := 10
 	for i := 1; i <= loopCount; i++ {
 		zlog.Debug().Msgf("looping in waitForMultipath host %s lun %s", hostId, lun)
 		devices, err := filepath.Glob(masterPath)
