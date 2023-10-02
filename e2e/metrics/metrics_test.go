@@ -350,7 +350,7 @@ func createDeployment(ns string, client *kubernetes.Clientset) error {
 					Containers: []v1.Container{
 						{
 							Name:  "metrics",
-							Image: "git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:v2.9.0-rc2",
+							Image: "git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:v2.9.0",
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "config-volume",
