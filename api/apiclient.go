@@ -40,6 +40,7 @@ type Client interface {
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 	GetAllSnapshots() ([]Volume, error)
+	GetAllVolumes() ([]Volume, error)
 
 	GetHostByName(hostName string) (host Host, err error)
 	CreateHost(hostName string) (host Host, err error)
@@ -52,6 +53,7 @@ type Client interface {
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
 	GetFCPorts() (fcNodes []FCNode, err error)
 	GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error)
+	GetLunByVolume(volumeID int) (luninfo []LunInfo, err error)
 
 	// for nfs
 	OneTimeValidation(poolname string, networkspace string) (list string, err error)
@@ -72,6 +74,7 @@ type Client interface {
 	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
 	GetMetadataStatus(fileSystemID int64) bool
 	FileSystemHasChild(fileSystemID int64) bool
+	DeleteExport(exportID int64) (err error)
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
@@ -107,6 +110,19 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 	c.api = restclient
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
+}
+
+// DeleteExport : Delete export by export id
+func (c *ClientService) DeleteExport(exportID int64) (err error) {
+	zlog.Trace().Msgf("Delete Export with ID %d", exportID)
+
+	path := "/api/rest/exports/" + strconv.Itoa(int(exportID)) + "?approved=true"
+	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
+	if err != nil {
+		return err
+	}
+	zlog.Trace().Msgf("Deleted export : %d", exportID)
+	return
 }
 
 // DeleteVolume : Delete volume by volume id
@@ -579,6 +595,33 @@ func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err erro
 	return luninfo, nil
 }
 
+// GetLunByVolume - Get all luns for volume id provided
+func (c *ClientService) GetLunByVolume(volumeID int) (luninfo []LunInfo, err error) {
+
+	page := 1
+	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+
+	zlog.Trace().Msgf("Get luns for volume %d", volumeID)
+
+	uri := "api/rest/volumes/" + strconv.Itoa(volumeID) + "/luns" + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
+
+	resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
+
+	if err != nil {
+		zlog.Error().Msgf("failed to get luns for volume %d with error %v", volumeID, err)
+		return luninfo, err
+	}
+
+	apiresp := resp.(client.ApiResponse)
+	currentResults, _ := apiresp.Result.([]LunInfo)
+	luninfo = append(luninfo, currentResults...)
+	responseSize := apiresp.MetaData.NoOfObject
+	zlog.Trace().Msgf("added %d items to results", responseSize)
+
+	zlog.Trace().Msgf("got %d Luns for host %d", len(luninfo), volumeID)
+	return luninfo, nil
+}
+
 // GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
 func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
 	voluri := "/api/rest/volumes/"
@@ -698,6 +741,43 @@ func (c *ClientService) GetAllSnapshots() ([]Volume, error) {
 			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &volumes)
 			if err != nil {
 				zlog.Error().Msgf("failed to check GetAllSnapshots %v response: %v", err, resp)
+				return allvolumes, err
+			}
+			apiresp := resp.(client.ApiResponse)
+			zlog.Trace().Msgf("uri %s page %d volumes %d", uriList[u], page, len(volumes))
+
+			allvolumes = append(allvolumes, volumes...)
+			if page == 1 {
+				total_pages = apiresp.MetaData.TotalPages
+			}
+			zlog.Trace().Msgf("total pages %d\n", total_pages)
+			page++
+		}
+	}
+
+	return allvolumes, err
+}
+
+// GetAllVolumes method returns all volumes
+func (c *ClientService) GetAllVolumes() ([]Volume, error) {
+	var err error
+	uriList := []string{
+		"/api/rest/datasets",
+		"/api/rest/volumes",
+	}
+	allvolumes := make([]Volume, 0)
+
+	for u := 0; u < len(uriList); u++ {
+		queryParam := make(map[string]interface{})
+		queryParam["type"] = "MASTER"
+		page := 1
+		total_pages := 1 // start with 1, update after first query.
+		for ok := true; ok; ok = page <= total_pages {
+			queryParam["page"] = strconv.Itoa(page)
+			volumes := []Volume{}
+			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &volumes)
+			if err != nil {
+				zlog.Error().Msgf("failed to check GetAllVolumes %v response: %v", err, resp)
 				return allvolumes, err
 			}
 			apiresp := resp.(client.ApiResponse)

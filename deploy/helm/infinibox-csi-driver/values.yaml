@@ -18,7 +18,7 @@ logLevel: "debug"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "2.9.0"
+csiDriverVersion: "2.10.0-rc1"
 
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
@@ -33,7 +33,7 @@ images:
   attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:4eb73137b66381b7b5dfd4d21d460f4b4095347ab6ed4626e0199c29d8d021af"  # v4.3.0
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "docker.io/infinidat/infinidat-csi-driver:2.9.0"
+  csidriver: "docker.io/infinidat/infinidat-csi-driver:2.10.0-rc1"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
