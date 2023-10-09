@@ -30,7 +30,7 @@ _GOLINT             = golangci-lint
 _LOCALDIR ?= $(shell pwd)
 
 # Docker image tag. Read from env or use default
-_IMAGE_TAG   ?= v2.9.0-rc3
+_IMAGE_TAG   ?= v2.10.0-rc1
 
 _GITLAB_REPO        = git.infinidat.com:4567
 _BINARY_NAME        = infinibox-csi-driver
@@ -150,7 +150,7 @@ docker-login-docker:  ## Login to Dockerhub.
 	@docker login
 
 .PHONY: docker-pull-gitlab
-docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.9.0-rc3 make docker-pull-gitlab
+docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.10.0-rc1 make docker-pull-gitlab
 	@echo -e $(_begin)
 	@declare -a images=($(_IMAGE_NAMES)); \
 	for image in $${images[@]}; do \
