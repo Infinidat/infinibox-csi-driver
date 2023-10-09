@@ -25,6 +25,8 @@ var gitHash string
 // starting method of CSI-Driver
 func main() {
 
+	log.CheckForLogLevelOverride()
+
 	// this call effectively initializes the logging system based on environment variables
 	// and default configurations.
 	zlog := log.Get()
@@ -34,6 +36,8 @@ func main() {
 	zlog.Info().Msgf("Compile date: %s", compileDate)
 	zlog.Info().Msgf("Compile git hash: %s", gitHash)
 	zlog.Info().Msgf("Log level: %s", os.Getenv("APP_LOG_LEVEL"))
+
+	log.SetupKlog()
 
 	nodeIP := os.Getenv("NODE_IP")
 	if nodeIP == "" {
