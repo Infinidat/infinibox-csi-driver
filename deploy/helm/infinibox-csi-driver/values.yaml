@@ -10,7 +10,7 @@ replicaCount: 1
 instanceCount: 1
 
 # prefix for pv name
-volumeNamePrefix: csi
+volumeNamePrefix: ibox
 
 # log level of driver
 logLevel: "debug"
