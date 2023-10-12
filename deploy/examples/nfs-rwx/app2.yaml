@@ -1,0 +1,27 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nfs-test2
+  namespace: infinidat-csi
+spec:
+  affinity:
+    podAntiAffinity: 
+      requiredDuringSchedulingIgnoredDuringExecution: 
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In 
+            values:
+            - s1
+        topologyKey: kubernetes.io/hostname
+  containers:
+    - name: csitest
+      image: busybox
+      volumeMounts:
+      - mountPath: "/tmp/data"
+        name: ibox-csi-volume
+      command: [ "sleep", "1000" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: nfs-pvc-rwx

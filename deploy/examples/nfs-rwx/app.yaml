@@ -1,0 +1,19 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nfs-test
+  namespace: infinidat-csi
+  labels:
+    security: s1
+spec:
+  containers:
+    - name: csitest
+      image: busybox
+      volumeMounts:
+      - mountPath: "/tmp/data"
+        name: ibox-csi-volume
+      command: [ "sleep", "1000" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: nfs-pvc-rwx
