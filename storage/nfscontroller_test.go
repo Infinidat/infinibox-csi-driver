@@ -765,6 +765,7 @@ func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule
 func getNFSControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
 	return &csi.ControllerUnpublishVolumeRequest{
 		VolumeId: "1$$nfs",
+		NodeId:   "192.168.0.106",
 	}
 }
 

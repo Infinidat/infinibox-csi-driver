@@ -416,9 +416,13 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		zlog.Error().Msgf(msg)
 		return nil, status.Error(codes.Internal, msg)
 	}
-	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	kubeNodeID := req.GetNodeId()
+	if kubeNodeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+	}
+	nodeNameIP := strings.Split(kubeNodeID, "$$")
 	if len(nodeNameIP) != 2 {
-		msg = fmt.Sprintf("node ID not found in %s", req.GetNodeId())
+		msg = fmt.Sprintf("node ID not found in %s", kubeNodeID)
 		zlog.Error().Msgf(msg)
 		return nil, status.Error(codes.NotFound, msg)
 	}

@@ -279,8 +279,11 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
-
-	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	kubeNodeID := req.GetNodeId()
+	if kubeNodeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+	}
+	nodeNameIP := strings.Split(kubeNodeID, "$$")
 	if len(nodeNameIP) != 2 {
 		return nil, errors.New("not found Node ID")
 	}
@@ -371,7 +374,11 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		zlog.Error().Msgf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
-	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
+	kubeNodeID := req.GetNodeId()
+	if kubeNodeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+	}
+	nodeNameIP := strings.Split(kubeNodeID, "$$")
 	if len(nodeNameIP) != 2 {
 		return nil, errors.New("node ID not found")
 	}

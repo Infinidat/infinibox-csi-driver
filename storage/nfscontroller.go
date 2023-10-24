@@ -463,6 +463,11 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	zlog.Debug().Msgf("ControllerPublishVolume nodeId %s volumeID %s exportID %s nfs_export_permissions %s",
 		req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 
+	kubeNodeID := req.GetNodeId()
+	if kubeNodeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+	}
+
 	// TODO: revisit this as part of CSIC-343
 	_, err = nfs.cs.AccessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
@@ -507,10 +512,14 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 
 func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	zlog.Debug().Msgf("ControllerUnpublishVolume")
+	kubeNodeID := req.GetNodeId()
+	if kubeNodeID == "" {
+		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+	}
 	voltype := req.GetVolumeId()
 	volproto := strings.Split(voltype, "$$")
 	fileID, _ := strconv.ParseInt(volproto[0], 10, 64)
-	err := nfs.cs.Api.DeleteExportRule(fileID, req.GetNodeId())
+	err := nfs.cs.Api.DeleteExportRule(fileID, kubeNodeID)
 	if err != nil {
 		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", fileID, err)
 		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
