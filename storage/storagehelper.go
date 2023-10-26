@@ -437,6 +437,10 @@ func (n Service) NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err err
 	for i := 0; i < len(outputParts); i++ {
 		line := strings.TrimSpace(outputParts[i])
 		lineParts := strings.Split(line, " ")
+		if len(lineParts) < 3 {
+			zlog.Error().Msgf("error getting multipath blockDevice from output %v", lineParts)
+			continue
+		}
 		blockDevice := lineParts[2]
 		zlog.Debug().Msgf("device is [%s]\n", blockDevice)
 		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
@@ -452,6 +456,9 @@ func (n Service) NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err err
 	// 4 - run multipathd resize map multipath_device - where multipath_device is like /dev/mapper/mpathwi from previous step,
 	// we need to strip off the /dev/mapper/ path prefix
 	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
+	if len(mpathPart) < 2 {
+		return fmt.Errorf("error getting mpathPart from %+v", mpathPart)
+	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	out, err = execScsi.Command(command, "")
 	if err != nil {
