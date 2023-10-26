@@ -129,14 +129,6 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	/**
-	devicePath, err := fc.getFCDisk(*fcDetails.connector, &OSioHandler{})
-	if err != nil {
-		zlog.Error().Msgf("")
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	*/
-
 	devicePath, err := fc.searchDisk(*fcDetails.connector, &OSioHandler{})
 	if err != nil {
 		zlog.Error().Msgf("fc.searchDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
@@ -281,18 +273,27 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 }
 
 func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
-	notMnt, err := fm.Mounter.IsLikelyNotMountPoint(fm.TargetPath)
+	zlog.Debug().Msgf("fc MountFCDisk called request %+v devicePath %s", fm, devicePath)
+
+	var mounted bool
+	mntPoints, err := fm.Mounter.List()
 	if err != nil {
 		zlog.Err(err)
+		return status.Errorf(codes.Internal, "fm.Mounter.List error: %s", err.Error())
 	}
-	if err == nil {
-		if !notMnt {
-			// ToDo: check that it is mounted on the right directory
-			zlog.Debug().Msgf("fc: %s already mounted", fm.TargetPath)
-			return nil
+
+	var chrootPath = "/host" + fm.TargetPath
+	zlog.Debug().Msgf("Mount List has %d, looking for %s", len(mntPoints), chrootPath)
+	for i := 0; i < len(mntPoints); i++ {
+		if mntPoints[i].Path == chrootPath {
+			mounted = true
+			break
 		}
-	} else if !os.IsNotExist(err) {
-		return status.Errorf(codes.Internal, "%s exists but IsLikelyNotMountPoint failed: %v", fm.TargetPath, err)
+	}
+
+	if mounted {
+		zlog.Debug().Msgf("fc: MountFCDisk %s already Mounted", chrootPath)
+		return nil
 	}
 
 	if fm.fcDisk.isBlock {
@@ -314,8 +315,8 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			return err
 		}
 
-		zlog.Debug().Msgf("Creating file: /host/%s", fm.TargetPath)
-		_, err = os.Create("/host/" + fm.TargetPath)
+		zlog.Debug().Msgf("Creating file: %s", chrootPath)
+		_, err = os.Create(chrootPath)
 		if err != nil {
 			zlog.Error().Msgf("failed to create target path for raw bind mount: %q, err: %v", fm.TargetPath, err)
 			return status.Errorf(codes.Internal, "failed to create target path for raw block bind mount: %v", err)
@@ -335,7 +336,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		zlog.Debug().Msgf("mounting volume with filesystem at given path %s", fm.TargetPath)
 
 		// Create mountPoint, with prepended /host, if it does not exist.
-		mountPoint := "/host" + fm.TargetPath
+		mountPoint := chrootPath
 		_, err := os.Stat(mountPoint)
 		if err != nil {
 			zlog.Err(err)
