@@ -21,3 +21,19 @@ teardown:  ## Remove everything including K3s.
 	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
 	@echo -e $(_finish)
 
+.PHONY: setup-fsgroup
+setup-fsgroup:  teardown-fsgroup ## Deploy NFS objects, restore snapshot, clone.
+	@echo -e $(_begin)
+	$(_clinn) create -f ./storageclass-fsg.yaml
+	$(_cli) create -f ./pvc-fsg.yaml
+	$(_cli) create -f ./app-fsg.yaml
+	@echo -e $(_finish)
+
+
+.PHONY: teardown-fsgroup
+teardown-fsgroup:  ## Remove everything including K3s.
+	@echo -e $(_begin)
+	$(_cli) delete --wait --ignore-not-found=true -f ./app-fsg.yaml
+	$(_cli) delete --wait --ignore-not-found=true -f ./pvc-fsg.yaml
+	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass-fsg.yaml
+	@echo -e $(_finish)

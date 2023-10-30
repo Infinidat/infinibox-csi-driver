@@ -97,8 +97,9 @@ type fcstorage struct {
 }
 
 type iscsistorage struct {
-	cs       Commonservice
-	osHelper helper.OsHelper
+	cs            Commonservice
+	osHelper      helper.OsHelper
+	storageHelper StorageHelper
 }
 
 // NewStorageController : To return specific implementation of storage
@@ -133,7 +134,7 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 		case common.PROTOCOL_FC:
 			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
 		case common.PROTOCOL_ISCSI:
-			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}}, nil
+			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
 		case common.PROTOCOL_NFS:
 			return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		case common.PROTOCOL_TREEQ:

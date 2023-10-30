@@ -20,6 +20,7 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/log"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -27,6 +28,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -44,6 +46,16 @@ const (
 	kiBytesofGiB = 1024 * 1024
 
 	bytesofGiB = kiBytesofGiB * bytesofKiB
+
+	// When you ask "why?": https://github.com/golang/go/issues/25539#issuecomment-394615058
+	K8S_MOUNT_PERMS = "020000775" // setgid bit
+
+	DEFAULT_FS_GROUP_CHANGE_POLICY = "Always" // we currently only support "Always", not "OnRootMisMatch"
+
+	// shanked from K8s
+	// rwMask   = os.FileMode(0660)
+	// roMask   = os.FileMode(0440)
+	// execMask = os.FileMode(0110)
 )
 
 var zlog = log.Get() // grab the logger for storage package use
@@ -564,33 +576,55 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	targetPath := req.GetTargetPath()      // this is the path on the host node
 	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
 
+	fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
+	fsGroupChangePolicy := DEFAULT_FS_GROUP_CHANGE_POLICY
+
+	fsGroupIsSet := (fsGroup != "")
+
+	zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
+
 	// Chown
 	var uid_int, gid_int int
-	tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
-	if tmp == "" {
-		uid_int = -1 // -1 means to not change the value
-	} else {
-		uid_int, err = strconv.Atoi(tmp)
-		if err != nil || uid_int < -1 {
-			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
-			zlog.Err(e)
-			return e
-		}
-	}
 
-	tmp = req.GetVolumeContext()[common.SC_GID]
-	if tmp == "" {
-		gid_int = -1 // -1 means to not change the value
-	} else {
-		gid_int, err = strconv.Atoi(tmp)
+	if !fsGroupIsSet { // use storageclass for volume mount parameters.
+
+		tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
+		if tmp == "" {
+			uid_int = -1 // -1 means to not change the value
+		} else {
+			uid_int, err = strconv.Atoi(tmp)
+			if err != nil || uid_int < -1 {
+				e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
+				zlog.Err(e)
+				return e
+			}
+		}
+
+		tmp = req.GetVolumeContext()[common.SC_GID]
+		if tmp == "" {
+			gid_int = -1 // -1 means to not change the value
+		} else {
+			gid_int, err = strconv.Atoi(tmp)
+			if err != nil || gid_int < -1 {
+				e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
+				zlog.Err(e)
+				return e
+			}
+		}
+
+	} else { // use the fsGroup spec from the pod.
+
+		gid_int, err = strconv.Atoi(fsGroup)
 		if err != nil || gid_int < -1 {
 			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
 			zlog.Err(e)
 			return e
 		}
+		uid_int = -1 // indicate no change to uid since fsgroup being set.
 	}
 
-	err = os.Chown(hostTargetPath, uid_int, gid_int)
+	err = ChownR(hostTargetPath, uid_int, gid_int, fsGroupIsSet, fsGroupChangePolicy) // recursively set the path.
+
 	if err != nil {
 		e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
 		zlog.Err(e)
@@ -598,8 +632,14 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	}
 	zlog.Debug().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 
-	// Chmod
-	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
+	var unixPermissions string
+	// If fsGroupIsSet, we need to set perms on the mount with setgid bit.
+	if fsGroupIsSet {
+		unixPermissions = K8S_MOUNT_PERMS
+	} else {
+		unixPermissions = req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
+	}
+
 	if unixPermissions != "" {
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
@@ -621,6 +661,47 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	logPermissions("", filepath.Dir(hostTargetPath))
 
 	return nil
+}
+
+// recursively chowns a root path
+func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolicy string) error {
+
+	// this will exit early if there is a reason to not chown the files. Since we currently only support
+	// "Always" for fsGroupChangePolicy, this block will not run, and files will always be chowned.
+	// keeping since this was a pain to figure out. See
+	// https://github.com/kubernetes/kubernetes/blob/8a62859e515889f07e3e3be6a1080413f17cf2c3/pkg/volume/volume_linux.go#L146
+	if fsGroupIsSet && fsGroupChangePolicy != DEFAULT_FS_GROUP_CHANGE_POLICY {
+		// note: if fsGroupIsSet, gid will have the fsGroup value.
+		fsInfo, err := os.Stat(path)
+		if err != nil {
+			zlog.Error().Msgf("performing recursive ownership change on %s because reading permissions of root volume failed: %v", path, err)
+			return nil
+		}
+		stat, ok := fsInfo.Sys().(*syscall.Stat_t)
+		if !ok || stat == nil {
+			zlog.Error().Msgf("performing recursive ownership change on %s because reading permissions of root volume failed", path)
+			return nil
+		}
+		zlog.Debug().Msgf("Path: %s, volume gid %d , fsGroup: %d", path, stat.Gid, gid)
+		// nothing to change if they match
+		if int(stat.Gid) == gid {
+			return nil
+		}
+		zlog.Debug().Msgf("expected group ownership of volume %s did not match with: %d", path, stat.Gid)
+
+	}
+
+	err := filepath.WalkDir(path,
+		func(path string, d fs.DirEntry, err error) error {
+
+			if err == nil {
+				zlog.Debug().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
+				err = os.Chown(path, uid, gid)
+			}
+			return err
+		})
+
+	return err
 }
 
 func logPermissions(note, hostTargetPath string) {

@@ -239,24 +239,10 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	zlog.Debug().Msgf("iscsi attachDisk succeeded")
 
 	// Chown
-	uid := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
-	gid := req.GetVolumeContext()[common.SC_GID]
-	targetPath := req.GetTargetPath()
-	err = iscsi.osHelper.ChownVolume(uid, gid, targetPath)
+	err = iscsi.storageHelper.SetVolumePermissions(req)
 	if err != nil {
-		e := fmt.Errorf("failed to chown path '%s' : %s", targetPath, err.Error())
-		zlog.Err(e)
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	// Chmod
-	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
-	zlog.Debug().Msgf("unixPermissions: %s", unixPermissions)
-	err = iscsi.osHelper.ChmodVolume(unixPermissions, targetPath)
-	if err != nil {
-		e := fmt.Errorf("failed to chmod path '%s': %v", targetPath, err)
-		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		zlog.Err(err)
+		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	helper.PrettyKlogDebug("NodePublishVolume returning csi.NodePublishVolumeResponse:", csi.NodePublishVolumeResponse{})

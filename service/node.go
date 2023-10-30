@@ -64,6 +64,11 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
 
 	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
+
+	fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
+
+	zlog.Debug().Msgf("VolumeMountGroup: %s", fsGroup)
+
 	config := make(map[string]string)
 
 	// get operator
@@ -154,6 +159,13 @@ func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 					},
 				},
 			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_VOLUME_MOUNT_GROUP,
+					},
+				},
+			},
 		},
 	}, nil
 
@@ -199,6 +211,10 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
 
 	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
+
+	fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
+
+	zlog.Debug().Msgf("VolumeMountGroup: %s", fsGroup)
 	config := make(map[string]string)
 	// get operator
 	zlog.Debug().Msgf("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)

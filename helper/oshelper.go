@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync"
 
@@ -33,10 +32,6 @@ type OsHelper interface {
 	MkdirAll(path string, perm os.FileMode) error
 	IsNotExist(err error) bool
 	Remove(name string) error
-	ChownVolume(uid string, gid string, targetPath string) error
-	ChownVolumeExec(uid string, gid string, targetPath string) error
-	ChmodVolume(unixPermissions string, targetPath string) error
-	ChmodVolumeExec(unixPermissions string, targetPath string) error
 }
 
 // Service service struct
@@ -85,56 +80,6 @@ func (h Service) Remove(name string) error {
 	return os.Remove(name)
 }
 
-// ChownVolume method If uid/gid keys are found in req, set UID/GID recursively for target path ommitting a toplevel .snapshot/.
-func (h Service) ChownVolume(uid string, gid string, targetPath string) error {
-	// Sanity check values.
-	if uid != "" {
-		uid_int, err := strconv.Atoi(uid)
-		if err != nil || uid_int < 0 {
-			msg := fmt.Sprintf("Storage class specifies an invalid volume UID with value [%s]: %s", uid, err)
-			zlog.Error().Msgf(msg)
-			return errors.New(msg)
-		}
-	}
-	if gid != "" {
-		gid_int, err := strconv.Atoi(gid)
-		if err != nil || gid_int < 0 {
-			msg := fmt.Sprintf("Storage class specifies an invalid volume GID with value [%s]: %s", gid, err)
-			zlog.Error().Msgf(msg)
-			return errors.New(msg)
-		}
-	}
-
-	return h.ChownVolumeExec(uid, gid, targetPath)
-}
-
-// ChownVolumeExec method Execute chown.
-func (h Service) ChownVolumeExec(uid string, gid string, targetPath string) error {
-	if uid != "" || gid != "" {
-		zlog.Debug().Msgf("Setting volume %s ownership: UID: '%s', GID: '%s'", targetPath, uid, gid)
-		ownerGroup := fmt.Sprintf("%s:%s", uid, gid)
-		chown := fmt.Sprintf("chown %s %s ", ownerGroup, targetPath)
-		zlog.Debug().Msgf("Run: %s", chown)
-		cmd := exec.Command("bash", "-c", chown)
-		err := cmd.Run()
-		if err != nil {
-			msg := fmt.Sprintf("For mount path %s, failed to execute '%s': %s", targetPath, chown, err)
-			zlog.Error().Msgf(msg)
-			return errors.New(msg)
-		} else {
-			zlog.Debug().Msgf("Set mount point directory ownership for mount point %s to %s", targetPath, ownerGroup)
-		}
-	} else {
-		zlog.Debug().Msgf("Using default ownership for mount point %s", targetPath)
-	}
-	return nil
-}
-
-// ChmodVolume method If unixPermissions key is found in req, chmod recursively for target path ommitting a toplevel .snapshot/.
-func (h Service) ChmodVolume(unixPermissions string, targetPath string) error {
-	return h.ChmodVolumeExec(unixPermissions, targetPath)
-}
-
 // Check that permissions are convertable to a uint32 from a string represending an octal integer.
 func ValidateUnixPermissions(unixPermissions string) (err error) {
 	err = nil
@@ -146,31 +91,6 @@ func ValidateUnixPermissions(unixPermissions string) (err error) {
 		zlog.Debug().Msgf("Unix permissions [%s] is a valid octal value", unixPermissions)
 	}
 	return err
-}
-
-// ChmodVolumeExec method Execute chmod.
-func (h Service) ChmodVolumeExec(unixPermissions string, targetPath string) error {
-	if unixPermissions != "" {
-		if err := ValidateUnixPermissions(unixPermissions); err != nil {
-			return err
-		}
-		zlog.Debug().Msgf("Specified unix permissions: '%s'", unixPermissions)
-		// .snapshot within the mounted volume is readonly. Find will ignore.
-		chmod := fmt.Sprintf("find %s -maxdepth 1 -name '*' -exec chmod --recursive %s '{}' \\;", targetPath, unixPermissions)
-		zlog.Debug().Msgf("Run: %s", chmod)
-		cmd := exec.Command("bash", "-c", chmod)
-		err := cmd.Run()
-		if err != nil {
-			msg := fmt.Sprintf("Failed to execute '%s': error: %s", chmod, err)
-			zlog.Error().Msgf(msg)
-			return errors.New(msg)
-		} else {
-			zlog.Debug().Msgf("Set mount point directory and contents mode bits.")
-		}
-	} else {
-		zlog.Debug().Msgf("Using default mode bits for mount point %s", targetPath)
-	}
-	return nil
 }
 
 /*OsHelper method mock services */
