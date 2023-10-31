@@ -38,7 +38,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # copy test manifests to working dir
 cp $KUBECONFIG $WORKDIR/kubeconfig.yaml
-cp $SCRIPT_DIR/$_E2E_PROTOCOL-tests-to-run $WORKDIR/tests-to-run
+cp $SCRIPT_DIR/ocp-$_E2E_OCP_VERSION-tests-to-run $WORKDIR/tests-to-run
 cp $SCRIPT_DIR/e2e-manifest-$_E2E_PROTOCOL.yaml  $WORKDIR/e2e-manifest.yaml
 envsubst < $SCRIPT_DIR/e2e-storageclass-$_E2E_PROTOCOL.yaml > $WORKDIR/e2e-storageclass-$_E2E_PROTOCOL.yaml
 envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snapshotclass.yaml
