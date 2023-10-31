@@ -30,40 +30,39 @@ removeDomainName: "false"
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html
-  attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:4eb73137b66381b7b5dfd4d21d460f4b4095347ab6ed4626e0199c29d8d021af"  # v4.3.0
+  attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:033c2e5d3a190686c32298e0ae972a79aff903958db204a084c503356e66967d" # v4.4.1
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:csic-567"
+  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.10.0"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
-  provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:d078dc174323407e8cc6f0f9abd4efaac5db27838f1564d0253d5e3233e3f17f"  # v3.5.0
+  provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:91c874488fbca39c6787a19b3e686836c29abcf069304064dba6bb9c9befb6e1" # v3.6.1
   provisionersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/node-driver-registrar.html
-  registrarsidecar: "registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:f6717ce72a2615c7fbc746b4068f788e78579c54c43b8716e5ce650d97af2df1"  # v2.8.0
+  registrarsidecar: "registry.k8s.io/sig-storage/csi-node-driver-registrar@sha256:cd21e19cd8bbd5bc56f1b4f1398a436e7897da2995d6d036c9729be3f4e456e6" # v2.9.0
   registrarsidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/external-resizer.html
-  resizersidecar: "registry.k8s.io/sig-storage/csi-resizer@sha256:2e2b44393539d744a55b9370b346e8ebd95a77573064f3f9a8caf18c22f4d0d0"  # v1.8.0
+  resizersidecar: "registry.k8s.io/sig-storage/csi-resizer@sha256:f1f352df97874442624fcef23eab04aa038f66cb0e361212f6ec09e92998184d" # v1.9.0
   resizersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/external-snapshotter.html
-  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:714aa06ccdd3781f1a76487e2dc7592ece9a12ae9e0b726e4f93d1639129b771" # v6.2.1
+  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:65c5ffde8fe6f68a2f19310cfd789befe7bdd16eedda219d9a0024f8fc68b802" # v6.3.1
   snapshottersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/livenessprobe.html
-  livenesssidecar: "registry.k8s.io/sig-storage/livenessprobe@sha256:406f59599991916d2942d8d02f076d957ed71b541ee19f09fc01723a6e6f5932" # v2.6.0
+  livenesssidecar: "registry.k8s.io/sig-storage/livenessprobe@sha256:82adbebdf5d5a1f40f246aef8ddbee7f89dea190652aefe83336008e69f9a89f" # v2.11.0
   livenesssidecar_pull_policy: "IfNotPresent"
 
   #imagePullSecret: "private-docker-reg-secret"
-  
 Infinibox_Cred:
   - SecretName: "infinibox-creds"
-    username: "csitesting"
-    password: "csitestingisfun"
-    hostname: "ibox1521.lab.wt.us.infinidat.com"
+    username: "someiboxusername"
+    password: "someiboxpassword"
+    hostname: "ibox0000"
     inbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout"
     inbound_secret: "0.0000000000000"
     outbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin"
-    outbound_secret: "0.0000000000000"
+    outbound_secret: "0.0000000000001"
