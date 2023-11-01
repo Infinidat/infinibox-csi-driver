@@ -49,7 +49,7 @@ lint:
       - golangci-lint -v --timeout=5m run
 
 unit_test:
-  image: quay.io/projectquay/golang:1.20
+  image: quay.io/projectquay/golang:1.21
   stage: test
   except:
     - tags
@@ -71,7 +71,7 @@ go-build:
   stage: build
   tags:
     - go-build
-  image: quay.io/projectquay/golang:1.20
+  image: quay.io/projectquay/golang:1.21
   script:
   - make build
   artifacts:
@@ -83,7 +83,7 @@ go-metrics-build:
   stage: build
   tags:
     - go-build
-  image: quay.io/projectquay/golang:1.20
+  image: quay.io/projectquay/golang:1.21
   script:
     - make build-metrics
   artifacts:
