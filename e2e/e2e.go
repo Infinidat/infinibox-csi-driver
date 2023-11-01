@@ -45,7 +45,7 @@ func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
 }
 func GetKubeHost() (string, error) {
 	kcenv := os.Getenv("KUBECONFIG")
-	zlog.Info().Msgf("KUBECONFIG is %s\n", kcenv)
+	//zlog.Info().Msgf("KUBECONFIG is %s", kcenv)
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kcenv)
@@ -53,12 +53,12 @@ func GetKubeHost() (string, error) {
 		return "", err
 	}
 
-	zlog.Info().Msgf("host is %s\n", config.Host)
+	//zlog.Info().Msgf("host is %s", config.Host)
 	parts := strings.Split(config.Host, ":")
 	if len(parts) < 2 {
 		return parts[0], nil
 	}
 	s := strings.Trim(parts[1], "/")
-	zlog.Info().Msgf("host is %s\n", s)
+	//zlog.Info().Msgf("host is %s", s)
 	return s, nil
 }
