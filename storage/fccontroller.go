@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -383,6 +384,14 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		return nil, errors.New("node ID not found")
 	}
 	hostName := nodeNameIP[0]
+
+	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
+	if removeDomainName != "" && removeDomainName == "true" {
+		shortName := strings.Split(hostName, ".")
+		zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
+		hostName = shortName[0]
+	}
+
 	host, err := fc.cs.Api.GetHostByName(hostName)
 	if err != nil {
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
