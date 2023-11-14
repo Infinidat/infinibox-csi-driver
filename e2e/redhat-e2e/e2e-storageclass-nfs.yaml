@@ -11,6 +11,11 @@ mountOptions: # optional: defaults shown below, be sure to include vers=3 if you
   - tcp
   - rsize=262144
   - wsize=262144
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.csi.infinidat.com/zone
+    values:
+    - "true"
 parameters:
     # reference secret with InfiniBox credentials
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds

@@ -27,10 +27,10 @@ DriverInfo:
     relatime: {}
 
   # Optional list of topology keys that the driver supports
-  # TopologyKeys: ["topology.ebs.csi.aws.com/zone"]
+  TopologyKeys: ["topology.csi.infinidat.com/zone"]
 
   # Optional number of allowed topologies that the driver requires. Only relevenat if TopologyKeys is set
-  #NumAllowedTopologies: 1
+  NumAllowedTopologies: 1
 
   # Map of strings for required mount options
   # RequiredMountOption:
@@ -71,7 +71,7 @@ DriverInfo:
     RWX: true
 
     # Support topology
-    topology: false 
+    topology: true 
 
     # Support populate data from snapshot
     snapshotDataSource: true

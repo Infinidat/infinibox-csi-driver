@@ -7,6 +7,11 @@ reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
 # mountOptions: []
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.csi.infinidat.com/zone
+    values:
+    - "true"
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE

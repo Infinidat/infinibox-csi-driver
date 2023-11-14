@@ -1,48 +1,49 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: e2e-nfs-storageclass
+  name: ibox-nfs-topo
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
-volumeBindingMode: Immediate
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+- matchLabelExpressions:
+  - key: topology.csi.infinidat.com/zone
+    values:
+    - "true"
 allowVolumeExpansion: true
 mountOptions: # optional: defaults shown below, be sure to include vers=3 if you override
   - vers=3
   - tcp
   - rsize=262144
   - wsize=262144
-allowedTopologies:
-- matchLabelExpressions:
-  - key: topology.csi.infinidat.com/zone
-    values:
-    - "true"
 parameters:
     # reference secret with InfiniBox credentials
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
-    csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+    csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
-    csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
+    csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
     csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
-    csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
+    csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
     csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
-    csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
+    csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
-    csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
+    csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
 
     # InfiniBox configuration
     storage_protocol: nfs
-    network_space: $_E2E_NETWORK_SPACE # InfiniBox network space name
-    pool_name: $_E2E_POOL # InfiniBox pool name
+    network_space: NAS # InfiniBox network space name
+    pool_name: csitesting # InfiniBox pool name
     provision_type: THIN
     ssd_enabled: "true"
 
     # optional parameters
     # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
-    # uid: "1000"               # optional: override default UID for filesystem mount 
-    # gid: "1000"               # optional: override default GID for filesystem mount
+    uid: "3000"               # optional: override default UID for filesystem mount 
+    gid: "3000"               # optional: override default GID for filesystem mount
     # unix_permissions: "777"   # optional: override default permissions for filesystem mount
     # privileged_ports_only: no # optional: force use of  privileged ports only
     # 
     # nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
-    # nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example
+    # for RWX to work with NFS, you have to have a wildcard export rule or else you will get stale mounts
+    nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example

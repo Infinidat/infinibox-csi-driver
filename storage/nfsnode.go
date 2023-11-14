@@ -140,12 +140,23 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 }
 
 func (nfs *nfsstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	// should never be called
-	return nil, status.Error(codes.Unimplemented, "nfs NodeGetCapabilities not implemented")
+	nodeCaps := []csi.NodeServiceCapability_RPC_Type{}
+	var caps []*csi.NodeServiceCapability
+	for _, cap := range nodeCaps {
+		c := &csi.NodeServiceCapability{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: cap,
+				},
+			},
+		}
+		caps = append(caps, c)
+	}
+	return &csi.NodeGetCapabilitiesResponse{Capabilities: caps}, nil
+
 }
 
 func (nfs *nfsstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	// should never be called
 	return nil, status.Error(codes.Unimplemented, "nfs NodeGetInfo not implemented")
 }
 

@@ -176,9 +176,15 @@ func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 	zlog.Debug().Msgf("NodeGetInfo Requested - Node: %s", s.Driver.nodeID)
 
 	nodeFQDN := getNodeFQDN()
+	topo := &csi.Topology{
+		Segments: map[string]string{
+			"topology.csi.infinidat.com/zone": "true",
+		},
+	}
 	k8sNodeID := nodeFQDN + "$$" + s.Driver.nodeID
 	return &csi.NodeGetInfoResponse{
-		NodeId: k8sNodeID,
+		NodeId:             k8sNodeID,
+		AccessibleTopology: topo,
 	}, nil
 }
 
