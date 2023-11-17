@@ -37,7 +37,9 @@ stages:
 - release
 
 lint:
-    image: golangci/golangci-lint:latest
+    image:
+      name: golangci/golangci-lint:v1.53.3
+      pull_policy: if-not-present
     stage: lint
     tags:
       - go-test
@@ -49,7 +51,9 @@ lint:
       - golangci-lint -v --timeout=5m run
 
 unit_test:
-  image: quay.io/projectquay/golang:1.21
+  image:
+    name: quay.io/projectquay/golang:1.21
+    pull_policy: if-not-present
   stage: test
   except:
     - tags
@@ -71,7 +75,9 @@ go-build:
   stage: build
   tags:
     - go-build
-  image: quay.io/projectquay/golang:1.21
+  image:
+    name: quay.io/projectquay/golang:1.21
+    pull_policy: if-not-present
   script:
   - make build
   artifacts:
@@ -83,7 +89,9 @@ go-metrics-build:
   stage: build
   tags:
     - go-build
-  image: quay.io/projectquay/golang:1.21
+  image:
+    name: quay.io/projectquay/golang:1.21
+    pull_policy: if-not-present
   script:
     - make build-metrics
   artifacts:
@@ -96,7 +104,9 @@ build-image:
   stage: docker_build
   tags:
     - docker-build
-  image: docker:20.10.16
+  image:
+    name: docker:20.10.16
+    pull_policy: if-not-present
   services:
     - name: docker:20.10.16-dind
       alias: dockerhost
@@ -122,7 +132,9 @@ build-metrics-image:
   stage: docker_build
   tags:
     - docker-build
-  image: docker:20.10.16
+  image:
+    name: docker:20.10.16
+    pull_policy: if-not-present
   services:
     - name: docker:20.10.16-dind
       alias: dockerhost
@@ -151,7 +163,9 @@ test-merge-image-build:
     - docker-build
   only:
     - merge_request
-  image: docker:20.10.16
+  image:
+    name: docker:20.10.16
+    pull_policy: if-not-present
   services:
     - name: docker:20.10.16-dind
       alias: dockerhost
