@@ -15,6 +15,7 @@ parameters:
     network_space: NAS
     provision_type: THIN
     storage_protocol: nfs
+    fstype: ext4        # fstype required when fsGroup is in pod spec
     ssd_enabled: "true"
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
@@ -29,6 +30,7 @@ parameters:
     # optional parameters
     uid: "3000"
     gid: "3000"
+    unix_permissions: "777"
     # the following parameters can be used to override ibox limits
     # max_filesystems: "999"
     # max_treeqs_per_filesystem: "20"

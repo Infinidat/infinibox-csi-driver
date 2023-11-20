@@ -4,6 +4,7 @@ package nfs
 
 import (
 	"infinibox-csi-driver/e2e"
+	"strconv"
 	"testing"
 
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
@@ -31,7 +32,7 @@ func TestNfs(t *testing.T) {
 
 	// create a unique namespace to perform the test within
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
@@ -60,8 +61,63 @@ func TestNfs(t *testing.T) {
 	}
 }
 
-func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient)
+func TestNfsFsGroup(t *testing.T) {
+
+	e2e.GetFlags(t)
+
+	//connect to kube
+	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+
+	if err != nil {
+		t.Fatalf("error creating clients %s\n", err.Error())
+	}
+
+	if clientSet == nil {
+		t.Fatalf("error creating k8s client")
+	}
+
+	config := e2e.GetRestConfig(*e2e.KubeConfigPath)
+
+	if config == nil {
+		t.Fatalf("error getting rest config")
+	}
+
+	// create a unique namespace to perform the test within
+
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, true)
+
+	t.Logf("testing in namespace %+v\n", testNames)
+	// run the test
+
+	expectedValue := "drwxrwsr-x"
+	winning, actual := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+
+	if winning {
+		t.Log("FSGroupDirPermsCorrect PASSED")
+	} else {
+		t.Errorf("FSGroupDirPermsCorrect FAILED, expected: %s but got %s", expectedValue, actual)
+	}
+
+	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
+	winning, actual = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+
+	if winning {
+		t.Log("FSGroupIdIsUsed PASSED")
+	} else {
+		t.Errorf("FsGroupIdIsUsed FAILED, expected: %s but got %s", expectedValue, actual)
+	}
+
+	// exec into pod, make sure directory permissions are set properly.
+
+	if *e2e.CleanUp {
+		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+}
+
+func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"k8s.io/client-go/rest"
 	"math/rand"
 	"os"
 	"strconv"
@@ -20,13 +21,12 @@ import (
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
 
+	snapshotapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
+	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	snapshotapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
-	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -53,6 +53,8 @@ const (
 	E2E_NAMESPACE         = "e2e-%s-"
 	SC_NAME               = "e2e-%s-"
 	DRIVER_NAMESPACE      = "infinidat-csi"
+	MOUNT_PATH            = "/tmp/csitesting"
+	POD_FS_GROUP          = 2000
 )
 
 type TestResourceNames struct {
@@ -84,6 +86,14 @@ func GetKubeClient(kubeConfigPath string) (*kubernetes.Clientset, *dynamic.Dynam
 	}
 
 	return clientset, dynamicClient, snapshotClient, nil
+}
+
+func GetRestConfig(kubeConfigPath string) *rest.Config {
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	if err != nil {
+		return nil
+	}
+	return config
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyz")
@@ -141,6 +151,8 @@ func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubern
 	return nil
 }
 
+//***************** Storage Class ***************** //
+
 func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientSet *kubernetes.Clientset) (scName string, err error) {
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
@@ -181,7 +193,7 @@ func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.C
 			Namespace: ns,
 		},
 		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteMany},
+			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 			Resources:        requirements,
 			StorageClassName: &scName,
 		},
@@ -355,15 +367,16 @@ func GetFlags(t *testing.T) {
 	}
 }
 
-func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset) (err error) {
+func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGroupSpecified bool) (err error) {
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	createOptions := metav1.CreateOptions{}
+	podFSGroup := int64(POD_FS_GROUP)
 
 	m := metav1.ObjectMeta{
 		Name: POD_NAME,
 	}
 	volumeMounts := v1.VolumeMount{
-		MountPath: "/tmp/csitesting",
+		MountPath: MOUNT_PATH,
 		Name:      "ibox-csi-volume",
 	}
 	//noPriv := true
@@ -394,24 +407,96 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset) (err
 			},
 		},
 	}
-	pod := &v1.Pod{
-		ObjectMeta: m,
-		Spec: v1.PodSpec{
-			ImagePullSecrets: []v1.LocalObjectReference{
-				{
-					Name: IMAGE_PULL_SECRET,
+
+	var pod v1.Pod
+
+	if fsGroupSpecified {
+		pod = v1.Pod{
+			ObjectMeta: m,
+			Spec: v1.PodSpec{
+				ImagePullSecrets: []v1.LocalObjectReference{
+					{
+						Name: IMAGE_PULL_SECRET,
+					},
+				},
+				Containers: []v1.Container{container},
+				Volumes:    []v1.Volume{volume},
+				SecurityContext: &v1.PodSecurityContext{
+					FSGroup: &podFSGroup,
 				},
 			},
-			Containers: []v1.Container{container},
-			Volumes:    []v1.Volume{volume},
-		},
+		}
+	} else {
+
+		pod = v1.Pod{
+			ObjectMeta: m,
+			Spec: v1.PodSpec{
+				ImagePullSecrets: []v1.LocalObjectReference{
+					{
+						Name: IMAGE_PULL_SECRET,
+					},
+				},
+				Containers: []v1.Container{container},
+				Volumes:    []v1.Volume{volume},
+			},
+		}
 	}
-	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), pod, createOptions)
+	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), &pod, createOptions)
 	if err != nil {
 		return err
 	}
 	return nil
 }
+
+//func CreateFsGroupPod(protocol string, ns string, clientset *kubernetes.Clientset) (err error) {
+//	pvcName := fmt.Sprintf(PVC_NAME, protocol)
+//	createOptions := metav1.CreateOptions{}
+//	podFSGroup := int64(3000)
+//
+//	m := metav1.ObjectMeta{
+//		Name: POD_NAME,
+//	}
+//	volumeMounts := v1.VolumeMount{
+//		MountPath: "/tmp/csitesting",
+//		Name:      "ibox-csi-volume",
+//	}
+//	//noPriv := true
+//	container := v1.Container{
+//		Name:            "e2e-test",
+//		Image:           "infinidat/csitestimage:latest",
+//		ImagePullPolicy: v1.PullAlways,
+//		VolumeMounts:    []v1.VolumeMount{volumeMounts},
+//	}
+//
+//	volume := v1.Volume{
+//		Name: "ibox-csi-volume",
+//		VolumeSource: v1.VolumeSource{
+//			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+//				ClaimName: pvcName,
+//			},
+//		},
+//	}
+//	pod := &v1.Pod{
+//		ObjectMeta: m,
+//		Spec: v1.PodSpec{
+//			ImagePullSecrets: []v1.LocalObjectReference{
+//				{
+//					Name: IMAGE_PULL_SECRET,
+//				},
+//			},
+//			Containers: []v1.Container{container},
+//			Volumes:    []v1.Volume{volume},
+//			SecurityContext: &v1.PodSecurityContext{
+//				FSGroup: &podFSGroup,
+//			},
+//		},
+//	}
+//	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), pod, createOptions)
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 func CreateSnapshot(pvcName string, volumeSnapshotClassName string, ns string, clientSet *snapshotv6.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
@@ -465,7 +550,7 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	return nil
 }
 
-func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset) (testNames TestResourceNames) {
+func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool) (testNames TestResourceNames) {
 
 	t.Log("SETUP STARTS")
 	var err error
@@ -507,7 +592,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreatePod(protocol, testNames.NSName, client)
+	err = CreatePod(protocol, testNames.NSName, client, useFsGroup)
 	if err != nil {
 		t.Fatalf("error creating test pod %s", err.Error())
 	}
