@@ -210,12 +210,9 @@ docker-rmi-dangling:  ## Remove docker images that are dangling to recover disk 
 .PHONY: docker-push-host-opensource
 docker-push-host-opensource:  ## Push CSI driver images to host-opensource.
 	@echo -e $(_begin)
-	docker tag git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver/infinidat-csi-driver-controller:$(_IMAGE_TAG) \
-		git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-controller:$(_IMAGE_TAG)
-	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-controller:$(_IMAGE_TAG)
-	docker tag git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver/infinidat-csi-driver-node:$(_IMAGE_TAG) \
-		git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-node:$(_IMAGE_TAG)
-	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver-node:$(_IMAGE_TAG)
+	docker tag git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG) \
+		git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG)
+	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG)
 	@echo -e $(_finish)
 
 .PHONY: docker-push-dockerhub

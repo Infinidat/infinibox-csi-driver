@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-dnsname-pvc
+  namespace: infinidat-csi
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-dnsname-nfs
+  # volumeName: <<pv name>> #need to uncomment if want to use an existing pv
