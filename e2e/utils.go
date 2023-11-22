@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"k8s.io/client-go/rest"
 	"math/rand"
 	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	"k8s.io/client-go/rest"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -272,7 +273,7 @@ func CreateNamespace(ctx context.Context, prefix string, suffix string, clientse
 func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset) error {
 	pollInterval := 5 * time.Second
 	pollDuration := 4 * time.Minute
-	err := wait.Poll(pollInterval, pollDuration, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
 		t.Logf("waiting for infinidat csi operator pod to show up in namespace %s", ns)
@@ -302,7 +303,7 @@ func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.C
 func WaitForSnapshot(t *testing.T, snapshotName string, ns string, clientset *snapshotv6.Clientset) error {
 	pollInterval := 5 * time.Second
 	pollDuration := 2 * time.Minute
-	err := wait.Poll(pollInterval, pollDuration, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
 		t.Logf("waiting for volumesnapshot to show up in namespace %s", ns)
@@ -657,7 +658,7 @@ func TearDown(t *testing.T, testNames TestResourceNames, client *kubernetes.Clie
 func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset *kubernetes.Clientset) error {
 	pollInterval := 5 * time.Second
 	pollDuration := 4 * time.Minute
-	err := wait.Poll(pollInterval, pollDuration, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
 		t.Logf("waiting for deployment %s to show up in namespace %s", deploymentName, ns)

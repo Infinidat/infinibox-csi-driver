@@ -9,6 +9,7 @@ import (
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -35,7 +36,7 @@ func SetupControllerClient() (pb.ControllerClient, error) {
 }
 
 func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(grpcAddress, grpc.WithInsecure())
+	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
