@@ -353,9 +353,26 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		return nil, err
 	}
 
-	// TODO: implement a mechanism for detecting unused iscsi sessions/targets
-	// we can't just logout and delete targets because their sessions are shared by multiple volumes,
-	// thus we just leave them dangling for now
+	// logout all iscsid sessions if there are zero devices, this stops iscid from
+	// maintaining tcp connections to the ibox when there are zero devices
+
+	// start by waiting a small amount of time to avoid a race condition with multipathd as
+	// it takes it a bit to actually remove any devices we are checking against
+	time.Sleep(time.Second * 3)
+
+	deviceCount, err := getMultipathDeviceCount()
+	if err != nil {
+		zlog.Error().Msgf("error getting multipath devices %s", err.Error())
+	} else {
+		zlog.Debug().Msgf("multipath device count %d", deviceCount)
+		if deviceCount == 0 {
+			zlog.Debug().Msg("zero multipath devices - performing iscsi all sessions logout")
+			err = logoutAllSessions()
+			if err != nil {
+				zlog.Error().Msgf("iscsi logoutall error %s", err.Error())
+			}
+		}
+	}
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -1290,4 +1307,32 @@ func stringToLines(s string) (lines []string, err error) {
 	}
 	err = scanner.Err()
 	return
+}
+
+func getMultipathDeviceCount() (deviceCount int, err error) {
+	command := "multipath -ll -v 1"
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+
+	var out []byte
+	out, err = exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	if err != nil {
+		e := fmt.Errorf("multipath command error: %s", err)
+		return deviceCount, e
+	}
+	devices := strings.Fields(string(out))
+	zlog.Debug().Msgf("multipath output %s", string(out))
+	return len(devices), nil
+}
+
+func logoutAllSessions() (err error) {
+	command := "iscsiadm --mode node --logoutall=all"
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+
+	var out []byte
+	out, err = exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	if err != nil {
+		return err
+	}
+	zlog.Debug().Msgf("isciadm logoutall output %s", string(out))
+	return nil
 }
