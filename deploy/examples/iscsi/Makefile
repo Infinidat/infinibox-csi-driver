@@ -70,3 +70,35 @@ teardown-snapshot:  ## Remove snapshot resources
 	$(_cli) delete --wait --ignore-not-found=true -f ./snapshot.yaml
 	@echo -e $(_finish)
 
+.PHONY: setup-block
+setup-block:  teardown-block ## Deploy iscsi objects
+	@echo -e $(_begin)
+	$(_clinn) create -f ./storageclass.yaml
+	$(_cli) create -f ./pvc-block.yaml
+	$(_cli) create -f ./app-block.yaml
+	@echo -e $(_finish)
+
+.PHONY: teardown-block
+teardown-block:  ## Remove resources from setup-iscsi
+	@echo -e $(_begin)
+	$(_cli) delete --wait --ignore-not-found=true -f ./app-block.yaml
+	$(_cli) delete --wait --ignore-not-found=true -f ./pvc-block.yaml
+	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	@echo -e $(_finish)
+
+.PHONY: setup-block-clone
+setup-block-clone:  teardown-block-clone ## Deploy iscsi objects
+	@echo -e $(_begin)
+	$(_clinn) create -f ./storageclass.yaml
+	$(_cli) create -f ./pvc-block-clone.yaml
+	$(_cli) create -f ./app-block-clone.yaml
+	@echo -e $(_finish)
+
+.PHONY: teardown-block-clone
+teardown-block-clone:  ## Remove resources from setup-iscsi
+	@echo -e $(_begin)
+	$(_cli) delete --wait --ignore-not-found=true -f ./app-block-clone.yaml
+	$(_cli) delete --wait --ignore-not-found=true -f ./pvc-block-clone.yaml
+	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	@echo -e $(_finish)
+

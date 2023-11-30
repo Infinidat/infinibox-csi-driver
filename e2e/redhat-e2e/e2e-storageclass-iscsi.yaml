@@ -32,5 +32,6 @@ parameters:
   ssd_enabled: "false"
   storage_protocol: "iscsi"
   useCHAP: "none" # none / chap / mutual_chap
+  # unix_permissions: "777"
   # uid: 1000 # UID of volume
   # unix_permissions: 777 # chmod -R of volume

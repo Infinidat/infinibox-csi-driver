@@ -112,3 +112,11 @@ csitestimage:  ## build the e2e test image
 	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimage:latest -f $(_LOCALDIR)/e2e/csitestimage/Dockerfile .
 	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimage:latest 
 	@echo -e $(_finish)
+
+.PHONY: csitestimageblock
+csitestimageblock:  ## build the e2e test image for testing block volumes
+	@echo -e $(_begin)
+	go build $(_LOCALDIR)/e2e/csitestimageblock/csitestimageblock.go
+	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimageblock:latest -f $(_LOCALDIR)/e2e/csitestimageblock/Dockerfile .
+	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimageblock:latest 
+	@echo -e $(_finish)
