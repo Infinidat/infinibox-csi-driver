@@ -44,7 +44,7 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 #	--ginkgo.skip="Disruptive" \
 #	--ginkgo.skip="ephemeral" \
 ./e2e.test -ginkgo.focus='External.Storage.*infinibox-csi-driver' \
-	-ginkgo.progress \
+	-ginkgo.no-color \
 	--ginkgo.skip="disruptive" \
 	--ginkgo.skip="Disruptive" \
 	--ginkgo.skip="ephemeral" \
