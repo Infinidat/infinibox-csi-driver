@@ -124,7 +124,7 @@ build-linux:  ## Cross compile CSI driver for Linux
 
 ##@ Docker
 .PHONY: image
-image: build lint test  ## Build and tag CSI driver docker image.
+image: build lint test ## Build and tag CSI driver docker image.
 	@echo -e $(_begin)
 	@echo "Pulling base image $(_DOCKER_BASE_IMAGE)"
 	@docker pull $(_DOCKER_BASE_IMAGE)

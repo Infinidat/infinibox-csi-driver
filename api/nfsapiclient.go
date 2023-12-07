@@ -50,7 +50,7 @@ func (c *ClientService) OneTimeValidation(poolname string, networkspace string) 
 		return validList, nil
 	}
 
-	return validList, errors.New("provide valid network spaces")
+	return validList, fmt.Errorf("network space %s is not found on the ibox", networkspace)
 }
 
 // DeleteExportPath :

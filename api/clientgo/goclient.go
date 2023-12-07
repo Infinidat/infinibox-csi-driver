@@ -175,3 +175,12 @@ func (kc *kubeclient) GetClusterVerion() (string, error) {
 	}
 	return info.GitVersion, nil
 }
+
+func (kc *kubeclient) GetPVCs(namespace string) (pvcList *v1.PersistentVolumeClaimList, err error) {
+	pvcList, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		zlog.Error().Msgf("Error Getting PVCs Error: %v ", err)
+		return nil, err
+	}
+	return pvcList, nil
+}

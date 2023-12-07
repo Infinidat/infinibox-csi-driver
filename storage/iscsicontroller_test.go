@@ -40,6 +40,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail() {
 	var parameterMap map[string]string
 	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
 }
@@ -50,6 +51,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail2() {
 	delete(parameterMap, common.SC_USE_CHAP)
 	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
 }
@@ -60,8 +62,10 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_GetName_fail() {
 	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume GetVolumeByName")
 }
@@ -76,6 +80,8 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_fail() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume")
@@ -92,6 +98,8 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(getVolume(), nil)
 	// suite.api.On("FindStoragePool", mock.Anything,mock.Anything).Return(getStoragePool(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 
@@ -110,8 +118,10 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_metadataError() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(getVolume(), nil)
 	// suite.api.On("FindStoragePool", mock.Anything,mock.Anything).Return(getStoragePool(), nil)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume attach metadata")
@@ -200,6 +210,8 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateVolume success")
@@ -216,8 +228,10 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_AttachMetadataToObj
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume attach metadata")
 }

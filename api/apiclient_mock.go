@@ -145,6 +145,14 @@ func (m *MockApiService) GetExportByFileSystem(fileSystemID int64) (*[]ExportRes
 	return &resp, err
 }
 
+// GetPVCAnnotations
+func (m *MockApiService) GetPVCAnnotations(volumeName string) (map[string]string, error) {
+	args := m.Called(volumeName)
+	resp, _ := args.Get(0).(map[string]string)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
 // DeleteExportPath
 func (m *MockApiService) DeleteExportPath(fileSystemID int64) (*ExportResponse, error) {
 	args := m.Called(fileSystemID)

@@ -27,6 +27,24 @@ import (
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	zlog.Debug().Msgf("CreateVolume called pvName %s parameters %v", req.GetName(), req.GetParameters())
 
+	params := req.GetParameters()
+	annotations, err := treeq.nfsstorage.cs.Api.GetPVCAnnotations(req.Name)
+	if err != nil {
+		zlog.Err(err)
+		return nil, err
+	}
+	zlog.Debug().Msgf(" csi pvc annotations %+v", annotations)
+	poolNameToUse := annotations[common.PVC_ANNOTATION_POOL_NAME]
+	if poolNameToUse != "" {
+		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", poolNameToUse)
+		params[common.SC_POOL_NAME] = poolNameToUse //overwrite what was in the storageclass if any
+	}
+	networkSpaceToUse := annotations[common.PVC_ANNOTATION_NETWORK_SPACE]
+	if networkSpaceToUse != "" {
+		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", networkSpaceToUse)
+		params[common.SC_NETWORK_SPACE] = networkSpaceToUse //overwrite what was in the storageclass if any
+	}
+
 	capacity, err := nfsSanityCheck(req, map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
@@ -34,29 +52,28 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
 		common.SC_MAX_TREEQS_PER_FILESYSTEM: `\A\d+\z`,
 		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
-	}, treeq.nfsstorage.cs.Api)
+	}, params, treeq.nfsstorage.cs.Api)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
 
-	storageClassParameters := req.GetParameters()
-	treeq.nfsstorage.storageClassParameters = storageClassParameters
-	treeqVolumeContext, err := treeq.treeqService.IsTreeqAlreadyExist(storageClassParameters[common.SC_POOL_NAME], strings.Trim(storageClassParameters[common.SC_NETWORK_SPACE], ""), req.GetName())
+	treeq.nfsstorage.storageClassParameters = params
+	treeqVolumeContext, err := treeq.treeqService.IsTreeqAlreadyExist(params[common.SC_POOL_NAME], strings.Trim(params[common.SC_NETWORK_SPACE], ""), req.GetName())
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
 	if len(treeqVolumeContext) == 0 {
-		treeqVolumeContext, err = treeq.treeqService.CreateTreeqVolume(storageClassParameters, capacity, req.GetName())
+		treeqVolumeContext, err = treeq.treeqService.CreateTreeqVolume(params, capacity, req.GetName())
 		if err != nil {
 			zlog.Err(err)
 			return nil, err
 		}
 	}
 
-	treeqVolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = storageClassParameters[common.SC_NFS_EXPORT_PERMISSIONS]
-	treeqVolumeContext[common.SC_STORAGE_PROTOCOL] = storageClassParameters[common.SC_STORAGE_PROTOCOL]
+	treeqVolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = params[common.SC_NFS_EXPORT_PERMISSIONS]
+	treeqVolumeContext[common.SC_STORAGE_PROTOCOL] = params[common.SC_STORAGE_PROTOCOL]
 
 	volumeID := treeqVolumeContext["ID"] + "#" + treeqVolumeContext["TREEQID"]
 	zlog.Debug().Msgf("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeContext, volumeID)

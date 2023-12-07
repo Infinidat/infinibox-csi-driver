@@ -291,6 +291,12 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 		}
 	}
 
+	_, err := api.OneTimeValidation(providedStorageClassParams[common.SC_POOL_NAME], providedStorageClassParams[common.SC_NETWORK_SPACE])
+	if err != nil {
+		zlog.Err(err)
+		return err
+	}
+
 	return nil
 }
 
@@ -714,10 +720,9 @@ func logPermissions(note, hostTargetPath string) {
 	zlog.Debug().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
 }
 
-func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, optionalParams map[string]string, api api.Client) (capacity int64, err error) {
-	params := req.GetParameters()
+func nfsSanityCheck(req *csi.CreateVolumeRequest, requiredParams map[string]string, optionalParams map[string]string, suppliedParams map[string]string, api api.Client) (capacity int64, err error) {
 
-	err = validateStorageClassParameters(scParams, optionalParams, params, api)
+	err = validateStorageClassParameters(requiredParams, optionalParams, suppliedParams, api)
 	if err != nil {
 		zlog.Err(err)
 		return capacity, status.Error(codes.InvalidArgument, err.Error())
@@ -729,7 +734,7 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 		zlog.Warn().Msgf("volume Minimum capacity should be greater 1 GB")
 	}
 
-	useChap := params[common.SC_USE_CHAP]
+	useChap := suppliedParams[common.SC_USE_CHAP]
 	if useChap != "" {
 		zlog.Warn().Msgf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
 	}
@@ -737,7 +742,7 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, scParams map[string]string, op
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
+			e := fmt.Errorf("block access requested for %s PV %s", suppliedParams[common.SC_STORAGE_PROTOCOL], req.GetName())
 			zlog.Err(e)
 			return capacity, status.Error(codes.InvalidArgument, e.Error())
 		}

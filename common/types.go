@@ -55,3 +55,9 @@ const (
 )
 
 const LOCK_EXPIRES_AT_PARAMETER = "lock_expires_at"
+
+// PVC annotations
+const (
+	PVC_ANNOTATION_POOL_NAME     = "infinidat.com/pool_name"
+	PVC_ANNOTATION_NETWORK_SPACE = "infinidat.com/network_space"
+)

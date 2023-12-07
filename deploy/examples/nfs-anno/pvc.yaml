@@ -1,13 +1,16 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nfs-pvc-topo
+  name: nfs-pvc-anno
   namespace: infinidat-csi
+  annotations:
+    infinidat.com/pool_name: csitesting
+    infinidat.com/network_space: NAS
 spec:
   accessModes:
-  - ReadWriteMany
+  - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-nfs-topo
+  storageClassName: ibox-nfs-anno
   # volumeName: <<pv name>> #need to uncomment if want to use an existing pv

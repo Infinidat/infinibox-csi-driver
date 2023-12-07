@@ -67,6 +67,8 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	networkSpace := getTreeQTestNetworkSpace()
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, expectedErr)
 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
@@ -84,6 +86,8 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	}
 	networkSpace := getTreeQTestNetworkSpace()
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)

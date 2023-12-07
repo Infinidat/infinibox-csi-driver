@@ -1,0 +1,10 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: iscsi-snapshot-anno
+  namespace: infinidat-csi
+spec:
+  volumeSnapshotClassName: ibox-snapshotclass
+  source:
+    persistentVolumeClaimName: iscsi-pvc-anno
+

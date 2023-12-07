@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: iscsi-pvc-clone-anno
+    namespace: infinidat-csi
+    annotations:
+      # the following annotations have to match those in pvc.yaml
+      infinidat.com/network_space: iSCSI
+      infinidat.com/pool_name: csitesting
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ibox-iscsi-anno
+  resources:
+    requests:
+      storage: 1Gi
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: iscsi-pvc-anno

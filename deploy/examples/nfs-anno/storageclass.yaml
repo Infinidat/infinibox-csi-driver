@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ibox-nfs-topo
+  name: ibox-nfs-anno
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer

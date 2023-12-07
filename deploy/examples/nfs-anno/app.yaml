@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nfs-topo
+  name: nfs-anno
   namespace: infinidat-csi
 spec:
   containers:
@@ -15,4 +15,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: nfs-pvc-topo
+        claimName: nfs-pvc-anno

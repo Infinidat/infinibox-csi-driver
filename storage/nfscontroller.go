@@ -64,23 +64,41 @@ const (
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	zlog.Trace().Msgf("nfstorage.CreateVolume")
 	var err error
-	// Adding the the request parameter into Map config
-	config := req.GetParameters()
+	// Adding the the request parameter into Map params
+	params := req.GetParameters()
 	pvName := req.GetName()
 
-	zlog.Debug().Msgf(" csi request parameters %v", config)
+	zlog.Debug().Msgf(" csi request %v", req)
+	zlog.Debug().Msgf(" csi request parameters %v", params)
+	zlog.Debug().Msgf(" csi volume caps %+v", req.VolumeCapabilities)
+	zlog.Debug().Msgf(" csi request name %s", req.Name)
+	annotations, err := nfs.cs.Api.GetPVCAnnotations(req.Name)
+	if err != nil {
+		zlog.Err(err)
+		return nil, err
+	}
+	zlog.Debug().Msgf(" csi pvc annotations %+v", annotations)
+	if annotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
+		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", annotations[common.PVC_ANNOTATION_POOL_NAME])
+		params[common.SC_POOL_NAME] = annotations[common.PVC_ANNOTATION_POOL_NAME] //overwrite what was in the storageclass if any
+	}
 
-	capacity, err := nfsSanityCheck(req, map[string]string{
+	if annotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
+		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", annotations[common.PVC_ANNOTATION_NETWORK_SPACE])
+		params[common.SC_NETWORK_SPACE] = annotations[common.PVC_ANNOTATION_NETWORK_SPACE] //overwrite what was in the storageclass if any
+	}
+	var capacity int64
+	capacity, err = nfsSanityCheck(req, map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, nil, nfs.cs.Api)
+	}, nil, params, nfs.cs.Api)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
 
 	usePrivilegedPorts := false
-	usePrivilegedPortsString := config[common.SC_PRIV_PORTS]
+	usePrivilegedPortsString := params[common.SC_PRIV_PORTS]
 	if usePrivilegedPortsString != "" {
 		usePrivilegedPorts, err = strconv.ParseBool(usePrivilegedPortsString)
 		if err != nil {
@@ -92,7 +110,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	zlog.Debug().Msgf("Using privileged ports only: %t", usePrivilegedPorts)
 
 	snapdirVisible := false
-	snapdirVisibleString := config[common.SC_SNAPDIR_VISIBLE]
+	snapdirVisibleString := params[common.SC_SNAPDIR_VISIBLE]
 	if snapdirVisibleString != "" {
 		snapdirVisible, err = strconv.ParseBool(snapdirVisibleString)
 		if err != nil {
@@ -104,12 +122,12 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	zlog.Debug().Msgf("Snapshot directory is visible: %t", snapdirVisible)
 
 	nfs.pVName = pvName
-	nfs.storageClassParameters = config
+	nfs.storageClassParameters = params
 	nfs.capacity = capacity
 	nfs.usePrivilegedPorts = usePrivilegedPorts
 	nfs.snapdirVisible = snapdirVisible
 	nfs.exportPath = "/" + pvName
-	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(config[common.SC_NETWORK_SPACE], " "))
+	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(params[common.SC_NETWORK_SPACE], " "))
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -157,14 +175,14 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	if contentSource != nil {
 		if contentSource.GetSnapshot() != nil {
 			snapshot := req.GetVolumeContentSource().GetSnapshot()
-			csiResp, err = nfs.createVolumeFromPVCSource(req, capacity, config[common.SC_POOL_NAME], snapshot.GetSnapshotId())
+			csiResp, err = nfs.createVolumeFromPVCSource(req, capacity, params[common.SC_POOL_NAME], snapshot.GetSnapshotId())
 			if err != nil {
 				zlog.Error().Msgf("failed to create volume from snapshot with error: %v", err)
 				return nil, err
 			}
 		} else if contentSource.GetVolume() != nil {
 			volume := req.GetVolumeContentSource().GetVolume()
-			csiResp, err = nfs.createVolumeFromPVCSource(req, capacity, config[common.SC_POOL_NAME], volume.GetVolumeId())
+			csiResp, err = nfs.createVolumeFromPVCSource(req, capacity, params[common.SC_POOL_NAME], volume.GetVolumeId())
 			if err != nil {
 				zlog.Error().Msgf("failed to create volume from pvc with error: %v", err)
 				return nil, err

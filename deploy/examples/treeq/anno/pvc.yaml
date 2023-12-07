@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: treeq-pvc-anno
+  namespace: infinidat-csi
+  annotations:
+    infinidat.com/pool_name: csitesting
+    infinidat.com/network_space: NAS
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-treeq-anno

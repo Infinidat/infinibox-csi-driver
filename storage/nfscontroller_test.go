@@ -40,6 +40,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_parameterValidation_Fail() {
 	delete(parameterMap, common.SC_POOL_NAME)
 
 	networkSpaceErr := errors.New("Some error")
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, networkSpaceErr)
 	// suite.api.On("validateProtocolToNetworkSpace", mock.Anything).Return(nil)
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
@@ -54,6 +55,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_NetworkSpaceIP_Error() {
 
 	networkSpaceErr := errors.New("Some error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nil, networkSpaceErr)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: get IP address from networkspace")
@@ -65,6 +67,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	filesystemErr := errors.New("some error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(&api.FileSystem{}, filesystemErr)
 	suite.api.On("GetStoragePoolIDByName", parameterMap[common.SC_POOL_NAME]).Return(100, nil)
@@ -85,7 +88,10 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportError() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(1, nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(getFileSystem(), nil)
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(nil, expectedError)
 
@@ -114,6 +120,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_sucess() {
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(getFileSystem(), nil)
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(getExportPath(), nil)
@@ -129,6 +137,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("Some error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", expectedError)
@@ -143,6 +152,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("failed to create volume Some error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
@@ -159,6 +169,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("failed to create volume Some error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
@@ -176,6 +187,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("failed to create volume Some error")
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("networkspace", nil)
@@ -193,6 +205,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -216,6 +229,9 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID() {
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "a$$nfs"
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(1, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 
@@ -229,6 +245,9 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID2() 
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "a$$nfs$$123"
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(1, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 
@@ -243,6 +262,9 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetFileSystemByID_Er
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 	filesystemErr := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(1, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, filesystemErr)
@@ -257,6 +279,9 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_invalidSize() {
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
+	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(1, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -273,6 +298,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetStoragePoolIDByNa
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 	filesystemErr := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -288,6 +315,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_poolID_name_invalid(
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -305,6 +334,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_faile
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 	filesystemErr := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -323,6 +354,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() 
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 	filesystemErr := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -343,6 +376,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 	filesystemErr := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -364,6 +399,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -383,6 +420,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_Success() {
 	createVolReq := getCreateVolumeCloneRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetVolume().VolumeId = "1$$nfs"
 
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
@@ -403,6 +442,8 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
 	createVolReq.GetVolumeContentSource().GetVolume().VolumeId = "1$$nfs"
 	filesystemErr := errors.New("Some error")
 
+	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetFileSystemByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
