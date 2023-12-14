@@ -1,4 +1,7 @@
 _GITLAB_USER=username
+_IMAGE_TAG = develop
+_E2E_OCP_VERSION = v4.13
+_IMAGE_NAMES = "infinidat-csi-driver infinidat-csi-metrics infinidat-csi-operator"
 
 _TEST_ONE_THING_DIR=storage
 _TEST_ONE_THING=TestISCSIControllerSuite/Test_CreateVolume_content_success
