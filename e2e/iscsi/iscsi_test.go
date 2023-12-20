@@ -30,7 +30,7 @@ func TestIscsi(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 
@@ -77,7 +77,7 @@ func TestIscsiFsGroup(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, true)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, true, false)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 
@@ -122,9 +122,33 @@ func TestIscsiFsGroup(t *testing.T) {
 	}
 
 }
+func TestIscsiBlock(t *testing.T) {
 
-func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup)
+	e2e.GetFlags(t)
+
+	//connect to kube
+	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	if err != nil {
+		t.Fatalf("error creating clients %s\n", err.Error())
+	}
+	if clientSet == nil {
+		t.Fatalf("error creating k8s client")
+	}
+
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, true)
+
+	t.Logf("testing in namespace %+v\n", testNames)
+
+	if *e2e.CleanUp {
+		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+
+func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {

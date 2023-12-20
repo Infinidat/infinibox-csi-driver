@@ -179,7 +179,7 @@ func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientS
 	return sc.Name, nil
 }
 
-func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset) (err error) {
+func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -200,6 +200,10 @@ func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.C
 		},
 	}
 
+	if useBlock {
+		mode := v1.PersistentVolumeBlock
+		pvc.Spec.VolumeMode = &mode
+	}
 	_, err = clientSet.CoreV1().PersistentVolumeClaims(ns).Create(context.TODO(), pvc, metav1.CreateOptions{})
 	if err != nil {
 		return err
@@ -368,7 +372,7 @@ func GetFlags(t *testing.T) {
 	}
 }
 
-func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGroupSpecified bool) (err error) {
+func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGroupSpecified bool, useBlock bool) (err error) {
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	createOptions := metav1.CreateOptions{}
 	podFSGroup := int64(POD_FS_GROUP)
@@ -376,16 +380,30 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 	m := metav1.ObjectMeta{
 		Name: POD_NAME,
 	}
-	volumeMounts := v1.VolumeMount{
-		MountPath: MOUNT_PATH,
-		Name:      "ibox-csi-volume",
-	}
+	volumeMounts := make([]v1.VolumeMount, 0)
+	volumeDevices := make([]v1.VolumeDevice, 0)
 	//noPriv := true
+	image := "infinidat/csitestimage:latest"
+	if useBlock {
+		image = "infinidat/csitestimageblock:latest"
+		device := v1.VolumeDevice{
+			Name:       "ibox-csi-volume",
+			DevicePath: "/dev/xvda",
+		}
+		volumeDevices = append(volumeDevices, device)
+	} else {
+		volumeMount := v1.VolumeMount{
+			MountPath: MOUNT_PATH,
+			Name:      "ibox-csi-volume",
+		}
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
 	container := v1.Container{
 		Name:            "e2e-test",
-		Image:           "infinidat/csitestimage:latest",
+		Image:           image,
 		ImagePullPolicy: v1.PullAlways,
-		VolumeMounts:    []v1.VolumeMount{volumeMounts},
+		VolumeMounts:    volumeMounts,
+		VolumeDevices:   volumeDevices,
 		/**
 		SecurityContext: &v1.SecurityContext{
 			Privileged:               &noPriv,
@@ -442,6 +460,7 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 			},
 		}
 	}
+
 	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), &pod, createOptions)
 	if err != nil {
 		return err
@@ -551,7 +570,7 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	return nil
 }
 
-func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool) (testNames TestResourceNames) {
+func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool) (testNames TestResourceNames) {
 
 	t.Log("SETUP STARTS")
 	var err error
@@ -577,7 +596,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	testNames.PVCName = pvcName
-	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client)
+	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock)
 	if err != nil {
 		t.Fatalf("error creating PVC %s\n", err.Error())
 	}
@@ -593,7 +612,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreatePod(protocol, testNames.NSName, client, useFsGroup)
+	err = CreatePod(protocol, testNames.NSName, client, useFsGroup, useBlock)
 	if err != nil {
 		t.Fatalf("error creating test pod %s", err.Error())
 	}
