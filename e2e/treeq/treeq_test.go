@@ -32,7 +32,7 @@ func TestTreeq(t *testing.T) {
 
 	// create a unique namespace to perform the test within
 
-	testNames := setup(t, clientSet, dynamicClient, snapshotClient, false)
+	testNames := setup(t, clientSet, dynamicClient, snapshotClient, false, false)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
@@ -65,7 +65,7 @@ func TestFsGroupTreeq(t *testing.T) {
 
 	// create a unique namespace to perform the test within
 
-	testNames := setup(t, clientSet, dynamicClient, snapshotClient, true)
+	testNames := setup(t, clientSet, dynamicClient, snapshotClient, true, false)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
@@ -95,8 +95,8 @@ func TestFsGroupTreeq(t *testing.T) {
 	}
 }
 
-func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, fsGroup bool) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(PROTOCOL, t, client, dynamicClient, snapshotClient, fsGroup)
+func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, fsGroup bool, useBlock bool) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(PROTOCOL, t, client, dynamicClient, snapshotClient, fsGroup, useBlock)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset) {
