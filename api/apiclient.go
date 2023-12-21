@@ -377,14 +377,18 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	path := "api/rest/network/spaces"
 	queryParam := map[string]interface{}{"name": networkSpaceName}
 	resp, err := c.getResponseWithQueryString(path, queryParam, &netspaces)
+
 	if err != nil {
-		zlog.Error().Msgf("no such network space: %s", networkSpaceName)
+		zlog.Error().Msgf("unexpected error retrieving network space: %s", networkSpaceName)
 		return nspace, err
 	}
 	if len(netspaces) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		netspaces, _ = apiresp.Result.([]NetworkSpace)
+		zlog.Error().Msgf("no such network space: %s", networkSpaceName)
+		return nspace, err
 	}
+
 	if len(netspaces) > 0 {
 		nspace = netspaces[0]
 	}
