@@ -5,6 +5,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"errors"
 	"infinibox-csi-driver/e2e"
 	"io/ioutil"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	v1monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned/typed/monitoring/v1"
@@ -78,8 +80,14 @@ func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.Dy
 		t.Fatalf("error setting up e2e namespace %s\n", err.Error())
 	}
 	t.Logf("✓ Namespace %s is created\n", testNames.NSName)
-	// create the ConfigMap
 
+	err = e2e.CreateImagePullSecret(t, testNames.NSName, client)
+	if err != nil {
+		t.Fatalf("error creating image pull secret %s", err.Error())
+	}
+	t.Logf("✓ Image Pull Secret %s is created\n", e2e.IMAGE_PULL_SECRET)
+
+	// create the ConfigMap
 	configFilePath := os.Getenv("CONFIGFILE")
 	if configFilePath == "" {
 		t.Fatalf("error getting CONFIGFILE %s", err.Error())
@@ -164,11 +172,19 @@ func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.Dy
 			},
 		},
 	}
-	_, err = client.RbacV1().ClusterRoles().Create(ctx, cr, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error creating ClusterRole %s\n", err.Error())
+	_, err = client.RbacV1().ClusterRoles().Get(ctx, appName, metav1.GetOptions{})
+	if err != nil && apierrors.IsNotFound(err) {
+		t.Logf("ClusterRole %s not found, will create it\n", appName)
+		_, err = client.RbacV1().ClusterRoles().Create(ctx, cr, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatalf("error creating ClusterRole %s\n", err.Error())
+		}
+		t.Logf("✓ ClusterRole %s is created\n", appName)
+	} else if err != nil {
+		t.Fatalf("error getting ClusterRole %s\n", err.Error())
+	} else {
+		t.Logf("✓ ClusterRole %s is found\n", appName)
 	}
-	t.Logf("✓ ClusterRole %s is created\n", appName)
 
 	// create the ClusterRoleBinding
 	crb := &rbacv1.ClusterRoleBinding{
@@ -189,6 +205,11 @@ func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.Dy
 			},
 		},
 	}
+	err = client.RbacV1().ClusterRoleBindings().Delete(ctx, appName, metav1.DeleteOptions{})
+	if err != nil {
+		t.Logf("✓ ClusterRoleBinding delete error %s \n", appName)
+	}
+
 	_, err = client.RbacV1().ClusterRoleBindings().Create(ctx, crb, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error creating ClusterRoleBinding %s\n", err.Error())
@@ -319,6 +340,10 @@ func createServiceMonitor(ns string, mClientV1 v1monitoringclient.MonitoringV1In
 }
 
 func createDeployment(ns string, client *kubernetes.Clientset) error {
+	metricsImage := os.Getenv("METRICS_IMAGE")
+	if metricsImage == "" {
+		return errors.New("METRICS_IMAGE environment variable was not set and is required")
+	}
 	numReplicas := int32(1)
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -350,7 +375,7 @@ func createDeployment(ns string, client *kubernetes.Clientset) error {
 					Containers: []v1.Container{
 						{
 							Name:  "metrics",
-							Image: "git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:v2.11.0",
+							Image: metricsImage,
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "config-volume",
