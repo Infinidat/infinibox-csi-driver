@@ -58,7 +58,7 @@ func TestIscsi(t *testing.T) {
 }
 
 func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, false)
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, false, false)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {
