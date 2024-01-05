@@ -852,27 +852,14 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 	mountVolCapability := reqVolCapability.GetMount()
 	mountOptions := []string{}
 	blockVolCapability := reqVolCapability.GetBlock()
-
-	// LEGACY MITIGATION: accept but warn about old opaque fstype parameter if present - remove in the future with CSIC-344
-	fstype, oldFstypeParamProvided := req.GetVolumeContext()["fstype"]
-	if oldFstypeParamProvided {
-		zlog.Warn().Msgf("Deprecated 'fstype' parameter %s provided, will NOT be supported in future releases - please move to 'csi.storage.k8s.io/fstype'", fstype)
-	}
+	var fstype string
 
 	// protocol-specific paths below
 	if mountVolCapability != nil && blockVolCapability == nil {
 		// option A. user wants file access to their iSCSI device
 		iscsiDisk.isBlock = false
 
-		// filesystem type and reconciliation with older nonstandard param
-		// LEGACY MITIGATION: remove !oldFstypeParamProvided in the future with CSIC-344
-		if mountVolCapability.GetFsType() != "" {
-			fstype = mountVolCapability.GetFsType()
-		} else if !oldFstypeParamProvided {
-			e := fmt.Errorf("No fstype in VolumeCapability for volume: " + req.GetVolumeId())
-			zlog.Err(e)
-			return nil, status.Error(codes.InvalidArgument, e.Error())
-		}
+		fstype = mountVolCapability.GetFsType()
 
 		// mountOptions - could be nothing
 		mountOptions = mountVolCapability.GetMountFlags()

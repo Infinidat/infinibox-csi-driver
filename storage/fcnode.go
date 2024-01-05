@@ -465,30 +465,16 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 
 	// handle file (mount) and block parameters
 	mountVolCapability := reqVolCapability.GetMount()
-	fstype := ""
+	var fstype string
 	mountOptions := []string{}
 	blockVolCapability := reqVolCapability.GetBlock()
-
-	// LEGACY MITIGATION: accept but warn about old opaque fstype parameter if present - remove in the future with CSIC-344
-	fstype, oldFstypeParamProvided := req.GetVolumeContext()["fstype"]
-	if oldFstypeParamProvided {
-		zlog.Warn().Msgf("Deprecated 'fstype' parameter %s provided, will NOT be supported in future releases - please move to 'csi.storage.k8s.io/fstype'", fstype)
-	}
 
 	// protocol-specific paths below
 	if mountVolCapability != nil && blockVolCapability == nil {
 		// option A. user wants file access to their FC device
 		fcDetails.isBlock = false
 
-		// filesystem type and reconciliation with older nonstandard param
-		// LEGACY MITIGATION: remove !oldFstypeParamProvided in the future with CSIC-344
-		if mountVolCapability.GetFsType() != "" {
-			fstype = mountVolCapability.GetFsType()
-		} else if !oldFstypeParamProvided {
-			errMsg := "No fstype in VolumeCapability for volume: " + req.GetVolumeId()
-			zlog.Error().Msgf(errMsg)
-			return nil, status.Error(codes.InvalidArgument, errMsg)
-		}
+		fstype = mountVolCapability.GetFsType()
 
 		// mountOptions - could be nil
 		mountOptions = mountVolCapability.GetMountFlags()
