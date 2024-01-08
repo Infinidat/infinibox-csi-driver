@@ -359,18 +359,27 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 		zlog.Error().Msgf("failed to get GetPoolID by pool_name %s %v", namepool, err)
 		return err
 	}
-	ssdEnabled := nfs.storageClassParameters[common.SC_SSD_ENABLED]
-	if ssdEnabled == "" {
-		ssdEnabled = fmt.Sprint(false)
+	provtype := strings.ToUpper(nfs.storageClassParameters[common.SC_PROVISION_TYPE])
+	if provtype == "" {
+		provtype = common.SC_THIN_PROVISION_TYPE
 	}
-	ssd, _ := strconv.ParseBool(ssdEnabled)
 	mapRequest := map[string]interface{}{
-		"pool_id":             poolID,
-		"name":                fileSystemName,
-		common.SC_SSD_ENABLED: ssd,
-		"provtype":            strings.ToUpper(nfs.storageClassParameters[common.SC_PROVISION_TYPE]),
-		"size":                nfs.capacity,
+		"pool_id":  poolID,
+		"name":     fileSystemName,
+		"size":     nfs.capacity,
+		"provtype": provtype,
 	}
+
+	ssdEnabled := nfs.storageClassParameters[common.SC_SSD_ENABLED]
+	if ssdEnabled != "" {
+		ssd, err := strconv.ParseBool(ssdEnabled)
+		if err != nil {
+			zlog.Error().Msgf("%s invalid format, needs to be true or false, %s was specified", common.SC_SSD_ENABLED, ssdEnabled)
+			return err
+		}
+		mapRequest[common.SC_SSD_ENABLED] = ssd
+	}
+
 	fileSystem, err := nfs.cs.Api.CreateFilesystem(mapRequest)
 	if err != nil {
 		zlog.Error().Msgf("failed to create filesystem %s %v", fileSystemName, err)

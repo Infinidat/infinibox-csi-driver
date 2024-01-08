@@ -199,14 +199,16 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string
 		return nil, err
 	}
 	volume.PoolId = poolID
-	valumeParameter := make(map[string]interface{})
-	valumeParameter["pool_id"] = poolID
-	valumeParameter["size"] = volume.VolumeSize
-	valumeParameter["name"] = volume.Name
-	valumeParameter["provtype"] = volume.ProvisionType
-	valumeParameter[common.SC_SSD_ENABLED] = volume.SsdEnabled
+	volumeParameter := make(map[string]interface{})
+	volumeParameter["pool_id"] = poolID
+	volumeParameter["size"] = volume.VolumeSize
+	volumeParameter["name"] = volume.Name
+	volumeParameter["provtype"] = volume.ProvisionType
+	if volume.SsdEnabledSpecified {
+		volumeParameter[common.SC_SSD_ENABLED] = volume.SsdEnabled
+	}
 	vol := Volume{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &vol)
+	resp, err := c.getJSONResponse(http.MethodPost, path, volumeParameter, &vol)
 	if err != nil {
 		return nil, err
 	}

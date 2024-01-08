@@ -20,9 +20,9 @@ parameters:
   csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
   pool_name: "csitesting"
-  provision_type: "THIN"
+  #provision_type: "THIN"
   storage_protocol: "fc"
-  ssd_enabled: "false"
+  #ssd_enabled: "false"
   max_vols_per_host: "20"
 # optional parameters
   uid: "3000"                 # optional: override default UID for filesystem mount

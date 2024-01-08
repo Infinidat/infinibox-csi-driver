@@ -63,17 +63,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// validate optional parameters
-	volType, provided := params[common.SC_PROVISION_TYPE]
-	if !provided {
-		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
-	}
-	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
-	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
-	if provided {
-		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
-	}
-
 	gid := params[common.SC_GID]
 	uid := params[common.SC_UID]
 	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
@@ -111,12 +100,23 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	if contentSource != nil {
 		return fc.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
 	}
+
+	volType, provided := params[common.SC_PROVISION_TYPE]
+	if !provided {
+		volType = common.SC_THIN_PROVISION_TYPE
+	}
+
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
 		ProvisionType: volType,
-		SsdEnabled:    ssdEnabled,
 	}
+	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
+	if provided {
+		volumeParam.SsdEnabledSpecified = true
+		volumeParam.SsdEnabled, _ = strconv.ParseBool(ssdEnabledString)
+	}
+
 	volumeResp, err := fc.cs.Api.CreateVolume(volumeParam, poolName)
 	if err != nil {
 		zlog.Error().Msgf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())

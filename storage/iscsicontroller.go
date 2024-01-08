@@ -64,17 +64,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// validate optional parameters
-	volType, provided := params[common.SC_PROVISION_TYPE]
-	if !provided {
-		volType = "THIN" // TODO: add support for leaving this unspecified, CSIC-340
-	}
-	ssdEnabled := true // TODO: add support for leaving this unspecified, CSIC-340
-	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
-	if provided {
-		ssdEnabled, _ = strconv.ParseBool(ssdEnabledString)
-	}
-
 	// Volume name to be created - already verified earlier
 	name := req.GetName()
 
@@ -107,12 +96,24 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if contentSource != nil {
 		return iscsi.createVolumeFromContentSource(req, name, sizeBytes, poolName)
 	}
+
+	volType, provided := params[common.SC_PROVISION_TYPE]
+	if !provided {
+		volType = common.SC_THIN_PROVISION_TYPE
+	}
+
 	volumeParam := &api.VolumeParam{
 		Name:          name,
 		VolumeSize:    sizeBytes,
 		ProvisionType: volType,
-		SsdEnabled:    ssdEnabled,
 	}
+
+	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
+	if provided {
+		volumeParam.SsdEnabledSpecified = true
+		volumeParam.SsdEnabled, _ = strconv.ParseBool(ssdEnabledString)
+	}
+
 	volumeResp, err := iscsi.cs.Api.CreateVolume(volumeParam, poolName)
 	if err != nil {
 		e := fmt.Errorf("error creating volume: %s pool %s error: %v", name, poolName, err)

@@ -58,11 +58,12 @@ type Volume struct {
 }
 
 type VolumeParam struct {
-	PoolId        int64  `json:"pool_id,omitempty"`
-	VolumeSize    int64  `json:"size,omitempty"`
-	Name          string `json:"name,omitempty"`
-	ProvisionType string `json:"provtype,omitempty"`
-	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
+	PoolId              int64  `json:"pool_id,omitempty"`
+	VolumeSize          int64  `json:"size,omitempty"`
+	Name                string `json:"name,omitempty"`
+	ProvisionType       string `json:"provtype,omitempty"`
+	SsdEnabled          bool   `json:"ssd_enabled,omitempty"`
+	SsdEnabledSpecified bool
 }
 
 type VolumeResp struct {
