@@ -33,8 +33,8 @@ parameters:
     storage_protocol: nfs
     network_space: $_E2E_NETWORK_SPACE # InfiniBox network space name
     pool_name: $_E2E_POOL # InfiniBox pool name
-    provision_type: THIN
-    ssd_enabled: "true"
+    #provision_type: THIN
+    #ssd_enabled: "true"
 
     # optional parameters
     # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible

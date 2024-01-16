@@ -23,7 +23,7 @@ parameters:
   #provision_type: "THIN"
   storage_protocol: "fc"
   #ssd_enabled: "false"
-  max_vols_per_host: "20"
+  #max_vols_per_host: "20"
 # optional parameters
   uid: "3000"                 # optional: override default UID for filesystem mount
   gid: "3000"                 # optional: override default GID for filesystem mount

@@ -55,8 +55,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
-		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
+		common.SC_POOL_NAME: `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 	}, nil, params, fc.cs.Api)
 	if err != nil {
 		zlog.Err(err)
@@ -350,16 +349,25 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		}
 	}
 
-	maxAllowedVol, err := strconv.Atoi(req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST])
-	if err != nil {
-		zlog.Error().Msgf("invalid parameter max_vols_per_host error:  %v", err)
-		return nil, err
-	}
-	zlog.Debug().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
-	zlog.Debug().Msgf("host %s has %d volume mapped", host.Name, len(lunList))
-	if len(lunList) >= maxAllowedVol {
-		zlog.Error().Msgf("unable to publish volume on host %s, maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
-		return nil, status.Error(codes.Internal, "Unable to publish volume as max allowed volume (per host) limit reached")
+	// the max_vols_per_host storageclass parameter is not mandatory
+	maxAllowedVolString := req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST]
+	if maxAllowedVolString != "" {
+		maxAllowedVol, err := strconv.Atoi(maxAllowedVolString)
+		if err != nil {
+			zlog.Error().Msgf("invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
+			return nil, err
+		}
+		if maxAllowedVol < 1 {
+			e := fmt.Errorf("invalid parameter %s error:  required to be greater than 0", common.SC_MAX_VOLS_PER_HOST)
+			zlog.Err(e)
+			return nil, e
+		}
+		zlog.Debug().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
+		zlog.Debug().Msgf("host %s has %d volume mapped", host.Name, len(lunList))
+		if len(lunList) >= maxAllowedVol {
+			zlog.Error().Msgf("unable to publish volume on host %s, maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+			return nil, status.Error(codes.ResourceExhausted, "Unable to publish volume as max allowed volume (per host) limit reached")
+		}
 	}
 	// map volume to host
 	zlog.Debug().Msgf("mapping volume %d to host %s", volID, host.Name)

@@ -8,10 +8,10 @@ volumeBindingMode: Immediate
 allowVolumeExpansion: true
 parameters: 
   pool_name: csitesting
-  provision_type: THIN
+  #provision_type: THIN
   storage_protocol: fc
-  ssd_enabled: "false"
-  max_vols_per_host: "100"
+  #ssd_enabled: "false"
+  #max_vols_per_host: "100"
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
   csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds

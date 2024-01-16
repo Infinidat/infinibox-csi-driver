@@ -19,7 +19,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
-  max_vols_per_host: "100"
+  #max_vols_per_host: "100"
   network_space: "iSCSI"
   pool_name: "csitesting"
   #provision_type: "THIN"

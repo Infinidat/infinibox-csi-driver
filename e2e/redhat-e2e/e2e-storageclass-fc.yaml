@@ -25,10 +25,10 @@ parameters:
   csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
   csi.storage.k8s.io/fstype: ext4
   pool_name: $_E2E_POOL
-  provision_type: "THIN"
+  #provision_type: "THIN"
   storage_protocol: "fc"
-  ssd_enabled: "false"
-  max_vols_per_host: "90"
+  #ssd_enabled: "false"
+  #max_vols_per_host: "90"
 # optional parameters
 # uid: "1000"                 # optional: override default UID for filesystem mount
 # gid: "1000"                 # optional: override default GID for filesystem mount

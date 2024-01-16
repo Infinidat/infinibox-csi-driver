@@ -54,10 +54,9 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
-		common.SC_POOL_NAME:         `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-		common.SC_MAX_VOLS_PER_HOST: `(?i)\A\d+\z`,
-		common.SC_USE_CHAP:          `(?i)\A(none|chap|mutual_chap)\z`,
-		common.SC_NETWORK_SPACE:     `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
+		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
+		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, nil, params, iscsi.cs.Api)
 	if err != nil {
 		zlog.Err(err)
@@ -389,7 +388,12 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	if maxVolsPerHostStr != "" {
 		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
 		if err != nil {
-			e := fmt.Errorf("invalid parameter max_vols_per_host error:  %v", err)
+			e := fmt.Errorf("invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
+			zlog.Err(e)
+			return nil, e
+		}
+		if maxAllowedVol < 1 {
+			e := fmt.Errorf("invalid parameter %s error:  required to be greater than 0", common.SC_MAX_VOLS_PER_HOST)
 			zlog.Err(e)
 			return nil, e
 		}

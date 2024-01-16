@@ -25,11 +25,11 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace:  $_E2E_NAMESPACE
   csi.storage.k8s.io/fstype: ext4
   # gid: 1000 # GID of volume
-  max_vols_per_host: "100"
+  #max_vols_per_host: "100"
   network_space: $_E2E_NETWORK_SPACE
   pool_name: $_E2E_POOL
-  provision_type: "THIN"
-  ssd_enabled: "false"
+  #provision_type: "THIN"
+  #ssd_enabled: "false"
   storage_protocol: "iscsi"
   useCHAP: "none" # none / chap / mutual_chap
   # uid: 1000 # UID of volume
