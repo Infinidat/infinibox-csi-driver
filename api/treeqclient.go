@@ -41,8 +41,11 @@ type Treeq struct {
 }
 
 // GetFileSystemsByPoolID get filesystem by poolID
-func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int) (fsmetadata *FSMetadata, err error) {
-	uri := "/api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10) + "&sort=size&page=" + strconv.Itoa(page) + "&page_size=1000&fields=id,size,name"
+func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix string) (fsmetadata *FSMetadata, err error) {
+	zlog.Trace().Msgf("GetFileSystemsByPoolID poolID %d page %d fsPrefix %s", poolID, page, fsPrefix)
+	uri := "/api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10) +
+		"&name=like:" + fsPrefix +
+		"&sort=size&page=" + strconv.Itoa(page) + "&page_size=1000&fields=id,size,name"
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {

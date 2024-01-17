@@ -59,7 +59,11 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	treeq.nfsstorage.storageClassParameters = params
-	treeqVolumeContext, err := treeq.treeqService.IsTreeqAlreadyExist(params[common.SC_POOL_NAME], strings.Trim(params[common.SC_NETWORK_SPACE], ""), req.GetName())
+	fsPrefix := params[common.SC_FS_PREFIX]
+	if fsPrefix == "" {
+		fsPrefix = common.SC_FS_PREFIX_DEFAULT
+	}
+	treeqVolumeContext, err := treeq.treeqService.IsTreeqAlreadyExist(params[common.SC_POOL_NAME], strings.Trim(params[common.SC_NETWORK_SPACE], ""), req.GetName(), fsPrefix)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
@@ -74,6 +78,8 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	treeqVolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = params[common.SC_NFS_EXPORT_PERMISSIONS]
 	treeqVolumeContext[common.SC_STORAGE_PROTOCOL] = params[common.SC_STORAGE_PROTOCOL]
+	treeqVolumeContext[common.SC_UID] = params[common.SC_UID]
+	treeqVolumeContext[common.SC_GID] = params[common.SC_GID]
 
 	volumeID := treeqVolumeContext["ID"] + "#" + treeqVolumeContext["TREEQID"]
 	zlog.Debug().Msgf("CreateVolume final treeqVolumeMap %v volumeID %s", treeqVolumeContext, volumeID)

@@ -27,6 +27,7 @@ const (
 	SC_NETWORK_SPACE       = "network_space"
 	SC_STORAGE_PROTOCOL    = "storage_protocol"
 	SC_FS_PREFIX           = "fs_prefix"
+	SC_FS_PREFIX_DEFAULT   = "csit_"
 	SC_MAX_VOLS_PER_HOST   = "max_vols_per_host"
 	SC_USE_CHAP            = "useCHAP"
 	SC_THIN_PROVISION_TYPE = "THIN"

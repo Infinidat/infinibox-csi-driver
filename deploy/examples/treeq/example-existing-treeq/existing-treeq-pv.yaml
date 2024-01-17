@@ -26,8 +26,8 @@ spec:
     volumeAttributes:
       ipAddress: 172.31.32.158
       storage_protocol: nfs_treeq
-      volumePath: /csit_cc3681284b/other-treeq
-    volumeHandle: 94199058#20009$$nfs_treeq
+      volumePath: /csit_0b356157e5/other-treeq
+    volumeHandle: 97298826#20000$$nfs_treeq
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ibox-treeq-retain
   volumeMode: Filesystem

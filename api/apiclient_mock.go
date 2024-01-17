@@ -77,8 +77,8 @@ func (m *MockApiService) GetStoragePoolIDByName(poolName string) (int64, error) 
 }
 
 // GetFileSystemsByPoolID mock
-func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int) (*FSMetadata, error) {
-	args := m.Called(poolID, page)
+func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix string) (*FSMetadata, error) {
+	args := m.Called(poolID, page, fsPrefix)
 	resp, _ := args.Get(0).(FSMetadata)
 	err, _ := args.Get(1).(error)
 	return &resp, err

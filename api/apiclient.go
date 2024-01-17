@@ -82,7 +82,7 @@ type Client interface {
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
 
-	GetFileSystemsByPoolID(poolID int64, page int) (*FSMetadata, error)
+	GetFileSystemsByPoolID(poolID int64, page int, fsPrefix string) (*FSMetadata, error)
 	GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int, err error)
 	CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error)
 	DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)

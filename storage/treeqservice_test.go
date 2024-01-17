@@ -72,7 +72,7 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FileSystemByPoolID_
 	expectedErr := errors.New("some error")
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(nil, expectedErr)
+	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1, mock.Anything).Return(nil, expectedErr)
 	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 	service := TreeqService{cs: *suite.cs}
 	_, err := service.getExpectedFileSystemID(1000)
@@ -84,7 +84,7 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeqCount
 	fsMetada := getfsMetadata2()
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1).Return(*fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", mock.Anything, 1, mock.Anything).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
 	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 	nfs := nfsstorage{capacity: 100}
@@ -98,14 +98,14 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_Success() {
 	var poolID int64 = 10
 	var fsID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", mock.Anything, mock.Anything).Return(*fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", mock.Anything, mock.Anything, mock.Anything).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(1, nil)
 	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
 	exportResp := getExportResponse()
 	suite.api.On("GetExportByFileSystem", fsID).Return(exportResp, nil)
 	fsMetada2 := getfsMetadata2()
-	suite.api.On("GetFileSystemsByPoolID", poolID, 2).Return(*fsMetada2, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 2, mock.Anything).Return(*fsMetada2, nil)
 	service := TreeqService{cs: *suite.cs}
 
 	service.nfsstorage.capacity = 1000
@@ -131,7 +131,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_Success() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(*fsMetada, nil)
 	suite.api.On("GetFilesytemTreeqCount", fsID).Return(1, nil)
 	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
 
@@ -163,7 +163,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Error() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(fsMetada, nil)
 	//suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(0, expectedErr)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
 	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
@@ -191,7 +191,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowe
 	expectedErr := errors.New("some error")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(20000, nil)
 	suite.api.On("GetFilesytemTreeqCount", mock.Anything).Return(0, expectedErr)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, nil)
@@ -218,7 +218,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_CreateFilesystem_Error() 
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(nil, expectedErr)
 	suite.api.On("GetMaxTreeqPerFs").Return(10000, nil)
@@ -243,7 +243,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Error() 
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, expectedErr)
@@ -267,7 +267,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponse(), nil)
@@ -292,7 +292,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_CreateTreeq_Error() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFileSystemCountByPoolID", mock.Anything).Return(200, nil)
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponse(), nil)
@@ -559,7 +559,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_Error() {
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, expectedErr)
 
 	service := TreeqService{cs: *suite.cs}
-	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
 
@@ -570,7 +570,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_StoragePoolIDByName_Err
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
 
 	service := TreeqService{cs: *suite.cs}
-	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
 
@@ -580,10 +580,10 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolID_Err
 	expectedErr := errors.New("some error")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(nil, expectedErr)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(nil, expectedErr)
 
 	service := TreeqService{cs: *suite.cs}
-	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
 
@@ -594,7 +594,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_E
 
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 
-	suite.api.On("GetFileSystemsByPoolID", poolID, 1).Return(*fsMetada, nil)
+	suite.api.On("GetFileSystemsByPoolID", poolID, 1, mock.Anything).Return(*fsMetada, nil)
 	suite.api.On("GetTreeqByName", mock.Anything, mock.Anything).Return(getTreeQResponse(fsID), nil)
 
 	exportResp := getExportResponse()
@@ -602,7 +602,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_E
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 
 	service := TreeqService{cs: *suite.cs}
-	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName")
+	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.Nil(suite.T(), err, "err should not be nil")
 }
 

@@ -519,7 +519,8 @@ func (suite *ApiTestSuite) Test_GetFileSystemsByPoolID_success() {
 	// Act
 	var poolID int64 = 1
 	var page int = 1
-	response, err := service.GetFileSystemsByPoolID(poolID, page)
+	var fsPrefix string = "csit_"
+	response, err := service.GetFileSystemsByPoolID(poolID, page, fsPrefix)
 	// Assert
 	assert.Nil(suite.T(), err, "Response should not be nil")
 	assert.Equal(suite.T(), 50, response.Filemetadata.PageSize, "response should be nil")
@@ -533,7 +534,8 @@ func (suite *ApiTestSuite) Test_GetFileSystemsByPoolID_Error() {
 	// Act
 	var poolID int64 = 1
 	var page int = 1
-	_, err := service.GetFileSystemsByPoolID(poolID, page)
+	var fsPrefix string = "csit_"
+	_, err := service.GetFileSystemsByPoolID(poolID, page, fsPrefix)
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
 }

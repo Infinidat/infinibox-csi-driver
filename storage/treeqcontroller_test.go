@@ -69,7 +69,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
-	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, expectedErr)
 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.NotNil(suite.T(), err, "empty error")
@@ -88,7 +88,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
-	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
@@ -240,8 +240,8 @@ func (m *FileSystemInterfaceMock) UpdateTreeqVolume(filesystemID, treeqID, capac
 	return err
 }
 
-func (m *FileSystemInterfaceMock) IsTreeqAlreadyExist(pool_name, network_space, pVName string) (map[string]string, error) {
-	status := m.Called(pool_name, network_space, pVName)
+func (m *FileSystemInterfaceMock) IsTreeqAlreadyExist(pool_name, network_space, pVName, fsPrefix string) (map[string]string, error) {
+	status := m.Called(pool_name, network_space, pVName, fsPrefix)
 	st, _ := status.Get(0).(map[string]string)
 	err, _ := status.Get(1).(error)
 	return st, err
