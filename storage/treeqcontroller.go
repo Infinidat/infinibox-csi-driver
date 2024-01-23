@@ -28,22 +28,6 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	zlog.Debug().Msgf("CreateVolume called pvName %s parameters %v", req.GetName(), req.GetParameters())
 
 	params := req.GetParameters()
-	annotations, err := treeq.nfsstorage.cs.Api.GetPVCAnnotations(req.Name)
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-	zlog.Debug().Msgf(" csi pvc annotations %+v", annotations)
-	poolNameToUse := annotations[common.PVC_ANNOTATION_POOL_NAME]
-	if poolNameToUse != "" {
-		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", poolNameToUse)
-		params[common.SC_POOL_NAME] = poolNameToUse //overwrite what was in the storageclass if any
-	}
-	networkSpaceToUse := annotations[common.PVC_ANNOTATION_NETWORK_SPACE]
-	if networkSpaceToUse != "" {
-		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", networkSpaceToUse)
-		params[common.SC_NETWORK_SPACE] = networkSpaceToUse //overwrite what was in the storageclass if any
-	}
 
 	capacity, err := nfsSanityCheck(req, map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary

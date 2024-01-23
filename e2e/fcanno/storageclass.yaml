@@ -1,0 +1,32 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-fc-storageclass-demo
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters: 
+  pool_name: csitesting
+  #provision_type: THIN
+  storage_protocol: fc
+  #ssd_enabled: "false"
+  #max_vols_per_host: "100"
+  # reference secret with InfiniBox credentials
+  csi.storage.k8s.io/controller-expand-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
+  csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/controller-publish-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
+  csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-publish-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
+  csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-stage-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
+  csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+  #  NOTE:  the following 2 csi parameters are commented out specifically to avoid errors in the external-provisioner
+  #  on DeleteVolume() calls, the CSI driver instead removes the PV based on its pvc annotation logic
+  #csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+  #csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/fstype: ext4
+  # optional parameters
+  uid: "3000"
+  gid: "3000"
+  #unix_permissions: "777"

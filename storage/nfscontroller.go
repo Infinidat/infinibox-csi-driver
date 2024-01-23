@@ -72,21 +72,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	zlog.Debug().Msgf(" csi request parameters %v", params)
 	zlog.Debug().Msgf(" csi volume caps %+v", req.VolumeCapabilities)
 	zlog.Debug().Msgf(" csi request name %s", req.Name)
-	annotations, err := nfs.cs.Api.GetPVCAnnotations(req.Name)
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-	zlog.Debug().Msgf(" csi pvc annotations %+v", annotations)
-	if annotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
-		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", annotations[common.PVC_ANNOTATION_POOL_NAME])
-		params[common.SC_POOL_NAME] = annotations[common.PVC_ANNOTATION_POOL_NAME] //overwrite what was in the storageclass if any
-	}
 
-	if annotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
-		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", annotations[common.PVC_ANNOTATION_NETWORK_SPACE])
-		params[common.SC_NETWORK_SPACE] = annotations[common.PVC_ANNOTATION_NETWORK_SPACE] //overwrite what was in the storageclass if any
-	}
 	var capacity int64
 	capacity, err = nfsSanityCheck(req, map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary

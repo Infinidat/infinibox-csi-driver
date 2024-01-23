@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: nfs-pvc-clone-anno-secret
+    namespace: infinidat-csi
+    annotations:
+      # the following annotations have to match the values in pvc.yaml
+      infinidat.com/ibox_secret: infinibox-creds
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ibox-nfs-anno-secret
+  resources:
+    requests:
+      storage: 1Gi
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: nfs-pvc-anno-secret

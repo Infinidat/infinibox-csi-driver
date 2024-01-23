@@ -13,10 +13,10 @@ mountOptions:
 parameters: 
     pool_name: csitesting
     network_space: NAS
-    provision_type: THIN
     storage_protocol: nfs
     fstype: ext4        # fstype required when fsGroup is in pod spec
-    ssd_enabled: "true"
+    #provision_type: THIN
+    #ssd_enabled: "true"
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds

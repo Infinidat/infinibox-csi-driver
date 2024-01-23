@@ -14,7 +14,9 @@ package clientgo
 
 import (
 	"context"
+	"fmt"
 	"infinibox-csi-driver/common"
+	"strings"
 
 	"infinibox-csi-driver/log"
 
@@ -183,4 +185,56 @@ func (kc *kubeclient) GetPVCs(namespace string) (pvcList *v1.PersistentVolumeCla
 		return nil, err
 	}
 	return pvcList, nil
+}
+
+func (kc *kubeclient) GetPVC(namespace, name string) (pvc *v1.PersistentVolumeClaim, err error) {
+	pvc, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		zlog.Error().Msgf("Error Getting PVC Error: %v ", err)
+		return nil, err
+	}
+	return pvc, nil
+}
+
+// GetPVCAnnotations : Get pvc annotations for a given volumeName
+func (kc *kubeclient) GetPVCAnnotations(volumeName string) (annotations map[string]string, err error) {
+	zlog.Trace().Msgf("GetPVCAnnotations called with volumename %s", volumeName)
+
+	// search for PVCs with label as follows:
+	// volume.beta.kubernetes.io/storage-provisioner: infinibox-csi-driver
+	//kubectl get pvc -o=jsonpath='{.items[?(@.metadata.annotations.volume\.beta\.kubernetes\.io/storage-provisioner=="infinibox-csi-driver")].metadata.name}'
+	// this narrows the search down considerably on large systems
+
+	// then search thru them sequentially comparing the UID of the PVC to the UID found in the volumeName
+	// if they equal, then return the annotations on the PVC else return empty
+
+	nameSpace := "" // all namespaces
+	pvcList, err := kc.GetPVCs(nameSpace)
+	if err != nil {
+		zlog.Error().Msgf("error getting PVCs %s", err.Error())
+		return annotations, err
+	}
+	zlog.Debug().Msgf("got %d PVCs for all namespaces", len(pvcList.Items))
+	for i := 0; i < len(pvcList.Items); i++ {
+		pvc := pvcList.Items[i]
+		// reduce our interest in PVCs to those only provisioned by this csi driver
+		if pvc.Annotations["volume.beta.kubernetes.io/storage-provisioner"] == common.SERVICE_NAME {
+			zlog.Debug().Msgf("%s pvc found, %s", common.SERVICE_NAME, pvc.GetUID())
+			volParts := strings.Split(volumeName, "-")
+			if len(volParts) < 2 {
+				return annotations, fmt.Errorf("PVC VolumeName not correctly formatted %s", volumeName)
+			}
+			volUID := volParts[1][:8]
+			parts := strings.Split(string(pvc.GetUID()), "-")
+			if len(parts) < 2 {
+				return annotations, fmt.Errorf("PVC UID not correctly formatted %s", pvc.GetUID())
+			}
+			zlog.Debug().Msgf("comparing %s to %s uid", volUID, parts[0])
+			if volUID == parts[0] {
+				zlog.Debug().Msgf("found pvc using volumeName %s uid %s", volumeName, volUID)
+				return pvc.Annotations, nil
+			}
+		}
+	}
+	return annotations, nil
 }

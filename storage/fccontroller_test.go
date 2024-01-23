@@ -54,7 +54,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_GetName_fail() {
 
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume GetVolumeByName")
 }
@@ -70,7 +69,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_fail() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedErr)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume create volume")
@@ -88,7 +86,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
@@ -107,7 +104,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_metadataError() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume attach metadata")
@@ -196,7 +192,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateVolume")
@@ -216,7 +211,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_AttachMetadataToObject
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
-	suite.api.On("GetPVCAnnotations", mock.Anything).Return(make(map[string]string), nil)
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume attach metadata")
 }

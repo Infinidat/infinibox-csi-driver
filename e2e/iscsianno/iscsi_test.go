@@ -1,6 +1,6 @@
 //go:build e2e
 
-package iscsichap
+package iscsianno
 
 import (
 	"infinibox-csi-driver/e2e"
@@ -29,25 +29,9 @@ func TestIscsi(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, false)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, true)
 
 	t.Logf("testing in namespace %+v\n", testNames)
-
-	/**
-	time.Sleep(time.Second * 5)
-
-	err = e2e.CreateSnapshot(testNames.PVCName, testNames.SnapshotClassName, testNames.NSName, snapshotClient)
-	if err != nil {
-		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
-	}
-
-	time.Sleep(time.Second * 5)
-
-	err = e2e.WaitForSnapshot(t, e2e.SNAPSHOT_NAME, testNames.NSName, snapshotClient)
-	if err != nil {
-		t.Fatalf("error waiting for volumesnapshot %s", err.Error())
-	}
-	*/
 
 	if *e2e.CleanUp {
 		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)

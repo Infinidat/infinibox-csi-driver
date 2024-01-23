@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"math/rand"
 	"os"
 	"strconv"
@@ -179,7 +180,7 @@ func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientS
 	return sc.Name, nil
 }
 
-func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool) (err error) {
+func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool, usePVCAnnotations bool) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -200,6 +201,11 @@ func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.C
 		},
 	}
 
+	if usePVCAnnotations {
+		pvc.ObjectMeta.Annotations = map[string]string{
+			common.PVC_ANNOTATION_IBOX_SECRET: "infinibox-creds",
+		}
+	}
 	if useBlock {
 		mode := v1.PersistentVolumeBlock
 		pvc.Spec.VolumeMode = &mode
@@ -570,7 +576,7 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	return nil
 }
 
-func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool) (testNames TestResourceNames) {
+func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, usePVCAnnotations bool) (testNames TestResourceNames) {
 
 	t.Log("SETUP STARTS")
 	var err error
@@ -596,7 +602,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	testNames.PVCName = pvcName
-	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock)
+	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock, usePVCAnnotations)
 	if err != nil {
 		t.Fatalf("error creating PVC %s\n", err.Error())
 	}

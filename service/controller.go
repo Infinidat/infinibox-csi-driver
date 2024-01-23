@@ -88,11 +88,46 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		common.SC_NFS_EXPORT_PERMISSIONS: reqParameters[common.SC_NFS_EXPORT_PERMISSIONS],
 	}
 
-	storageController, err := storage.NewStorageController(storageprotocol, configparams, req.GetSecrets())
+	kc, err := clientgo.BuildClient()
+	if err != nil {
+		err = status.Errorf(codes.Internal, "failed to initialize kube client while creating volume '%v'", err)
+		return nil, err
+	}
+
+	pvcAnnotations, err := kc.GetPVCAnnotations(req.GetName())
+	if err != nil {
+		if error != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", req.GetName(), error)
+		}
+	}
+	secretsToUse := req.GetSecrets()
+
+	pvcAnnoSecret := pvcAnnotations[common.PVC_ANNOTATION_IBOX_SECRET]
+	if pvcAnnoSecret != "" {
+		secretsToUse, err = kc.GetSecret(pvcAnnoSecret, os.Getenv("POD_NAMESPACE"))
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", pvcAnnoSecret, err)
+		}
+	}
+
+	storageController, err := storage.NewStorageController(storageprotocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("CreateVolume error: %v", err)
 		err = status.Errorf(codes.Internal, "failed to initialize storage controller while creating volume '%s'", volName)
 		return nil, err
+	}
+
+	req.Parameters[common.PVC_ANNOTATION_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE]
+	req.Parameters[common.PVC_ANNOTATION_POOL_NAME] = pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME]
+
+	if pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
+		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME])
+		req.Parameters[common.SC_POOL_NAME] = pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] //overwrite what was in the storageclass if any
+	}
+
+	if pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
+		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE])
+		req.Parameters[common.SC_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] //overwrite what was in the storageclass if any
 	}
 
 	createVolResp, err = storageController.CreateVolume(ctx, req)
@@ -142,11 +177,43 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		}
 		return &csi.DeleteVolumeResponse{}, nil
 	}
+
+	secretsToUse := req.GetSecrets()
+
+	// see if the pvc annotation was specified in the original PVC
+	kc, err := clientgo.BuildClient()
+	if err != nil {
+		return nil, err
+	}
+	pvList, err := kc.GetAllPersistentVolumes()
+	if err != nil {
+		err := fmt.Errorf("cant fetch PVs %s", err.Error())
+		zlog.Err(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+
+	}
+	for i := 0; i < len(pvList.Items); i++ {
+		pv := pvList.Items[i]
+		// we match the PV using the volumeHandle (aka volumeId from above)
+		if pv.Spec.CSI.VolumeHandle == volumeId {
+			zlog.Debug().Msgf("DeleteVolume - pv found for volume ID %s ", volumeId)
+			annoPVCSecretName := pv.Spec.CSI.ControllerPublishSecretRef.Name
+			annoPVCSecret, err := kc.GetSecret(annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
+			if err != nil {
+				err := fmt.Errorf("pvc annotation %s get error %v", annoPVCSecretName, err)
+				zlog.Err(err)
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			zlog.Debug().Msgf("DeleteVolume - using secret %s", annoPVCSecretName)
+			secretsToUse = annoPVCSecret
+		}
+	}
+
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
 
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(volproto.StorageType, config, secretsToUse)
 	if err != nil || storageController == nil {
 		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)
 		return

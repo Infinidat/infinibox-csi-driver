@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-anno-secret
+  namespace: infinidat-csi
+  annotations:
+    infinidat.com/ibox_secret: infinibox-creds2
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-nfs-anno-secret
+  # volumeName: <<pv name>> #need to uncomment if want to use an existing pv

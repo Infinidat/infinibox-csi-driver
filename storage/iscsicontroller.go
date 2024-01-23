@@ -36,24 +36,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	params := req.GetParameters()
 	zlog.Debug().Msgf("requested volume parameters are %v", params)
 
-	annotations, err := iscsi.cs.Api.GetPVCAnnotations(req.Name)
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-	zlog.Debug().Msgf(" csi pvc annotations %+v", annotations)
-	if annotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
-		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", annotations[common.PVC_ANNOTATION_POOL_NAME])
-		params[common.SC_POOL_NAME] = annotations[common.PVC_ANNOTATION_POOL_NAME] //overwrite what was in the storageclass if any
-	}
-
-	if annotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
-		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", annotations[common.PVC_ANNOTATION_NETWORK_SPACE])
-		params[common.SC_NETWORK_SPACE] = annotations[common.PVC_ANNOTATION_NETWORK_SPACE] //overwrite what was in the storageclass if any
-	}
-
 	// validate required parameters
-	err = validateStorageClassParameters(map[string]string{
+	err := validateStorageClassParameters(map[string]string{
 		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary

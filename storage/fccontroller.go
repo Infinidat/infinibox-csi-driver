@@ -42,17 +42,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	fc.configmap = params
 	zlog.Debug().Msgf("csi request parameters %v", params)
 
-	annotations, err := fc.cs.Api.GetPVCAnnotations(req.Name)
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-	zlog.Debug().Msgf(" csi pvc annotations %+v", annotations)
-	if annotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
-		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", annotations[common.PVC_ANNOTATION_POOL_NAME])
-		params[common.SC_POOL_NAME] = annotations[common.PVC_ANNOTATION_POOL_NAME] //overwrite what was in the storageclass if any
-	}
-
 	// validate required parameters
 	err = validateStorageClassParameters(map[string]string{
 		common.SC_POOL_NAME: `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
