@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: csi-543408c007
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  csi:
+    controllerExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    controllerPublishSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    driver: infinibox-csi-driver
+    fsType: ext4
+    nodePublishSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    nodeStageSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    volumeAttributes:
+      iqn: iqn.2009-11.com.infinidat:storage:infinibox-sn-36000-2436
+      portals: 172.17.35.68,172.17.35.69,172.17.35.70,172.17.35.71,172.17.35.72,172.17.35.73
+      readOnly: "false"
+      storage.kubernetes.io/csiProvisionerIdentity: 1583914762466-8081-infinibox-csi-driver
+      storage_protocol: iscsi
+      # uid: 1000
+      # gid: 1000
+      # unix_permissions: 777
+      useCHAP: none
+    volumeHandle: 20797$$iscsi
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: ibox-iscsi-storageclass-demo
+  volumeMode: Filesystem

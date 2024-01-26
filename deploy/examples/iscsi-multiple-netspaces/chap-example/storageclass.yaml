@@ -1,0 +1,31 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-iscsi-chap
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+# mountOptions: []
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/fstype: ext4
+  #max_vols_per_host: "100"
+  network_space: "iSCSI"
+  pool_name: "csitesting"
+  #provision_type: "THIN"
+  #ssd_enabled: "false"
+  storage_protocol: "iscsi"
+  useCHAP: "chap" # none / chap / mutual_chap
+  uid: "3000" # UID of volume
+  gid: "3000" # GID of volume
+  # unix_permissions: 777 # chmod -R of volume

@@ -216,7 +216,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		zlog.Err(err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	zlog.Debug().Msgf("NodePublishVolume iscsi targets  %v", targets)
+	zlog.Debug().Msgf("NodePublishVolume iscsi %d targets  %v", len(targets), targets)
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
@@ -477,7 +477,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	// Use one interface per iSCSI network-space, i.e. usually one per IBox.
 	// TODO what does a blank Initiator name mean?
 	targets := b.Targets
-	if b.InitiatorName != "" {
+	if b.InitiatorName == "" {
 		for i := 0; i < len(targets); i++ {
 			// Look for existing interface named newIface. Clone default iface, if not found.
 			zlog.Debug().Msgf("initiatorName: %s", b.InitiatorName)

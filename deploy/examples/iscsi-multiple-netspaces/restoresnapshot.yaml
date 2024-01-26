@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: iscsi-pvc-restore-from-snapshot
+  namespace: infinidat-csi
+spec:
+  storageClassName: ibox-iscsi
+  dataSource:
+    name: iscsi-snapshot
+    kind: VolumeSnapshot
+    apiGroup: "snapshot.storage.k8s.io"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
