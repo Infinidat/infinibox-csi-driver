@@ -76,6 +76,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
 	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(nil, nil)
 
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
@@ -114,6 +115,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
 	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(nil, nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeId = "94148131#20000$$nfs_treeq"

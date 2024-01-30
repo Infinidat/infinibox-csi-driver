@@ -84,8 +84,8 @@ func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix
 	return &resp, err
 }
 
-// GetFilesytemTreeqCount mock
-func (m *MockApiService) GetFilesytemTreeqCount(filesystemID int64) (int, error) {
+// GetFilesystemTreeqCount mock
+func (m *MockApiService) GetFilesystemTreeqCount(filesystemID int64) (int, error) {
 	args := m.Called(filesystemID)
 	resp, _ := args.Get(0).(int)
 	err, _ := args.Get(1).(error)

@@ -186,7 +186,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 		}
 		for _, fs := range fsMetaData.FileSystemArry {
 			if fs.Size+ts.nfsstorage.capacity < maxFileSystemSize {
-				treeqCnt, treeqCnterr := ts.cs.Api.GetFilesytemTreeqCount(fs.ID)
+				treeqCnt, treeqCnterr := ts.cs.Api.GetFilesystemTreeqCount(fs.ID)
 				if treeqCnterr != nil {
 					zlog.Error().Msgf("failed to get treeq count of filesystemID %d error %v", fs.ID, err)
 					err = errors.New("failed to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
@@ -444,7 +444,7 @@ func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err erro
 // UpdateTreeqCnt method
 func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqCnt int) (treeqCount int, err error) {
 	if treeqCnt == 0 {
-		treeqCnt, err = ts.cs.Api.GetFilesytemTreeqCount(fileSystemID)
+		treeqCnt, err = ts.cs.Api.GetFilesystemTreeqCount(fileSystemID)
 		if err != nil {
 			return
 		}

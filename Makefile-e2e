@@ -60,7 +60,8 @@ e2e-redhat-sanity:  ## run the redhat e2e tests
 e2emetrics:  ## test the metrics deployment on openshift
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_GITLAB_USER=$(_GITLAB_USER) _IMAGE_TAG=$(_IMAGE_TAG) ./e2e/metrics/run.sh
+	#_GITLAB_USER=$(_GITLAB_USER) _IMAGE_TAG=$(_IMAGE_TAG) ./e2e/metrics/run.sh
+	METRICS_IMAGE=git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:develop STORAGECLASS=$(_LOCALDIR)/e2e/metrics/storageclass.yaml CONFIGFILE=$(_LOCALDIR)/e2e/metrics/config.yaml $(_GOTEST) -count=1 -v ./e2e/metrics -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2etreeq

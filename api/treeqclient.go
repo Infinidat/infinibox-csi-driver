@@ -72,7 +72,7 @@ func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix 
 }
 
 // GetFilesytemTreeqCount method return the treeq count
-func (c *ClientService) GetFilesytemTreeqCount(fileSystemID int64) (treeqCnt int, err error) {
+func (c *ClientService) GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt int, err error) {
 	path := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
 	treeqArry := []Treeq{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &treeqArry)

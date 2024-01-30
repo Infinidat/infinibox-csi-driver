@@ -447,24 +447,24 @@ func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
 }
 
 // ****************************************
-func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_error() {
+func (suite *ApiTestSuite) Test_GetFilesystemTreeqCount_error() {
 	expectedError := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedError)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	response, err := service.GetFilesytemTreeqCount(1001)
+	response, err := service.GetFilesystemTreeqCount(1001)
 	var expectedResponse int = 0
 	// Assert
 	assert.NotNil(suite.T(), err, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse, response, "Response should not be nil")
 }
 
-func (suite *ApiTestSuite) Test_GetFilesytemTreeqCount_Success() {
+func (suite *ApiTestSuite) Test_GetFilesystemTreeqCount_Success() {
 	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject: 10}}
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	// Act
-	response, err := service.GetFilesytemTreeqCount(1001)
+	response, err := service.GetFilesystemTreeqCount(1001)
 	var expectedvalue int = 10
 	// Assert
 	assert.Nil(suite.T(), err, "Response should not be nil")
