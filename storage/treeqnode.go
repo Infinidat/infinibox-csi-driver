@@ -70,13 +70,20 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		}
 
 		// only update the export if this is the only treeq since treeq's share a single export
+		exports, err := treeq.nfsstorage.cs.Api.GetExportByFileSystem(fileSystemId)
+		if err != nil {
+			zlog.Err(err)
+			return nil, err
+		}
+		zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(*exports), fileSystemId)
+
 		treeqCount, err := treeq.nfsstorage.cs.Api.GetFilesystemTreeqCount(fileSystemId)
 		if err != nil {
 			zlog.Err(err)
 			return nil, err
 		}
 		zlog.Debug().Msgf("treeq count %d on filesystemId %d", treeqCount, fileSystemId)
-		if treeqCount <= 1 {
+		if len(*exports) == 0 {
 			err = treeq.nfsstorage.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
 			if err != nil {
 				zlog.Err(err)

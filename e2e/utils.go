@@ -66,6 +66,7 @@ type TestResourceNames struct {
 	SnapshotName      string
 	SnapshotClassName string
 	StorageClassName  string
+	UniqueSuffix      string
 }
 
 func GetKubeClient(kubeConfigPath string) (*kubernetes.Clientset, *dynamic.DynamicClient, *snapshotv6.Clientset, error) {
@@ -141,6 +142,14 @@ func DeletePVC(ctx context.Context, ns string, pvcName string, clientSet *kubern
 	}
 	return nil
 }
+func DeletePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientset) (err error) {
+	err = clientSet.CoreV1().PersistentVolumes().Delete(ctx, pvName, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubernetes.Clientset) (err error) {
 	var sec int64
 	opts := metav1.DeleteOptions{
@@ -582,8 +591,8 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	var err error
 	ctx := context.Background()
 	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
-	uniqueSuffix := RandSeq(3)
-	testNames.NSName, err = CreateNamespace(ctx, e2eNamespace, uniqueSuffix, client)
+	testNames.UniqueSuffix = RandSeq(3)
+	testNames.NSName, err = CreateNamespace(ctx, e2eNamespace, testNames.UniqueSuffix, client)
 	if err != nil {
 		t.Fatalf("error setting up e2e namespace %s\n", err.Error())
 	}
@@ -592,7 +601,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	scName := fmt.Sprintf(SC_NAME, protocol)
-	testNames.SCName, err = CreateStorageClass(scName, uniqueSuffix, *StorageClassPath, client)
+	testNames.SCName, err = CreateStorageClass(scName, testNames.UniqueSuffix, *StorageClassPath, client)
 	if err != nil {
 		t.Fatalf("error creating StorageClass %s\n", err.Error())
 	}
@@ -633,7 +642,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	//testNames.SnapshotClassName, err = CreateVolumeSnapshotClass(ctx, VOLUME_SNAPSHOT_CLASS, testNames.NSName, uniqueSuffix, snapshotClient)
-	testNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, uniqueSuffix, dynamicClient)
+	testNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, testNames.UniqueSuffix, dynamicClient)
 	if err != nil {
 		t.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
 	}
