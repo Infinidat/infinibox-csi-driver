@@ -1,5 +1,5 @@
 # Overview
-This is a Helm chart to deploy the InfiniBox CSI driver. See more details and requirements in the [InfiniBox CSI driver user guide](https://support.infinidat.com/hc/en-us/articles/360008917097-InfiniBox-CSI-Driver-for-Kubernetes-User-Guide).
+This is a Helm chart to deploy the InfiniBox CSI driver. See more details and requirements in the [InfiniBox CSI driver user guide](https://support.infinidat.com/hc/en-us/articles/10106070174749-InfiniBox-CSI-Driver-for-Kubernetes-User-Guide).
 
 # Usage
 ## Install driver
