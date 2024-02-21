@@ -713,12 +713,32 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		return hostconfig, errors.New("secret not found")
 	}
 	if c.SecretsMap["hostname"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
-		hosturl, err := url.ParseRequestURI(c.SecretsMap["hostname"])
+
+		hostnameURL, err := url.Parse(c.SecretsMap["hostname"])
+
 		if err != nil {
+			zlog.Error().Msgf("Error parsing IBox hostname: %s", err.Error())
+
+		}
+
+		// check for scheme, add if missing.
+		urlScheme := hostnameURL.Scheme
+
+		if urlScheme == "" {
+			zlog.Debug().Msgf("IBox Hostname is missing scheme, setting https as scheme")
 			hostconfig.ApiHost = "https://" + c.SecretsMap["hostname"] + "/"
 		} else {
-			hostconfig.ApiHost = hosturl.String()
+			hostconfig.ApiHost = hostnameURL.String()
 		}
+
+		// check for URI validity.
+		hostnameURL, err = url.ParseRequestURI(hostconfig.ApiHost)
+		if err != nil {
+			zlog.Error().Msgf("IBox hostname %s is invalid URI: %s", hostnameURL.String(), err.Error())
+		} else {
+			zlog.Debug().Msgf("IBox URL: %s", hostconfig.ApiHost)
+		}
+
 		//zlog.Trace().Msgf("setting url to %s", hostconfig.ApiHost)
 		hostconfig.UserName = c.SecretsMap["username"]
 		hostconfig.Password = c.SecretsMap["password"]
