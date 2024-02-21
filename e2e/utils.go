@@ -69,6 +69,12 @@ type TestResourceNames struct {
 	UniqueSuffix      string
 }
 
+type PVCAnnotations struct {
+	IboxSecret       string
+	IboxNetworkSpace string
+	IboxPool         string
+}
+
 func GetKubeClient(kubeConfigPath string) (*kubernetes.Clientset, *dynamic.DynamicClient, *snapshotv6.Clientset, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
@@ -189,7 +195,7 @@ func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientS
 	return sc.Name, nil
 }
 
-func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool, usePVCAnnotations bool) (err error) {
+func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool, pvcAnnotations *PVCAnnotations) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -210,9 +216,16 @@ func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.C
 		},
 	}
 
-	if usePVCAnnotations {
-		pvc.ObjectMeta.Annotations = map[string]string{
-			common.PVC_ANNOTATION_IBOX_SECRET: "infinibox-creds",
+	if pvcAnnotations != nil {
+		pvc.ObjectMeta.Annotations = make(map[string]string)
+		if pvcAnnotations.IboxNetworkSpace != "" {
+			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_NETWORK_SPACE] = pvcAnnotations.IboxNetworkSpace
+		}
+		if pvcAnnotations.IboxSecret != "" {
+			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_IBOX_SECRET] = pvcAnnotations.IboxSecret
+		}
+		if pvcAnnotations.IboxPool != "" {
+			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_POOL_NAME] = pvcAnnotations.IboxPool
 		}
 	}
 	if useBlock {
@@ -585,7 +598,8 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	return nil
 }
 
-func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, usePVCAnnotations bool) (testNames TestResourceNames) {
+func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset,
+	useFsGroup bool, useBlock bool, pvcAnnotations *PVCAnnotations) (testNames TestResourceNames) {
 
 	t.Log("SETUP STARTS")
 	var err error
@@ -611,7 +625,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	testNames.PVCName = pvcName
-	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock, usePVCAnnotations)
+	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock, pvcAnnotations)
 	if err != nil {
 		t.Fatalf("error creating PVC %s\n", err.Error())
 	}

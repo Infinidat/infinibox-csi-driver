@@ -4,6 +4,7 @@ package iscsianno
 
 import (
 	"infinibox-csi-driver/e2e"
+	"os"
 	"testing"
 
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
@@ -16,7 +17,7 @@ const (
 	PROTOCOL = "iscsi"
 )
 
-func TestIscsi(t *testing.T) {
+func TestIscsiMultipleNetworkSpace(t *testing.T) {
 
 	e2e.GetFlags(t)
 
@@ -29,7 +30,104 @@ func TestIscsi(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, true)
+	networkSpace := os.Getenv("network_space")
+	if networkSpace == "" {
+		t.Fatalf("error - network_space env var is required for this test")
+	}
+	networkSpace2 := os.Getenv("network_space2")
+	if networkSpace2 == "" {
+		t.Fatalf("error - network_space2 env var is required for this test")
+	}
+
+	networkSpace = networkSpace + "," + networkSpace2
+
+	iboxSecret := os.Getenv("ibox_secret")
+	if iboxSecret == "" {
+		t.Fatalf("error - ibox_secret env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: networkSpace,
+		IboxPool:         "",
+		IboxSecret:       iboxSecret,
+	}
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
+
+	t.Logf("testing in namespace %+v\n", testNames)
+	t.Logf("testing with ibox_secret %s network_space %s\n", iboxSecret, networkSpace)
+
+	if *e2e.CleanUp {
+		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+
+func TestIscsiNetworkSpace(t *testing.T) {
+
+	e2e.GetFlags(t)
+
+	//connect to kube
+	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	if err != nil {
+		t.Fatalf("error creating clients %s\n", err.Error())
+	}
+	if clientSet == nil {
+		t.Fatalf("error creating k8s client")
+	}
+
+	networkSpace := os.Getenv("network_space")
+	if networkSpace == "" {
+		t.Fatalf("error - network_space env var is required for this test")
+	}
+	iboxSecret := os.Getenv("ibox_secret")
+	if iboxSecret == "" {
+		t.Fatalf("error - ibox_secret env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: networkSpace,
+		IboxPool:         "",
+		IboxSecret:       iboxSecret,
+	}
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
+
+	t.Logf("testing in namespace %+v\n", testNames)
+	t.Logf("testing with ibox_secret %s network_space %s\n", iboxSecret, networkSpace)
+
+	if *e2e.CleanUp {
+		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+func TestIscsiPool(t *testing.T) {
+
+	e2e.GetFlags(t)
+
+	//connect to kube
+	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	if err != nil {
+		t.Fatalf("error creating clients %s\n", err.Error())
+	}
+	if clientSet == nil {
+		t.Fatalf("error creating k8s client")
+	}
+
+	pool := os.Getenv("pool_name")
+	if pool == "" {
+		t.Fatalf("error - pool_name env var is required for this test")
+	}
+	iboxSecret := os.Getenv("ibox_secret")
+	if iboxSecret == "" {
+		t.Fatalf("error - ibox_secret env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: "",
+		IboxPool:         pool,
+		IboxSecret:       iboxSecret,
+	}
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 
@@ -40,9 +138,42 @@ func TestIscsi(t *testing.T) {
 	}
 
 }
+func TestIscsiSecret(t *testing.T) {
 
-func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, usePVCAnnotations bool) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, usePVCAnnotations)
+	e2e.GetFlags(t)
+
+	//connect to kube
+	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	if err != nil {
+		t.Fatalf("error creating clients %s\n", err.Error())
+	}
+	if clientSet == nil {
+		t.Fatalf("error creating k8s client")
+	}
+
+	iboxSecret := os.Getenv("ibox_secret")
+	if iboxSecret == "" {
+		t.Fatalf("error - ibox_secret env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: "",
+		IboxPool:         "",
+		IboxSecret:       iboxSecret,
+	}
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
+
+	t.Logf("testing in namespace %+v\n", testNames)
+
+	if *e2e.CleanUp {
+		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset,
+	useFsGroup bool, useBlock bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, pvcAnnotations)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {

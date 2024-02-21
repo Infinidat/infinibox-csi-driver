@@ -109,7 +109,8 @@ e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 e2eiscsianno:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/iscsianno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
+	network_space=iSCSI network_space2= ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/iscsianno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
+	ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/iscsianno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsichap
