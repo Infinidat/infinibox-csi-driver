@@ -4,6 +4,7 @@ package fcanno
 
 import (
 	"infinibox-csi-driver/e2e"
+	"os"
 	"testing"
 
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
@@ -28,8 +29,20 @@ func TestFc(t *testing.T) {
 	if clientSet == nil {
 		t.Fatalf("error creating k8s client")
 	}
-
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, true)
+	iboxSecret := os.Getenv("ibox_secret")
+	if iboxSecret == "" {
+		t.Fatalf("error - ibox_secret env var is required for this test")
+	}
+	poolName := os.Getenv("pool_name")
+	if poolName == "" {
+		t.Fatalf("error - pool_name env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: "",
+		IboxPool:         poolName,
+		IboxSecret:       iboxSecret,
+	}
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 
@@ -41,8 +54,9 @@ func TestFc(t *testing.T) {
 
 }
 
-func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, usePVCAnnotations bool) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, usePVCAnnotations)
+func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset,
+	useFsGroup bool, useBlock bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, pvcAnnotations)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {

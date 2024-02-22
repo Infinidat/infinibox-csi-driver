@@ -95,7 +95,7 @@ e2enfs:  ## run the infinidat developed e2e nfs tests
 e2enfsanno:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/nfsanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/nfsanno -tags e2e
+	network_space=NAS ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/nfsanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/nfsanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsi
@@ -138,7 +138,7 @@ e2efc:  ## run the infinidat developed e2e fc tests
 e2efcanno:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/fcanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/fcanno -tags e2e
+	ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/fcanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/fcanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: csitestimage
