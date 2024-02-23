@@ -55,6 +55,8 @@ teardown-clone:  ## Remove clone resources
 .PHONY: setup-snapshot
 setup-snapshot:  teardown-snapshot ## Deploy iscsi objects, restore snapshot, clone.
 	@echo -e $(_begin)
+	$(_cli) create -f ../volumesnapshotclass.yaml
+	sleep 5
 	$(_cli) create -f ./snapshot.yaml
 	sleep 5
 	$(_cli) create -f ./restoresnapshot.yaml
@@ -68,6 +70,7 @@ teardown-snapshot:  ## Remove snapshot resources
 	$(_cli) delete --wait --ignore-not-found=true -f ./apprestoresnapshot.yaml
 	$(_cli) delete --wait --ignore-not-found=true -f ./restoresnapshot.yaml
 	$(_cli) delete --wait --ignore-not-found=true -f ./snapshot.yaml
+	$(_cli) delete --wait --ignore-not-found=true -f ../volumesnapshotclass.yaml
 	@echo -e $(_finish)
 
 .PHONY: setup-block
