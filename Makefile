@@ -61,9 +61,25 @@ clean:  ## Clean source.
 	rm -f $(_BINARY_NAME)
 
 .PHONY: build
-build:  ## Build source.
+build:  build-e2e ## Build source.
 	@echo -e $(_begin)
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
+	@echo -e $(_finish)
+
+.PHONY: build-e2e
+build-e2e:  ## Build e2e source.
+	@echo -e $(_begin)
+	go test -c ./e2e/fcanno/fc_test.go -o /tmp/e2e -v
+	#go test -c ./e2e/grpc/listvolumes_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsi/iscsi_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsianno/iscsi_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsichap/iscsichap_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsimutualchap/iscsimutualchap_test.go -o /tmp/e2e -v
+	go test -c ./e2e/metrics/metrics_test.go -o /tmp/e2e -v
+	go test -c ./e2e/nfs/nfs_test.go -o /tmp/e2e -v
+	go test -c ./e2e/nfsanno/nfs_test.go -o /tmp/e2e -v
+	go test -c ./e2e/treeq/*.go -o /tmp/e2e -v
+	go test -c ./e2e/treeqanno/treeq_test.go -o /tmp/e2e -v
 	@echo -e $(_finish)
 
 .PHONY: rebuild

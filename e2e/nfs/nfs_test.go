@@ -32,7 +32,7 @@ func TestNfs(t *testing.T) {
 
 	// create a unique namespace to perform the test within
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, false)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, nil)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
@@ -84,7 +84,7 @@ func TestNfsFsGroup(t *testing.T) {
 
 	// create a unique namespace to perform the test within
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, true, false, false)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, true, false, nil)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
@@ -116,8 +116,8 @@ func TestNfsFsGroup(t *testing.T) {
 	}
 }
 
-func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, usePVCAnnotations bool) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, usePVCAnnotations)
+func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, pvcAnnotations)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {
