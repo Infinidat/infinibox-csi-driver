@@ -46,17 +46,21 @@ envsubst < $SCRIPT_DIR/csi-secrets.yaml > $WORKDIR/csi-secrets.yaml
 envsubst < $SCRIPT_DIR/test-volume-parameters.yaml > $WORKDIR/test-volume-parameters.yaml
 envsubst < $SCRIPT_DIR/test-snapshot-parameters.yaml > $WORKDIR/test-snapshot-parameters.yaml
 
-# run test
-#	-ginkgo.dryRun \
+# example flag to run a single test
+#        -ginkgo.focus "should\ fail\ when\ volume\ is\ not\ found"  \
+
+# example flags to skip certain tests
 #        -ginkgo.skip "maximum\-length"  \
 #        -ginkgo.skip "length"  \
 #        -ginkgo.skip "should\ return\ empty\ when\ the\ specified\ snapshot\ id\ does\ not\ exist"  \
+
 csi-sanity -ginkgo.v \
 	-ginkgo.progress \
         -ginkgo.skip "maximum"  \
         -ginkgo.skip "length"  \
         -ginkgo.skip "Node"  \
-	-csi.endpoint dns:///$KUBEHOST:30007  \
+	-csi.endpoint $KUBEHOST:30008  \
+	-csi.controllerendpoint $KUBEHOST:30007  \
 	-csi.testvolumeparameters $WORKDIR/test-volume-parameters.yaml \
 	-csi.testsnapshotparameters $WORKDIR/test-snapshot-parameters.yaml \
 	-csi.secrets $WORKDIR/csi-secrets.yaml &> $WORKDIR/results.log

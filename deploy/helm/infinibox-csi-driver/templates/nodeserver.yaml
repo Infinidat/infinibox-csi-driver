@@ -1,3 +1,18 @@
+{{- if eq .Values.e2etesting "true" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-socat-service
+  namespace: {{ .Release.NameSpace }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-node
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 10001
+      nodePort: 30008
+{{- end }}
 ---
 kind: DaemonSet
 apiVersion: apps/v1
@@ -16,6 +31,16 @@ spec:
       serviceAccount: {{ .Release.Name }}-node
       hostNetwork: true
       containers:  
+        {{- if eq .Values.e2etesting "true" }}
+        - name: socat
+          image: alpine/socat:1.0.3
+          args:
+            - tcp-listen:10001,fork,reuseaddr
+            - unix-connect:/var/run/csi/csi.sock
+          volumeMounts:
+            - name: driver-path
+              mountPath: /var/run/csi
+        {{- end }}
         - name: liveness-probe
           image: {{ required "csi liveness sidercar image." .Values.images.livenesssidecar }}
           imagePullPolicy: {{ .Values.images.livenesssidecar_pull_policy | default "Always" | quote }}
