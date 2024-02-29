@@ -55,7 +55,6 @@ envsubst < $SCRIPT_DIR/test-snapshot-parameters.yaml > $WORKDIR/test-snapshot-pa
 #        -ginkgo.skip "should\ return\ empty\ when\ the\ specified\ snapshot\ id\ does\ not\ exist"  \
 
 csi-sanity -ginkgo.v \
-	-ginkgo.progress \
         -ginkgo.skip "maximum"  \
         -ginkgo.skip "length"  \
         -ginkgo.skip "Node"  \

@@ -61,7 +61,7 @@ clean:  ## Clean source.
 	rm -f $(_BINARY_NAME)
 
 .PHONY: build
-build:  build-e2e ## Build source.
+build:  ## Build source.
 	@echo -e $(_begin)
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
 	@echo -e $(_finish)
@@ -69,6 +69,7 @@ build:  build-e2e ## Build source.
 .PHONY: build-e2e
 build-e2e:  ## Build e2e source.
 	@echo -e $(_begin)
+	go test -c ./e2e/fc/fc_test.go -o /tmp/e2e -v
 	go test -c ./e2e/fcanno/fc_test.go -o /tmp/e2e -v
 	#go test -c ./e2e/grpc/listvolumes_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsi/iscsi_test.go -o /tmp/e2e -v

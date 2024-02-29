@@ -291,16 +291,6 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		zlog.Err(err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if req.VolumeCapability == nil {
-		err := fmt.Errorf("NodeExpandVolume error volumeCapability parameter was nil")
-		zlog.Err(err)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	if req.StagingTargetPath == "" {
-		err := fmt.Errorf("NodeExpandVolume error stagingTargetPath parameter was empty")
-		zlog.Err(err)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
 
 	defer func() {
 		isLocking := false
@@ -317,7 +307,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	err := storageHelper.NodeExpandVolumeSize(req)
 	if err != nil {
 		zlog.Error().Msgf("NodeExpandVolume failed with volume ID %s: %s", volumeId, err)
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
 
 	zlog.Info().Msgf("NodeExpandVolume Finished - ID: '%s'", volumeId)

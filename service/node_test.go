@@ -87,8 +87,9 @@ func (suite *NodeTestSuite) Test_NodeGetVolumeStats() {
 	assert.NotNil(suite.T(), err)
 }
 
-func (suite *NodeTestSuite) Test_NodeExpandVolume_unimplemented() {
+func (suite *NodeTestSuite) Test_NodeExpandVolume_volumenotfounderror() {
 	nodeNodeExpandReq := getNodeExpandVolumeRequest()
+	nodeNodeExpandReq.VolumeId = "thisisinvalidvolumename"
 	cs := NodeServer{
 		Driver: &Driver{
 			nodeID: "n",
