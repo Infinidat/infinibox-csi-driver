@@ -725,7 +725,7 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		urlScheme := hostnameURL.Scheme
 
 		if urlScheme == "" {
-			zlog.Debug().Msgf("IBox Hostname is missing scheme, setting https as scheme")
+			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
 			hostconfig.ApiHost = "https://" + c.SecretsMap["hostname"] + "/"
 		} else {
 			hostconfig.ApiHost = hostnameURL.String()
@@ -736,7 +736,7 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		if err != nil {
 			zlog.Error().Msgf("IBox hostname %s is invalid URI: %s", hostnameURL.String(), err.Error())
 		} else {
-			zlog.Debug().Msgf("IBox URL: %s", hostconfig.ApiHost)
+			zlog.Trace().Msgf("IBox URL: %s", hostconfig.ApiHost)
 		}
 
 		//zlog.Trace().Msgf("setting url to %s", hostconfig.ApiHost)
@@ -752,7 +752,7 @@ func (c *ClientService) GetAllSnapshots() ([]Volume, error) {
 	var err error
 	uriList := []string{
 		"/api/rest/datasets",
-		"/api/rest/volumes",
+		//"/api/rest/volumes",
 	}
 	allvolumes := make([]Volume, 0)
 

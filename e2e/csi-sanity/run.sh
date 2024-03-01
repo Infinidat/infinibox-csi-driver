@@ -48,13 +48,27 @@ envsubst < $SCRIPT_DIR/test-snapshot-parameters.yaml > $WORKDIR/test-snapshot-pa
 
 # example flag to run a single test
 #        -ginkgo.focus "should\ fail\ when\ volume\ is\ not\ found"  \
+	#-ginkgo.focus "should\ return\ snapshots\ that\ match\ the\ specified\ source\ volume\ id" \
 
 # example flags to skip certain tests
 #        -ginkgo.skip "maximum\-length"  \
 #        -ginkgo.skip "length"  \
 #        -ginkgo.skip "should\ return\ empty\ when\ the\ specified\ snapshot\ id\ does\ not\ exist"  \
 
+# skipped tests and why we skip them
+#	-ginkgo.focus "check\ the\ presence\ of\ new\ volumes\ and\ absence\ of\ deleted\ ones\ in\ the\ volume\ list" \
+# this test doesn't create PVCs like normal, intead it calls CreateVolume() directly, so our logic of finding and counting PVs 
+# created by the CSI driver doesn't work.  We could change our ListVolumes() implementation to look at the datasets on the Ibox
+# and return those values, but our current logic depends on collecting the storageclass information for PVs and returning
+# that to the end user, so to fix this would require a new ListVolumes() implementation
+#
+#	-ginkgo.focus "should\ return\ next\ token\ when\ a\ limited\ number\ of\ entries\ are\ requested" \
+# this test requires pagination in the ListSnapshots() to be implemented, the current implementation does
+# not support the MaxEntries request parameter and thus paginating results, all results are returned regardless.
+
 csi-sanity -ginkgo.v \
+	-ginkgo.skip "should\ return\ next\ token\ when\ a\ limited\ number\ of\ entries\ are\ requested" \
+	-ginkgo.skip "check\ the\ presence\ of\ new\ volumes\ and\ absence\ of\ deleted\ ones\ in\ the\ volume\ list" \
         -ginkgo.skip "maximum"  \
         -ginkgo.skip "length"  \
         -ginkgo.skip "Node"  \

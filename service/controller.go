@@ -477,7 +477,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 }
 
 func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	zlog.Info().Msgf("ControllerListSnapshots Started")
+	zlog.Info().Msgf("ControllerListSnapshots Started, MaxEntries=%d", req.MaxEntries)
 
 	res := &csi.ListSnapshotsResponse{
 		Entries: make([]*csi.ListSnapshotsResponse_Entry, 0),
@@ -490,7 +490,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	}
 
 	ns := os.Getenv("POD_NAMESPACE")
-	zlog.Info().Msgf("POD_NAMESPACE=%s", ns)
+	zlog.Debug().Msgf("POD_NAMESPACE=%s", ns)
 	if ns == "" {
 		zlog.Error().Msg("env var POD_NAMESPACE was not set, defaulting to openshift-operators namespace")
 		ns = "openshift-operators"
@@ -520,7 +520,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			zlog.Error().Msgf("error getting all snapshots %s", err.Error())
 			return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
 		}
-		zlog.Info().Msgf("got back %d snapshots", len(snapshots))
+		zlog.Debug().Msgf("got back %d snapshots", len(snapshots))
 
 		// handle the optional case where a SnapshotId is passed in the ListSnapshots request
 		var volProto api.VolumeProtocolConfig
@@ -549,20 +549,21 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			var parentName string
 			switch snapshots[i].DatasetType {
 			case "VOLUME":
-				v, err := clientsvc.GetVolume(snapshots[i].ParentId)
+				_, err := clientsvc.GetVolume(snapshots[i].ParentId)
 				if err != nil {
 					zlog.Error().Msgf("snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
 					parentName = "unknown"
 				} else {
-					parentName = v.Name
+					//parentName = v.Name
+					parentName = strconv.Itoa(snapshots[i].ParentId)
 				}
 			case "FILESYSTEM":
-				f, err := clientsvc.GetFileSystemByID(int64(snapshots[i].ParentId))
+				_, err := clientsvc.GetFileSystemByID(int64(snapshots[i].ParentId))
 				if err != nil {
 					zlog.Error().Msgf("snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
 					parentName = "unknown"
 				} else {
-					parentName = f.Name
+					parentName = strconv.Itoa(snapshots[i].ParentId)
 				}
 			default:
 				zlog.Error().Msgf("snapshot %s unknown dataset type %s parentId %d ", snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
@@ -581,13 +582,16 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			}
 
 			if req.SourceVolumeId != "" {
-				if req.SourceVolumeId == entry.Snapshot.SourceVolumeId {
-					zlog.Info().Msgf("comparing req.SourceVolumeId %s SourceVolumeId %s\n", req.SourceVolumeId, entry.Snapshot.SourceVolumeId)
+				volProto, _ := validateVolumeID(req.SourceVolumeId)
+				zlog.Debug().Msgf("comparing %s to %s whole thing %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
+				if volProto.VolumeID == entry.Snapshot.SourceVolumeId {
+					zlog.Debug().Msgf("matches!")
+					entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs
 					res.Entries = append(res.Entries, &entry)
 				}
 			} else if req.SnapshotId != "" {
 				if iValue == snapshots[i].ID {
-					zlog.Info().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
+					zlog.Debug().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
 					entry.Snapshot.SnapshotId = req.SnapshotId
 					res.Entries = append(res.Entries, &entry)
 				}
@@ -598,7 +602,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		}
 	}
 
-	zlog.Info().Msgf("ControllerListSnapshots Finished")
+	zlog.Info().Msgf("ControllerListSnapshots Finished with returned entries count %d", len(res.Entries))
 
 	return res, nil
 }

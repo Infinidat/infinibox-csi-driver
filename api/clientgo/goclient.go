@@ -114,12 +114,12 @@ func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.Persiste
 
 // Return a PersistentVolumeList listing PVs created by this CSI Driver.
 func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error) {
+	zlog.Debug().Msgf("GetAllPersistentVolumes() called")
 	persistentVolumes, err := kc.client.CoreV1().PersistentVolumes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		zlog.Error().Msgf("Failed to get all persistent volumes: %s", err.Error())
 		return nil, err
 	}
-	zlog.Debug().Msgf("GetAllPersistentVolumes() called")
 	zlog.Trace().Msgf("There are %d persistent volumes in the cluster\n", len(persistentVolumes.Items))
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
