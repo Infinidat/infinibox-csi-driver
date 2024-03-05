@@ -27,6 +27,7 @@ spec:
       exportID: 3000
       ipAddress: 172.17.35.45
       storage_protocol: nfs
+      network_space: NAS
       # uid: 1000
       # gid: 1000
       # unix_permissions: 777

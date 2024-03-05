@@ -26,6 +26,7 @@ spec:
     volumeAttributes:
       exportID: "450732"
       ipAddress: "172.31.32.158"
+      network_space: "NAS"
       storage_protocol: nfs
       # uid: 1000
       # gid: 1000

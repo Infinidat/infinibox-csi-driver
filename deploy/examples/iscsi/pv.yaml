@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: csi-543408c007
+  name: pv-from-existing
 spec:
   accessModes:
   - ReadWriteOnce
@@ -26,13 +26,14 @@ spec:
       iqn: iqn.2009-11.com.infinidat:storage:infinibox-sn-36000-2436
       portals: 172.17.35.68,172.17.35.69,172.17.35.70,172.17.35.71,172.17.35.72,172.17.35.73
       readOnly: "false"
+      network_space: "iSCSI"
       storage.kubernetes.io/csiProvisionerIdentity: 1583914762466-8081-infinibox-csi-driver
       storage_protocol: iscsi
-      # uid: 1000
-      # gid: 1000
+      uid: "3000"
+      gid: "3000"
       # unix_permissions: 777
       useCHAP: none
     volumeHandle: 20797$$iscsi
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: ibox-iscsi-storageclass-demo
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ibox-iscsi
   volumeMode: Filesystem
