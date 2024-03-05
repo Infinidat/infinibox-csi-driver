@@ -66,6 +66,7 @@ spec:
             - "--csi-address=$(ADDRESS)"
             - "--volume-name-prefix={{ required "Must provide a value to prefix to driver created volume names" .Values.volumeNamePrefix }}"
             - "--volume-name-uuid-length=10"
+            - "--extra-create-metadata"
             - "--v=5"
           env:
             - name: ADDRESS
