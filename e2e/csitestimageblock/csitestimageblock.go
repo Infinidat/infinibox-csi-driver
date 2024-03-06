@@ -22,6 +22,12 @@ func main() {
 	disk := "/dev/xvda"
 	valueToWrite := "foo"
 
+	//use naodeName if it exists
+	nodeName := os.Getenv("KUBE_NODE_NAME")
+	if nodeName != "" {
+		valueToWrite = nodeName
+	}
+
 	listPermissions(disk)
 
 	err := writeToBlockDevice(valueToWrite, disk)

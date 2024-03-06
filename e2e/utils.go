@@ -50,12 +50,15 @@ const (
 	VOLUME_SNAPSHOT_CLASS = "e2e-"
 	IMAGE_PULL_SECRET     = "private-docker-reg-secret"
 	POD_NAME              = "e2e-test-pod"
+	ANTI_AF_POD_NAME      = "e2e-test-anti-pod"
 	PVC_NAME              = "ibox-%s-pvc-demo"
 	SNAPSHOT_NAME         = "e2e-test-snapshot"
 	E2E_NAMESPACE         = "e2e-%s-"
 	SC_NAME               = "e2e-%s-"
 	DRIVER_NAMESPACE      = "infinidat-csi"
 	MOUNT_PATH            = "/tmp/csitesting"
+	BLOCK_DEV_PATH        = "/dev/xvda"
+	BLOCK_MOUNT_POINT     = "/var"
 	POD_FS_GROUP          = 2000
 )
 
@@ -195,7 +198,7 @@ func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientS
 	return sc.Name, nil
 }
 
-func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool, pvcAnnotations *PVCAnnotations) (err error) {
+func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool, useAntiAffinity bool, pvcAnnotations *PVCAnnotations) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -204,13 +207,21 @@ func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.C
 	requirements := v1.ResourceRequirements{
 		Requests: rList,
 	}
+
+	accessModes := []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+
+	// useAntiAffinity is for rwx block test on two nodes. This may not be best way to determine access mode in the future.
+	if useAntiAffinity {
+		accessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteMany}
+	}
+
 	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pvcName,
 			Namespace: ns,
 		},
 		Spec: v1.PersistentVolumeClaimSpec{
-			AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+			AccessModes:      accessModes,
 			Resources:        requirements,
 			StorageClassName: &scName,
 		},
@@ -400,14 +411,29 @@ func GetFlags(t *testing.T) {
 	}
 }
 
-func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGroupSpecified bool, useBlock bool) (err error) {
+func CreatePod(protocol string, ns string, podName string, clientset *kubernetes.Clientset, fsGroupSpecified bool, useBlock bool, useAntiAffinity bool) (err error) {
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	createOptions := metav1.CreateOptions{}
 	podFSGroup := int64(POD_FS_GROUP)
 
-	m := metav1.ObjectMeta{
-		Name: POD_NAME,
+	var m metav1.ObjectMeta
+
+	if useAntiAffinity { // if this pod checks affinity, don't use a label
+
+		m = metav1.ObjectMeta{
+			Name: podName,
+		}
+
+	} else {
+
+		m = metav1.ObjectMeta{
+			Name: podName,
+			Labels: map[string]string{ // used for multi-pod antiaffinity test
+				"security": "s1",
+			},
+		}
 	}
+
 	volumeMounts := make([]v1.VolumeMount, 0)
 	volumeDevices := make([]v1.VolumeDevice, 0)
 	//noPriv := true
@@ -432,6 +458,16 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 		ImagePullPolicy: v1.PullAlways,
 		VolumeMounts:    volumeMounts,
 		VolumeDevices:   volumeDevices,
+		Env: []v1.EnvVar{
+			{
+				Name: "KUBE_NODE_NAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "spec.nodeName",
+					},
+				},
+			},
+		},
 		/**
 		SecurityContext: &v1.SecurityContext{
 			Privileged:               &noPriv,
@@ -457,7 +493,24 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 
 	var pod v1.Pod
 
-	if fsGroupSpecified {
+	podAntiAffinity := v1.Affinity{
+		PodAntiAffinity: &v1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"security": "s1",
+						},
+					},
+					TopologyKey: "kubernetes.io/hostname",
+				},
+			},
+		},
+	}
+
+	// determine which affinity for pod here, so correct one is assigned below.
+
+	if fsGroupSpecified && !useAntiAffinity {
 		pod = v1.Pod{
 			ObjectMeta: m,
 			Spec: v1.PodSpec{
@@ -473,8 +526,27 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 				},
 			},
 		}
-	} else {
 
+	} else if fsGroupSpecified && useAntiAffinity {
+
+		pod = v1.Pod{
+			ObjectMeta: m,
+			Spec: v1.PodSpec{
+				Affinity: &podAntiAffinity,
+				ImagePullSecrets: []v1.LocalObjectReference{
+					{
+						Name: IMAGE_PULL_SECRET,
+					},
+				},
+				Containers: []v1.Container{container},
+				Volumes:    []v1.Volume{volume},
+				SecurityContext: &v1.PodSecurityContext{
+					FSGroup: &podFSGroup,
+				},
+			},
+		}
+
+	} else if !fsGroupSpecified && !useAntiAffinity {
 		pod = v1.Pod{
 			ObjectMeta: m,
 			Spec: v1.PodSpec{
@@ -487,6 +559,22 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 				Volumes:    []v1.Volume{volume},
 			},
 		}
+
+	} else if !fsGroupSpecified && useAntiAffinity {
+		pod = v1.Pod{
+			ObjectMeta: m,
+			Spec: v1.PodSpec{
+				Affinity: &podAntiAffinity,
+				ImagePullSecrets: []v1.LocalObjectReference{
+					{
+						Name: IMAGE_PULL_SECRET,
+					},
+				},
+				Containers: []v1.Container{container},
+				Volumes:    []v1.Volume{volume},
+			},
+		}
+
 	}
 
 	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), &pod, createOptions)
@@ -495,56 +583,6 @@ func CreatePod(protocol string, ns string, clientset *kubernetes.Clientset, fsGr
 	}
 	return nil
 }
-
-//func CreateFsGroupPod(protocol string, ns string, clientset *kubernetes.Clientset) (err error) {
-//	pvcName := fmt.Sprintf(PVC_NAME, protocol)
-//	createOptions := metav1.CreateOptions{}
-//	podFSGroup := int64(3000)
-//
-//	m := metav1.ObjectMeta{
-//		Name: POD_NAME,
-//	}
-//	volumeMounts := v1.VolumeMount{
-//		MountPath: "/tmp/csitesting",
-//		Name:      "ibox-csi-volume",
-//	}
-//	//noPriv := true
-//	container := v1.Container{
-//		Name:            "e2e-test",
-//		Image:           "infinidat/csitestimage:latest",
-//		ImagePullPolicy: v1.PullAlways,
-//		VolumeMounts:    []v1.VolumeMount{volumeMounts},
-//	}
-//
-//	volume := v1.Volume{
-//		Name: "ibox-csi-volume",
-//		VolumeSource: v1.VolumeSource{
-//			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-//				ClaimName: pvcName,
-//			},
-//		},
-//	}
-//	pod := &v1.Pod{
-//		ObjectMeta: m,
-//		Spec: v1.PodSpec{
-//			ImagePullSecrets: []v1.LocalObjectReference{
-//				{
-//					Name: IMAGE_PULL_SECRET,
-//				},
-//			},
-//			Containers: []v1.Container{container},
-//			Volumes:    []v1.Volume{volume},
-//			SecurityContext: &v1.PodSecurityContext{
-//				FSGroup: &podFSGroup,
-//			},
-//		},
-//	}
-//	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), pod, createOptions)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
 
 func CreateSnapshot(pvcName string, volumeSnapshotClassName string, ns string, clientSet *snapshotv6.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
@@ -599,7 +637,7 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 }
 
 func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset,
-	useFsGroup bool, useBlock bool, pvcAnnotations *PVCAnnotations) (testNames TestResourceNames) {
+	useFsGroup bool, useBlock bool, useAntiAffinity bool, pvcAnnotations *PVCAnnotations) (testNames TestResourceNames) {
 
 	t.Log("SETUP STARTS")
 	var err error
@@ -625,7 +663,9 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	pvcName := fmt.Sprintf(PVC_NAME, protocol)
 	testNames.PVCName = pvcName
-	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock, pvcAnnotations)
+
+	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock, useAntiAffinity, pvcAnnotations)
+
 	if err != nil {
 		t.Fatalf("error creating PVC %s\n", err.Error())
 	}
@@ -641,7 +681,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreatePod(protocol, testNames.NSName, client, useFsGroup, useBlock)
+	err = CreatePod(protocol, testNames.NSName, POD_NAME, client, useFsGroup, useBlock, false) // first pod is never anti-affinity.
 	if err != nil {
 		t.Fatalf("error creating test pod %s", err.Error())
 	}
@@ -654,6 +694,22 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	t.Logf("✓ Pod %s is running\n", POD_NAME)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
+
+	// anti-affinity pod for two-node specific tests.
+	if useAntiAffinity {
+
+		err = CreatePod(protocol, testNames.NSName, ANTI_AF_POD_NAME, client, useFsGroup, useBlock, useAntiAffinity)
+		if err != nil {
+			t.Fatalf("error creating test anti-affinity pod %s", err.Error())
+		}
+		t.Logf("✓ Pod %s is created\n", ANTI_AF_POD_NAME)
+
+		err = WaitForPod(t, ANTI_AF_POD_NAME, testNames.NSName, client)
+		if err != nil {
+			t.Fatalf("error waiting for pod %s", err.Error())
+		}
+		t.Logf("✓ Pod %s is running\n", ANTI_AF_POD_NAME)
+	}
 
 	//testNames.SnapshotClassName, err = CreateVolumeSnapshotClass(ctx, VOLUME_SNAPSHOT_CLASS, testNames.NSName, uniqueSuffix, snapshotClient)
 	testNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, testNames.UniqueSuffix, dynamicClient)
@@ -732,4 +788,20 @@ func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset
 	})
 
 	return err
+}
+
+func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
+
+	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+
+	if err != nil {
+		t.Logf("Error while getting node count: %s", err.Error())
+		return 0
+	}
+
+	nodeCount := len(nodes.Items)
+
+	t.Logf("Test System Node count: %d", nodeCount)
+	return nodeCount
+
 }

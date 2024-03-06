@@ -42,7 +42,7 @@ func TestFc(t *testing.T) {
 		IboxPool:         poolName,
 		IboxSecret:       iboxSecret,
 	}
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
+	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, false, pvcAnnotations)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 
@@ -55,8 +55,8 @@ func TestFc(t *testing.T) {
 }
 
 func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset,
-	useFsGroup bool, useBlock bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, pvcAnnotations)
+	useFsGroup bool, useBlock bool, useAntiAffinity bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, useAntiAffinity, pvcAnnotations)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {

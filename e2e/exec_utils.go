@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
-	"math"
-	"strings"
 )
 
 func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
@@ -73,6 +74,55 @@ func VerifyGroupIdIsUsed(clientSet *kubernetes.Clientset, config *restclient.Con
 
 }
 
+func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (bool, string) {
+
+	fmt.Printf("Testing for blockwrite in %s\n", podName)
+
+	nodeNameCmd := "echo $KUBE_NODE_NAME"
+
+	nodeName, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, nodeNameCmd)
+
+	if len(stdErr) > 0 {
+		fmt.Printf("Error: %s\n", stdErr)
+	}
+
+	if err != nil {
+		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err.Error())
+		return false, err.Error()
+	}
+
+	charCount := 0 // default to read no characters
+
+	if len(nodeName) > 0 {
+		charCount = len(strings.Fields(nodeName)[0])
+	}
+
+	// fmt.Printf("Nodename length is %d\n", charCount)
+
+	testFileCmd := fmt.Sprintf("dd count=%d if=%s ibs=1 2>/dev/null", charCount, BLOCK_DEV_PATH)
+
+	// fmt.Printf("Character count is: %d and testCmd: %s\n", charCount, testFileCmd)
+
+	blockRead, stdErr2, err2 := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd)
+
+	if len(stdErr2) > 0 {
+		fmt.Printf("Error: %s\n", stdErr2)
+	}
+
+	if err2 != nil {
+		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err2.Error())
+		return false, err2.Error()
+	}
+
+	// fmt.Printf("Result from reading pod is: %s\n", blockRead)
+
+	if strings.TrimSpace(nodeName) == strings.TrimSpace(blockRead) {
+		return true, ""
+	} else {
+		return false, "Hostname did not match block written and read."
+	}
+}
+
 // execCmdInPod - exec command on specific pod and wait the command's output.
 func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
 	command string) (string, string, error) {
@@ -103,7 +153,7 @@ func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, po
 		scheme.ParameterCodec,
 	)
 
-	//fmt.Printf("Running command: %s\n", command)
+	//fmt.Printf("execCmdInPod - Running command: %s\n", command)
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {

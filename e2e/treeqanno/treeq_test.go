@@ -49,7 +49,7 @@ func TestTreeq(t *testing.T) {
 		IboxSecret:       iboxSecret,
 	}
 
-	testNames := setup(t, clientSet, dynamicClient, snapshotClient, false, false, pvcAnnotations)
+	testNames := setup(t, clientSet, dynamicClient, snapshotClient, false, false, false, pvcAnnotations)
 
 	t.Logf("testing in namespace %+v\n", testNames)
 	// run the test
@@ -62,8 +62,8 @@ func TestTreeq(t *testing.T) {
 }
 
 func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, fsGroup bool,
-	useBlock bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(PROTOCOL, t, client, dynamicClient, snapshotClient, fsGroup, useBlock, pvcAnnotations)
+	useBlock bool, useAntiAffinity bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
+	return e2e.Setup(PROTOCOL, t, client, dynamicClient, snapshotClient, fsGroup, useBlock, useAntiAffinity, pvcAnnotations)
 }
 
 func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset) {

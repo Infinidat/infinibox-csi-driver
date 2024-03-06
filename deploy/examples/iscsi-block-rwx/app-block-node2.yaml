@@ -1,0 +1,29 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: iscsi-block-node2
+  namespace: infinidat-csi
+spec:
+  affinity:
+    podAntiAffinity: 
+      requiredDuringSchedulingIgnoredDuringExecution: 
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In 
+            values:
+            - s1
+        topologyKey: kubernetes.io/hostname
+  containers:
+    - name: csitest
+      image: infinidat/csitestimageblock:latest
+      imagePullPolicy: Always
+      volumeMounts:
+      command: [ "csitestimageblock" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: iscsi-block-pvc-rwx

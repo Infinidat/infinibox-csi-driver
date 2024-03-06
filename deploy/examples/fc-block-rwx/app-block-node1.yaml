@@ -1,0 +1,26 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: fc-block-node1
+  namespace: infinidat-csi
+  labels:
+    security: s1
+spec:
+  containers:
+    - name: csitest
+      image: git.infinidat.com:4567/cbaus/infinidat-csi-driver/csitestimageblock
+      imagePullPolicy: Always
+      volumeMounts:
+      command: [ "csitestimageblock" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+      env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: fc-block-pvc-rwx

@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-    name: iscsi-block-pvc-clone
+    name: fc-block-pvc-clone
     namespace: infinidat-csi
 spec:
   accessModes:
   - ReadWriteOnce
   volumeMode: Block
-  storageClassName: ibox-iscsi
+  storageClassName: ibox-fc
   resources:
     requests:
       storage: 1Gi
   dataSource:
     kind: PersistentVolumeClaim
-    name: iscsi-block-pvc
+    name: fc-block-pvc
