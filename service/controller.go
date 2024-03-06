@@ -94,11 +94,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	pvcAnnotations, err := kc.GetPVCAnnotations(req.GetName())
+	pvcAnnotations, err := kc.GetPVCAnnotations(req.Parameters["csi.storage.k8s.io/pvc/name"], req.Parameters["csi.storage.k8s.io/pvc/namespace"])
 	if err != nil {
-		if error != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", req.GetName(), error)
-		}
+		return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", req.GetName(), err)
 	}
 	secretsToUse := req.GetSecrets()
 
