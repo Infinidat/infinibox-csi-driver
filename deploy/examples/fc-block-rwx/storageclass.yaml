@@ -19,11 +19,12 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
-  #max_vols_per_host: "100"
   pool_name: "csitesting"
-  provision_type: "THIN"
-  ssd_enabled: "false"
   storage_protocol: "fc"
-  #uid: "3000" # UID of volume
-  #gid: "3000" # GID of volume
+  # optional parameters
+  #max_vols_per_host: "100"
+  #provision_type: "THIN"
+  #ssd_enabled: "false"
+  uid: "3000" # UID of volume
+  gid: "3000" # GID of volume
   #unix_permissions: "777" # optional volume mount permissions

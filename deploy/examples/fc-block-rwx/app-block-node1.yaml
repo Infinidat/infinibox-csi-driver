@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
     - name: csitest
-      image: git.infinidat.com:4567/cbaus/infinidat-csi-driver/csitestimageblock
+      image: infinidat/csitestimageblock:latest
       imagePullPolicy: Always
       volumeMounts:
       command: [ "csitestimageblock" ]
