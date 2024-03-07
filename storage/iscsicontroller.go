@@ -38,7 +38,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// validate required parameters
 	err := validateStorageClassParameters(map[string]string{
-		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, nil, params, iscsi.cs.Api)
@@ -50,7 +49,6 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// Volume name to be created - already verified earlier
 	name := req.GetName()
 
-	// Pool name - already verified earlier
 	poolName := params[common.SC_POOL_NAME]
 
 	targetVol, err := iscsi.cs.Api.GetVolumeByName(name)

@@ -30,7 +30,6 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	params := req.GetParameters()
 
 	capacity, err := nfsSanityCheck(req, map[string]string{
-		common.SC_POOL_NAME:     `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, map[string]string{
 		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,

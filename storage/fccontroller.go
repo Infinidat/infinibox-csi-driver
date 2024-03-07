@@ -42,15 +42,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	fc.configmap = params
 	zlog.Debug().Msgf("csi request parameters %v", params)
 
-	// validate required parameters
-	err = validateStorageClassParameters(map[string]string{
-		common.SC_POOL_NAME: `\A.*\z`, // TODO: could make this enforce IBOX pool_name requirements, but probably not necessary
-	}, nil, params, fc.cs.Api)
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
 	gid := params[common.SC_GID]
 	uid := params[common.SC_UID]
 	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
@@ -59,7 +50,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
 
-	// Pool name - already verified earlier
 	poolName := params[common.SC_POOL_NAME]
 
 	targetVol, err := fc.cs.Api.GetVolumeByName(name)
