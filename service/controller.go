@@ -94,9 +94,14 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	pvcAnnotations, err := kc.GetPVCAnnotations(req.Parameters["csi.storage.k8s.io/pvc/name"], req.Parameters["csi.storage.k8s.io/pvc/namespace"])
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", req.GetName(), err)
+	pvcAnnotations := make(map[string]string)
+	extraMetadataPVCName := req.Parameters["csi.storage.k8s.io/pvc/name"]
+	extraMetadataPVCNamespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
+	if extraMetadataPVCName != "" && extraMetadataPVCNamespace != "" {
+		pvcAnnotations, err = kc.GetPVCAnnotations(extraMetadataPVCName, extraMetadataPVCNamespace)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", req.GetName(), err)
+		}
 	}
 	secretsToUse := req.GetSecrets()
 
@@ -580,12 +585,16 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			}
 
 			if req.SourceVolumeId != "" {
-				volProto, _ := validateVolumeID(req.SourceVolumeId)
-				zlog.Debug().Msgf("comparing %s to %s whole thing %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
-				if volProto.VolumeID == entry.Snapshot.SourceVolumeId {
-					zlog.Debug().Msgf("matches!")
-					entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs
-					res.Entries = append(res.Entries, &entry)
+				volProto, err := validateVolumeID(req.SourceVolumeId)
+				if err != nil {
+					zlog.Error().Msgf("error validating sourceVolumeId %s %s", req.SourceVolumeId, err.Error())
+				} else {
+					zlog.Debug().Msgf("comparing %s to %s whole thing %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
+					if volProto.VolumeID == entry.Snapshot.SourceVolumeId {
+						zlog.Debug().Msgf("matches!")
+						entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs
+						res.Entries = append(res.Entries, &entry)
+					}
 				}
 			} else if req.SnapshotId != "" {
 				if iValue == snapshots[i].ID {
