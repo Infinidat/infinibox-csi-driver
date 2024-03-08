@@ -99,6 +99,18 @@ go-metrics-build:
       - infinibox-csi-metrics
     expire_in: 1 day
 
+go-e2e-test:
+  stage: test
+  tags:
+    - go-test
+  only:
+    - merge_request
+  image:
+    name: quay.io/projectquay/golang:1.21
+    pull_policy: if-not-present
+  script:
+  - make build-e2e
+
 
 build-image:
   stage: docker_build
