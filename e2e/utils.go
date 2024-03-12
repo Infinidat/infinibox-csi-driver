@@ -319,7 +319,7 @@ func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.C
 	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
-		t.Logf("waiting for infinidat csi operator pod to show up in namespace %s", ns)
+		t.Logf("waiting for infinidat csi test pod to show up in namespace %s", ns)
 		p, err := clientset.CoreV1().Pods(ns).Get(context.TODO(), podName, getOptions)
 		if err != nil && apierrors.IsNotFound(err) {
 			t.Logf("pod %s pod not found!\n", podName)

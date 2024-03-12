@@ -81,6 +81,11 @@ func CreateAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet 
 	if err != nil {
 		return 0, err
 	}
+
+	if len(networkSpaceResponse.Name) == 0 {
+		return 0, fmt.Errorf("networkpace name does not exist: %s", networkSpace)
+	}
+
 	networkSpaceIPAddress := networkSpaceResponse.Portals[0].IpAdress
 
 	poolID, err := clientsvc.GetStoragePoolIDByName(poolName)
