@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: iscsi-rox-block-pvc
+  namespace: infinidat-csi
+spec:
+  accessModes:
+    - ReadOnlyMany
+  volumeMode: Block
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-iscsi-rox-readers
+  volumeName: block-rox-pv-from-existing
+

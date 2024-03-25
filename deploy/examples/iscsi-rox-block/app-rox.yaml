@@ -1,0 +1,25 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: iscsi-rox-block
+  namespace: infinidat-csi
+spec:
+  securityContext:
+    seLinuxOptions:
+      type: "spc_t"
+  containers:
+    - name: csitest
+      image: infinidat/csitestimageblock:latest
+      env:
+      - name: READ_ONLY
+        value: "true"
+      imagePullPolicy: IfNotPresent
+      volumeMounts:
+      command: [ "csitestimageblock" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: iscsi-rox-block-pvc

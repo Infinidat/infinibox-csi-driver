@@ -6,6 +6,7 @@ import (
 	"infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
+	"time"
 
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 
@@ -96,6 +97,8 @@ func TestIscsiFsGroup(t *testing.T) {
 		t.Fatalf("error waiting for volumesnapshot %s", err.Error())
 	}
 	*/
+
+	time.Sleep(10 * time.Second) //sleep to avoid a race condition
 
 	expectedValue := "drwxrwsr-x"
 	winning, actual := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)

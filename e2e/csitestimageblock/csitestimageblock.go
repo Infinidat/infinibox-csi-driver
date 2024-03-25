@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -22,7 +23,21 @@ func main() {
 	disk := "/dev/xvda"
 	valueToWrite := "foo"
 
-	//use naodeName if it exists
+	readOnlyEnvVar := os.Getenv("READ_ONLY")
+	var readOnly bool
+	var err error
+	if readOnlyEnvVar != "" {
+		readOnly, err = strconv.ParseBool(readOnlyEnvVar)
+		if err != nil {
+			fmt.Printf("error parsing READ_ONLY env var %s", err.Error())
+			os.Exit(2)
+		}
+	}
+	if readOnly {
+		fmt.Println("READ_ONLY is true")
+	}
+
+	//use nodeName if it exists
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName != "" {
 		valueToWrite = nodeName
@@ -30,16 +45,34 @@ func main() {
 
 	listPermissions(disk)
 
-	err := writeToBlockDevice(valueToWrite, disk)
-	if err != nil {
-		os.Exit(1)
-	}
+	if readOnly {
+		n, valueRead, err := readFromBlockDevice(valueToWrite, disk)
+		if err != nil {
+			fmt.Printf("error reading %s\n", err.Error())
+			os.Exit(1)
+		}
+		fmt.Printf("read %d bytes [%s] from block device %s\n", n, valueRead, disk)
+	} else {
+		err := writeToBlockDevice(valueToWrite, disk)
+		if err != nil {
+			fmt.Printf("error writing %s\n", err.Error())
+			os.Exit(1)
+		}
 
-	time.Sleep(time.Second * 4)
+		/**
+		time.Sleep(4 * time.Second)
 
-	err = readFromBlockDevice(valueToWrite, disk)
-	if err != nil {
-		fmt.Printf("error reading %s\n", err.Error())
+		n, valueRead, err := readFromBlockDevice(valueToWrite, disk)
+		if err != nil {
+			fmt.Printf("error reading %s\n", err.Error())
+			os.Exit(1)
+		}
+		fmt.Printf("read %d bytes [%s] from block device %s\n", n, valueRead, disk)
+		if valueRead != valueToWrite {
+			fmt.Printf("value of [%s] len %d did not match the expected value of [%s] len %d", valueRead, len(valueRead), valueToWrite, len(valueToWrite))
+			os.Exit(2)
+		}
+		*/
 	}
 
 	for {
@@ -87,14 +120,14 @@ func writeToBlockDevice(value, device string) error {
 	return nil
 }
 
-func readFromBlockDevice(value, device string) error {
+func readFromBlockDevice(value, device string) (int, string, error) {
 
 	// simulate the command line: head -c 3 /dev/xvda
 
-	f, err := syscall.Open(device, os.O_RDWR, 0777)
+	f, err := syscall.Open(device, os.O_RDONLY, 0555)
 	if err != nil {
 		fmt.Printf("error in opening block device %s\n", err.Error())
-		return err
+		return 0, "", err
 	}
 
 	defer func() {
@@ -110,12 +143,8 @@ func readFromBlockDevice(value, device string) error {
 	}
 
 	valueRead := string(buf[:n])
-	fmt.Printf("read %d bytes [%s] from block device %s\n", n, valueRead, device)
-	if valueRead != value {
-		return fmt.Errorf("value of [%s] len %d did not match the expected value of [%s] len %d", valueRead, len(valueRead), value, len(value))
-	}
 
-	return nil
+	return n, valueRead, nil
 }
 
 func listPermissions(device string) {

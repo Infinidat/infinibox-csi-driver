@@ -209,7 +209,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
-	zlog.Debug().Msgf("NodePublishVolume volume ID %s, network_space %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE])
+	zlog.Debug().Msgf("NodePublishVolume volume ID %s, network_space %s mode %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode)
 
 	targets, err := iscsi.getISCSITargets(req)
 	if err != nil {
@@ -231,6 +231,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		zlog.Err(err)
 		return nil, err
 	}
+
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
 		zlog.Err(err)
@@ -238,11 +239,15 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	zlog.Debug().Msgf("iscsi attachDisk succeeded")
 
-	// Chown
-	err = iscsi.storageHelper.SetVolumePermissions(req)
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, err.Error())
+	if diskMounter.readOnly {
+		zlog.Debug().Msgf("skipping chown-chmod since this is readOnly volume")
+	} else {
+		// Chown
+		err = iscsi.storageHelper.SetVolumePermissions(req)
+		if err != nil {
+			zlog.Err(err)
+			return nil, status.Errorf(codes.Internal, err.Error())
+		}
 	}
 
 	helper.PrettyKlogDebug("NodePublishVolume returning csi.NodePublishVolumeResponse:", csi.NodePublishVolumeResponse{})
@@ -638,19 +643,25 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 	}
 
+	mountOptionMode := "rw"
+	mode := "0750" //rwx
+	var options []string
+	if b.readOnly {
+		mountOptionMode = "ro"
+		mode = "0550" //read only
+		zlog.Debug().Msgf("readOnly so setting mountPoint to %s", mode)
+	}
+
 	if b.isBlock {
 		// A block volume is a volume that will appear as a block device inside the container.
 		zlog.Debug().Msgf("mounting raw block volume at given path %s", mntPath)
-		if b.readOnly {
-			// TODO: actually implement this - CSIC-343
-			return "", status.Error(codes.Internal, "iscsi: Read-only is not supported for Block Volume")
-		}
 
 		zlog.Debug().Msgf("mount point does not exist, creating mount point.")
-		zlog.Debug().Msgf("run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(mntPath))
+
+		zlog.Debug().Msgf("run: mkdir --parents --mode %s '%s' ", mode, filepath.Dir(mntPath))
 		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 		// MkdirAll() will cause hard-to-grok mount errors.
-		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", filepath.Dir(mntPath))
+		cmd := exec.Command("mkdir", "--parents", "--mode", mode, filepath.Dir(mntPath))
 		err = cmd.Run()
 		if err != nil {
 			zlog.Error().Msgf("failed to mkdir '%s': %s", mntPath, err)
@@ -666,8 +677,9 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
 		// TODO: validate this further, see CSIC-341
-		options := []string{"bind"}
-		options = append(options, "rw") // TODO address in CSIC-343
+		options = append(options, "bind")
+		options = append(options, mountOptionMode)
+
 		if err := b.mounter.Mount(devicePath, mntPath, "", options); err != nil {
 			zlog.Error().Msgf("failed to bind mount iscsi block volume %s [%s] to %s, error %v", devicePath, b.fsType, mntPath, err)
 			return "", err
@@ -706,7 +718,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			zlog.Debug().Msgf("mount point does not exist. creating mount point.")
 			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execScsi.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", mountPoint))
+			_, err := execScsi.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
 			if err != nil {
 				zlog.Error().Msgf("failed to mkdir '%s': %v", mountPoint, err)
 				return "", err
@@ -715,14 +727,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			zlog.Debug().Msgf("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
 
-		var options []string
-		if b.readOnly {
-			zlog.Debug().Msgf("volume is read-only")
-			options = append(options, "ro") // BUG: what if user separately specified "rw" option? address in CSIC-343
-		} else {
-			zlog.Debug().Msgf("volume is read-write")
-			options = append(options, "rw") // BUG: what if user separately specified "ro" option? address in CSIC-343
-		}
+		options = append(options, mountOptionMode) // BUG: what if user separately specified "rw" option?
 		options = append(options, b.mountOptions...)
 
 		zlog.Debug().Msgf("strip /host from %s", devicePath)
@@ -841,6 +846,15 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 }
 
 func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.NodePublishVolumeRequest) (*iscsiDiskMounter, error) {
+	m := &iscsiDiskMounter{
+		targetPath:   req.GetTargetPath(),
+		stagePath:    req.GetStagingTargetPath(),
+		mountOptions: []string{},
+		mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
+		exec:         utilexec.New(),
+		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
+	}
+
 	// handle volumeCapabilities, the standard place to define block/file etc
 	reqVolCapability := req.GetVolumeCapability()
 
@@ -848,21 +862,22 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
 	// TODO: set readonly flag for RO accessmodes, any other validations needed?
 
+	if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+		m.readOnly = true
+	}
 	// handle file (mount) and block parameters
 	mountVolCapability := reqVolCapability.GetMount()
-	mountOptions := []string{}
 	blockVolCapability := reqVolCapability.GetBlock()
-	var fstype string
 
 	// protocol-specific paths below
 	if mountVolCapability != nil && blockVolCapability == nil {
 		// option A. user wants file access to their iSCSI device
 		iscsiDisk.isBlock = false
 
-		fstype = mountVolCapability.GetFsType()
+		m.fsType = mountVolCapability.GetFsType()
 
 		// mountOptions - could be nothing
-		mountOptions = mountVolCapability.GetMountFlags()
+		m.mountOptions = mountVolCapability.GetMountFlags()
 
 		// TODO: other validations needed for file?
 		// - something about read-only access?
@@ -887,17 +902,9 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
-	return &iscsiDiskMounter{
-		iscsiDisk:    iscsiDisk,
-		fsType:       fstype,
-		readOnly:     false, // TODO: not accurate, address in CSIC-343
-		mountOptions: mountOptions,
-		mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
-		exec:         utilexec.New(),
-		targetPath:   req.GetTargetPath(),
-		stagePath:    req.GetStagingTargetPath(),
-		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
-	}, nil
+	m.iscsiDisk = iscsiDisk
+
+	return m, nil
 }
 
 func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmounter {

@@ -45,4 +45,4 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 
 export TEST_CSI_DRIVER_FILES=$WORKDIR/e2e-manifest-$_E2E_PROTOCOL.yaml 
 echo $OPTIONAL_DOCKER_BUILD_FLAGS are the docker flags
-docker run  $OPTIONAL_DOCKER_BUILD_FLAGS -v $WORKDIR:/data:z --rm -it registry.redhat.io/openshift4/ose-tests:$_E2E_OCP_VERSION sh -c "KUBECONFIG=/data/kubeconfig.yaml TEST_CSI_DRIVER_FILES=/data/e2e-manifest.yaml /usr/bin/openshift-tests run openshift/csi --file /data/tests-to-run --junit-dir /data/results"
+docker run  $OPTIONAL_DOCKER_BUILD_FLAGS -v $WORKDIR:/data:z --rm -it registry.redhat.io/openshift4/ose-tests:$_E2E_OCP_VERSION sh -c "KUBECONFIG=/data/kubeconfig.yaml TEST_CSI_DRIVER_FILES=/data/e2e-manifest.yaml /usr/bin/openshift-tests run openshift/csi --disable-monitor disruption-summary-serializer --file /data/tests-to-run --junit-dir /data/results"
