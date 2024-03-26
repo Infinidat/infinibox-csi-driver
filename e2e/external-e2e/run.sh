@@ -51,20 +51,19 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 #	--ginkgo.skip="OnRootMismatch" \
 #	--ginkgo.skip="when restoring snapshot to larger size pvc" \
 ./e2e.test  \
-	-ginkgo.no-color \
- -ginkgo.focus='External.Storage' \
- -ginkgo.focus='External.Storage.*Dynamic*'  \
- -ginkgo.focus='External.Storage.*infinibox-csi-driver'  \
-	--ginkgo.skip="disruptive" \
---ginkgo.skip="Disruptive" \
-	--ginkgo.skip="ephemeral" \
---ginkgo.skip="disruptive" \
---ginkgo.skip="Disruptive" \
---ginkgo.skip="ephemeral" \
---ginkgo.skip="Ephemeral" \
---ginkgo.skip="access to two volumes" \
---ginkgo.skip="OnRootMismatch" \
---ginkgo.skip="when restoring snapshot to larger size pvc" \
-	-storage.testdriver=$WORKDIR/e2e-manifest.yaml \
+	--ginkgo.no-color \
+  	--ginkgo.focus='External.Storage' \
+  	--ginkgo.focus='External.Storage.*Dynamic*'  \
+  	--ginkgo.focus='External.Storage.*infinibox-csi-driver'  \
+ 	--ginkgo.skip="disruptive" \
+ 	--ginkgo.skip="Disruptive" \
+ 	--ginkgo.skip="ephemeral" \
+ 	--ginkgo.skip="disruptive" \
+ 	--ginkgo.skip="Disruptive" \
+ 	--ginkgo.skip="ephemeral" \
+ 	--ginkgo.skip="Ephemeral" \
+ 	--ginkgo.skip="access to two volumes" \
+ 	--ginkgo.skip="OnRootMismatch" \
+ 	--ginkgo.skip="when restoring snapshot to larger size pvc" \
 	--storage.testdriver=$WORKDIR/e2e-manifest.yaml \
 	> $WORKDIR/results.log

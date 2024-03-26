@@ -39,7 +39,7 @@ DriverInfo:
   # Optional list of access modes required for provisiong. Default is RWO
   RequiredAccessModes:
     - ReadWriteOnce
-    - ReadOnlyMany
+    #- ReadOnlyMany
     #- ReadWriteMany
 
   # Map that represents the capabilities the driver supports
