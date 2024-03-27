@@ -37,12 +37,11 @@ import (
 var (
 	KubeConfigPath = flag.String(
 		"kubeconfig", "", "path to the kubeconfig file")
-	StorageClassPath = flag.String(
-		"storageclass", "", "path to the storageclass file")
 	OperatorNamespace = flag.String(
 		"operatornamespace", "infinidat-csi", "namespace the operator runs within")
 	CleanUp = flag.Bool(
 		"cleanup", true, "clean up test namespace on exit")
+	StorageClassPath string
 )
 
 const (
@@ -384,18 +383,23 @@ func GetFlags(t *testing.T) {
 	if *KubeConfigPath == "" {
 		t.Fatalf("kubeconfigpath flag not set and is required")
 	}
-	if *StorageClassPath == "" {
-		t.Log("looking for STORAGECLASS path from env var..")
-		*StorageClassPath = os.Getenv("STORAGECLASS")
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error in Getwd %s\n", err.Error())
 	}
-	if *StorageClassPath == "" {
-		t.Fatalf("storageclass flag not set and is required")
+	t.Logf("workingDir is %s\n", workingDir)
+	StorageClassPath = workingDir + "/storageclass.yaml"
+	_, err = os.Stat(StorageClassPath)
+	if err != nil {
+		t.Fatalf(" %s not found\n", StorageClassPath)
 	}
-	x := os.Getenv("OPERATORNAMESPACE")
+	t.Logf("%s was found\n", StorageClassPath)
+
+	x := os.Getenv("_E2E_NAMESPACE")
 	if x == "" {
-		t.Logf("OPERATORNAMESPACE env var not set, using flag value %s", *OperatorNamespace)
+		t.Logf("_E2E_NAMESPACE env var not set, using flag value %s", *OperatorNamespace)
 	} else {
-		t.Logf("OPERATORNAMESPACE env var set, using value %s", x)
+		t.Logf("_E2E_NAMESPACE env var set, using value %s", x)
 		*OperatorNamespace = x
 	}
 	y := os.Getenv("CLEANUP")
@@ -653,7 +657,7 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	scName := fmt.Sprintf(SC_NAME, protocol)
-	testNames.SCName, err = CreateStorageClass(scName, testNames.UniqueSuffix, *StorageClassPath, client)
+	testNames.SCName, err = CreateStorageClass(scName, testNames.UniqueSuffix, StorageClassPath, client)
 	if err != nil {
 		t.Fatalf("error creating StorageClass %s\n", err.Error())
 	}

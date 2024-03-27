@@ -29,13 +29,13 @@ func TestFc(t *testing.T) {
 	if clientSet == nil {
 		t.Fatalf("error creating k8s client")
 	}
-	iboxSecret := os.Getenv("ibox_secret")
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
 	if iboxSecret == "" {
-		t.Fatalf("error - ibox_secret env var is required for this test")
+		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
 	}
-	poolName := os.Getenv("pool_name")
+	poolName := os.Getenv("_E2E_POOL")
 	if poolName == "" {
-		t.Fatalf("error - pool_name env var is required for this test")
+		t.Fatalf("error - _E2E_POOL env var is required for this test")
 	}
 	pvcAnnotations := &e2e.PVCAnnotations{
 		IboxNetworkSpace: "",

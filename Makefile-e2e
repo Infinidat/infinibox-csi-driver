@@ -1,5 +1,10 @@
 # vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
 
+ifneq (,$(wildcard ./Makefile-vars-git-ignored))
+    include ./Makefile-vars-git-ignored
+    export
+endif
+
 ##@ Developer Recipes
 .PHONY: install-e2e-tools
 install-e2e-tools: ## install e2e related binaries
@@ -88,57 +93,56 @@ e2etreeqanno:  ## run the infinidat developed e2e treeq tests
 e2enfs:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/nfs/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/nfs -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/nfs -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfsanno
 e2enfsanno:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	network_space=NAS ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/nfsanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/nfsanno -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/nfsanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsi
 e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/iscsi/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsi -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/iscsi -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsianno
 e2eiscsianno:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	network_space=iSCSI network_space2= ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/iscsianno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
-	ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/iscsianno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsichap
 e2eiscsichap:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/iscsichap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsichap -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/iscsichap -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsimutualchap
 e2eiscsimutualchap:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/iscsimutualchap/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/iscsimutualchap -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/iscsimutualchap -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efc
 e2efc:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/fc/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/fc -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/fc -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efcanno
 e2efcanno:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	ibox_secret=infinibox-creds pool_name=csitesting STORAGECLASS=$(_LOCALDIR)/e2e/fcanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/fcanno -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/fcanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: csitestimage

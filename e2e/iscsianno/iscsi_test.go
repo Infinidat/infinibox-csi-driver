@@ -30,20 +30,20 @@ func TestIscsiMultipleNetworkSpace(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	networkSpace := os.Getenv("network_space")
+	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
 	if networkSpace == "" {
-		t.Fatalf("error - network_space env var is required for this test")
+		t.Fatalf("error - _E2E_NETWORK_SPACE env var is required for this test")
 	}
-	networkSpace2 := os.Getenv("network_space2")
+	networkSpace2 := os.Getenv("_E2E_NETWORK_SPACE2")
 	if networkSpace2 == "" {
-		t.Fatalf("error - network_space2 env var is required for this test")
+		t.Fatalf("error - _E2E_NETWORK_SPACE2 env var is required for this test")
 	}
 
 	networkSpace = networkSpace + "," + networkSpace2
 
-	iboxSecret := os.Getenv("ibox_secret")
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
 	if iboxSecret == "" {
-		t.Fatalf("error - ibox_secret env var is required for this test")
+		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
 	}
 	pvcAnnotations := &e2e.PVCAnnotations{
 		IboxNetworkSpace: networkSpace,
@@ -76,13 +76,13 @@ func TestIscsiNetworkSpace(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	networkSpace := os.Getenv("network_space")
+	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
 	if networkSpace == "" {
-		t.Fatalf("error - network_space env var is required for this test")
+		t.Fatalf("error - _E2E_NETWORK_SPACE env var is required for this test")
 	}
-	iboxSecret := os.Getenv("ibox_secret")
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
 	if iboxSecret == "" {
-		t.Fatalf("error - ibox_secret env var is required for this test")
+		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
 	}
 	pvcAnnotations := &e2e.PVCAnnotations{
 		IboxNetworkSpace: networkSpace,
@@ -114,11 +114,11 @@ func TestIscsiPool(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	pool := os.Getenv("pool_name")
+	pool := os.Getenv("_E2E_POOL")
 	if pool == "" {
-		t.Fatalf("error - pool_name env var is required for this test")
+		t.Fatalf("error - _E2E_POOL env var is required for this test")
 	}
-	iboxSecret := os.Getenv("ibox_secret")
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
 	if iboxSecret == "" {
 		t.Fatalf("error - ibox_secret env var is required for this test")
 	}
@@ -151,9 +151,9 @@ func TestIscsiSecret(t *testing.T) {
 		t.Fatalf("error creating k8s client")
 	}
 
-	iboxSecret := os.Getenv("ibox_secret")
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
 	if iboxSecret == "" {
-		t.Fatalf("error - ibox_secret env var is required for this test")
+		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
 	}
 	pvcAnnotations := &e2e.PVCAnnotations{
 		IboxNetworkSpace: "",
