@@ -86,7 +86,7 @@ e2etreeq:  ## run the infinidat developed e2e treeq tests
 e2etreeqanno:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	STORAGECLASS=$(_LOCALDIR)/e2e/treeqanno/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/treeqanno -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/treeqanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfs
