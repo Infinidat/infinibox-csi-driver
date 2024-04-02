@@ -19,7 +19,7 @@ spec:
       imagePullSecrets:
       - name: private-docker-reg-secret
       containers:
-      - image: git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:v2.12.0
+      - image: git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:v2.13.0
         imagePullPolicy: Always
         name: metrics
         env:
