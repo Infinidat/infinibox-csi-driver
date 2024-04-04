@@ -38,7 +38,7 @@ stages:
 
 lint:
     image:
-      name: golangci/golangci-lint:v1.53.3
+      name: golangci/golangci-lint:v1.57.2
       pull_policy: if-not-present
     stage: lint
     tags:
@@ -52,7 +52,7 @@ lint:
 
 unit_test:
   image:
-    name: quay.io/projectquay/golang:1.21
+    name: quay.io/projectquay/golang:1.22
     pull_policy: if-not-present
   stage: test
   except:
@@ -76,7 +76,7 @@ go-build:
   tags:
     - go-build
   image:
-    name: quay.io/projectquay/golang:1.21
+    name: quay.io/projectquay/golang:1.22
     pull_policy: if-not-present
   script:
   - make build
@@ -90,7 +90,7 @@ go-metrics-build:
   tags:
     - go-build
   image:
-    name: quay.io/projectquay/golang:1.21
+    name: quay.io/projectquay/golang:1.22
     pull_policy: if-not-present
   script:
     - make build-metrics
@@ -106,7 +106,7 @@ go-e2e-test:
   only:
     - merge_request
   image:
-    name: quay.io/projectquay/golang:1.21
+    name: quay.io/projectquay/golang:1.22
     pull_policy: if-not-present
   script:
   - make build-e2e
