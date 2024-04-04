@@ -71,7 +71,9 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 				return nil, err
 			}
 		}
-		err = nfs.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
+
+		exportPerms := "[{'access':'RW','client':'" + req.GetVolumeContext()["nodeID"] + "','no_root_squash':true}]"
+		err = nfs.updateExport(fileSystemId, exportPerms)
 		if err != nil {
 			zlog.Err(err)
 			return nil, err
@@ -175,7 +177,7 @@ func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 	return &response, nil
 }
 
-func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err error) {
+func (nfs *nfsstorage) updateExport(filesystemId int64, exportPerms string) (err error) {
 	//lookup file system information
 	fs, err := nfs.cs.Api.GetFileSystemByID(filesystemId)
 	if err != nil {
@@ -193,7 +195,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, ipAddress string) (err e
 		SnapdirVisible:      nfs.snapdirVisible,
 		Export_path:         "/" + fs.Name, // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
 	}
-	exportPerms := "[{'access':'RW','client':'" + ipAddress + "','no_root_squash':true}]"
+
 	permissionsMapArray, err := getPermissionMaps(exportPerms)
 	if err != nil {
 		zlog.Error().Msgf("failed to parse permission map string %s %v", exportPerms, err)

@@ -73,13 +73,7 @@ e2emetrics:  ## test the metrics deployment on openshift
 e2etreeq:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	E2E_IBOX_HOSTNAME=$(_E2E_IBOX_HOSTNAME) \
-	E2E_NAMESPACE=$(_E2E_NAMESPACE) \
-	E2E_POOL=$(_E2E_POOL) \
-	E2E_NETWORK_SPACE=$(_E2E_NETWORK_SPACE) \
-	E2E_IBOX_USERNAME=$(_E2E_IBOX_USERNAME) \
-	E2E_IBOX_PASSWORD=$(_E2E_IBOX_PASSWORD) \
-	STORAGECLASS=$(_LOCALDIR)/e2e/treeq/storageclass.yaml $(_GOTEST) -count=1 -v ./e2e/treeq -tags e2e
+	$(_GOTEST) -count=1 -v ./e2e/treeq -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2etreeqanno

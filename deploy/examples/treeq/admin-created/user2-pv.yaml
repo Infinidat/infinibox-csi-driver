@@ -24,10 +24,11 @@ spec:
       namespace: infinidat-csi
     driver: infinibox-csi-driver
     volumeAttributes:
-      ipAddress: 172.31.32.158
+      ipAddress: 99.99.99.99
       storage_protocol: nfs_treeq
       volumePath: /treeq-filesystem-test/user2
-    volumeHandle: 98125215#996697$$nfs_treeq
+      nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]"
+    volumeHandle: 108377017#20001$$nfs_treeq
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ibox-treeq-admin
   volumeMode: Filesystem

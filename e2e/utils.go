@@ -185,7 +185,12 @@ func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientS
 		return "", err
 	}
 
+	poolToUse := os.Getenv("_E2E_POOL")
+	if poolToUse == "" {
+		return "", fmt.Errorf("_E2E_POOL env var is not set and is required")
+	}
 	sc.Name = uniqueSCName
+	sc.Parameters["pool_name"] = poolToUse
 
 	createOptions := metav1.CreateOptions{}
 

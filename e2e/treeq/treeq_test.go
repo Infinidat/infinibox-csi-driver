@@ -19,7 +19,7 @@ const (
 	PROTOCOL = "treeq"
 )
 
-func aTestTreeq(t *testing.T) {
+func TestTreeq(t *testing.T) {
 
 	fmt.Printf("network space here is %s\n", os.Getenv("_E2E_NETWORK_SPACE"))
 	e2e.GetFlags(t)
@@ -47,7 +47,7 @@ func aTestTreeq(t *testing.T) {
 	}
 }
 
-func aTestFsGroupTreeq(t *testing.T) {
+func TestFsGroupTreeq(t *testing.T) {
 
 	e2e.GetFlags(t)
 

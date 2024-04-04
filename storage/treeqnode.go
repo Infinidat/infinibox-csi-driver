@@ -48,52 +48,53 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	zlog.Debug().Msgf("volumeContext=%+v", req.GetVolumeContext())
 	zlog.Debug().Msgf("treeq.nfsstorage.configmap=%+v", treeq.nfsstorage.storageClassParameters)
 
-	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
-		treeq.nfsstorage.snapdirVisible = false
-		treeq.nfsstorage.usePrivilegedPorts = false
+	treeq.nfsstorage.snapdirVisible = false
+	treeq.nfsstorage.usePrivilegedPorts = false
 
-		snapDirVisible := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
-		if snapDirVisible != "" {
-			treeq.nfsstorage.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
-			if err != nil {
-				zlog.Err(err)
-				return nil, err
-			}
-		}
-		privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
-		if privPorts != "" {
-			treeq.nfsstorage.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
-			if err != nil {
-				zlog.Err(err)
-				return nil, err
-			}
-		}
-
-		// only update the export if this is the only treeq since treeq's share a single export
-		exports, err := treeq.nfsstorage.cs.Api.GetExportByFileSystem(fileSystemId)
+	snapDirVisible := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
+	if snapDirVisible != "" {
+		treeq.nfsstorage.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
 		if err != nil {
 			zlog.Err(err)
 			return nil, err
 		}
-		zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(*exports), fileSystemId)
-
-		treeqCount, err := treeq.nfsstorage.cs.Api.GetFilesystemTreeqCount(fileSystemId)
+	}
+	privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
+	if privPorts != "" {
+		treeq.nfsstorage.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
 			zlog.Err(err)
 			return nil, err
 		}
-		zlog.Debug().Msgf("treeq count %d on filesystemId %d", treeqCount, fileSystemId)
-		if len(*exports) == 0 {
-			err = treeq.nfsstorage.updateExport(fileSystemId, req.GetVolumeContext()["nodeID"])
-			if err != nil {
-				zlog.Err(err)
-				return nil, err
-			}
-		} else {
-			zlog.Debug().Msg("skipping updateExport because other treeq exist")
+	}
+
+	// only update the export if this is the only treeq since treeq's share a single export
+	exports, err := treeq.nfsstorage.cs.Api.GetExportByFileSystem(fileSystemId)
+	if err != nil {
+		zlog.Err(err)
+		return nil, err
+	}
+	zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(*exports), fileSystemId)
+
+	treeqCount, err := treeq.nfsstorage.cs.Api.GetFilesystemTreeqCount(fileSystemId)
+	if err != nil {
+		zlog.Err(err)
+		return nil, err
+	}
+	zlog.Debug().Msgf("treeq count %d on filesystemId %d", treeqCount, fileSystemId)
+	if len(*exports) == 0 {
+		exportPerms := "[{'access':'RW','client':'" + req.GetVolumeContext()["nodeID"] + "','no_root_squash':true}]"
+		if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] != "" {
+			exportPerms = req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
+			zlog.Debug().Msgf("%s was specified %s, will not create default export rule, will create this rule instead", common.SC_NFS_EXPORT_PERMISSIONS, exportPerms)
+		}
+		err = treeq.nfsstorage.updateExport(fileSystemId, exportPerms)
+		if err != nil {
+			zlog.Err(err)
+			return nil, err
 		}
 	} else {
-		zlog.Debug().Msgf("%s was specified %s, will not create default export rule", common.SC_NFS_EXPORT_PERMISSIONS, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+		zlog.Debug().Msg("skipping updateExport because other exports exist")
 	}
 
 	_, err = os.Stat(hostTargetPath)

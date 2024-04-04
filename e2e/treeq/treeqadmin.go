@@ -36,21 +36,21 @@ func VerifyAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet 
 
 func CreateAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet *kubernetes.Clientset) (fileSystemID int64, err error) {
 
-	hostname := os.Getenv("E2E_IBOX_HOSTNAME")
+	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
 	if err != nil {
-		return 0, fmt.Errorf("E2E_IBOX_HOSTNAME env var required")
+		return 0, fmt.Errorf("_E2E_IBOX_HOSTNAME env var required")
 	}
-	username := os.Getenv("E2E_IBOX_USERNAME")
+	username := os.Getenv("_E2E_IBOX_USERNAME")
 	if err != nil {
-		return 0, fmt.Errorf("E2E_IBOX_USERNAME env var required")
+		return 0, fmt.Errorf("_E2E_IBOX_USERNAME env var required")
 	}
-	password := os.Getenv("E2E_IBOX_PASSWORD")
+	password := os.Getenv("_E2E_IBOX_PASSWORD")
 	if err != nil {
-		return 0, fmt.Errorf("E2E_IBOX_PASSWORD env var required")
+		return 0, fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
 	}
-	poolName := os.Getenv("E2E_POOL")
+	poolName := os.Getenv("_E2E_POOL")
 	if err != nil {
-		return 0, fmt.Errorf("E2E_POOL env var required")
+		return 0, fmt.Errorf("_E2E_POOL env var required")
 	}
 
 	fileSystemName := "e2e-treeq-admin" + testNames.UniqueSuffix
@@ -73,9 +73,9 @@ func CreateAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet 
 	}
 
 	// get ip address for network space
-	networkSpace := os.Getenv("E2E_NETWORK_SPACE")
+	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
 	if networkSpace == "" {
-		return 0, fmt.Errorf("E2E_NETWORK_SPACE env var not set, required")
+		return 0, fmt.Errorf("_E2E_NETWORK_SPACE env var not set, required")
 	}
 	networkSpaceResponse, err := clientsvc.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
@@ -145,9 +145,9 @@ func CreatePersistentVolumesForTreeqs(t *testing.T, fs *api.FileSystem, treeqIDs
 	if err != nil {
 		return err
 	}
-	ns := os.Getenv("E2E_NAMESPACE")
+	ns := os.Getenv("_E2E_NAMESPACE")
 	if ns == "" {
-		return fmt.Errorf("E2E_NAMESPACE env var not set, required")
+		return fmt.Errorf("_E2E_NAMESPACE env var not set, required")
 	}
 	secretRef := &v1.SecretReference{
 		Name:      "infinibox-creds",
@@ -160,8 +160,9 @@ func CreatePersistentVolumesForTreeqs(t *testing.T, fs *api.FileSystem, treeqIDs
 		NodeStageSecretRef:         secretRef,
 		Driver:                     common.SERVICE_NAME,
 		VolumeAttributes: map[string]string{
-			"ipAddress":        networkSpaceIPAddress,
-			"storage_protocol": common.PROTOCOL_TREEQ,
+			"ipAddress":              networkSpaceIPAddress,
+			"storage_protocol":       common.PROTOCOL_TREEQ,
+			"nfs_export_permissions": `[{"access":"RW","client":"*","no_root_squash":true}]`,
 		},
 	}
 	persistentVolumeSource := v1.PersistentVolumeSource{}
@@ -228,17 +229,17 @@ func CreatePersistentVolumeClaimsForTreeqs(t *testing.T, testNames e2e.TestResou
 
 func CleanupAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, fileSystemID int64, clientSet *kubernetes.Clientset) (err error) {
 	// put these in testResourceNames
-	hostname := os.Getenv("E2E_IBOX_HOSTNAME")
-	if err != nil {
-		return fmt.Errorf("E2E_IBOX_HOSTNAME env var required")
+	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
+	if hostname == "" {
+		return fmt.Errorf("_E2E_IBOX_HOSTNAME env var required")
 	}
-	username := os.Getenv("E2E_IBOX_USERNAME")
-	if err != nil {
-		return fmt.Errorf("E2E_IBOX_USERNAME env var required")
+	username := os.Getenv("_E2E_IBOX_USERNAME")
+	if username == "" {
+		return fmt.Errorf("_E2E_IBOX_USERNAME env var required")
 	}
-	password := os.Getenv("E2E_IBOX_PASSWORD")
-	if err != nil {
-		return fmt.Errorf("E2E_IBOX_PASSWORD env var required")
+	password := os.Getenv("_E2E_IBOX_PASSWORD")
+	if password == "" {
+		return fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
 	}
 	for i := 0; i < len(TREEQ_USERS); i++ {
 		// delete apps
