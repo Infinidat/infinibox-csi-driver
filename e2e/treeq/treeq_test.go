@@ -74,7 +74,10 @@ func TestFsGroupTreeq(t *testing.T) {
 	// run the test
 
 	expectedValue := "drwxrwsr-x"
-	winning, actual := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error in VerifyDirPermsCorrect check %s", err.Error())
+	}
 
 	if winning {
 		t.Log("FSGroupDirPermsCorrect PASSED")
@@ -83,7 +86,10 @@ func TestFsGroupTreeq(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error in VerifyGroupIdIsUsed check %s", err.Error())
+	}
 
 	if winning {
 		t.Log("FSGroupIdIsUsed PASSED")

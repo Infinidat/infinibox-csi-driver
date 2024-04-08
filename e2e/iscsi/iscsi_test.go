@@ -101,7 +101,10 @@ func TestIscsiFsGroup(t *testing.T) {
 	time.Sleep(10 * time.Second) //sleep to avoid a race condition
 
 	expectedValue := "drwxrwsr-x"
-	winning, actual := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error verifying dir perms %s", err.Error())
+	}
 
 	if winning {
 		t.Log("FSGroupDirPermsCorrect PASSED")
@@ -110,7 +113,10 @@ func TestIscsiFsGroup(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error in VerifyGroupIdIsUsed %s", err.Error())
+	}
 
 	if winning {
 		t.Log("FSGroupIdIsUsed PASSED")

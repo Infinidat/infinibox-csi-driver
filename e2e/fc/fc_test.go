@@ -66,7 +66,10 @@ func TestFsGroupFc(t *testing.T) {
 	t.Logf("testing in namespace %+v\n", testNames)
 
 	expectedValue := "drwxrwsr-x"
-	winning, actual := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	if err != nil {
+		t.Errorf("error verifying directory permissions %s", err.Error())
+	}
 
 	if winning {
 		t.Log("FSGroupDirPermsCorrect PASSED")
@@ -75,7 +78,10 @@ func TestFsGroupFc(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error in VerifygroupIdIsUsed %s", err.Error())
+	}
 
 	if winning {
 		t.Log("FSGroupIdIsUsed PASSED")
@@ -145,13 +151,19 @@ func TestFcBlockRWX(t *testing.T) {
 
 	t.Logf("testing in namespace %+v\n", testNames)
 
-	firstSuccess, _ := e2e.VerifyBlockWriteInPod(clientSet, config, e2e.POD_NAME, testNames.NSName)
+	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(clientSet, config, e2e.POD_NAME, testNames.NSName)
+	if err != nil {
+		t.Fatalf("Verify Block Write In Pod had unexpected error %s", err.Error())
+	}
 
 	if !firstSuccess {
 		t.Fatalf("Test of Blockwrite in %s pod failed.", e2e.POD_NAME)
 	}
 
-	secondSuccess, _ := e2e.VerifyBlockWriteInPod(clientSet, config, e2e.ANTI_AF_POD_NAME, testNames.NSName)
+	secondSuccess, _, err := e2e.VerifyBlockWriteInPod(clientSet, config, e2e.ANTI_AF_POD_NAME, testNames.NSName)
+	if err != nil {
+		t.Fatalf("Verify Block Write In Pod had unexpected error %s", err.Error())
+	}
 
 	if !secondSuccess {
 		t.Fatalf("Test of Blockwrite in %s pod failed.", e2e.POD_NAME)

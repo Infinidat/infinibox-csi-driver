@@ -15,7 +15,7 @@ import (
 )
 
 func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
-	expectedValue string) (bool, string) {
+	expectedValue string) (bool, string, error) {
 
 	command := fmt.Sprintf("ls -ld %s", MOUNT_PATH)
 
@@ -23,11 +23,17 @@ func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.C
 
 	if err != nil {
 		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err.Error())
+		return false, "", err
 	}
 
 	output := strings.Fields(stdOut)
 
-	actualValue := strings.TrimSpace(output[0])
+	var actualValue string
+	if len(output) == 0 {
+		actualValue = "stdout was empty"
+	} else {
+		actualValue = strings.TrimSpace(output[0])
+	}
 
 	fmt.Printf("Expected: %s\n", expectedValue)
 	fmt.Printf("Actual: %s\n", actualValue)
@@ -37,12 +43,12 @@ func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.C
 		fmt.Printf("Error: %s\n", stdErr)
 	}
 
-	return (math.Abs(float64(strings.Compare(actualValue, expectedValue)))) == 0, actualValue
+	return (math.Abs(float64(strings.Compare(actualValue, expectedValue)))) == 0, actualValue, nil
 
 }
 
 func VerifyGroupIdIsUsed(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
-	expectedValue string) (bool, string) {
+	expectedValue string) (bool, string, error) {
 
 	createFileCmd := fmt.Sprintf("touch %s/testfile.txt", MOUNT_PATH)
 	testFileCmd := fmt.Sprintf("ls -l %s/testfile.txt", MOUNT_PATH)
@@ -51,12 +57,14 @@ func VerifyGroupIdIsUsed(clientSet *kubernetes.Clientset, config *restclient.Con
 
 	if err != nil {
 		fmt.Println("Error happened creating test file")
+		return false, "", err
 	}
 
 	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd)
 
 	if err != nil {
 		fmt.Println("Error happened reading test file")
+		return false, "", err
 	}
 
 	output := strings.Fields(stdOut)
@@ -70,11 +78,11 @@ func VerifyGroupIdIsUsed(clientSet *kubernetes.Clientset, config *restclient.Con
 	if len(stdErr) > 0 {
 		fmt.Printf("Error: %s\n", stdErr)
 	}
-	return (math.Abs(float64(strings.Compare(actualValue, expectedValue)))) == 0, actualValue
+	return (math.Abs(float64(strings.Compare(actualValue, expectedValue)))) == 0, actualValue, nil
 
 }
 
-func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (bool, string) {
+func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (bool, string, error) {
 
 	fmt.Printf("Testing for blockwrite in %s\n", podName)
 
@@ -88,7 +96,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 
 	if err != nil {
 		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err.Error())
-		return false, err.Error()
+		return false, err.Error(), err
 	}
 
 	charCount := 0 // default to read no characters
@@ -111,16 +119,15 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 
 	if err2 != nil {
 		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err2.Error())
-		return false, err2.Error()
+		return false, err2.Error(), err
 	}
 
 	// fmt.Printf("Result from reading pod is: %s\n", blockRead)
 
 	if strings.TrimSpace(nodeName) == strings.TrimSpace(blockRead) {
-		return true, ""
-	} else {
-		return false, "Hostname did not match block written and read."
+		return true, "", nil
 	}
+	return false, "Hostname did not match block written and read.", nil
 }
 
 // execCmdInPod - exec command on specific pod and wait the command's output.
