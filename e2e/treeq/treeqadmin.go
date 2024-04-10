@@ -37,19 +37,19 @@ func VerifyAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet 
 func CreateAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet *kubernetes.Clientset) (fileSystemID int64, err error) {
 
 	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
-	if err != nil {
+	if hostname == "" {
 		return 0, fmt.Errorf("_E2E_IBOX_HOSTNAME env var required")
 	}
 	username := os.Getenv("_E2E_IBOX_USERNAME")
-	if err != nil {
+	if username == "" {
 		return 0, fmt.Errorf("_E2E_IBOX_USERNAME env var required")
 	}
 	password := os.Getenv("_E2E_IBOX_PASSWORD")
-	if err != nil {
+	if password == "" {
 		return 0, fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
 	}
 	poolName := os.Getenv("_E2E_POOL")
-	if err != nil {
+	if poolName == "" {
 		return 0, fmt.Errorf("_E2E_POOL env var required")
 	}
 

@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -445,7 +446,8 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 
 	volumeMounts := make([]v1.VolumeMount, 0)
 	volumeDevices := make([]v1.VolumeDevice, 0)
-	//noPriv := true
+	priv := false
+	privTrue := true
 	image := "infinidat/csitestimage:latest"
 	if useBlock {
 		image = "infinidat/csitestimageblock:latest"
@@ -477,18 +479,19 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 				},
 			},
 		},
-		/**
 		SecurityContext: &v1.SecurityContext{
-			Privileged:               &noPriv,
-			AllowPrivilegeEscalation: &noPriv,
+			Privileged:               &priv,
+			AllowPrivilegeEscalation: &priv,
+			RunAsNonRoot:             &privTrue,
 			SeccompProfile: &v1.SeccompProfile{
 				Type: v1.SeccompProfileTypeRuntimeDefault,
 			},
+			/**
 			Capabilities: &v1.Capabilities{
 				Drop: []v1.Capability{"ALL"},
 			},
+			*/
 		},
-		*/
 	}
 
 	volume := v1.Volume{
@@ -640,6 +643,7 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 		return err
 
 	}
+
 	t.Logf("imagepullsecret %s created in ns %s\n", IMAGE_PULL_SECRET, ns)
 
 	return nil
@@ -649,6 +653,8 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	useFsGroup bool, useBlock bool, useAntiAffinity bool, pvcAnnotations *PVCAnnotations) (testNames TestResourceNames) {
 
 	t.Log("SETUP STARTS")
+	t.Log(GetEnvVars())
+
 	var err error
 	ctx := context.Background()
 	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
@@ -813,4 +819,23 @@ func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
 	t.Logf("Test System Node count: %d", nodeCount)
 	return nodeCount
 
+}
+
+func GetEnvVars() string {
+
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("_E2E_NAMESPACE [%s]\n", os.Getenv("_E2E_NAMESPACE")))
+	sb.WriteString(fmt.Sprintf("_E2E_POOL [%s]\n", os.Getenv("_E2E_POOL")))
+	sb.WriteString(fmt.Sprintf("_E2E_PROTOCOL [%s]\n", os.Getenv("_E2E_PROTOCOL")))
+	sb.WriteString(fmt.Sprintf("_E2E_NETWORK_SPACE [%s]\n", os.Getenv("_E2E_NETWORK_SPACE")))
+	sb.WriteString(fmt.Sprintf("_E2E_NETWORK_SPACE2 [%s]\n", os.Getenv("_E2E_NETWORK_SPACE2")))
+	sb.WriteString(fmt.Sprintf("_E2E_IBOX_SECRET [%s]\n", os.Getenv("_E2E_IBOX_SECRET")))
+	sb.WriteString(fmt.Sprintf("_E2E_K8S_VERSION [%s]\n", os.Getenv("_E2E_K8S_VERSION")))
+	sb.WriteString(fmt.Sprintf("_E2E_OCP_VERSION [%s]\n", os.Getenv("_E2E_OCP_VERSION")))
+	sb.WriteString(fmt.Sprintf("_E2E_IBOX_USERNAME [%s]\n", os.Getenv("_E2E_IBOX_USERNAME")))
+	sb.WriteString(fmt.Sprintf("_E2E_IBOX_PASSWORD [%s]\n", os.Getenv("_E2E_IBOX_PASSWORD")))
+	sb.WriteString(fmt.Sprintf("_E2E_IBOX_HOSTNAME [%s]\n", os.Getenv("_E2E_IBOX_HOSTNAME")))
+
+	return sb.String()
 }

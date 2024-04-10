@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,6 +17,8 @@ import (
 
 func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
 	expectedValue string) (bool, string, error) {
+
+	time.Sleep(time.Second * 5) // sleep a bit to avoid race conditions where the pod is not quite up
 
 	command := fmt.Sprintf("ls -ld %s", MOUNT_PATH)
 

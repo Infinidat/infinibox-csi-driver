@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 
@@ -74,6 +75,7 @@ func TestFsGroupTreeq(t *testing.T) {
 	// run the test
 
 	expectedValue := "drwxrwsr-x"
+
 	winning, actual, err := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifyDirPermsCorrect check %s", err.Error())
@@ -127,6 +129,8 @@ func TestTreeqAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAdminTreeqs FAILED, got error %s", err.Error())
 	}
+
+	time.Sleep(time.Second * 30)
 
 	err = VerifyAdminTreeqs(t, testNames, clientSet)
 	if err != nil {
