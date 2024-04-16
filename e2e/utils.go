@@ -318,9 +318,7 @@ func CreateNamespace(ctx context.Context, prefix string, suffix string, clientse
 	return uniqueName, nil
 }
 
-func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset) error {
-	pollInterval := 5 * time.Second
-	pollDuration := 4 * time.Minute
+func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
 	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
@@ -446,8 +444,9 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 
 	volumeMounts := make([]v1.VolumeMount, 0)
 	volumeDevices := make([]v1.VolumeDevice, 0)
-	priv := false
-	privTrue := true
+	privileged := false
+	allowPrivilegeEscalation := false
+	runAsNonRoot := true
 	image := "infinidat/csitestimage:latest"
 	if useBlock {
 		image = "infinidat/csitestimageblock:latest"
@@ -480,9 +479,9 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 			},
 		},
 		SecurityContext: &v1.SecurityContext{
-			Privileged:               &priv,
-			AllowPrivilegeEscalation: &priv,
-			RunAsNonRoot:             &privTrue,
+			Privileged:               &privileged,
+			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+			RunAsNonRoot:             &runAsNonRoot,
 			SeccompProfile: &v1.SeccompProfile{
 				Type: v1.SeccompProfileTypeRuntimeDefault,
 			},
@@ -686,6 +685,13 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	}
 	t.Logf("✓ PVC %s is created\n", pvcName)
 
+	err = WaitForPVC(t, pvcName, testNames.NSName, client, time.Second*5, time.Minute*1)
+	if err != nil {
+		DescribePVC(t, pvcName, testNames.NSName, client)
+		t.Fatalf("error binding PVC %s\n", err.Error())
+	}
+	t.Logf("✓ PVC %s is bound\n", pvcName)
+
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
 	err = CreateImagePullSecret(t, testNames.NSName, client)
@@ -702,8 +708,9 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 	}
 	t.Logf("✓ Pod %s is created\n", POD_NAME)
 
-	err = WaitForPod(t, POD_NAME, testNames.NSName, client)
+	err = WaitForPod(t, POD_NAME, testNames.NSName, client, time.Second*5, time.Minute*4)
 	if err != nil {
+		DescribePVC(t, POD_NAME, testNames.NSName, client)
 		t.Fatalf("error waiting for pod %s", err.Error())
 	}
 	t.Logf("✓ Pod %s is running\n", POD_NAME)
@@ -715,11 +722,12 @@ func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicC
 
 		err = CreatePod(protocol, testNames.NSName, ANTI_AF_POD_NAME, client, useFsGroup, useBlock, useAntiAffinity)
 		if err != nil {
+			DescribePVC(t, ANTI_AF_POD_NAME, testNames.NSName, client)
 			t.Fatalf("error creating test anti-affinity pod %s", err.Error())
 		}
 		t.Logf("✓ Pod %s is created\n", ANTI_AF_POD_NAME)
 
-		err = WaitForPod(t, ANTI_AF_POD_NAME, testNames.NSName, client)
+		err = WaitForPod(t, ANTI_AF_POD_NAME, testNames.NSName, client, time.Second*5, time.Minute*4)
 		if err != nil {
 			t.Fatalf("error waiting for pod %s", err.Error())
 		}
@@ -838,4 +846,64 @@ func GetEnvVars() string {
 	sb.WriteString(fmt.Sprintf("_E2E_IBOX_HOSTNAME [%s]\n", os.Getenv("_E2E_IBOX_HOSTNAME")))
 
 	return sb.String()
+}
+
+func WaitForPVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
+	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
+		getOptions := metav1.GetOptions{}
+
+		t.Logf("waiting for infinidat csi test pvc %s to show up in namespace %s", pvcName, ns)
+		p, err := clientset.CoreV1().PersistentVolumeClaims(ns).Get(context.TODO(), pvcName, getOptions)
+		if err != nil && apierrors.IsNotFound(err) {
+			t.Logf("PVC %s not found!\n", pvcName)
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+
+		if p != nil {
+			if p.Status.Phase == v1.ClaimBound {
+
+				t.Logf("✓ PVC %s is created and bound\n", pvcName)
+				return true, nil
+			}
+		}
+		t.Logf("PVC %s found but not ready, %v\n", pvcName, p.Status.Phase)
+		DescribePVC(t, pvcName, ns, clientset)
+
+		return false, nil
+	})
+
+	return err
+}
+
+func DescribePVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.Clientset) {
+	listOptions := metav1.ListOptions{FieldSelector: "involvedObject.name=" + pvcName, TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim"}}
+
+	t.Logf("describe details for infinidat csi test PVC %s in namespace %s", pvcName, ns)
+	events, err := clientset.CoreV1().Events(ns).List(context.TODO(), listOptions)
+	if err != nil {
+		t.Logf("error getting describe details for infinidat csi test PVC %s in namespace %s", pvcName, ns)
+		return
+	}
+	for _, item := range events.Items {
+		t.Logf("PVC describe message %s reason %s", item.Message, item.Reason)
+	}
+
+}
+
+func DescribePod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset) {
+	listOptions := metav1.ListOptions{FieldSelector: "involvedObject.name=" + podName, TypeMeta: metav1.TypeMeta{Kind: "Pod"}}
+
+	t.Logf("describe details for infinidat csi test Pod %s in namespace %s", podName, ns)
+	events, err := clientset.CoreV1().Events(ns).List(context.TODO(), listOptions)
+	if err != nil {
+		t.Logf("error getting describe details for infinidat csi test Pod %s in namespace %s", podName, ns)
+		return
+	}
+	for _, item := range events.Items {
+		t.Logf("Pod describe message %s reason %s", item.Message, item.Reason)
+	}
+
 }

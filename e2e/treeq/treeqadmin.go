@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -26,7 +27,7 @@ func init() {
 func VerifyAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, clientSet *kubernetes.Clientset) (err error) {
 	// there should be 2 running pods at this point, user1-app and user2-app
 	for i := 0; i < len(TREEQ_USERS); i++ {
-		err = e2e.WaitForPod(t, TREEQ_USERS[i]+"-app", testNames.NSName, clientSet)
+		err = e2e.WaitForPod(t, TREEQ_USERS[i]+"-app", testNames.NSName, clientSet, time.Second*5, time.Minute*4)
 		if err != nil {
 			return err
 		}
@@ -291,6 +292,10 @@ func CleanupAdminTreeqs(t *testing.T, testNames e2e.TestResourceNames, fileSyste
 }
 
 func CreateTreeqApps(t *testing.T, testNames e2e.TestResourceNames, clientSet *kubernetes.Clientset) (err error) {
+	privileged := false
+	allowPrivilegeEscalation := false
+	runAsNonRoot := true
+
 	createOptions := metav1.CreateOptions{}
 
 	volumeMounts := make([]v1.VolumeMount, 0)
@@ -305,6 +310,19 @@ func CreateTreeqApps(t *testing.T, testNames e2e.TestResourceNames, clientSet *k
 		Image:           image,
 		ImagePullPolicy: v1.PullIfNotPresent,
 		VolumeMounts:    volumeMounts,
+		SecurityContext: &v1.SecurityContext{
+			Privileged:               &privileged,
+			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+			RunAsNonRoot:             &runAsNonRoot,
+			SeccompProfile: &v1.SeccompProfile{
+				Type: v1.SeccompProfileTypeRuntimeDefault,
+			},
+			/**
+			Capabilities: &v1.Capabilities{
+				Drop: []v1.Capability{"ALL"},
+			},
+			*/
+		},
 	}
 
 	volume := v1.Volume{
