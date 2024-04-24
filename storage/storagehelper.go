@@ -515,8 +515,7 @@ func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOpt
 		return mountOptions, err
 	}
 
-	if req.GetReadonly() {
-		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
+	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 		mountOptions = append(mountOptions, "ro")
 	}
 
