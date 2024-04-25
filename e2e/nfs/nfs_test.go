@@ -98,6 +98,12 @@ func TestNfsROX(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
+	err = e2e.VerifyReadOnlyMount(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	if err != nil {
+		t.Errorf("error verifying read-only %s\n", err.Error())
+		t.Fail()
+	}
+
 	if *e2e.CleanUp {
 		e2e.TearDown(testConfig)
 	} else {
@@ -112,8 +118,15 @@ func TestNfsRO(t *testing.T) {
 	}
 
 	testConfig.ReadOnlyPod = true
+	testConfig.ReadOnlyPodVolume = true
 
 	e2e.Setup(testConfig)
+
+	err = e2e.VerifyReadOnlyMount(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	if err != nil {
+		t.Errorf("error verifying read-only %s\n", err.Error())
+		t.Fail()
+	}
 
 	if *e2e.CleanUp {
 		e2e.TearDown(testConfig)

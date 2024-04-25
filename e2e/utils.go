@@ -495,6 +495,7 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 		VolumeSource: v1.VolumeSource{
 			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
 				ClaimName: pvcName,
+				ReadOnly:  testConfig.ReadOnlyPodVolume,
 			},
 		},
 	}

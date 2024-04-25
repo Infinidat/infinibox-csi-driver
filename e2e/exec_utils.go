@@ -178,3 +178,39 @@ func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, po
 
 	return stdOut.String(), stdErr.String(), err
 }
+
+func VerifyReadOnlyMount(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) error {
+
+	catFileCmd := "cat /proc/mounts"
+
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd)
+	if err != nil {
+		return err
+	}
+
+	if len(stdErr) > 0 {
+		return fmt.Errorf("error: %s", stdErr)
+	}
+
+	//fmt.Printf("stdout %s\n", stdOut)
+
+	mountLines := strings.Split(stdOut, "\n")
+
+	for _, line := range mountLines {
+		if strings.Contains(line, "csitesting") {
+			lineTokens := strings.Split(line, " ")
+			if len(lineTokens) < 4 {
+				return fmt.Errorf("not enough tokens found in mount line for csitesting mount %d", len(lineTokens))
+			}
+			mountDetails := strings.Split(lineTokens[3], ",")
+			for _, mountOption := range mountDetails {
+				if mountOption == "ro" {
+					return nil
+				}
+			}
+		}
+
+	}
+	return fmt.Errorf("could not find ro in the csitesting mount")
+
+}
