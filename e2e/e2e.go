@@ -4,18 +4,78 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 
 	"infinibox-csi-driver/log"
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
+	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
 	SOCAT_SERVICE_PORT = "30007"
 )
+
+type TestConfig struct {
+	Protocol        string
+	Testt           *testing.T
+	ClientSet       *kubernetes.Clientset
+	DynamicClient   *dynamic.DynamicClient
+	SnapshotClient  *snapshotv6.Clientset
+	RestConfig      *rest.Config
+	UseFsGroup      bool
+	UseBlock        bool
+	UseAntiAffinity bool
+	ReadOnlyPod     bool
+	PVCAnnotations  *PVCAnnotations
+	AccessMode      v1.PersistentVolumeAccessMode
+	TestNames       *TestResourceNames
+}
+
+func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error) {
+	GetFlags(t)
+
+	config = &TestConfig{}
+
+	config.TestNames = &TestResourceNames{}
+	config.TestNames.UniqueSuffix = RandSeq(3)
+	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
+	config.TestNames.NSName = e2eNamespace + config.TestNames.UniqueSuffix
+	scName := fmt.Sprintf(SC_NAME, protocol)
+	config.TestNames.SCName = scName + config.TestNames.UniqueSuffix
+	config.TestNames.PVCName = fmt.Sprintf(PVC_NAME, protocol)
+
+	//connect to kube
+	config.ClientSet, config.DynamicClient, config.SnapshotClient, err = GetKubeClient(*KubeConfigPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if config.ClientSet == nil {
+		return nil, fmt.Errorf("error getting ClientSet")
+	}
+
+	config.RestConfig = GetRestConfig(*KubeConfigPath)
+
+	if config.RestConfig == nil {
+		return nil, fmt.Errorf("error getting RESTConfig")
+	}
+
+	config.AccessMode = v1.ReadWriteOnce
+	config.Testt = t
+	config.Protocol = protocol
+
+	return config, nil
+
+}
 
 var zlog = log.Get() // grab the logger for package use
 

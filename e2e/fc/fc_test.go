@@ -3,39 +3,25 @@
 package fc
 
 import (
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
 
-	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
-
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	PROTOCOL = "fc"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestFc(t *testing.T) {
 
-	e2e.GetFlags(t)
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, false, false, nil)
-
-	t.Logf("testing in namespace %+v\n", testNames)
+	e2e.Setup(testConfig)
 
 	if *e2e.CleanUp {
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -44,29 +30,17 @@ func TestFc(t *testing.T) {
 
 func TestFsGroupFc(t *testing.T) {
 
-	e2e.GetFlags(t)
-
-	config := e2e.GetRestConfig(*e2e.KubeConfigPath)
-
-	if config == nil {
-		t.Fatalf("error getting rest config")
-	}
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, true, false, false, nil)
+	testConfig.UseFsGroup = true
 
-	t.Logf("testing in namespace %+v\n", testNames)
+	e2e.Setup(testConfig)
 
 	expectedValue := "drwxrwsr-x"
-	winning, actual, err := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Errorf("error verifying directory permissions %s", err.Error())
 	}
@@ -78,7 +52,7 @@ func TestFsGroupFc(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual, err = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifygroupIdIsUsed %s", err.Error())
 	}
@@ -90,32 +64,27 @@ func TestFsGroupFc(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
+	e2e.TearDown(testConfig)
 
 }
 
 func TestFcBlock(t *testing.T) {
 
-	e2e.GetFlags(t)
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, true, false, nil)
+	testConfig.UseBlock = true
 
-	t.Logf("testing in namespace %+v\n", testNames)
+	e2e.Setup(testConfig)
 
 	if *e2e.CleanUp {
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -124,34 +93,23 @@ func TestFcBlock(t *testing.T) {
 
 func TestFcBlockRWX(t *testing.T) {
 
-	e2e.GetFlags(t)
-
-	config := e2e.GetRestConfig(*e2e.KubeConfigPath)
-
-	if config == nil {
-		t.Fatalf("error getting rest config")
-	}
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	nodeCount := e2e.GetTestSystemNodecount(t, clientSet)
+	nodeCount := e2e.GetTestSystemNodecount(t, testConfig.ClientSet)
 
 	if nodeCount < 2 {
 		t.Fatalf("System needs at least 2 nodes and only has %d ", nodeCount)
 	}
 
-	testNames := setup(PROTOCOL, t, clientSet, dynamicClient, snapshotClient, false, true, true, nil) // setup test with anti-affinity pod also.
+	testConfig.AccessMode = v1.ReadWriteMany
+	testConfig.UseAntiAffinity = true
 
-	t.Logf("testing in namespace %+v\n", testNames)
+	e2e.Setup(testConfig)
 
-	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(clientSet, config, e2e.POD_NAME, testNames.NSName)
+	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Fatalf("Verify Block Write In Pod had unexpected error %s", err.Error())
 	}
@@ -160,7 +118,7 @@ func TestFcBlockRWX(t *testing.T) {
 		t.Fatalf("Test of Blockwrite in %s pod failed.", e2e.POD_NAME)
 	}
 
-	secondSuccess, _, err := e2e.VerifyBlockWriteInPod(clientSet, config, e2e.ANTI_AF_POD_NAME, testNames.NSName)
+	secondSuccess, _, err := e2e.VerifyBlockWriteInPod(testConfig.ClientSet, testConfig.RestConfig, e2e.ANTI_AF_POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Fatalf("Verify Block Write In Pod had unexpected error %s", err.Error())
 	}
@@ -170,17 +128,9 @@ func TestFcBlockRWX(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Logf("not cleaning up namespace")
 	}
 
-}
-
-func setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, useFsGroup bool, useBlock bool, useAntiAffinity bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(protocol, t, client, dynamicClient, snapshotClient, useFsGroup, useBlock, useAntiAffinity, pvcAnnotations)
-}
-
-func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {
-	e2e.TearDown(t, testNames, client, dynamicClient, snapshotClient)
 }

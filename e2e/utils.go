@@ -173,37 +173,36 @@ func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubern
 
 //***************** Storage Class ***************** //
 
-func CreateStorageClass(prefix string, uniqueSuffix string, path string, clientSet *kubernetes.Clientset) (scName string, err error) {
+func CreateStorageClass(uniqueName string, path string, clientSet *kubernetes.Clientset) (err error) {
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
-		return "", err
+		return err
 	}
-	uniqueSCName := prefix + uniqueSuffix
 	sc := &storagev1.StorageClass{}
 
 	err = yaml.Unmarshal(fileContent, sc)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	poolToUse := os.Getenv("_E2E_POOL")
 	if poolToUse == "" {
-		return "", fmt.Errorf("_E2E_POOL env var is not set and is required")
+		return fmt.Errorf("_E2E_POOL env var is not set and is required")
 	}
-	sc.Name = uniqueSCName
+	sc.Name = uniqueName
 	sc.Parameters["pool_name"] = poolToUse
 
 	createOptions := metav1.CreateOptions{}
 
-	sc, err = clientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
+	_, err = clientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return sc.Name, nil
+	return nil
 }
 
-func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.Clientset, useBlock bool, useAntiAffinity bool, pvcAnnotations *PVCAnnotations) (err error) {
+func CreatePVC(config *TestConfig) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -213,42 +212,37 @@ func CreatePVC(pvcName string, scName string, ns string, clientSet *kubernetes.C
 		Requests: rList,
 	}
 
-	accessModes := []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
-
-	// useAntiAffinity is for rwx block test on two nodes. This may not be best way to determine access mode in the future.
-	if useAntiAffinity {
-		accessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteMany}
-	}
+	accessModes := []v1.PersistentVolumeAccessMode{config.AccessMode}
 
 	pvc := &v1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      pvcName,
-			Namespace: ns,
+			Name:      config.TestNames.PVCName,
+			Namespace: config.TestNames.NSName,
 		},
 		Spec: v1.PersistentVolumeClaimSpec{
 			AccessModes:      accessModes,
 			Resources:        requirements,
-			StorageClassName: &scName,
+			StorageClassName: &config.TestNames.SCName,
 		},
 	}
 
-	if pvcAnnotations != nil {
+	if config.PVCAnnotations != nil {
 		pvc.ObjectMeta.Annotations = make(map[string]string)
-		if pvcAnnotations.IboxNetworkSpace != "" {
-			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_NETWORK_SPACE] = pvcAnnotations.IboxNetworkSpace
+		if config.PVCAnnotations.IboxNetworkSpace != "" {
+			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_NETWORK_SPACE] = config.PVCAnnotations.IboxNetworkSpace
 		}
-		if pvcAnnotations.IboxSecret != "" {
-			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_IBOX_SECRET] = pvcAnnotations.IboxSecret
+		if config.PVCAnnotations.IboxSecret != "" {
+			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_IBOX_SECRET] = config.PVCAnnotations.IboxSecret
 		}
-		if pvcAnnotations.IboxPool != "" {
-			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_POOL_NAME] = pvcAnnotations.IboxPool
+		if config.PVCAnnotations.IboxPool != "" {
+			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_POOL_NAME] = config.PVCAnnotations.IboxPool
 		}
 	}
-	if useBlock {
+	if config.UseBlock {
 		mode := v1.PersistentVolumeBlock
 		pvc.Spec.VolumeMode = &mode
 	}
-	_, err = clientSet.CoreV1().PersistentVolumeClaims(ns).Create(context.TODO(), pvc, metav1.CreateOptions{})
+	_, err = config.ClientSet.CoreV1().PersistentVolumeClaims(config.TestNames.NSName).Create(context.TODO(), pvc, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -301,9 +295,8 @@ func CreateVolumeSnapshotClassDynamically(ctx context.Context, prefix string, un
 	return prefix + uniqueSuffix, nil
 }
 
-func CreateNamespace(ctx context.Context, prefix string, suffix string, clientset *kubernetes.Clientset) (nsName string, err error) {
+func CreateNamespace(ctx context.Context, uniqueName string, clientset *kubernetes.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
-	uniqueName := prefix + suffix
 
 	m := metav1.ObjectMeta{
 		Name: uniqueName,
@@ -313,9 +306,9 @@ func CreateNamespace(ctx context.Context, prefix string, suffix string, clientse
 	}
 	_, err = clientset.CoreV1().Namespaces().Create(ctx, ns, createOptions)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return uniqueName, nil
+	return nil
 }
 
 func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
@@ -419,14 +412,14 @@ func GetFlags(t *testing.T) {
 	}
 }
 
-func CreatePod(protocol string, ns string, podName string, clientset *kubernetes.Clientset, fsGroupSpecified bool, useBlock bool, useAntiAffinity bool) (err error) {
-	pvcName := fmt.Sprintf(PVC_NAME, protocol)
+func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
+	pvcName := fmt.Sprintf(PVC_NAME, testConfig.Protocol)
 	createOptions := metav1.CreateOptions{}
 	podFSGroup := int64(POD_FS_GROUP)
 
 	var m metav1.ObjectMeta
 
-	if useAntiAffinity { // if this pod checks affinity, don't use a label
+	if testConfig.UseAntiAffinity { // if this pod checks affinity, don't use a label
 
 		m = metav1.ObjectMeta{
 			Name: podName,
@@ -448,7 +441,7 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 	allowPrivilegeEscalation := false
 	runAsNonRoot := true
 	image := "infinidat/csitestimage:latest"
-	if useBlock {
+	if testConfig.UseBlock {
 		image = "infinidat/csitestimageblock:latest"
 		device := v1.VolumeDevice{
 			Name:       "ibox-csi-volume",
@@ -476,6 +469,10 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 						FieldPath: "spec.nodeName",
 					},
 				},
+			},
+			{
+				Name:  "READ_ONLY",
+				Value: strconv.FormatBool(testConfig.ReadOnlyPod),
 			},
 		},
 		SecurityContext: &v1.SecurityContext{
@@ -521,7 +518,7 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 
 	// determine which affinity for pod here, so correct one is assigned below.
 
-	if fsGroupSpecified && !useAntiAffinity {
+	if testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
 		pod = v1.Pod{
 			ObjectMeta: m,
 			Spec: v1.PodSpec{
@@ -538,7 +535,7 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 			},
 		}
 
-	} else if fsGroupSpecified && useAntiAffinity {
+	} else if testConfig.UseFsGroup && testConfig.UseAntiAffinity {
 
 		pod = v1.Pod{
 			ObjectMeta: m,
@@ -557,7 +554,7 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 			},
 		}
 
-	} else if !fsGroupSpecified && !useAntiAffinity {
+	} else if !testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
 		pod = v1.Pod{
 			ObjectMeta: m,
 			Spec: v1.PodSpec{
@@ -571,7 +568,7 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 			},
 		}
 
-	} else if !fsGroupSpecified && useAntiAffinity {
+	} else if !testConfig.UseFsGroup && testConfig.UseAntiAffinity {
 		pod = v1.Pod{
 			ObjectMeta: m,
 			Spec: v1.PodSpec{
@@ -588,7 +585,7 @@ func CreatePod(protocol string, ns string, podName string, clientset *kubernetes
 
 	}
 
-	_, err = clientset.CoreV1().Pods(ns).Create(context.TODO(), &pod, createOptions)
+	_, err = testConfig.ClientSet.CoreV1().Pods(ns).Create(context.TODO(), &pod, createOptions)
 	if err != nil {
 		return err
 	}
@@ -648,138 +645,142 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	return nil
 }
 
-func Setup(protocol string, t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset,
-	useFsGroup bool, useBlock bool, useAntiAffinity bool, pvcAnnotations *PVCAnnotations) (testNames TestResourceNames) {
+func Setup(testConfig *TestConfig) {
 
-	t.Log("SETUP STARTS")
-	t.Log(GetEnvVars())
+	testConfig.Testt.Log("SETUP STARTS")
+	testConfig.Testt.Log(GetEnvVars())
 
 	var err error
 	ctx := context.Background()
-	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
-	testNames.UniqueSuffix = RandSeq(3)
-	testNames.NSName, err = CreateNamespace(ctx, e2eNamespace, testNames.UniqueSuffix, client)
+	err = CreateNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
-		t.Fatalf("error setting up e2e namespace %s\n", err.Error())
+		testConfig.Testt.Fatalf("error setting up e2e namespace %s\n", err.Error())
 	}
-	t.Logf("✓ Namespace %s is created\n", testNames.NSName)
+	testConfig.Testt.Logf("✓ Namespace %s is created\n", testConfig.TestNames.NSName)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	scName := fmt.Sprintf(SC_NAME, protocol)
-	testNames.SCName, err = CreateStorageClass(scName, testNames.UniqueSuffix, StorageClassPath, client)
+	err = CreateStorageClass(testConfig.TestNames.SCName, StorageClassPath, testConfig.ClientSet)
 	if err != nil {
-		t.Fatalf("error creating StorageClass %s\n", err.Error())
+		testConfig.Testt.Fatalf("error creating StorageClass %s\n", err.Error())
 	}
-	t.Logf("✓ StorageClass %s is created\n", testNames.SCName)
+	testConfig.Testt.Logf("✓ StorageClass %s is created\n", testConfig.TestNames.SCName)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	pvcName := fmt.Sprintf(PVC_NAME, protocol)
-	testNames.PVCName = pvcName
+	pvcName := fmt.Sprintf(PVC_NAME, testConfig.Protocol)
+	testConfig.TestNames.PVCName = pvcName
 
-	err = CreatePVC(pvcName, testNames.SCName, testNames.NSName, client, useBlock, useAntiAffinity, pvcAnnotations)
+	if testConfig.UseAntiAffinity {
+		testConfig.AccessMode = v1.ReadWriteMany
+	}
+	err = CreatePVC(testConfig)
 
 	if err != nil {
-		t.Fatalf("error creating PVC %s\n", err.Error())
+		testConfig.Testt.Fatalf("error creating PVC %s\n", err.Error())
 	}
-	t.Logf("✓ PVC %s is created\n", pvcName)
+	testConfig.Testt.Logf("✓ PVC %s is created\n", pvcName)
 
-	err = WaitForPVC(t, pvcName, testNames.NSName, client, time.Second*5, time.Minute*1)
+	err = WaitForPVC(testConfig.Testt, testConfig.TestNames.PVCName, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*1)
 	if err != nil {
-		DescribePVC(t, pvcName, testNames.NSName, client)
-		t.Fatalf("error binding PVC %s\n", err.Error())
+		DescribePVC(testConfig.Testt, testConfig.TestNames.PVCName, testConfig.TestNames.NSName, testConfig.ClientSet)
+		testConfig.Testt.Fatalf("error binding PVC %s\n", err.Error())
 	}
-	t.Logf("✓ PVC %s is bound\n", pvcName)
+	testConfig.Testt.Logf("✓ PVC %s is bound\n", pvcName)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreateImagePullSecret(t, testNames.NSName, client)
+	err = CreateImagePullSecret(testConfig.Testt, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
-		t.Fatalf("error creating image pull secret %s", err.Error())
+		testConfig.Testt.Fatalf("error creating image pull secret %s", err.Error())
 	}
-	t.Logf("✓ Image Pull Secret %s is created\n", IMAGE_PULL_SECRET)
+	testConfig.Testt.Logf("✓ Image Pull Secret %s is created\n", IMAGE_PULL_SECRET)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreatePod(protocol, testNames.NSName, POD_NAME, client, useFsGroup, useBlock, false) // first pod is never anti-affinity.
-	if err != nil {
-		t.Fatalf("error creating test pod %s", err.Error())
-	}
-	t.Logf("✓ Pod %s is created\n", POD_NAME)
+	realAntiAffinity := testConfig.UseAntiAffinity // save user intent
 
-	err = WaitForPod(t, POD_NAME, testNames.NSName, client, time.Second*5, time.Minute*4)
+	testConfig.UseAntiAffinity = false // first pod is never anti-affinity
+	err = CreatePod(testConfig, testConfig.TestNames.NSName, POD_NAME)
 	if err != nil {
-		DescribePVC(t, POD_NAME, testNames.NSName, client)
-		t.Fatalf("error waiting for pod %s", err.Error())
+		testConfig.Testt.Fatalf("error creating test pod %s", err.Error())
 	}
-	t.Logf("✓ Pod %s is running\n", POD_NAME)
+	testConfig.Testt.Logf("✓ Pod %s is created\n", POD_NAME)
+
+	err = WaitForPod(testConfig.Testt, POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*4)
+	if err != nil {
+		DescribePVC(testConfig.Testt, POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet)
+		testConfig.Testt.Fatalf("error waiting for pod %s", err.Error())
+	}
+	testConfig.Testt.Logf("✓ Pod %s is running\n", POD_NAME)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
+
+	testConfig.UseAntiAffinity = true
 
 	// anti-affinity pod for two-node specific tests.
-	if useAntiAffinity {
 
-		err = CreatePod(protocol, testNames.NSName, ANTI_AF_POD_NAME, client, useFsGroup, useBlock, useAntiAffinity)
-		if err != nil {
-			DescribePVC(t, ANTI_AF_POD_NAME, testNames.NSName, client)
-			t.Fatalf("error creating test anti-affinity pod %s", err.Error())
-		}
-		t.Logf("✓ Pod %s is created\n", ANTI_AF_POD_NAME)
+	testConfig.UseAntiAffinity = realAntiAffinity
 
-		err = WaitForPod(t, ANTI_AF_POD_NAME, testNames.NSName, client, time.Second*5, time.Minute*4)
+	if testConfig.UseAntiAffinity {
+		err = CreatePod(testConfig, testConfig.TestNames.NSName, ANTI_AF_POD_NAME)
 		if err != nil {
-			t.Fatalf("error waiting for pod %s", err.Error())
+			DescribePVC(testConfig.Testt, ANTI_AF_POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet)
+			testConfig.Testt.Fatalf("error creating test anti-affinity pod %s", err.Error())
 		}
-		t.Logf("✓ Pod %s is running\n", ANTI_AF_POD_NAME)
+		testConfig.Testt.Logf("✓ Pod %s is created\n", ANTI_AF_POD_NAME)
+
+		err = WaitForPod(testConfig.Testt, ANTI_AF_POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*4)
+		if err != nil {
+			testConfig.Testt.Fatalf("error waiting for pod %s", err.Error())
+		}
+		testConfig.Testt.Logf("✓ Pod %s is running\n", ANTI_AF_POD_NAME)
 	}
 
-	//testNames.SnapshotClassName, err = CreateVolumeSnapshotClass(ctx, VOLUME_SNAPSHOT_CLASS, testNames.NSName, uniqueSuffix, snapshotClient)
-	testNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, testNames.UniqueSuffix, dynamicClient)
+	testConfig.TestNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, testConfig.TestNames.UniqueSuffix, testConfig.DynamicClient)
 	if err != nil {
-		t.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
+		testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
 	}
-	t.Logf("✓ VolumeSnapshotClass %s is created\n", testNames.SnapshotClassName)
+	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is created\n", testConfig.TestNames.SnapshotClassName)
 
-	t.Log("SETUP ENDS")
-	return testNames
+	testConfig.Testt.Log("SETUP ENDS")
 }
 
-func TearDown(t *testing.T, testNames TestResourceNames, client *kubernetes.Clientset, dynamicClient dynamic.Interface, snapshotClient *snapshotv6.Clientset) {
+func TearDown(testConfig *TestConfig) {
 
-	t.Log("TEARDOWN STARTS")
+	testConfig.Testt.Log("TEARDOWN STARTS")
 	ctx := context.Background()
 
-	err := DeletePod(ctx, testNames.NSName, POD_NAME, client)
+	err := DeletePod(ctx, testConfig.TestNames.NSName, POD_NAME, testConfig.ClientSet)
 	if err != nil {
-		t.Logf("error deleting pod %s\n", err.Error())
+		testConfig.Testt.Logf("error deleting pod %s\n", err.Error())
 	}
-	t.Logf("✓ pod %s is deleted\n", POD_NAME)
+	testConfig.Testt.Logf("✓ pod %s is deleted\n", POD_NAME)
 
-	err = DeletePVC(ctx, testNames.NSName, testNames.PVCName, client)
+	err = DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
 	if err != nil {
-		t.Logf("error deleting PVC %s\n", err.Error())
+		testConfig.Testt.Logf("error deleting PVC %s\n", err.Error())
 	}
-	t.Logf("✓ PVC %s is deleted\n", testNames.PVCName)
+	testConfig.Testt.Logf("✓ PVC %s is deleted\n", testConfig.TestNames.PVCName)
 
-	err = DeleteStorageClass(ctx, testNames.SCName, client)
+	err = DeleteStorageClass(ctx, testConfig.TestNames.SCName, testConfig.ClientSet)
 	if err != nil {
-		t.Logf("error deleting storage class %s\n", err.Error())
+		testConfig.Testt.Logf("error deleting storage class %s\n", err.Error())
 	}
-	t.Logf("✓ StorageClass %s is deleted\n", testNames.SCName)
+	testConfig.Testt.Logf("✓ StorageClass %s is deleted\n", testConfig.TestNames.SCName)
 
-	err = DeleteVolumeSnapshotClass(ctx, testNames.SnapshotClassName, snapshotClient)
+	err = DeleteVolumeSnapshotClass(ctx, testConfig.TestNames.SnapshotClassName, testConfig.SnapshotClient)
 	if err != nil {
-		t.Logf("error deleting VolumeSnapshotClass %s\n", err.Error())
+		testConfig.Testt.Logf("error deleting VolumeSnapshotClass %s\n", err.Error())
 	}
-	t.Logf("✓ VolumeSnapshotClass %s is deleted\n", testNames.SnapshotClassName)
+	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is deleted\n", testConfig.TestNames.SnapshotClassName)
 
-	err = DeleteNamespace(ctx, testNames.NSName, client)
+	err = DeleteNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
-		t.Logf("error deleting namespace %s\n", err.Error())
+		testConfig.Testt.Logf("error deleting namespace %s\n", err.Error())
 	}
-	t.Logf("✓ Namespace %s is deleted\n", testNames.NSName)
-	t.Log("TEARDOWN ENDS")
+	testConfig.Testt.Logf("✓ Namespace %s is deleted\n", testConfig.TestNames.NSName)
+	testConfig.Testt.Log("TEARDOWN ENDS")
 }
 
 func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset *kubernetes.Clientset) error {
@@ -822,10 +823,20 @@ func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
 		return 0
 	}
 
+	var readyNodes int
+	for _, item := range nodes.Items {
+		for _, cond := range item.Status.Conditions {
+			if cond.Type == v1.NodeReady && cond.Status == "True" {
+				readyNodes++
+				t.Logf("node %s is Ready", item.Name)
+			}
+		}
+	}
+
 	nodeCount := len(nodes.Items)
 
-	t.Logf("Test System Node count: %d", nodeCount)
-	return nodeCount
+	t.Logf("Test System Node count: %d, readyCount: %d", nodeCount, readyNodes)
+	return readyNodes
 
 }
 

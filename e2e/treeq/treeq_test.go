@@ -3,46 +3,23 @@
 package treeq
 
 import (
-	"fmt"
 	"infinibox-csi-driver/e2e"
-	"os"
 	"strconv"
 	"testing"
 	"time"
-
-	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
-
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
-)
-
-const (
-	PROTOCOL = "treeq"
 )
 
 func TestTreeq(t *testing.T) {
 
-	fmt.Printf("network space here is %s\n", os.Getenv("_E2E_NETWORK_SPACE"))
-	e2e.GetFlags(t)
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, "treeq")
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	// create a unique namespace to perform the test within
-
-	testNames := setup(t, clientSet, dynamicClient, snapshotClient, false, false, false, nil)
-
-	t.Logf("testing in namespace %+v\n", testNames)
-	// run the test
+	e2e.Setup(testConfig)
 
 	if *e2e.CleanUp {
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -50,33 +27,18 @@ func TestTreeq(t *testing.T) {
 
 func TestFsGroupTreeq(t *testing.T) {
 
-	e2e.GetFlags(t)
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, "treeq")
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	config := e2e.GetRestConfig(*e2e.KubeConfigPath)
+	testConfig.UseFsGroup = true
 
-	if config == nil {
-		t.Fatalf("error getting rest config")
-	}
-
-	// create a unique namespace to perform the test within
-
-	testNames := setup(t, clientSet, dynamicClient, snapshotClient, true, false, false, nil)
-
-	t.Logf("testing in namespace %+v\n", testNames)
-	// run the test
+	e2e.Setup(testConfig)
 
 	expectedValue := "drwxrwsr-x"
 
-	winning, actual, err := e2e.VerifyDirPermsCorrect(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifyDirPermsCorrect check %s", err.Error())
 	}
@@ -88,7 +50,7 @@ func TestFsGroupTreeq(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual, err = e2e.VerifyGroupIdIsUsed(clientSet, config, e2e.POD_NAME, testNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifyGroupIdIsUsed check %s", err.Error())
 	}
@@ -100,7 +62,7 @@ func TestFsGroupTreeq(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -108,50 +70,32 @@ func TestFsGroupTreeq(t *testing.T) {
 
 func TestTreeqAdmin(t *testing.T) {
 
-	e2e.GetFlags(t)
-
-	//connect to kube
-	clientSet, dynamicClient, snapshotClient, err := e2e.GetKubeClient(*e2e.KubeConfigPath)
+	testConfig, err := e2e.GetTestConfig(t, "treeq")
 	if err != nil {
-		t.Fatalf("error creating clients %s\n", err.Error())
-	}
-	if clientSet == nil {
-		t.Fatalf("error creating k8s client")
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	// create a unique namespace to perform the test within
+	e2e.Setup(testConfig)
 
-	testNames := setup(t, clientSet, dynamicClient, snapshotClient, false, false, false, nil)
-
-	t.Logf("testing in namespace %+v\n", testNames)
-	// run the test
-	fileSystemID, err := CreateAdminTreeqs(t, testNames, clientSet)
+	fileSystemID, err := CreateAdminTreeqs(testConfig)
 	if err != nil {
 		t.Fatalf("CreateAdminTreeqs FAILED, got error %s", err.Error())
 	}
 
 	time.Sleep(time.Second * 30)
 
-	err = VerifyAdminTreeqs(t, testNames, clientSet)
+	err = VerifyAdminTreeqs(testConfig)
 	if err != nil {
 		t.Fatalf("VerifyAdminTreeqs FAILED, got error %s", err.Error())
 	}
 
 	if *e2e.CleanUp {
-		err := CleanupAdminTreeqs(t, testNames, fileSystemID, clientSet)
+		err := CleanupAdminTreeqs(fileSystemID, testConfig)
 		if err != nil {
 			t.Errorf("CleanupAdminTreeqs FAILED, got error %s", err.Error())
 		}
-		tearDown(t, testNames, clientSet, dynamicClient, snapshotClient)
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
-}
-
-func setup(t *testing.T, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset, fsGroup bool, useBlock bool, useAntiAffinity bool, pvcAnnotations *e2e.PVCAnnotations) (testNames e2e.TestResourceNames) {
-	return e2e.Setup(PROTOCOL, t, client, dynamicClient, snapshotClient, fsGroup, useBlock, useAntiAffinity, pvcAnnotations)
-}
-
-func tearDown(t *testing.T, testNames e2e.TestResourceNames, client *kubernetes.Clientset, dynamicClient *dynamic.DynamicClient, snapshotClient *snapshotv6.Clientset) {
-	e2e.TearDown(t, testNames, client, dynamicClient, snapshotClient)
 }
