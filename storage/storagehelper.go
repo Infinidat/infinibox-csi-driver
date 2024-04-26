@@ -628,14 +628,19 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		uid_int = -1 // indicate no change to uid since fsgroup being set.
 	}
 
-	err = ChownR(hostTargetPath, uid_int, gid_int, fsGroupIsSet, fsGroupChangePolicy) // recursively set the path.
+	zlog.Debug().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
+	if fsGroupIsSet {
+		zlog.Debug().Msgf("for fsgroup, performing recursive chown")
+		err = ChownR(hostTargetPath, uid_int, gid_int, fsGroupIsSet, fsGroupChangePolicy) // recursively set the path.
+	} else {
+		err = os.Chown(hostTargetPath, uid_int, gid_int)
+	}
 
 	if err != nil {
 		e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
 		zlog.Err(e)
 		return status.Errorf(codes.Internal, e.Error())
 	}
-	zlog.Debug().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 
 	var unixPermissions string
 	// If fsGroupIsSet, we need to set perms on the mount with setgid bit.

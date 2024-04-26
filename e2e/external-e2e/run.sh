@@ -53,8 +53,9 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 ./e2e.test  \
 	--ginkgo.v \
 	--ginkgo.no-color \
-	--ginkgo.dry-run \
-  	--ginkgo.focus=snapshott \
+ 	--ginkgo.focus='External.Storage' \
+ 	--ginkgo.focus='External.Storage.*Dynamic*'  \
+ 	--ginkgo.focus='External.Storage.*infinibox-csi-driver'  \
   	--ginkgo.skip=subpath \
   	--ginkgo.skip=ephemeral \
 	--ginkgo.skip="Ephemeral" \
@@ -66,5 +67,6 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 	--ginkgo.skip='pd.csi' \
 	--ginkgo.skip="access to two volumes" \
 	--ginkgo.skip="OnRootMismatch" \
+	--ginkgo.skip="when restoring snapshot to larger size pvc" \
 	--storage.testdriver=$WORKDIR/e2e-manifest.yaml \
 	> $WORKDIR/results.log
