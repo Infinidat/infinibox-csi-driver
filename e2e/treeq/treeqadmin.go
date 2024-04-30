@@ -198,7 +198,7 @@ func CreatePersistentVolumeClaimsForTreeqs(config *e2e.TestConfig) (err error) {
 	if err != nil {
 		return err
 	}
-	requirements := v1.ResourceRequirements{
+	requirements := v1.VolumeResourceRequirements{
 		Requests: rList,
 	}
 
