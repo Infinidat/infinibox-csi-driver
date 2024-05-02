@@ -209,7 +209,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
-	zlog.Debug().Msgf("NodePublishVolume volume ID %s, network_space %s mode %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode)
+	zlog.Debug().Msgf("NodePublishVolume volume ID %s, network_space %s mode %s readOnly %t", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly)
 
 	targets, err := iscsi.getISCSITargets(req)
 	if err != nil {
@@ -860,9 +860,8 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 
 	// check accessMode - where we will eventually police R/W etc (CSIC-343)
 	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
-	// TODO: set readonly flag for RO accessmodes, any other validations needed?
 
-	if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 		m.readOnly = true
 	}
 	// handle file (mount) and block parameters

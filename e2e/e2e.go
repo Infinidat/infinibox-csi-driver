@@ -24,20 +24,23 @@ const (
 )
 
 type TestConfig struct {
-	Protocol          string
-	Testt             *testing.T
-	ClientSet         *kubernetes.Clientset
-	DynamicClient     *dynamic.DynamicClient
-	SnapshotClient    *snapshotv6.Clientset
-	RestConfig        *rest.Config
-	UseFsGroup        bool
-	UseBlock          bool
-	UseAntiAffinity   bool
-	ReadOnlyPod       bool
-	ReadOnlyPodVolume bool
-	PVCAnnotations    *PVCAnnotations
-	AccessMode        v1.PersistentVolumeAccessMode
-	TestNames         *TestResourceNames
+	Protocol              string
+	Testt                 *testing.T
+	ClientSet             *kubernetes.Clientset
+	DynamicClient         *dynamic.DynamicClient
+	SnapshotClient        *snapshotv6.Clientset
+	RestConfig            *rest.Config
+	UsePVCVolumeRef       bool
+	UseFsGroup            bool
+	UseBlock              bool
+	UseAntiAffinity       bool
+	UseRetainStorageClass bool
+	ReadOnlyPod           bool
+	ReadOnlyPodVolume     bool
+	UseSELinux            bool
+	PVCAnnotations        *PVCAnnotations
+	AccessMode            v1.PersistentVolumeAccessMode
+	TestNames             *TestResourceNames
 }
 
 func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error) {

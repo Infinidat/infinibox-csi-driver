@@ -66,6 +66,7 @@ type TestResourceNames struct {
 	NSName            string
 	SCName            string
 	PVCName           string
+	PVName            string
 	SnapshotName      string
 	SnapshotClassName string
 	StorageClassName  string
@@ -171,9 +172,27 @@ func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubern
 	return nil
 }
 
+func UpdatePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientset) error {
+
+	pv, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	pv.Spec.ClaimRef = nil
+	pv.Spec.AccessModes = make([]v1.PersistentVolumeAccessMode, 1)
+	pv.Spec.AccessModes[0] = v1.ReadOnlyMany
+
+	_, err = clientSet.CoreV1().PersistentVolumes().Update(ctx, pv, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 //***************** Storage Class ***************** //
 
-func CreateStorageClass(uniqueName string, path string, clientSet *kubernetes.Clientset) (err error) {
+func CreateStorageClass(retain bool, uniqueName string, path string, clientSet *kubernetes.Clientset) (err error) {
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -191,6 +210,11 @@ func CreateStorageClass(uniqueName string, path string, clientSet *kubernetes.Cl
 	}
 	sc.Name = uniqueName
 	sc.Parameters["pool_name"] = poolToUse
+
+	if retain {
+		rp := v1.PersistentVolumeReclaimRetain
+		sc.ReclaimPolicy = &rp
+	}
 
 	createOptions := metav1.CreateOptions{}
 
@@ -241,6 +265,10 @@ func CreatePVC(config *TestConfig) (err error) {
 	if config.UseBlock {
 		mode := v1.PersistentVolumeBlock
 		pvc.Spec.VolumeMode = &mode
+	}
+
+	if config.UsePVCVolumeRef {
+		pvc.Spec.VolumeName = config.TestNames.PVName
 	}
 	_, err = config.ClientSet.CoreV1().PersistentVolumeClaims(config.TestNames.NSName).Create(context.TODO(), pvc, metav1.CreateOptions{})
 	if err != nil {
@@ -490,6 +518,12 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 		},
 	}
 
+	if testConfig.UseSELinux {
+		container.SecurityContext.SELinuxOptions = &v1.SELinuxOptions{
+			Type: "spc_t",
+		}
+	}
+
 	volume := v1.Volume{
 		Name: "ibox-csi-volume",
 		VolumeSource: v1.VolumeSource{
@@ -661,7 +695,7 @@ func Setup(testConfig *TestConfig) {
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreateStorageClass(testConfig.TestNames.SCName, StorageClassPath, testConfig.ClientSet)
+	err = CreateStorageClass(testConfig.UseRetainStorageClass, testConfig.TestNames.SCName, StorageClassPath, testConfig.ClientSet)
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating StorageClass %s\n", err.Error())
 	}
@@ -738,11 +772,13 @@ func Setup(testConfig *TestConfig) {
 		testConfig.Testt.Logf("✓ Pod %s is running\n", ANTI_AF_POD_NAME)
 	}
 
+	/**
 	testConfig.TestNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, testConfig.TestNames.UniqueSuffix, testConfig.DynamicClient)
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
 	}
 	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is created\n", testConfig.TestNames.SnapshotClassName)
+	*/
 
 	testConfig.Testt.Log("SETUP ENDS")
 }
@@ -918,4 +954,15 @@ func DescribePod(t *testing.T, podName string, ns string, clientset *kubernetes.
 		t.Logf("Pod describe message %s reason %s", item.Message, item.Reason)
 	}
 
+}
+
+func GetPVName(pvcName string, ns string, clientset *kubernetes.Clientset) (string, error) {
+	getOptions := metav1.GetOptions{}
+
+	pvc, err := clientset.CoreV1().PersistentVolumeClaims(ns).Get(context.TODO(), pvcName, getOptions)
+	if err != nil && apierrors.IsNotFound(err) {
+		return "", err
+	}
+
+	return pvc.Spec.VolumeName, nil
 }
