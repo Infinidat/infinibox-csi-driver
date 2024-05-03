@@ -307,6 +307,7 @@ func (cs *Commonservice) getNetworkSpaceIP(networkSpace string) (string, error) 
 	if len(nspace.Portals) == 0 {
 		return "", errors.New("ip address not found")
 	}
+
 	index := getRandomIndex(len(nspace.Portals))
 	return nspace.Portals[index].IpAdress, nil
 }

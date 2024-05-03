@@ -114,6 +114,13 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		sourceIP = dnsName
 		zlog.Debug().Msgf("storageclass has dnsname specified, using it for mount instead of ipAddress %s", dnsName)
 	}
+
+	err = nfs.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
+	if err != nil {
+		zlog.Err(err)
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 	zlog.Debug().Msgf("Mount sourcePath %v, targetPath %v", source, targetPath)

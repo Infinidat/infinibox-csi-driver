@@ -70,6 +70,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
 	exportResp := getExportResponse()
@@ -107,6 +108,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{nfsstorage: nfs}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
@@ -137,6 +139,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	nfs := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{nfsstorage: nfs}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))

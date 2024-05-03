@@ -21,6 +21,7 @@ import (
 	"infinibox-csi-driver/log"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -403,6 +404,7 @@ func IsDirectory(path string) (bool, error) {
 
 type StorageHelper interface {
 	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
+	ValidateNFSPortalIPAddress(ipAddress string) (err error)
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
 	NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err error)
 }
@@ -812,4 +814,20 @@ func validateSnapshotLockingParameter(input string) (timeInUnixMilli int64, err 
 	}
 
 	return futureTime.UnixMilli(), nil
+}
+
+func (n Service) ValidateNFSPortalIPAddress(ip string) (err error) {
+	start := time.Now()
+
+	const nfsPort = "2049"
+	nfsAddress := fmt.Sprintf("%s:%s", ip, nfsPort)
+	_, err = net.Dial("tcp", nfsAddress)
+	elapsed := time.Since(start)
+
+	if err != nil {
+		zlog.Error().Msgf("error dialing NFS network space portal IP address %s - %s time: %s", nfsAddress, err.Error(), elapsed)
+		return err
+	}
+	zlog.Debug().Msgf("NFS network space portal IP address %s is reachable, time: %s", nfsAddress, elapsed)
+	return nil
 }

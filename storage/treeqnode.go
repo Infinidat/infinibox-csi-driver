@@ -120,8 +120,20 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
+	dnsName := req.GetVolumeContext()["dnsname"]
+	if dnsName != "" {
+		sourceIP = dnsName
+		zlog.Debug().Msgf("storageclass has dnsname specified, using it for mount instead of ipAddress %s", dnsName)
+	}
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
+
+	err = treeq.nfsstorage.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
+	if err != nil {
+		zlog.Err(err)
+		return nil, status.Errorf(codes.Internal, err.Error())
+	}
+
 	zlog.Debug().Msgf("mount sourcePath %v, targetPath %v", source, targetPath)
 	err = treeq.nfsstorage.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
