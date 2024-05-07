@@ -193,6 +193,9 @@ func CreatePersistentVolumesForTreeqs(fs *api.FileSystem, treeqIDs []int64, netw
 }
 
 func CreatePersistentVolumeClaimsForTreeqs(config *e2e.TestConfig) (err error) {
+	accessModes := make([]v1.PersistentVolumeAccessMode, 0)
+	accessModes = append(accessModes, config.AccessMode)
+
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -210,7 +213,7 @@ func CreatePersistentVolumeClaimsForTreeqs(config *e2e.TestConfig) (err error) {
 			},
 			Spec: v1.PersistentVolumeClaimSpec{
 				Resources:        requirements,
-				AccessModes:      []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+				AccessModes:      accessModes,
 				StorageClassName: &config.TestNames.SCName,
 				VolumeName:       TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix,
 			},
@@ -307,6 +310,20 @@ func CreateTreeqApps(config *e2e.TestConfig) (err error) {
 		Image:           image,
 		ImagePullPolicy: v1.PullIfNotPresent,
 		VolumeMounts:    volumeMounts,
+		Env: []v1.EnvVar{
+			{
+				Name: "KUBE_NODE_NAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{
+						FieldPath: "spec.nodeName",
+					},
+				},
+			},
+			{
+				Name:  "READ_ONLY",
+				Value: strconv.FormatBool(config.ReadOnlyPod),
+			},
+		},
 		SecurityContext: &v1.SecurityContext{
 			Privileged:               &privileged,
 			AllowPrivilegeEscalation: &allowPrivilegeEscalation,

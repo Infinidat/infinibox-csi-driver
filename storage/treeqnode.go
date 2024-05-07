@@ -83,7 +83,13 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	zlog.Debug().Msgf("treeq count %d on filesystemId %d", treeqCount, fileSystemId)
 	if len(*exports) == 0 {
-		exportPerms := "[{'access':'RW','client':'" + req.GetVolumeContext()["nodeID"] + "','no_root_squash':true}]"
+		exportAccess := "RW"
+		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+			zlog.Debug().Msgf("NodePublishVolume detected read-only, setting export to RO")
+			exportAccess = "RO"
+		}
+		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
+		//exportPerms := "[{'access':'RW','client':'" + req.GetVolumeContext()["nodeID"] + "','no_root_squash':true}]"
 		if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] != "" {
 			exportPerms = req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
 			zlog.Debug().Msgf("%s was specified %s, will not create default export rule, will create this rule instead", common.SC_NFS_EXPORT_PERMISSIONS, exportPerms)
@@ -143,7 +149,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	zlog.Debug().Msgf("mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
 
-	if req.GetReadonly() {
+	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 		zlog.Debug().Msg("this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}

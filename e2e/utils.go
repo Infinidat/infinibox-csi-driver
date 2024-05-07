@@ -806,11 +806,13 @@ func TearDown(testConfig *TestConfig) {
 	}
 	testConfig.Testt.Logf("✓ StorageClass %s is deleted\n", testConfig.TestNames.SCName)
 
+	/**
 	err = DeleteVolumeSnapshotClass(ctx, testConfig.TestNames.SnapshotClassName, testConfig.SnapshotClient)
 	if err != nil {
 		testConfig.Testt.Logf("error deleting VolumeSnapshotClass %s\n", err.Error())
 	}
 	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is deleted\n", testConfig.TestNames.SnapshotClassName)
+	*/
 
 	err = DeleteNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
