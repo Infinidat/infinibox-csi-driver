@@ -230,6 +230,14 @@ func TestIscsiRO(t *testing.T) {
 	testConfig.AccessMode = v1.ReadWriteMany
 	e2e.Setup(testConfig)
 
+	time.Sleep(time.Second * 20)
+
+	err = e2e.DeletePod(context.Background(), testConfig.TestNames.NSName, e2e.POD_NAME, testConfig.ClientSet)
+	if err != nil {
+		testConfig.Testt.Fatalf("error deleting test pod %s", err.Error())
+	}
+	testConfig.Testt.Logf("✓ Pod %s is deleted\n", e2e.POD_NAME)
+
 	readOnlyPodName := e2e.POD_NAME + "-ro"
 	testConfig.ReadOnlyPodVolume = true
 	testConfig.ReadOnlyPod = true
