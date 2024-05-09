@@ -193,37 +193,17 @@ func CreatePersistentVolumesForTreeqs(fs *api.FileSystem, treeqIDs []int64, netw
 }
 
 func CreatePersistentVolumeClaimsForTreeqs(config *e2e.TestConfig) (err error) {
-	accessModes := make([]v1.PersistentVolumeAccessMode, 0)
-	accessModes = append(accessModes, config.AccessMode)
-
-	rList := make(map[v1.ResourceName]resource.Quantity)
-	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
-	if err != nil {
-		return err
-	}
-	requirements := v1.VolumeResourceRequirements{
-		Requests: rList,
-	}
+	config.UsePVCVolumeRef = true
 
 	for i := 0; i < len(TREEQ_USERS); i++ {
-		pvc := &v1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      TREEQ_USERS[i] + "-pvc",
-				Namespace: config.TestNames.NSName,
-			},
-			Spec: v1.PersistentVolumeClaimSpec{
-				Resources:        requirements,
-				AccessModes:      accessModes,
-				StorageClassName: &config.TestNames.SCName,
-				VolumeName:       TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix,
-			},
-		}
+		config.TestNames.PVName = TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix
+		config.TestNames.PVCName = TREEQ_USERS[i] + "-pvc"
 
-		_, err = config.ClientSet.CoreV1().PersistentVolumeClaims(config.TestNames.NSName).Create(context.TODO(), pvc, metav1.CreateOptions{})
+		err = e2e.CreatePVC(config)
 		if err != nil {
 			return err
 		}
-		config.Testt.Logf("✓ PVC %s is created\n", pvc.Name)
+		config.Testt.Logf("✓ PVC %s is created\n", config.TestNames.PVCName)
 	}
 	return nil
 }
@@ -292,86 +272,16 @@ func CleanupAdminTreeqs(fileSystemID int64, config *e2e.TestConfig) (err error) 
 }
 
 func CreateTreeqApps(config *e2e.TestConfig) (err error) {
-	privileged := false
-	allowPrivilegeEscalation := false
-	runAsNonRoot := true
-
-	createOptions := metav1.CreateOptions{}
-
-	volumeMounts := make([]v1.VolumeMount, 0)
-	image := "infinidat/csitestimage:latest"
-	volumeMount := v1.VolumeMount{
-		MountPath: "/tmp/csitesting",
-		Name:      "ibox-csi-volume",
-	}
-	volumeMounts = append(volumeMounts, volumeMount)
-	container := v1.Container{
-		Name:            "csitest",
-		Image:           image,
-		ImagePullPolicy: v1.PullIfNotPresent,
-		VolumeMounts:    volumeMounts,
-		Env: []v1.EnvVar{
-			{
-				Name: "KUBE_NODE_NAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
-						FieldPath: "spec.nodeName",
-					},
-				},
-			},
-			{
-				Name:  "READ_ONLY",
-				Value: strconv.FormatBool(config.ReadOnlyPod),
-			},
-		},
-		SecurityContext: &v1.SecurityContext{
-			Privileged:               &privileged,
-			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-			RunAsNonRoot:             &runAsNonRoot,
-			SeccompProfile: &v1.SeccompProfile{
-				Type: v1.SeccompProfileTypeRuntimeDefault,
-			},
-			/**
-			Capabilities: &v1.Capabilities{
-				Drop: []v1.Capability{"ALL"},
-			},
-			*/
-		},
-	}
-
-	volume := v1.Volume{
-		Name: "ibox-csi-volume",
-		VolumeSource: v1.VolumeSource{
-			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{},
-		},
-	}
 
 	for i := 0; i < len(TREEQ_USERS); i++ {
-		pvcName := TREEQ_USERS[i] + "-pvc"
-		m := metav1.ObjectMeta{
-			Name:      TREEQ_USERS[i] + "-app",
-			Namespace: config.TestNames.NSName,
-		}
-		volume.VolumeSource.PersistentVolumeClaim.ClaimName = pvcName
+		config.TestNames.PVCName = TREEQ_USERS[i] + "-pvc"
+		podName := TREEQ_USERS[i] + "-app"
 
-		pod := v1.Pod{
-			ObjectMeta: m,
-			Spec: v1.PodSpec{
-				ImagePullSecrets: []v1.LocalObjectReference{
-					{
-						Name: e2e.IMAGE_PULL_SECRET,
-					},
-				},
-				Containers: []v1.Container{container},
-				Volumes:    []v1.Volume{volume},
-			},
-		}
-
-		_, err = config.ClientSet.CoreV1().Pods(config.TestNames.NSName).Create(context.TODO(), &pod, createOptions)
+		err = e2e.CreatePod(config, config.TestNames.NSName, podName)
 		if err != nil {
 			return err
 		}
-		config.Testt.Logf("✓ Pod %s is created\n", pod.Name)
+		config.Testt.Logf("✓ Pod %s is created\n", podName)
 	}
 	return nil
 }

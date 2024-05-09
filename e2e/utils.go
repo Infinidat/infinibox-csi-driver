@@ -445,6 +445,9 @@ func GetFlags(t *testing.T) {
 
 func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	pvcName := fmt.Sprintf(PVC_NAME, testConfig.Protocol)
+	if testConfig.TestNames.PVCName != "" {
+		pvcName = testConfig.TestNames.PVCName
+	}
 	createOptions := metav1.CreateOptions{}
 	podFSGroup := int64(POD_FS_GROUP)
 

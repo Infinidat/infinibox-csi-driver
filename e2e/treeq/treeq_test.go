@@ -123,10 +123,24 @@ func TestTreeqRO(t *testing.T) {
 	if err != nil {
 		t.Fatalf("VerifyAdminTreeqs FAILED, got error %s", err.Error())
 	}
+	// delete user2 pvc and pod
+
+	ctx := context.Background()
+	user2PodName := "user2-app"
+	err = e2e.DeletePod(ctx, testConfig.TestNames.NSName, user2PodName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("DeletePod %s FAILED, got error %s", user2PodName, err.Error())
+	}
+	user2PVCName := "user2-pvc"
+	err = e2e.DeletePVC(ctx, testConfig.TestNames.NSName, user2PVCName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("DeletePVC %s FAILED, got error %s", user2PVCName, err.Error())
+	}
+
+	time.Sleep(time.Second * 10)
 
 	// delete the user1 app pod
 	user1PodName := "user1-app"
-	ctx := context.Background()
 	err = e2e.DeletePod(ctx, testConfig.TestNames.NSName, user1PodName, testConfig.ClientSet)
 	if err != nil {
 		t.Fatalf("DeletePod FAILED, got error %s", err.Error())
@@ -135,6 +149,7 @@ func TestTreeqRO(t *testing.T) {
 	// create a readOnly user1 app pod with a readOnly on the volumeMount
 	testConfig.ReadOnlyPod = true
 	testConfig.ReadOnlyPodVolume = true
+	testConfig.TestNames.PVCName = "user1-pvc"
 
 	err = e2e.CreatePod(testConfig, testConfig.TestNames.NSName, user1PodName)
 	if err != nil {
