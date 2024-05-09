@@ -7,6 +7,7 @@ import (
 	"infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 )
@@ -106,8 +107,11 @@ func TestFcBlockRWX(t *testing.T) {
 
 	testConfig.AccessMode = v1.ReadWriteMany
 	testConfig.UseAntiAffinity = true
+	testConfig.UseBlock = true
 
 	e2e.Setup(testConfig)
+
+	time.Sleep(10)
 
 	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
