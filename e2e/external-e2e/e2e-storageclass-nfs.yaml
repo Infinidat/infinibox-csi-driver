@@ -45,4 +45,4 @@ parameters:
     # privileged_ports_only: no # optional: force use of  privileged ports only
     # 
     # nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
-    # nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example
+    nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example
