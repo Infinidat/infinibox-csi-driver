@@ -51,6 +51,7 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 #	--ginkgo.skip="OnRootMismatch" \
 #	--ginkgo.skip="when restoring snapshot to larger size pvc" \
 ./e2e.test  \
+	--ginkgo.timeout=2h \
 	--ginkgo.v \
 	--ginkgo.no-color \
  	--ginkgo.focus='External.Storage' \
