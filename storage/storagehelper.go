@@ -580,6 +580,15 @@ func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 }
 
 func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
+	snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
+	var snapdirVisible bool
+	if snapDir != "" {
+		snapdirVisible, err = strconv.ParseBool(snapDir)
+		if err != nil {
+			zlog.Err(err)
+			return err
+		}
+	}
 	targetPath := req.GetTargetPath()      // this is the path on the host node
 	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
 
@@ -633,7 +642,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	zlog.Debug().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 	if fsGroupIsSet {
 		zlog.Debug().Msgf("for fsgroup, performing recursive chown")
-		err = ChownR(hostTargetPath, uid_int, gid_int, fsGroupIsSet, fsGroupChangePolicy) // recursively set the path.
+		err = ChownR(hostTargetPath, uid_int, gid_int, fsGroupIsSet, fsGroupChangePolicy, snapdirVisible) // recursively set the path.
 	} else {
 		err = os.Chown(hostTargetPath, uid_int, gid_int)
 	}
@@ -676,7 +685,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 }
 
 // recursively chowns a root path
-func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolicy string) error {
+func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolicy string, snapdirVisible bool) error {
 
 	// this will exit early if there is a reason to not chown the files. Since we currently only support
 	// "Always" for fsGroupChangePolicy, this block will not run, and files will always be chowned.
@@ -708,7 +717,13 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 
 			if err == nil {
 				zlog.Debug().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
-				err = os.Chown(path, uid, gid)
+				if snapdirVisible && d.Name() == ".snapshot" {
+					// we skip chown on snapdir hidden directories because they are readonly created by the ibox
+					zlog.Debug().Msgf("skipping chown on %s because snapdir_visible is true", d.Name())
+					return filepath.SkipDir
+				} else {
+					err = os.Chown(path, uid, gid)
+				}
 			}
 			return err
 		})

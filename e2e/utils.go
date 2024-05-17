@@ -192,7 +192,8 @@ func UpdatePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientse
 
 //***************** Storage Class ***************** //
 
-func CreateStorageClass(retain bool, uniqueName string, path string, clientSet *kubernetes.Clientset) (err error) {
+func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
+
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -208,17 +209,19 @@ func CreateStorageClass(retain bool, uniqueName string, path string, clientSet *
 	if poolToUse == "" {
 		return fmt.Errorf("_E2E_POOL env var is not set and is required")
 	}
-	sc.Name = uniqueName
+	sc.Name = testConfig.TestNames.SCName
 	sc.Parameters["pool_name"] = poolToUse
 
-	if retain {
+	sc.Parameters[common.SC_SNAPDIR_VISIBLE] = strconv.FormatBool(testConfig.UseSnapdirVisible)
+
+	if testConfig.UseRetainStorageClass {
 		rp := v1.PersistentVolumeReclaimRetain
 		sc.ReclaimPolicy = &rp
 	}
 
 	createOptions := metav1.CreateOptions{}
 
-	_, err = clientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
+	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
 	if err != nil {
 		return err
 	}
@@ -695,7 +698,7 @@ func Setup(testConfig *TestConfig) {
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreateStorageClass(testConfig.UseRetainStorageClass, testConfig.TestNames.SCName, StorageClassPath, testConfig.ClientSet)
+	err = CreateStorageClass(testConfig, StorageClassPath)
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating StorageClass %s\n", err.Error())
 	}

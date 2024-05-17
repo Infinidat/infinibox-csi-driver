@@ -35,6 +35,7 @@ type TestConfig struct {
 	UseBlock              bool
 	UseAntiAffinity       bool
 	UseRetainStorageClass bool
+	UseSnapdirVisible     bool
 	ReadOnlyPod           bool
 	ReadOnlyPodVolume     bool
 	UseSELinux            bool

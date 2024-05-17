@@ -134,3 +134,46 @@ func TestNfsRO(t *testing.T) {
 		t.Log("not cleaning up namespace")
 	}
 }
+
+func TestNfsFsGroupWithSnapdir(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	testConfig.UseFsGroup = true
+	testConfig.UseSnapdirVisible = true
+
+	e2e.Setup(testConfig)
+
+	expectedValue := "drwxrwsr-x"
+	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error verifying dir perms  %s", err.Error())
+	}
+
+	if winning {
+		t.Log("FSGroupDirPermsCorrect PASSED")
+	} else {
+		t.Errorf("FSGroupDirPermsCorrect FAILED, expected: %s but got %s", expectedValue, actual)
+	}
+
+	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error in VerifyGroupIdIsUsed %s", err.Error())
+	}
+
+	if winning {
+		t.Log("FSGroupIdIsUsed PASSED")
+	} else {
+		t.Errorf("FsGroupIdIsUsed FAILED, expected: %s but got %s", expectedValue, actual)
+	}
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+}
