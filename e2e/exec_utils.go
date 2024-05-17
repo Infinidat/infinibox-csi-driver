@@ -214,3 +214,52 @@ func VerifyReadOnlyMount(clientSet *kubernetes.Clientset, config *restclient.Con
 	return fmt.Errorf("could not find ro in the csitesting mount")
 
 }
+
+func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) error {
+
+	// create a broken link
+	createLinkCmd := "ln -s /tmp/monkey /tmp/csitesting/brokenlink"
+
+	_, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, createLinkCmd)
+	if err != nil {
+		return err
+	}
+
+	if len(stdErr) > 0 {
+		return fmt.Errorf("error: %s", stdErr)
+	}
+
+	//fmt.Printf("cmd stdout %s\n", stdOut)
+
+	// create a valid file
+	validFileName := "/tmp/csitesting/validfile"
+	createFileCmd := fmt.Sprintf("cp /etc/hosts %s", validFileName)
+
+	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd)
+	if err != nil {
+		return err
+	}
+
+	if len(stdErr) > 0 {
+		return fmt.Errorf("error: %s", stdErr)
+	}
+
+	//fmt.Printf("cmd stdout %s\n", stdOut)
+
+	// create a working sym link
+	createValidLinkCmd := fmt.Sprintf("ln -s %s /tmp/csitesting/validlink", validFileName)
+
+	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createValidLinkCmd)
+	if err != nil {
+		return err
+	}
+
+	if len(stdErr) > 0 {
+		return fmt.Errorf("error: %s", stdErr)
+	}
+
+	//fmt.Printf("cmd stdout %s\n", stdOut)
+
+	return nil
+
+}

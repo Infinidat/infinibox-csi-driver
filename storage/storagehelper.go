@@ -717,13 +717,25 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 
 			if err == nil {
 				zlog.Debug().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
+
+				// handle the case on .snapshot hidden directories because they are readonly created by the ibox
 				if snapdirVisible && d.Name() == ".snapshot" {
-					// we skip chown on snapdir hidden directories because they are readonly created by the ibox
-					zlog.Debug().Msgf("skipping chown on %s because snapdir_visible is true", d.Name())
+					zlog.Warn().Msgf("Chown: skipping chown on %s because snapdir_visible is true", d.Name())
 					return filepath.SkipDir
-				} else {
-					err = os.Chown(path, uid, gid)
 				}
+
+				// handle the broken symlink case, skip chown on broken symlinks
+				if d.Type()&os.ModeSymlink != 0 {
+					zlog.Warn().Msgf("Chown: we have a symlink %s!", path)
+					_, e := os.ReadFile(path)
+					if e != nil {
+						zlog.Warn().Msgf("Chown: error reading link, assuming its a broken link %s, skipping chown on it", e.Error())
+						return nil
+					}
+					zlog.Warn().Msgf("Chown: link is good %s", path)
+				}
+
+				err = os.Chown(path, uid, gid)
 			}
 			return err
 		})

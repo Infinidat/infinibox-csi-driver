@@ -278,3 +278,77 @@ func TestIscsiRO(t *testing.T) {
 	}
 
 }
+
+func TestIscsiBrokenLink(t *testing.T) {
+
+	// we use the fsgroup example as the basis for this test since its where
+	// recursive chown is executed which will test this use case (broken sym link)
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	testConfig.UseFsGroup = true
+	e2e.Setup(testConfig)
+
+	time.Sleep(10 * time.Second) //sleep to avoid a race condition
+
+	expectedValue := "drwxrwsr-x"
+	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error verifying dir perms %s", err.Error())
+	}
+
+	if winning {
+		t.Log("FSGroupDirPermsCorrect PASSED")
+	} else {
+		t.Errorf("FSGroupDirPermsCorrect FAILED, expected: %s but got %s", expectedValue, actual)
+	}
+
+	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
+	winning, actual, err = e2e.VerifyGroupIdIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	if err != nil {
+		t.Fatalf("error in VerifyGroupIdIsUsed %s", err.Error())
+	}
+
+	if winning {
+		t.Log("FSGroupIdIsUsed PASSED")
+	} else {
+		t.Errorf("FsGroupIdIsUsed FAILED, expected: %s but got %s", expectedValue, actual)
+	}
+
+	// exec into pod and create a broken link
+	err = e2e.CreateLinks(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	if err != nil {
+		t.Fatalf("error in CreateLinks %s", err.Error())
+	}
+
+	// we have created a broken link on the mounted volume at this point, we will
+	// shut down the pod and restart it to cause SetPermissions() to be called which will
+	// test whether or not it handles the broken link, allowing chown/chmod to proceed and skip over
+	// the broken link
+
+	// shut down pod
+	err = e2e.DeletePod(context.TODO(), testConfig.TestNames.NSName, e2e.POD_NAME, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error in deleting pod %s", err.Error())
+	}
+	// restart pod
+	err = e2e.CreatePod(testConfig, testConfig.TestNames.NSName, e2e.POD_NAME)
+	if err != nil {
+		t.Fatalf("error in recreating pod %s", err.Error())
+	}
+	// verify pod is up and running
+	err = e2e.WaitForPod(t, e2e.POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*2)
+	if err != nil {
+		t.Fatalf("error in recreated pod from starting %s", err.Error())
+	}
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
