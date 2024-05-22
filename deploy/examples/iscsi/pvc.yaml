@@ -9,5 +9,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-iscsi
+  storageClassName: ibox-iscsi-for-virt
   #volumeName: <<pv name>> #need to uncomment if want to existing pv
