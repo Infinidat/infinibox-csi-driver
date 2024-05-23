@@ -11,9 +11,6 @@ mountOptions:
   - rsize=1048576
   - wsize=1048576
 parameters: 
-    pool_name: csitesting
-    network_space: NAS
-    storage_protocol: nfs_treeq
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
@@ -24,17 +21,23 @@ parameters:
     csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+
+    # infinibox configuration
+    pool_name: csitesting
+    network_space: NAS
+    storage_protocol: nfs_treeq
+
+    # optional parameters
     uid: "3000"
     gid: "3000"
-    # optional parameters
     # the following parameters can be used to override ibox limits
-    # provision_type: THIN
-    # fs_prefix: csit_
-    # ssd_enabled: "true"
-    # max_filesystems: "999"
-    # max_treeqs_per_filesystem: "20"
-    # max_filesystem_size: 30gib
+    #provision_type: THIN
+    #fs_prefix: csit_
+    #ssd_enabled: "true"
+    #max_filesystems: "999"
+    #max_treeqs_per_filesystem: "20"
+    #max_filesystem_size: 30gib
     #
     # uncomment if you do not want to have the default export (e.g. node ip address) created
-    # nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
+    #nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
     nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example

@@ -633,7 +633,7 @@ func getTreeQResponse(fileSysID int64) *api.Treeq {
 func getCreateVolumeRequest() *csi.CreateVolumeRequest {
 	parameters := map[string]string{
 		common.SC_POOL_NAME:         "a_pool",
-		common.SC_MAX_VOLS_PER_HOST: "30gib",
+		common.SC_MAX_VOLS_PER_HOST: "30",
 		"max_filesystems":           "20",
 		"max_treeqs_per_filesystem": "21",
 		common.SC_NETWORK_SPACE:     "nas",

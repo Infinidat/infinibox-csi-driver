@@ -36,11 +36,16 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	params := req.GetParameters()
 	zlog.Debug().Msgf("requested volume parameters are %v", params)
 
-	// validate required parameters
-	err := validateStorageClassParameters(map[string]string{
+	requiredISCSIParams := map[string]string{
 		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, nil, params, iscsi.cs.Api)
+	}
+	optionalISCSIParams := map[string]string{
+		common.SC_PROVISION_TYPE: `(?i)\A(THICK|THIN)\z`,
+	}
+
+	// validate required parameters
+	err := validateStorageClassParameters(requiredISCSIParams, optionalISCSIParams, params, iscsi.cs.Api)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -92,7 +97,12 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
 	if provided {
 		volumeParam.SsdEnabledSpecified = true
-		volumeParam.SsdEnabled, _ = strconv.ParseBool(ssdEnabledString)
+		volumeParam.SsdEnabled, err = strconv.ParseBool(ssdEnabledString)
+		if err != nil {
+			e := fmt.Errorf("error parsing %s storage class parameter %s, requires true or false as a value", ssdEnabledString, err.Error())
+			zlog.Err(e)
+			return nil, status.Error(codes.InvalidArgument, e.Error())
+		}
 	}
 
 	volumeResp, err := iscsi.cs.Api.CreateVolume(volumeParam, poolName)

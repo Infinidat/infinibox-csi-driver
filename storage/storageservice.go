@@ -119,7 +119,7 @@ func NewStorageController(storageProtocol string, configparams ...map[string]str
 			service := &TreeqService{nfsstorage: nfs, cs: comnserv}
 			return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
 		default:
-			return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
+			return nil, errors.New("Error: Invalid storage protocol - " + storageProtocol)
 		}
 	}
 	return nil, err

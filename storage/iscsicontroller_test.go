@@ -546,7 +546,7 @@ func getISCSICreateVolumeParameters() map[string]string {
 		common.SC_MAX_VOLS_PER_HOST: "19",
 		common.SC_NETWORK_SPACE:     "network_space1",
 		common.SC_POOL_NAME:         "pool_name1",
-		common.SC_PROVISION_TYPE:    "provision_type1",
+		common.SC_PROVISION_TYPE:    common.SC_THIN_PROVISION_TYPE,
 		common.SC_SSD_ENABLED:       "true",
 		common.SC_STORAGE_PROTOCOL:  "iscsi",
 		common.SC_UID:               "1234",

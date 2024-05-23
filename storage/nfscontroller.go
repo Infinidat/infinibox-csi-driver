@@ -345,6 +345,16 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 		return err
 	}
 	provtype := strings.ToUpper(nfs.storageClassParameters[common.SC_PROVISION_TYPE])
+	switch provtype {
+	case "":
+		provtype = common.SC_THIN_PROVISION_TYPE
+	case common.SC_THIN_PROVISION_TYPE, common.SC_THICK_PROVISION_TYPE:
+	default:
+		errStr := fmt.Sprintf("%s valid values are THICK or THIN, THIN is the default when not specified, entered value was [%s]", common.SC_PROVISION_TYPE, provtype)
+		zlog.Error().Msgf(errStr)
+		return fmt.Errorf(errStr)
+	}
+
 	if provtype == "" {
 		provtype = common.SC_THIN_PROVISION_TYPE
 	}
@@ -359,8 +369,10 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 	if ssdEnabled != "" {
 		ssd, err := strconv.ParseBool(ssdEnabled)
 		if err != nil {
-			zlog.Error().Msgf("%s invalid format, needs to be true or false, %s was specified", common.SC_SSD_ENABLED, ssdEnabled)
-			return err
+			errStr := fmt.Sprintf("%s invalid format, needs to be true or false, %s was specified", common.SC_SSD_ENABLED, ssdEnabled)
+			zlog.Error().Msgf(errStr)
+			return fmt.Errorf(errStr)
+			//return err
 		}
 		mapRequest[common.SC_SSD_ENABLED] = ssd
 	}

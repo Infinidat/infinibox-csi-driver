@@ -255,6 +255,65 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 		}
 	}
 
+	// validate optional uid and gid parameters
+	gidProvided := providedStorageClassParams[common.SC_GID]
+	uidProvided := providedStorageClassParams[common.SC_UID]
+	unixPermissionsProvided := providedStorageClassParams[common.SC_UNIX_PERMISSIONS]
+
+	if gidProvided != "" {
+		gid_int, err := strconv.Atoi(gidProvided)
+		if err != nil || gid_int < -1 {
+			badParamsMap[common.SC_GID] = "Optional input parameter " + common.SC_GID + " appears to not be a valid integer"
+		}
+	}
+	if uidProvided != "" {
+		uid_int, err := strconv.Atoi(uidProvided)
+		if err != nil || uid_int < -1 {
+			badParamsMap[common.SC_UID] = "Optional input parameter " + common.SC_UID + " appears to not be a valid integer"
+		}
+	}
+
+	if unixPermissionsProvided != "" {
+		_, err := strconv.ParseUint(unixPermissionsProvided, 8, 32)
+		if err != nil {
+			badParamsMap[common.SC_UNIX_PERMISSIONS] = "Optional input parameter " + common.SC_UNIX_PERMISSIONS + " appears to not be a valid integer"
+		}
+	}
+
+	provTypeProvided := providedStorageClassParams[common.SC_PROVISION_TYPE]
+	if provTypeProvided != "" {
+		p := strings.ToUpper(provTypeProvided)
+		if p != common.SC_THICK_PROVISION_TYPE && p != common.SC_THIN_PROVISION_TYPE {
+			badParamsMap[common.SC_PROVISION_TYPE] = fmt.Sprintf("Optional input parameter %s entered as %s is required to be THICK or THIN", common.SC_PROVISION_TYPE, p)
+		}
+	}
+
+	ssdEnabledProvided := providedStorageClassParams[common.SC_SSD_ENABLED]
+	if ssdEnabledProvided != "" {
+		_, err := strconv.ParseBool(ssdEnabledProvided)
+		if err != nil {
+			badParamsMap[common.SC_SSD_ENABLED] = fmt.Sprintf("Optional input parameter %s entered as %s is required to be true or false", common.SC_SSD_ENABLED, ssdEnabledProvided)
+		}
+	}
+
+	// optional and used only for NFS and TREEQ
+	snapdirVisibleProvided := providedStorageClassParams[common.SC_SNAPDIR_VISIBLE]
+	if snapdirVisibleProvided != "" {
+		_, err := strconv.ParseBool(snapdirVisibleProvided)
+		if err != nil {
+			badParamsMap[common.SC_SNAPDIR_VISIBLE] = fmt.Sprintf("Optional input parameter %s entered as %s is required to be true or false", common.SC_SNAPDIR_VISIBLE, snapdirVisibleProvided)
+		}
+	}
+
+	maxVolsProvided := providedStorageClassParams[common.SC_MAX_VOLS_PER_HOST]
+
+	if maxVolsProvided != "" {
+		maxVols_int, err := strconv.Atoi(maxVolsProvided)
+		if err != nil || maxVols_int < -1 {
+			badParamsMap[common.SC_MAX_VOLS_PER_HOST] = fmt.Sprintf("Optional input parameter %s appears to not be a valid integer, value entered was %s", common.SC_MAX_VOLS_PER_HOST, maxVolsProvided)
+		}
+	}
+
 	if len(badParamsMap) > 0 {
 		e := fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
 		zlog.Err(e)

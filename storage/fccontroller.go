@@ -40,7 +40,21 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	params := req.GetParameters()
 	fc.configmap = params
-	zlog.Debug().Msgf("csi request parameters %v", params)
+	zlog.Debug().Msgf("requested volume parameters are %v", params)
+
+	requiredFCParams := map[string]string{
+		common.SC_POOL_NAME: `\A.*\z`,
+	}
+	optionalFCParams := map[string]string{
+		common.SC_PROVISION_TYPE: `(?i)\A(THICK|THIN)\z`,
+	}
+
+	// validate required parameters
+	err = validateStorageClassParameters(requiredFCParams, optionalFCParams, params, fc.cs.Api)
+	if err != nil {
+		zlog.Err(err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	gid := params[common.SC_GID]
 	uid := params[common.SC_UID]

@@ -6,7 +6,6 @@ provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
-# mountOptions: []
 parameters:
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
@@ -19,12 +18,15 @@ parameters:
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
+
+  # InfiniBox configuration
   pool_name: "csitesting"
   storage_protocol: "fc"
-# optional parameters
+
+  # optional parameters
   #max_vols_per_host: "20"
   #ssd_enabled: "false"
   #provision_type: "THIN"
   uid: "3000"                 # optional: override default UID for filesystem mount
   gid: "3000"                 # optional: override default GID for filesystem mount
-# unix_permissions: "777"     # optional: override default permissions for filesystem mount
+  #unix_permissions: "777"     # optional: override default permissions for filesystem mount

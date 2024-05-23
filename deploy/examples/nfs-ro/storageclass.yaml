@@ -32,12 +32,12 @@ parameters:
     # optional parameters
     #provision_type: THIN
     #ssd_enabled: "true"
-    # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
+    #snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
     uid: "3000"               # optional: override default UID for filesystem mount 
     gid: "3000"               # optional: override default GID for filesystem mount
-    # unix_permissions: "777"   # optional: override default permissions for filesystem mount
-    # privileged_ports_only: no # optional: force use of  privileged ports only
+    #unix_permissions: "777"   # optional: override default permissions for filesystem mount
+    #privileged_ports_only: no # optional: force use of  privileged ports only
     # 
-    # nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
-    # nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example
+    #nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
+    #nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example

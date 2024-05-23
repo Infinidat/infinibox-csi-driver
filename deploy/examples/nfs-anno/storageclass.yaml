@@ -17,7 +17,6 @@ mountOptions: # optional: defaults shown below, be sure to include vers=3 if you
   - rsize=262144
   - wsize=262144
 parameters:
-    # reference secret with InfiniBox credentials
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
@@ -33,10 +32,10 @@ parameters:
     storage_protocol: nfs
     network_space: NAS # InfiniBox network space name
     pool_name: csitesting # InfiniBox pool name
-    provision_type: THIN
-    ssd_enabled: "true"
 
     # optional parameters
+    provision_type: THIN
+    ssd_enabled: "true"
     # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
     uid: "3000"               # optional: override default UID for filesystem mount 

@@ -80,6 +80,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if error != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "VolumeCapabilities invalid: %v", error)
 	}
+	if reqParameters[common.SC_POOL_NAME] == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "no 'pool_name' provided to CreateVolume, verify pool_name is specified in StorageClass")
+	}
 	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
 
 	configparams := map[string]string{
@@ -116,7 +119,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	storageController, err := storage.NewStorageController(storageprotocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("CreateVolume error: %v", err)
-		err = status.Errorf(codes.Internal, "failed to initialize storage controller while creating volume '%s'", volName)
+		err = status.Errorf(codes.Internal, "error while creating volume '%s' - %s", volName, err.Error())
 		return nil, err
 	}
 
