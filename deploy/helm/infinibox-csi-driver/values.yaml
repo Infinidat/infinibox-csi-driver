@@ -18,7 +18,7 @@ logLevel: "info"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "2.14.0"
+csiDriverVersion: "2.13.2"
 
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
