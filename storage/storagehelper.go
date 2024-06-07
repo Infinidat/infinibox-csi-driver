@@ -745,6 +745,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 
 // recursively chowns a root path
 func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolicy string, snapdirVisible bool) error {
+	start := time.Now()
 
 	// this will exit early if there is a reason to not chown the files. Since we currently only support
 	// "Always" for fsGroupChangePolicy, this block will not run, and files will always be chowned.
@@ -775,7 +776,7 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 		func(path string, d fs.DirEntry, err error) error {
 
 			if err == nil {
-				zlog.Debug().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
+				zlog.Trace().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
 
 				// handle the case on .snapshot hidden directories because they are readonly created by the ibox
 				if snapdirVisible && d.Name() == ".snapshot" {
@@ -799,6 +800,7 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 			return err
 		})
 
+	zlog.Debug().Msgf("ChownR elapsed time %v", time.Since(start))
 	return err
 }
 
