@@ -52,27 +52,27 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return nil, err
 	}
 
-	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
-		nfs.snapdirVisible = false
-		nfs.usePrivilegedPorts = false
-		// see if user is setting snapDirVisible in the StorageClass
-		snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
-		if snapDir != "" {
-			nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
-			if err != nil {
-				zlog.Err(err)
-				return nil, err
-			}
+	nfs.snapdirVisible = false
+	nfs.usePrivilegedPorts = false
+	// see if user is setting snapDirVisible in the StorageClass
+	snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
+	if snapDir != "" {
+		nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
+		if err != nil {
+			zlog.Err(err)
+			return nil, err
 		}
-		privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
-		if privPorts != "" {
-			nfs.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
-			if err != nil {
-				zlog.Err(err)
-				return nil, err
-			}
+	}
+	privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
+	if privPorts != "" {
+		nfs.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
+		if err != nil {
+			zlog.Err(err)
+			return nil, err
 		}
+	}
 
+	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		exportAccess := "RW"
 		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 			zlog.Debug().Msgf("NodePublishVolume detected read-only, setting export to RO")
