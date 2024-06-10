@@ -462,7 +462,7 @@ func IsDirectory(path string) (bool, error) {
 }
 
 type StorageHelper interface {
-	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
+	SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapDirVisible bool) (err error)
 	ValidateNFSPortalIPAddress(ipAddress string) (err error)
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
 	NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err error)
@@ -638,16 +638,8 @@ func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 	return mountOptions, nil
 }
 
-func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
-	snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
-	var snapdirVisible bool
-	if snapDir != "" {
-		snapdirVisible, err = strconv.ParseBool(snapDir)
-		if err != nil {
-			zlog.Err(err)
-			return err
-		}
-	}
+// SetVolumePermissions - note that snapdirVisible parameter is only applicable to nfs and treeq
+func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapdirVisible bool) (err error) {
 	targetPath := req.GetTargetPath()      // this is the path on the host node
 	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
 

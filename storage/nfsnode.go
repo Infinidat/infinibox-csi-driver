@@ -55,6 +55,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		nfs.snapdirVisible = false
 		nfs.usePrivilegedPorts = false
+		// see if user is setting snapDirVisible in the StorageClass
 		snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
 		if snapDir != "" {
 			nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
@@ -137,7 +138,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	err = nfs.storageHelper.SetVolumePermissions(req)
+	err = nfs.storageHelper.SetVolumePermissions(req, nfs.snapdirVisible)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Errorf(codes.Internal, err.Error())
@@ -226,7 +227,8 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, exportPerms string) (err
 		for i := 0; i < len(responses); i++ {
 			r := responses[i]
 			if r.ExportPath == exportFileSystem.Export_path {
-				zlog.Debug().Msgf("export path was found to already exist %s", r.ExportPath)
+				zlog.Debug().Msgf("export path was found to already exist %s with snapDirVisible %t", r.ExportPath, r.SnapdirVisible)
+				exportFileSystem.SnapdirVisible = r.SnapdirVisible // use an existing export's snapDirVisible value instead of SC value
 				// here is where we would delete the existing export
 				deleteResp, err := nfs.cs.Api.DeleteExportPath(r.ID)
 				if err != nil {
@@ -248,6 +250,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int64, exportPerms string) (err
 	}
 	nfs.exportID = exportResp.ID
 	nfs.exportBlock = exportResp.ExportPath
+	nfs.snapdirVisible = exportFileSystem.SnapdirVisible
 	zlog.Debug().Msgf("created nfs export for PV '%s', snapdirVisible: %t", fs.Name, exportFileSystem.SnapdirVisible)
 
 	return nil

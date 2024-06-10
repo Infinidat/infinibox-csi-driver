@@ -79,7 +79,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 
 	service := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
@@ -109,7 +109,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 
 	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
@@ -151,7 +151,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success(
 
 	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
@@ -181,7 +181,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 	mountErr := errors.New("mount error")
 	service := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
-	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
@@ -502,7 +502,7 @@ func (m *MockNfsMounter) Unmount(targetPath string) error {
 	return err
 }
 
-func (m *MockStorageHelper) SetVolumePermissions(req *csi.NodePublishVolumeRequest) error {
+func (m *MockStorageHelper) SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapDirVisible bool) error {
 	status := m.Called(req)
 	if status.Get(0) == nil {
 		return nil

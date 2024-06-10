@@ -243,7 +243,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		zlog.Debug().Msgf("skipping chown-chmod since this is readOnly volume")
 	} else {
 		// Chown
-		err = iscsi.storageHelper.SetVolumePermissions(req)
+		err = iscsi.storageHelper.SetVolumePermissions(req, false)
 		if err != nil {
 			zlog.Err(err)
 			return nil, status.Errorf(codes.Internal, err.Error())

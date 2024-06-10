@@ -156,7 +156,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	// print out the target permissions
 	logPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
 	logPermissions("after mount devicePath ", "/host"+devicePath)
-	err = fc.storageHelper.SetVolumePermissions(req)
+	err = fc.storageHelper.SetVolumePermissions(req, false)
 	if err != nil {
 		zlog.Error().Msgf("error in setting volume permissions %s on volume %s\n", err.Error(), req.GetVolumeId())
 		return nil, err
