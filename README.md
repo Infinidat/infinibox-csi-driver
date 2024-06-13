@@ -5,7 +5,7 @@
   Infinidat [Host PowerTools](https://repo.infinidat.com/home/main-stable#host-power-tools) is recommended to validate connectivity and host best practices.
 
 ## Supported container environments
-  - Kubernetes 1.26 - 1.29
+  - Kubernetes 1.26 - 1.30
   - Red Hat OpenShift 4.12 - 4.15
 
 ## Platform requirements
