@@ -21,29 +21,29 @@ func RoundUp(input int64) (output int64) {
 
 	//return the minimum (1G) if input value is less than the min
 	if input < Bytes1G {
-		zlog.Info().Msgf("number %d less than minimum %d\n", input, Bytes1G)
+		zlog.Debug().Msgf("number %d less than minimum %d\n", input, Bytes1G)
 		return Bytes1G
 	}
 
 	//return the minimum (1Gi) if input value is less than the min
 	if input > Bytes1G && input < Bytes1Gi {
-		zlog.Info().Msgf("number %d less than minimum %d\n", input, Bytes1Gi)
+		zlog.Debug().Msgf("number %d less than minimum %d\n", input, Bytes1Gi)
 		return Bytes1Gi
 	}
 
 	// test for valid increments of G
 	incrementsOf1G := input % Bytes1G
-	zlog.Info().Msgf("bytes 1G increments %d\n", incrementsOf1G)
+	zlog.Debug().Msgf("bytes 1G increments %d\n", incrementsOf1G)
 	if incrementsOf1G == 0 {
-		zlog.Info().Msgf("valid increment of %d\n", Bytes1G)
+		zlog.Debug().Msgf("valid increment of %d\n", Bytes1G)
 		return input
 	}
 
 	// test for valid increments of Gi
 	incrementsOf1Gi := input % Bytes1Gi
-	zlog.Info().Msgf("bytes 1Gi increments %d\n", incrementsOf1Gi)
+	zlog.Debug().Msgf("bytes 1Gi increments %d\n", incrementsOf1Gi)
 	if incrementsOf1Gi == 0 {
-		zlog.Info().Msgf("valid increment of %d\n", Bytes1Gi)
+		zlog.Debug().Msgf("valid increment of %d\n", Bytes1Gi)
 		return input
 	}
 
@@ -51,7 +51,7 @@ func RoundUp(input int64) (output int64) {
 	GiWhole := input / Bytes1Gi
 	RoundedUpGi := GiWhole + 1
 	RoundedUpBytes := RoundedUpGi * Bytes1Gi
-	zlog.Info().Msgf("rounded up to %d Gi which is %d\n", RoundedUpGi, RoundedUpBytes)
+	zlog.Debug().Msgf("rounded up to %d Gi which is %d\n", RoundedUpGi, RoundedUpBytes)
 
 	return RoundedUpBytes
 }

@@ -9,5 +9,5 @@ spec:
   volumeMode: Block
   resources:
     requests:
-      storage: 5.71Gi
+      storage: 1Gi
   storageClassName: ibox-iscsi

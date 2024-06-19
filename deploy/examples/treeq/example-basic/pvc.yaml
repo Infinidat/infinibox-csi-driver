@@ -8,5 +8,5 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 140
+      storage: 10Gi
   storageClassName: ibox-treeq

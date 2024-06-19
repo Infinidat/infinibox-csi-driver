@@ -117,7 +117,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	volumeBytes := req.GetCapacityRange().RequiredBytes
+	capacity := req.GetCapacityRange().RequiredBytes
 
 	var roundUp bool
 	roundUpParameter := req.Parameters[common.SC_ROUND_UP]
@@ -130,12 +130,12 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 	if roundUp {
-		roundUpBytes := helper.RoundUp(volumeBytes)
-		zlog.Debug().Msgf("CreateVolume required bytes %d will be rounded up to %d bytes", volumeBytes, roundUpBytes)
-		volumeBytes = roundUpBytes
+		roundUpBytes := helper.RoundUp(capacity)
+		zlog.Debug().Msgf("CreateVolume required bytes %d will be rounded up to %d bytes", capacity, roundUpBytes)
+		capacity = roundUpBytes
 	}
 
-	storageController, err := storage.NewStorageController(volumeBytes, storageprotocol, configparams, secretsToUse)
+	storageController, err := storage.NewStorageController(capacity, storageprotocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("CreateVolume error: %v", err)
 		err = status.Errorf(codes.Internal, "error while creating volume '%s' - %s", volName, err.Error())
