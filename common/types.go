@@ -20,6 +20,7 @@ const (
 	SC_UID                    = "uid"
 	SC_GID                    = "gid"
 	SC_UNIX_PERMISSIONS       = "unix_permissions"
+	SC_ROUND_UP               = "round_up_requested_size"
 
 	SC_SSD_ENABLED          = "ssd_enabled"
 	SC_PROVISION_TYPE       = "provision_type"

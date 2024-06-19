@@ -180,7 +180,7 @@ func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 }
 
 func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
-	service := fcstorage{cs: *suite.cs}
+	service := fcstorage{capacity: 1073741824, cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
 	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$fc")
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)

@@ -19,6 +19,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
 	"os"
 	"strconv"
@@ -116,7 +117,25 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	storageController, err := storage.NewStorageController(storageprotocol, configparams, secretsToUse)
+	volumeBytes := req.GetCapacityRange().RequiredBytes
+
+	var roundUp bool
+	roundUpParameter := req.Parameters[common.SC_ROUND_UP]
+	if roundUpParameter != "" {
+		roundUp, err = strconv.ParseBool(roundUpParameter)
+		if err != nil {
+			zlog.Error().Msgf("CreateVolume error: %v", err)
+			err = status.Errorf(codes.Internal, "error converting %s StorageClass parameter volume '%s' - %s", roundUpParameter, volName, err.Error())
+			return nil, err
+		}
+	}
+	if roundUp {
+		roundUpBytes := helper.RoundUp(volumeBytes)
+		zlog.Debug().Msgf("CreateVolume required bytes %d will be rounded up to %d bytes", volumeBytes, roundUpBytes)
+		volumeBytes = roundUpBytes
+	}
+
+	storageController, err := storage.NewStorageController(volumeBytes, storageprotocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("CreateVolume error: %v", err)
 		err = status.Errorf(codes.Internal, "error while creating volume '%s' - %s", volName, err.Error())
@@ -219,7 +238,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		"nodeid": s.Driver.nodeID,
 	}
 
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, secretsToUse)
+	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, secretsToUse)
 	if err != nil || storageController == nil {
 		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)
 		return
@@ -278,7 +297,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	config := make(map[string]string)
 
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("failed to create storage controller: %s", volproto.StorageType)
 		err = status.Errorf(codes.Internal, "ControllerPublishVolume failed to initialise storage controller: %s", volproto.StorageType)
@@ -322,7 +341,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	}
 
 	config := make(map[string]string)
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("ControllerUnpublishVolume failed to initialise storage controller: " + volproto.StorageType)
 		return
@@ -403,7 +422,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	}
 
 	config := make(map[string]string)
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("error ValidateVolumeCapabilities failed to initialize storage controller: " + volproto.StorageType)
 		return
@@ -689,7 +708,7 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("Create snapshot failed: %s", err)
 		return nil, err
@@ -723,7 +742,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
-	storageController, err := storage.NewStorageController(volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("delete snapshot failed: %s", err)
 		return nil, err
@@ -755,7 +774,9 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		return
 	}
 
-	storageController, err := storage.NewStorageController(volproto.StorageType, configparams, req.GetSecrets())
+	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+
+	storageController, err := storage.NewStorageController(capacity, volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("expand volume failed: %s", err)
 		return

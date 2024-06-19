@@ -8,6 +8,6 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 140
   storageClassName: ibox-nfs
   # volumeName: <<pv name>> #need to uncomment if want to use an existing pv

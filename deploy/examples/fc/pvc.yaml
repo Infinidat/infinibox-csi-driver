@@ -8,6 +8,6 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 1.7G
   storageClassName: ibox-fc
   #volumeName: <<pv name>> #need to uncomment if want to existing pv

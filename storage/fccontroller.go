@@ -30,14 +30,6 @@ import (
 )
 
 func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	var err error
-	sizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-	zlog.Debug().Msgf("requested size in bytes is %d ", sizeBytes)
-
 	params := req.GetParameters()
 	fc.configmap = params
 	zlog.Debug().Msgf("requested volume parameters are %v", params)
@@ -50,7 +42,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 
 	// validate required parameters
-	err = validateStorageClassParameters(requiredFCParams, optionalFCParams, params, fc.cs.Api)
+	err := validateStorageClassParameters(requiredFCParams, optionalFCParams, params, fc.cs.Api)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -60,6 +52,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	uid := params[common.SC_UID]
 	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
 	zlog.Debug().Msgf("storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
+
+	zlog.Debug().Msgf("requested size in bytes is %d ", fc.capacity)
 
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
@@ -74,8 +68,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		}
 	}
 	if targetVol != nil {
-		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
-		if targetVol.Size == sizeBytes {
+		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, fc.capacity)
+		if targetVol.Size == fc.capacity {
 			existingVolumeInfo := fc.cs.getCSIResponse(targetVol, req)
 			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
 			return &csi.CreateVolumeResponse{
@@ -90,7 +84,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
-		return fc.createVolumeFromVolumeContent(req, name, sizeBytes, poolName)
+		return fc.createVolumeFromVolumeContent(req, name, fc.capacity, poolName)
 	}
 
 	volType, provided := params[common.SC_PROVISION_TYPE]
@@ -100,7 +94,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	volumeParam := &api.VolumeParam{
 		Name:          name,
-		VolumeSize:    sizeBytes,
+		VolumeSize:    fc.capacity,
 		ProvisionType: volType,
 	}
 	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]

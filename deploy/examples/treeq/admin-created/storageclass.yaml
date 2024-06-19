@@ -28,6 +28,7 @@ parameters:
     storage_protocol: nfs_treeq
 
     # optional parameters
+    #round_up_requested_size: "true"
     uid: "3000"
     gid: "3000"
     # the following parameters can be used to override ibox limits

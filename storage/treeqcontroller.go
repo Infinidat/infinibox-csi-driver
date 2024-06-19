@@ -29,7 +29,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	params := req.GetParameters()
 
-	capacity, err := nfsSanityCheck(req, map[string]string{
+	err = nfsSanityCheck(req, map[string]string{
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, map[string]string{
 		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
@@ -52,7 +52,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 	if len(treeqVolumeContext) == 0 {
-		treeqVolumeContext, err = treeq.treeqService.CreateTreeqVolume(params, capacity, req.GetName())
+		treeqVolumeContext, err = treeq.treeqService.CreateTreeqVolume(params, treeq.nfsstorage.capacity, req.GetName())
 		if err != nil {
 			zlog.Err(err)
 			return nil, err
@@ -69,7 +69,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volumeID,
-			CapacityBytes: capacity,
+			CapacityBytes: treeq.nfsstorage.capacity,
 			VolumeContext: treeqVolumeContext,
 			ContentSource: req.GetVolumeContentSource(),
 		},

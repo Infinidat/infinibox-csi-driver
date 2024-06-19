@@ -73,8 +73,7 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	zlog.Debug().Msgf(" csi volume caps %+v", req.VolumeCapabilities)
 	zlog.Debug().Msgf(" csi request name %s", req.Name)
 
-	var capacity int64
-	capacity, err = nfsSanityCheck(req, map[string]string{
+	err = nfsSanityCheck(req, map[string]string{
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}, nil, params, nfs.cs.Api)
 	if err != nil {
@@ -108,7 +107,6 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 
 	nfs.pVName = pvName
 	nfs.storageClassParameters = params
-	nfs.capacity = capacity
 	nfs.usePrivilegedPorts = usePrivilegedPorts
 	nfs.snapdirVisible = snapdirVisible
 	nfs.exportPath = "/" + pvName
@@ -140,9 +138,9 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		if exportArray == nil {
 			return nil, status.Errorf(codes.NotFound, "error CreateVolume failed: %v", err)
 		}
-		if capacity != volume.Size {
+		if nfs.capacity != volume.Size {
 			err = status.Errorf(codes.AlreadyExists, "error CreateVolume failed: volume exists but has different size")
-			zlog.Error().Msgf("capacity %d volume: %+v", capacity, volume)
+			zlog.Error().Msgf("capacity %d volume: %+v", nfs.capacity, volume)
 			return nil, err
 		}
 		for _, export := range *exportArray {
@@ -160,14 +158,14 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	if contentSource != nil {
 		if contentSource.GetSnapshot() != nil {
 			snapshot := req.GetVolumeContentSource().GetSnapshot()
-			csiResp, err = nfs.createVolumeFromPVCSource(req, capacity, params[common.SC_POOL_NAME], snapshot.GetSnapshotId())
+			csiResp, err = nfs.createVolumeFromPVCSource(req, nfs.capacity, params[common.SC_POOL_NAME], snapshot.GetSnapshotId())
 			if err != nil {
 				zlog.Error().Msgf("failed to create volume from snapshot with error: %v", err)
 				return nil, err
 			}
 		} else if contentSource.GetVolume() != nil {
 			volume := req.GetVolumeContentSource().GetVolume()
-			csiResp, err = nfs.createVolumeFromPVCSource(req, capacity, params[common.SC_POOL_NAME], volume.GetVolumeId())
+			csiResp, err = nfs.createVolumeFromPVCSource(req, nfs.capacity, params[common.SC_POOL_NAME], volume.GetVolumeId())
 			if err != nil {
 				zlog.Error().Msgf("failed to create volume from pvc with error: %v", err)
 				return nil, err

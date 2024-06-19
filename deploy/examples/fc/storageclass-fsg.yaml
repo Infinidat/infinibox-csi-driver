@@ -24,6 +24,7 @@ parameters:
   storage_protocol: "fc"
 
   # optional parameters
+  #round_up_requested_size: "true"
   #provision_type: "THIN"
   #ssd_enabled: "false"
   #max_vols_per_host: "20"

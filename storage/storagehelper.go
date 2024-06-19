@@ -806,18 +806,12 @@ func logPermissions(note, hostTargetPath string) {
 	zlog.Debug().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
 }
 
-func nfsSanityCheck(req *csi.CreateVolumeRequest, requiredParams map[string]string, optionalParams map[string]string, suppliedParams map[string]string, api api.Client) (capacity int64, err error) {
+func nfsSanityCheck(req *csi.CreateVolumeRequest, requiredParams map[string]string, optionalParams map[string]string, suppliedParams map[string]string, api api.Client) (err error) {
 
 	err = validateStorageClassParameters(requiredParams, optionalParams, suppliedParams, api)
 	if err != nil {
 		zlog.Err(err)
-		return capacity, status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	capacity = int64(req.GetCapacityRange().GetRequiredBytes())
-	if capacity < gib {
-		capacity = gib
-		zlog.Warn().Msgf("volume Minimum capacity should be greater 1 GB")
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	useChap := suppliedParams[common.SC_USE_CHAP]
@@ -830,10 +824,10 @@ func nfsSanityCheck(req *csi.CreateVolumeRequest, requiredParams map[string]stri
 		if block := cap.GetBlock(); block != nil {
 			e := fmt.Errorf("block access requested for %s PV %s", suppliedParams[common.SC_STORAGE_PROTOCOL], req.GetName())
 			zlog.Err(e)
-			return capacity, status.Error(codes.InvalidArgument, e.Error())
+			return status.Error(codes.InvalidArgument, e.Error())
 		}
 	}
-	return capacity, err
+	return err
 }
 
 // validateSnapshotLockingParameter validates an input lock_expires parameter string and returns

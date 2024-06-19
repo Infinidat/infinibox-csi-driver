@@ -112,7 +112,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportArryEmpty
 */
 
 func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_sucess() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
@@ -127,7 +127,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_sucess() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("Some error")
@@ -141,7 +141,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_OneTimeValidation_fail() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("failed to create volume Some error")
@@ -157,7 +157,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("failed to create volume Some error")
@@ -174,7 +174,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFilesystem_Error() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 	expectedError := errors.New("failed to create volume Some error")
@@ -192,7 +192,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_success() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
@@ -214,7 +214,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 //=================================================Create Volume END=================================//
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "a$$nfs"
@@ -229,7 +229,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID2() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "a$$nfs$$123"
@@ -244,7 +244,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID2() 
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetFileSystemByID_Error() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -261,7 +261,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetFileSystemByID_Er
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_invalidSize() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -278,7 +278,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_invalidSize() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetStoragePoolIDByName_error() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -295,7 +295,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_GetStoragePoolIDByNa
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_poolID_name_invalid() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -312,7 +312,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_poolID_name_invalid(
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_failed() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -331,7 +331,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_faile
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -352,7 +352,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() 
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -375,7 +375,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeSnapshotRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
@@ -395,7 +395,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Clone_Success() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeCloneRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetVolume().VolumeId = "1$$nfs"
@@ -415,7 +415,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_Success() {
 }
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	parameterMap := getCreateVolumeParameter()
 	createVolReq := getCreateVolumeCloneRequest("PVName", parameterMap)
 	createVolReq.GetVolumeContentSource().GetVolume().VolumeId = "1$$nfs"
@@ -439,14 +439,14 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
 
 // ===========================================================================
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_VolumeID_empty() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume Volume ID missing in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_InvalidVolumeID() {
 	volumeID := "10x"
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	fileSystem := api.FileSystem{
 		Size: 0,
 	}
@@ -461,13 +461,13 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error() {
 	fileSystem := api.FileSystem{}
 	expectedErr := errors.New("Some error")
 	suite.api.On("UpdateFilesystem", fileSystemID, fileSystem).Return(expectedErr)
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
 	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume update file system")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error_filenotfound() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	fileSystemID := "100#"
 	fileSystem := api.FileSystem{}
 	expectedErr := errors.New("Some error")
@@ -477,7 +477,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error_filenotfou
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	fileSystemID := "100#"
 	fileSystem := api.FileSystem{}
 	suite.api.On("UpdateVolume", fileSystemID, fileSystem).Return(nil)
@@ -486,7 +486,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success() {
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_UpdateVolume_Error() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	expectedErr := errors.New("some error")
 	fileSystemID := "100"
 	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(nil, expectedErr)
@@ -495,7 +495,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_UpdateVolume_Err
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success_expand() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	fileSystemID := "100"
 	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(nil, nil)
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
@@ -505,7 +505,7 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success_expand()
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_GetSnapshot_Error() {
 	expectedErr := errors.New("Snapshot Name is must")
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(nil, expectedErr)
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))
 	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot get snapshot by name")
 }
@@ -515,7 +515,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
 	expectedErr := errors.New("SourceVolumeID is must")
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSystem, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, expectedErr)
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))
 	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot create snapshot by name")
 }
@@ -531,7 +531,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_Success() {
 
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
 
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
 	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot")
 }
@@ -541,7 +541,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_Error(
 	expectedErr := errors.New("some error")
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, expectedErr)
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
 	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot create file system snapshot")
 }
@@ -561,7 +561,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_succes
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_SourceVolumeID_empty() {
-	service := nfsstorage{cs: *suite.cs}
+	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	var snapshotID int64
 	expectedErr := errors.New("Invalid Source ID")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)

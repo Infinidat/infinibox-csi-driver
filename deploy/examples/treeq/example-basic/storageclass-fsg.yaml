@@ -29,6 +29,7 @@ parameters:
     fs_prefix: csit_
 
     # optional parameters
+    #round_up_requested_size: "true"
     provision_type: THIN
     ssd_enabled: "true"
     uid: "2000" # ignored when fsgroup set

@@ -28,11 +28,12 @@ parameters:
     storage_protocol: nfs
     network_space: NAS # InfiniBox network space name
     pool_name: csitesting # InfiniBox pool name
-    provision_type: THIN
-    ssd_enabled: "true"
 
     # optional parameters
-    # snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
+    #provision_type: THIN
+    #ssd_enabled: "true"
+    #round_up_requested_size: "true"
+    #snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
     uid: "3000"               # optional: override default UID for filesystem mount 
     gid: "3000"               # optional: override default GID for filesystem mount

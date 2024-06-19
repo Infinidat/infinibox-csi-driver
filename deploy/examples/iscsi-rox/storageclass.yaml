@@ -26,6 +26,7 @@ parameters:
   useCHAP: "none" # none / chap / mutual_chap
 
   # optional parameters
+  #round_up_requested_size: "true"
   #max_vols_per_host: "100"
   #provision_type: "THIN"
   #ssd_enabled: "false"

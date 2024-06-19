@@ -29,7 +29,8 @@ parameters:
     fs_prefix: csit_
 
     # optional parameters
-    provision_type: THIN
+    #round_up_requested_size: "true"
+    #provision_type: THIN
     #ssd_enabled: "true"
     uid: "3000"
     gid: "3000"

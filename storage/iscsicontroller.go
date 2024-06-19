@@ -31,10 +31,10 @@ import (
 
 func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 
-	sizeBytes := int64(req.GetCapacityRange().GetRequiredBytes())
-	zlog.Debug().Msgf("CreateVolume volume: %s of size: %d bytes", req.GetName(), sizeBytes)
 	params := req.GetParameters()
 	zlog.Debug().Msgf("requested volume parameters are %v", params)
+
+	zlog.Debug().Msgf("CreateVolume volume: %s of size: %d bytes", req.GetName(), iscsi.capacity)
 
 	requiredISCSIParams := map[string]string{
 		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
@@ -64,8 +64,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 	if targetVol != nil {
-		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, sizeBytes)
-		if targetVol.Size == sizeBytes {
+		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, iscsi.capacity)
+		if targetVol.Size == iscsi.capacity {
 			existingVolumeInfo := iscsi.cs.getCSIResponse(targetVol, req)
 			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
 			return &csi.CreateVolumeResponse{
@@ -80,7 +80,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
-		return iscsi.createVolumeFromContentSource(req, name, sizeBytes, poolName)
+		return iscsi.createVolumeFromContentSource(req, name, iscsi.capacity, poolName)
 	}
 
 	volType, provided := params[common.SC_PROVISION_TYPE]
@@ -90,7 +90,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	volumeParam := &api.VolumeParam{
 		Name:          name,
-		VolumeSize:    sizeBytes,
+		VolumeSize:    iscsi.capacity,
 		ProvisionType: volType,
 	}
 

@@ -28,6 +28,7 @@ parameters:
     storage_protocol: nfs_treeq
 
     # optional parameters
+    #round_up_requested_size: "true"
     #provision_type: THIN
     #fs_prefix: csit_
     #ssd_enabled: "true"

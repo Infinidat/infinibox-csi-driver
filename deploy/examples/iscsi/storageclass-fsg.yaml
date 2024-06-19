@@ -22,12 +22,13 @@ parameters:
   # Infinibox configuration
   network_space: "iSCSI"
   pool_name: "csitesting"
+  storage_protocol: "iscsi"
 
   # optional parameters
+  #round_up_requested_size: "true"
   provision_type: "THIN"
   max_vols_per_host: "100"
   ssd_enabled: "false"
-  storage_protocol: "iscsi"
   useCHAP: "none" # none / chap / mutual_chap
   uid: "2000" # UID of volume, ignored if fsgroup specified in pod
   gid: "2000" # GID of volume, ifnored if fsgroup specified in pod
