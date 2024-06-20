@@ -3,6 +3,7 @@
 package helper
 
 import (
+	"infinibox-csi-driver/common"
 	"testing"
 )
 
@@ -16,14 +17,14 @@ func TestRoundUp(t *testing.T) {
 		{140, Bytes1G},
 		{Bytes1G - 100, Bytes1G},
 		{Bytes1G, Bytes1G},
-		{Bytes1Gi - 100, Bytes1Gi},
-		{Bytes1Gi, Bytes1Gi},
-		{1400405001, 2 * Bytes1Gi},
+		{common.BytesInOneGibibyte - 100, common.BytesInOneGibibyte},
+		{common.BytesInOneGibibyte, common.BytesInOneGibibyte},
+		{1400405001, 2 * common.BytesInOneGibibyte},
 		{500405001, Bytes1G},
 		{980405001, Bytes1G},
 		{Bytes1G * 2, Bytes1G * 2},
-		{Bytes1Gi * 2, Bytes1Gi * 2},
-		{Bytes1Gi * 2.5, Bytes1Gi * 3},
+		{common.BytesInOneGibibyte * 2, common.BytesInOneGibibyte * 2},
+		{common.BytesInOneGibibyte * 2.5, common.BytesInOneGibibyte * 3},
 	}
 
 	for _, test := range tests {

@@ -110,7 +110,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 		treeqParameters := map[string]interface{}{
 			"path":          "/" + TREEQ_USERS[i],
 			"name":          TREEQ_USERS[i],
-			"hard_capacity": 1073741824, // 1G
+			"hard_capacity": common.BytesInOneGibibyte, // 1Gi
 		}
 
 		resp, err := clientsvc.CreateTreeq(fs.ID, treeqParameters)

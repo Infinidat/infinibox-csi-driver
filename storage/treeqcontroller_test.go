@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"testing"
 
@@ -160,7 +161,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
-	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
 	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(expectedErr)
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
@@ -170,7 +171,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfound() {
 	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
-	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
 	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
@@ -180,7 +181,7 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfoun
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
 	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
-	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
 	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
 	resp, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))

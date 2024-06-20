@@ -1,6 +1,8 @@
 package test_helper
 
 import (
+	"infinibox-csi-driver/common"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
@@ -25,11 +27,9 @@ func GetCreateVolumeRequest(name string, parameterMap map[string]string, sourceV
 		}
 	}
 
-	var bytesInOneGibibyte int64 = 1073741824
-
 	return &csi.CreateVolumeRequest{
 		Name:                name,
-		CapacityRange:       &csi.CapacityRange{RequiredBytes: bytesInOneGibibyte},
+		CapacityRange:       &csi.CapacityRange{RequiredBytes: common.BytesInOneGibibyte},
 		Parameters:          parameterMap,
 		Secrets:             GetSecret(),
 		VolumeContentSource: volContentSrc,

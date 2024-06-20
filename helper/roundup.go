@@ -12,8 +12,7 @@ limitations under the License.
 */
 package helper
 
-// 1Gi is the default minimum for any input value
-const Bytes1Gi = 1073741824
+import "infinibox-csi-driver/common"
 
 const Bytes1G = 1000000000
 
@@ -26,9 +25,9 @@ func RoundUp(input int64) (output int64) {
 	}
 
 	//return the minimum (1Gi) if input value is less than the min
-	if input > Bytes1G && input < Bytes1Gi {
-		zlog.Debug().Msgf("number %d less than minimum %d\n", input, Bytes1Gi)
-		return Bytes1Gi
+	if input > Bytes1G && input < common.BytesInOneGibibyte {
+		zlog.Debug().Msgf("number %d less than minimum %d\n", input, common.BytesInOneGibibyte)
+		return common.BytesInOneGibibyte
 	}
 
 	// test for valid increments of G
@@ -40,17 +39,17 @@ func RoundUp(input int64) (output int64) {
 	}
 
 	// test for valid increments of Gi
-	incrementsOf1Gi := input % Bytes1Gi
+	incrementsOf1Gi := input % common.BytesInOneGibibyte
 	zlog.Debug().Msgf("bytes 1Gi increments %d\n", incrementsOf1Gi)
 	if incrementsOf1Gi == 0 {
-		zlog.Debug().Msgf("valid increment of %d\n", Bytes1Gi)
+		zlog.Debug().Msgf("valid increment of %d\n", common.BytesInOneGibibyte)
 		return input
 	}
 
 	// some fractional amount was specified, we will round up to the nearest Gi
-	GiWhole := input / Bytes1Gi
+	GiWhole := input / common.BytesInOneGibibyte
 	RoundedUpGi := GiWhole + 1
-	RoundedUpBytes := RoundedUpGi * Bytes1Gi
+	RoundedUpBytes := RoundedUpGi * common.BytesInOneGibibyte
 	zlog.Debug().Msgf("rounded up to %d Gi which is %d\n", RoundedUpGi, RoundedUpBytes)
 
 	return RoundedUpBytes

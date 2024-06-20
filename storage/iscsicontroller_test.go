@@ -192,7 +192,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
-	service := iscsistorage{capacity: 1073741824, cs: *suite.cs}
+	service := iscsistorage{capacity: common.BytesInOneGibibyte, cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$iscsi")
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
@@ -499,7 +499,7 @@ func getVolume() api.Volume {
 	vol.ParentId = 1001
 	vol.Name = "volName"
 	vol.PoolName = "poolName"
-	vol.Size = 1073741824
+	vol.Size = common.BytesInOneGibibyte
 	return vol
 }
 

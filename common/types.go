@@ -66,3 +66,5 @@ const (
 	PVC_ANNOTATION_NETWORK_SPACE = "infinidat.com/network_space"
 	PVC_ANNOTATION_IBOX_SECRET   = "infinidat.com/ibox_secret"
 )
+
+const BytesInOneGibibyte = 1073741824

@@ -131,7 +131,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	if roundUp {
 		roundUpBytes := helper.RoundUp(capacity)
-		zlog.Debug().Msgf("CreateVolume required bytes %d will be rounded up to %d bytes", capacity, roundUpBytes)
+		zlog.Debug().Msgf("CreateVolume requested bytes %d will be rounded up to %d bytes", capacity, roundUpBytes)
 		capacity = roundUpBytes
 	}
 

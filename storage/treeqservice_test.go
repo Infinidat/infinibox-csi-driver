@@ -464,7 +464,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_errorToDelete
 }
 
 func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetFileSystemByID_error() {
-	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
 	maxSize := ""
 	expectedErr := errors.New("FILESYSTEM_ID_DOES_NOT_EXIST")
 	suite.api.On("GetFileSystemByID", filesytemID).Return(nil, expectedErr)
@@ -474,7 +474,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetFileSystemByID_error()
 }
 
 func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeqSizeByFileSystemID_error() {
-	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
 	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
@@ -489,7 +489,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeqSizeByFileSystemI
 }
 
 func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error() {
-	var filesytemID, treeqID, capacity int64 = 100, 200, 1073741824
+	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
 	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
@@ -503,7 +503,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error(
 }
 
 func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() {
-	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
+	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, common.BytesInOneGibibyte, 200
 	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
@@ -519,7 +519,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() 
 }
 
 func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() {
-	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
+	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, common.BytesInOneGibibyte, 200
 	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
@@ -537,7 +537,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() {
 }
 
 func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_Success() {
-	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, 1073741824, 200
+	var filesytemID, treeqID, capacity, treeqSize int64 = 100, 200, common.BytesInOneGibibyte, 200
 	maxSize := "3gib"
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
@@ -649,7 +649,7 @@ func getCreateVolumeRequest() *csi.CreateVolumeRequest {
 func getfsMetadata() *api.FSMetadata {
 	fs := api.FileSystem{
 		ID:   10,
-		Size: 1073741824,
+		Size: common.BytesInOneGibibyte,
 	}
 	fsArry := []api.FileSystem{}
 	fsArry = append(fsArry, fs)
