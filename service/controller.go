@@ -119,7 +119,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	capacity := req.GetCapacityRange().RequiredBytes
 
-	var roundUp bool
+	roundUp := true // default to always rounding up, users can set the StorageClass parameter to false if for some reason they want
 	roundUpParameter := req.Parameters[common.SC_ROUND_UP]
 	if roundUpParameter != "" {
 		roundUp, err = strconv.ParseBool(roundUpParameter)
@@ -129,10 +129,15 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, err
 		}
 	}
+
 	if roundUp {
 		roundUpBytes := helper.RoundUp(capacity)
-		zlog.Debug().Msgf("CreateVolume requested bytes %d will be rounded up to %d bytes", capacity, roundUpBytes)
-		capacity = roundUpBytes
+		if capacity == roundUpBytes {
+			zlog.Debug().Msgf("CreateVolume requested bytes %d equals calculated rounded up %d bytes", capacity, roundUpBytes)
+		} else {
+			zlog.Debug().Msgf("CreateVolume requested bytes %d will be rounded up to %d bytes", capacity, roundUpBytes)
+			capacity = roundUpBytes
+		}
 	}
 
 	storageController, err := storage.NewStorageController(capacity, storageprotocol, configparams, secretsToUse)
