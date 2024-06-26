@@ -30,10 +30,10 @@ parameters:
 
     # optional parameters
     #round_up_requested_size: "true"
-    provision_type: THIN
-    ssd_enabled: "true"
-    uid: "2000" # ignored when fsgroup set
-    gid: "2000" # ignored when fsgroup set
+    #provision_type: THIN
+    #ssd_enabled: "true"
+    #uid: "2000" # can override fsgroup permissions
+    #gid: "2000" # can override fsgroup permissions
     # the following parameters can be used to override ibox limits
     #max_filesystems: "999"
     #max_treeqs_per_filesystem: "20"

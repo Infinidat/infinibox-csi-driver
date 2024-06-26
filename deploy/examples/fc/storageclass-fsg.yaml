@@ -28,6 +28,6 @@ parameters:
   #provision_type: "THIN"
   #ssd_enabled: "false"
   #max_vols_per_host: "20"
-  uid: "2000"                 # optional: override default UID for filesystem mount, ignored when fsgroup in pod
-  gid: "2000"                 # optional: override default GID for filesystem mount, ignored when fsgroup in pod
-  unix_permissions: "777"     # optional: override default permissions for filesystem mount, ignored for fsgroup
+  #uid: "2000"                 # optional: override default UID for filesystem mount, ignored when fsgroup in pod
+  #gid: "2000"                 # optional: override default GID for filesystem mount, ignored when fsgroup in pod
+  #unix_permissions: "777"     # optional: override default permissions for filesystem mount, ignored for fsgroup

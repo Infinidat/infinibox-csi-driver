@@ -154,7 +154,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	err = treeq.nfsstorage.storageHelper.SetVolumePermissions(req, treeq.nfsstorage.snapdirVisible)
+	err = treeq.nfsstorage.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		e := fmt.Errorf("failed to set volume permissions '%v'", err)
 		zlog.Err(e)

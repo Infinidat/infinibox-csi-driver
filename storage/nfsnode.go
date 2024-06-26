@@ -138,7 +138,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
-	err = nfs.storageHelper.SetVolumePermissions(req, nfs.snapdirVisible)
+	err = nfs.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Errorf(codes.Internal, err.Error())
@@ -160,20 +160,7 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 }
 
 func (nfs *nfsstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	nodeCaps := []csi.NodeServiceCapability_RPC_Type{}
-	var caps []*csi.NodeServiceCapability
-	for _, cap := range nodeCaps {
-		c := &csi.NodeServiceCapability{
-			Type: &csi.NodeServiceCapability_Rpc{
-				Rpc: &csi.NodeServiceCapability_RPC{
-					Type: cap,
-				},
-			},
-		}
-		caps = append(caps, c)
-	}
-	return &csi.NodeGetCapabilitiesResponse{Capabilities: caps}, nil
-
+	return nil, status.Error(codes.Unimplemented, "nfs NodeGetCapabilities should never be called, called in node.go instead")
 }
 
 func (nfs *nfsstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {

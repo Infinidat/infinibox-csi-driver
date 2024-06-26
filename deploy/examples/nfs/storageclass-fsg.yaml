@@ -26,19 +26,18 @@ parameters:
 
     # InfiniBox configuration
     storage_protocol: nfs
-    fstype: ext4        # fstype required when fsGroup is in pod spec  
     network_space: NAS # InfiniBox network space name
     pool_name: csitesting # InfiniBox pool name
 
     # optional parameters
-    provision_type: THIN
-    ssd_enabled: "true"
+    #provision_type: THIN
+    #ssd_enabled: "true"
     #round_up_requested_size: "true" # round up the volume size
     #snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
-    uid: "2000"               # optional: override default UID for filesystem mount, ignored when fsgroup in pod
-    gid: "2000"               # optional: override default GID for filesystem mount, ignored when fsgroup in pod
-    unix_permissions: "777"   # optional: override default permissions for filesystem mount, ignored for fsgroup
+    #uid: "2000"               # optional: override default UID for filesystem mount
+    #gid: "2000"               # optional: override default GID for filesystem mount
+    #unix_permissions: "777"   # optional: override default permissions for filesystem mount, ignored for fsgroup
     #privileged_ports_only: no # optional: force use of  privileged ports only
     # 
     #nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example

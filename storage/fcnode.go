@@ -156,7 +156,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	// print out the target permissions
 	logPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
 	logPermissions("after mount devicePath ", "/host"+devicePath)
-	err = fc.storageHelper.SetVolumePermissions(req, false)
+	err = fc.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		zlog.Error().Msgf("error in setting volume permissions %s on volume %s\n", err.Error(), req.GetVolumeId())
 		return nil, err
@@ -238,31 +238,15 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
-func (fc *fcstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (
-	*csi.NodeGetCapabilitiesResponse, error,
-) {
-	return &csi.NodeGetCapabilitiesResponse{
-		Capabilities: []*csi.NodeServiceCapability{
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_UNKNOWN,
-					},
-				},
-			},
-		},
-	}, nil
+func (fc *fcstorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "fc NodeGetCapabilities should never be called, called in node.go instead")
 }
 
-func (fc *fcstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (
-	*csi.NodeGetInfoResponse, error,
-) {
+func (fc *fcstorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	return &csi.NodeGetInfoResponse{}, nil
 }
 
-func (fc *fcstorage) NodeGetVolumeStats(
-	ctx context.Context, req *csi.NodeGetVolumeStatsRequest,
-) (*csi.NodeGetVolumeStatsResponse, error) {
+func (fc *fcstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, time.Now().String())
 }
 

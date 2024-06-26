@@ -243,7 +243,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		zlog.Debug().Msgf("skipping chown-chmod since this is readOnly volume")
 	} else {
 		// Chown
-		err = iscsi.storageHelper.SetVolumePermissions(req, false)
+		err = iscsi.storageHelper.SetVolumePermissions(req)
 		if err != nil {
 			zlog.Err(err)
 			return nil, status.Errorf(codes.Internal, err.Error())
@@ -383,17 +383,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 }
 
 func (iscsi *iscsistorage) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	return &csi.NodeGetCapabilitiesResponse{
-		Capabilities: []*csi.NodeServiceCapability{
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_UNKNOWN,
-					},
-				},
-			},
-		},
-	}, nil
+	return nil, status.Error(codes.Unimplemented, "iscsi NodeGetCapabilities should never be called, called in node.go instead")
 }
 
 func (iscsi *iscsistorage) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {

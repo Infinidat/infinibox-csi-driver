@@ -462,7 +462,7 @@ func IsDirectory(path string) (bool, error) {
 }
 
 type StorageHelper interface {
-	SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapDirVisible bool) (err error)
+	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
 	ValidateNFSPortalIPAddress(ipAddress string) (err error)
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
 	NodeExpandVolumeSize(req *csi.NodeExpandVolumeRequest) (err error)
@@ -638,81 +638,54 @@ func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 	return mountOptions, nil
 }
 
-// SetVolumePermissions - note that snapdirVisible parameter is only applicable to nfs and treeq
-func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapdirVisible bool) (err error) {
-	targetPath := req.GetTargetPath()      // this is the path on the host node
-	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
+// SetVolumePermissions
+func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
 
-	fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
-	fsGroupChangePolicy := DEFAULT_FS_GROUP_CHANGE_POLICY
+	//fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
+	//fsGroupIsSet := (fsGroup != "")
+	//zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
 
-	fsGroupIsSet := (fsGroup != "")
+	var uid_int = -1
+	var gid_int = -1
 
-	zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
-
-	// Chown
-	var uid_int, gid_int int
-
-	if !fsGroupIsSet { // use storageclass for volume mount parameters.
-
-		tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
-		if tmp == "" {
-			uid_int = -1 // -1 means to not change the value
-		} else {
-			uid_int, err = strconv.Atoi(tmp)
-			if err != nil || uid_int < -1 {
-				e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
-				zlog.Err(e)
-				return e
-			}
+	tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
+	if tmp != "" {
+		uid_int, err = strconv.Atoi(tmp)
+		if err != nil || uid_int < -1 {
+			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
+			zlog.Err(e)
+			return e
 		}
+	}
 
-		tmp = req.GetVolumeContext()[common.SC_GID]
-		if tmp == "" {
-			gid_int = -1 // -1 means to not change the value
-		} else {
-			gid_int, err = strconv.Atoi(tmp)
-			if err != nil || gid_int < -1 {
-				e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
-				zlog.Err(e)
-				return e
-			}
-		}
-
-	} else { // use the fsGroup spec from the pod.
-
-		gid_int, err = strconv.Atoi(fsGroup)
+	tmp = req.GetVolumeContext()[common.SC_GID]
+	if tmp != "" {
+		gid_int, err = strconv.Atoi(tmp)
 		if err != nil || gid_int < -1 {
 			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
 			zlog.Err(e)
 			return e
 		}
-		uid_int = -1 // indicate no change to uid since fsgroup being set.
 	}
 
-	zlog.Debug().Msgf("chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
-	if fsGroupIsSet {
-		zlog.Debug().Msgf("for fsgroup, performing recursive chown")
-		err = ChownR(hostTargetPath, uid_int, gid_int, fsGroupIsSet, fsGroupChangePolicy, snapdirVisible) // recursively set the path.
-	} else {
+	targetPath := req.GetTargetPath()      // this is the path on the host node
+	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
+
+	// chown the mount path with either a user supplied value or the fsGroup value
+	if uid_int != -1 || gid_int != -1 {
+		zlog.Debug().Msgf("user specified uid or gid in StorageClass parameters, chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
 		err = os.Chown(hostTargetPath, uid_int, gid_int)
+		if err != nil {
+			e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
+			zlog.Err(e)
+			return status.Errorf(codes.Internal, e.Error())
+		}
 	}
 
-	if err != nil {
-		e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
-		zlog.Err(e)
-		return status.Errorf(codes.Internal, e.Error())
-	}
-
-	var unixPermissions string
-	// If fsGroupIsSet, we need to set perms on the mount with setgid bit.
-	if fsGroupIsSet {
-		unixPermissions = K8S_MOUNT_PERMS
-	} else {
-		unixPermissions = req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS] // Returns an empty string if key not found
-	}
+	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS]
 
 	if unixPermissions != "" {
+		zlog.Debug().Msgf("user specified unix_permissions in StorageClass parameters, chmod mount %s perms=%s", hostTargetPath, unixPermissions)
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
 			e := fmt.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
@@ -726,7 +699,6 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapdir
 			zlog.Err(e)
 			return status.Errorf(codes.Internal, e.Error())
 		}
-		zlog.Debug().Msgf("chmod mount %s perms=%s", hostTargetPath, unixPermissions)
 	}
 
 	// print out the target permissions
@@ -735,7 +707,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest, snapdir
 	return nil
 }
 
-// recursively chowns a root path
+// recursively chowns a root path - currently not used as we let kubelet do fsGroup recursive permissions changes
 func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolicy string, snapdirVisible bool) error {
 	start := time.Now()
 

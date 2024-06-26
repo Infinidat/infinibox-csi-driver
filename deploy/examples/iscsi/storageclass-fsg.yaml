@@ -26,10 +26,10 @@ parameters:
 
   # optional parameters
   #round_up_requested_size: "true"
-  provision_type: "THIN"
-  max_vols_per_host: "100"
-  ssd_enabled: "false"
+  #provision_type: "THIN"
+  #max_vols_per_host: "100"
+  #ssd_enabled: "false"
   useCHAP: "none" # none / chap / mutual_chap
-  uid: "2000" # UID of volume, ignored if fsgroup specified in pod
-  gid: "2000" # GID of volume, ifnored if fsgroup specified in pod
-  unix_permissions: "777" # optional volume mount permissions, ignored for fsgroup
+  #uid: "2000" # UID of volume, ignored if fsgroup specified in pod
+  #gid: "2000" # GID of volume, ifnored if fsgroup specified in pod
+  #unix_permissions: "777" # optional volume mount permissions, ignored for fsgroup

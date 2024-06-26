@@ -210,7 +210,12 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 		return fmt.Errorf("_E2E_POOL env var is not set and is required")
 	}
 	sc.Name = testConfig.TestNames.SCName
-	sc.Parameters["pool_name"] = poolToUse
+	sc.Parameters[common.SC_POOL_NAME] = poolToUse
+	if testConfig.UseFsGroup {
+		delete(sc.Parameters, common.SC_UID)
+		delete(sc.Parameters, common.SC_GID)
+		delete(sc.Parameters, common.SC_UNIX_PERMISSIONS)
+	}
 
 	sc.Parameters[common.SC_SNAPDIR_VISIBLE] = strconv.FormatBool(testConfig.UseSnapdirVisible)
 
