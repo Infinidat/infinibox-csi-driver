@@ -26,7 +26,7 @@ parameters:
 
     # InfiniBox configuration
     storage_protocol: nfs
-    network_space: NAS # InfiniBox network space name
+    network_space: $_E2E_NETWORK_SPACE
     pool_name: csitesting # InfiniBox pool name
 
     # optional parameters

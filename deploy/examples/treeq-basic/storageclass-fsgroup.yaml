@@ -1,0 +1,44 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-treeq-fsg
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - hard
+  - rsize=1048576
+  - wsize=1048576
+parameters: 
+    csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+    csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+    csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
+    csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+
+    # infinibox configuration
+    pool_name: csitesting
+    network_space: $_E2E_NETWORK_SPACE
+    storage_protocol: nfs_treeq
+    fs_prefix: csit_
+
+    # optional parameters
+    #round_up_requested_size: "true"
+    #provision_type: THIN
+    #ssd_enabled: "true"
+    #uid: "2000" # can override fsgroup permissions
+    #gid: "2000" # can override fsgroup permissions
+    # the following parameters can be used to override ibox limits
+    #max_filesystems: "999"
+    #max_treeqs_per_filesystem: "20"
+    #max_filesystem_size: 30gib
+    #
+    # uncomment if you do not want to have the default export (e.g. node ip address) created
+    #nfs_export_permissions : "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]" # ip address range example
+    #nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]" # wildcard example

@@ -1,55 +1,32 @@
-include ../Makefile-vars  # User configured vars
 include ../../../Makefile-help
 
-_purpose = The infindat-csi-driver-demo project demonstrates basic deployment and operatation of our CSI driver using a K3s cluster. Makefiles automate each step showing how this may be accomplished. See The README for details.
-
-##@ NFS Complete Example
+##@ NFS PVC Annotation Example
 .PHONY: setup
-setup:  teardown ## Deploy NFS objects, restore snapshot, clone.
+setup: devEnv teardown 
 	@echo -e $(_begin)
-	$(_clinn) create -f ./storageclass.yaml
-	$(_cli) create -f ./pvc.yaml
-	$(_cli) create -f ./app.yaml
+	envsubst < ./storageclass.yaml  | $(_CLI) create -f -
+	envsubst < ./pvc.yaml | $(_CLIN) create -f -
+	$(_CLIN) create -f ./pod.yaml
 	@echo -e $(_finish)
 
-
 .PHONY: teardown
-teardown:  ## Remove everything including K3s.
+teardown: devEnv 
 	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./app.yaml --force
-	$(_cli) delete --wait --ignore-not-found=true -f ./pvc.yaml
-	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc.yaml
+	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass.yaml
 	@echo -e $(_finish)
 
 .PHONY: setup-clone
-setup-clone:  teardown-clone ## Deploy NFS objects, restore snapshot, clone.
+setup-clone: devEnv teardown-clone 
 	@echo -e $(_begin)
-	$(_cli) create -f ./pvc-clone.yaml
-	$(_cli) create -f ./app-clone.yaml
+	envsubst < ./pvc-clone.yaml | $(_CLIN) create -f -
+	$(_CLIN) create -f ./pod-clone.yaml
 	@echo -e $(_finish)
-
 
 .PHONY: teardown-clone
-teardown-clone:  ## Remove everything including K3s.
+teardown-clone: devEnv 
 	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./app-clone.yaml --force
-	$(_cli) delete --wait --ignore-not-found=true -f ./pvc-clone.yaml
-	@echo -e $(_finish)
-
-.PHONY: setup-snapshot
-setup-snapshot:  teardown-snapshot ## Deploy NFS objects, restore snapshot, clone.
-	@echo -e $(_begin)
-	$(_cli) create -f ./snapshot.yaml
-	sleep 5
-	$(_cli) create -f ./restore-snapshot.yaml
-	sleep 5
-	$(_cli) create -f ./app-restore-snapshot.yaml
-	@echo -e $(_finish)
-
-.PHONY: teardown-snapshot
-teardown-snapshot:  ## Remove snapshot resources
-	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./app-restore-snapshot.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./restore-snapshot.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./snapshot.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-clone.yaml 
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-clone.yaml
 	@echo -e $(_finish)

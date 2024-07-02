@@ -5,7 +5,7 @@ metadata:
   namespace: infinidat-csi
   annotations:
     infinidat.com/pool_name: csitesting
-    infinidat.com/network_space: NAS
+    infinidat.com/network_space: $_E2E_NETWORK_SPACE
 spec:
   accessModes:
   - ReadWriteOnce

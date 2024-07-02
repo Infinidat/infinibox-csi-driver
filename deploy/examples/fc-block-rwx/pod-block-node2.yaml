@@ -1,0 +1,33 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: fc-block-node2
+  namespace: infinidat-csi
+spec:
+  affinity:
+    podAntiAffinity: 
+      requiredDuringSchedulingIgnoredDuringExecution: 
+      - labelSelector:
+          matchExpressions:
+          - key: security
+            operator: In 
+            values:
+            - s1
+        topologyKey: kubernetes.io/hostname
+  containers:
+    - name: csitest
+      image: infinidat/csitestimageblock:latest
+      volumeMounts:
+      command: [ "csitestimageblock" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+      env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: fc-block-pvc-rwx

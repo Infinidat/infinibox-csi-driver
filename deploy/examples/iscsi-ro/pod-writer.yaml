@@ -1,0 +1,18 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: iscsi-ro-test-writer
+  namespace: infinidat-csi
+spec:
+  containers:
+    - name: csitest
+      image: infinidat/csitestimage:latest
+      env:
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: iscsi-ro-pvc

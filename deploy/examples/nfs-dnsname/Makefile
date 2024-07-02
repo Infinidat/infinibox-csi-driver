@@ -1,57 +1,54 @@
-include ../Makefile-vars  # User configured vars
 include ../../../Makefile-help
 
-_purpose = This nfs example tests the dnsname parameter that can be specified in a storageclass, to run this test you will have to create dnsname that will resolve on the kubernetes hosts (e.g. /etc/hosts) that resolves to an ip address on your ibox NAS network space
-
-##@ NFS Complete Example
+##@ example of specifying dnsname in storage class 
 .PHONY: setup
-setup:  teardown ## Deploy NFS objects, restore snapshot, clone.
+setup:  devEnv teardown 
 	@echo -e $(_begin)
-	$(_clinn) create -f ./storageclass.yaml
-	$(_cli) create -f ./pvc.yaml
-	$(_cli) create -f ./app.yaml
+	envsubst < ./storageclass.yaml | $(_CLI) create -f -
+	$(_CLIN) create -f ./pvc.yaml
+	$(_CLIN) create -f ./pod.yaml
 	@echo -e $(_finish)
 
 
 .PHONY: teardown
-teardown:  ## Remove everything including K3s.
+teardown: devEnv  
 	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./app.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./pvc.yaml
-	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc.yaml
+	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass.yaml
 	@echo -e $(_finish)
 
 .PHONY: setup-clone
-setup-clone:  teardown-clone ## Deploy NFS objects, restore snapshot, clone.
+setup-clone: devEnv teardown-clone 
 	@echo -e $(_begin)
-	$(_cli) create -f ./clonepvc.yaml
-	$(_cli) create -f ./appclone.yaml
+	$(_CLIN) create -f ./pvc-clone.yaml
+	$(_CLIN) create -f ./pod-clone.yaml
 	@echo -e $(_finish)
 
 .PHONY: teardown-clone
-teardown-clone:  ## Remove clone resources
+teardown-clone: devEnv 
 	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./appclone.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./clonepvc.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-clone.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-clone.yaml
 	@echo -e $(_finish)
 
 .PHONY: setup-snapshot
-setup-snapshot:  teardown-snapshot ## Deploy NFS objects, restore snapshot, clone.
+setup-snapshot:  devEnv teardown-snapshot
 	@echo -e $(_begin)
-	$(_cli) create -f ../volumesnapshotclass.yaml
+	$(_CLIN) create -f ../volumesnapshotclass.yaml
 	sleep 5
-	$(_cli) create -f ./snapshot.yaml
+	$(_CLIN) create -f ./snapshot.yaml
 	sleep 5
-	$(_cli) create -f ./restoresnapshot.yaml
+	$(_CLIN) create -f ./pvc-restore-snapshot.yaml
 	sleep 5
-	$(_cli) create -f ./apprestoresnapshot.yaml
+	$(_CLIN) create -f ./pod-restore-snapshot.yaml
 	@echo -e $(_finish)
 
 .PHONY: teardown-snapshot
-teardown-snapshot:  ## Remove snapshot resources
+teardown-snapshot: devEnv 
 	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./apprestoresnapshot.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./restoresnapshot.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./snapshot.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ../volumesnapshotclass.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-restore-snapshot.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-restore-snapshot.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./snapshot.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ../volumesnapshotclass.yaml
 	@echo -e $(_finish)

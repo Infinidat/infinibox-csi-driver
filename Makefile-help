@@ -85,3 +85,12 @@ gofindfunc:  ## Search project go files for a func using: f='search term' make g
 	@echo -e $(_begin)
 	find . -name "*.go" | xargs grep -n "^func.*$$f" | egrep -v '$(_go_find_ignore)'
 	@echo -e $(_finish)
+
+define setup_env
+        $(eval include ../../../Makefile-vars-git-ignored)
+        $(eval export)
+endef
+
+devEnv:
+	$(call setup_env)
+

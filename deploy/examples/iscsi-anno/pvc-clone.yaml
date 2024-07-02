@@ -5,7 +5,7 @@ metadata:
     namespace: infinidat-csi
     annotations:
       # the following annotations have to match those in pvc.yaml
-      infinidat.com/network_space: iSCSI
+      infinidat.com/network_space: $_E2E_NETWORK_SPACE
       infinidat.com/pool_name: csitesting
 spec:
   accessModes:

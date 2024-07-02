@@ -276,3 +276,10 @@ endif
 ifndef _TEST_ONE_THING
 	$(error _TEST_ONE_THING is not set)
 endif
+
+.PHONY: rc-docker-push-dockerhub
+rc-docker-push-dockerhub: docker-login-docker  ## Push host-opensource CSI driver images to dockerhub.
+	@echo -e $(_begin)
+	docker push infinidat/infinidat-csi-driver:v2.14.0-rc
+	done
+	@echo -e $(_finish)

@@ -19,7 +19,7 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: xfs
-  network_space: "iSCSI"
+  network_space: $_E2E_NETWORK_SPACE
   pool_name: "csitesting"
   storage_protocol: "iscsi"
   useCHAP: "none" # none / chap / mutual_chap

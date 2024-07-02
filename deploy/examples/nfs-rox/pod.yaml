@@ -1,0 +1,20 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nfs-rox-test
+  namespace: infinidat-csi
+spec:
+  containers:
+    - name: csitest
+      image: infinidat/csitestimage:latest
+      env:
+      - name: READ_ONLY
+        value: "true"
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: nfs-rox-pvc

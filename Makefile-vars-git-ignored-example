@@ -17,3 +17,5 @@ _E2E_OCP_VERSION=v4.15
 _E2E_IBOX_USERNAME=someusername
 _E2E_IBOX_PASSWORD=somepassword
 _E2E_IBOX_HOSTNAME=somehost
+_CLI=kubectl
+_CLIN=$(_CLI) -n $(_E2E_NAMESPACE)

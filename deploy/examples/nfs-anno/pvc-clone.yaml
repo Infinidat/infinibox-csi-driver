@@ -6,7 +6,7 @@ metadata:
     annotations:
       # the following annotations have to match the values in pvc.yaml
       infinidat.com/pool_name: csitesting
-      infinidat.com/network_space: NAS
+      infinidat.com/network_space: $_E2E_NETWORK_SPACE
 spec:
   accessModes:
   - ReadWriteOnce

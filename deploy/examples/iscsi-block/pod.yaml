@@ -1,0 +1,18 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: iscsi-block
+  namespace: infinidat-csi
+spec:
+  containers:
+    - name: csitest
+      image: infinidat/csitestimageblock:latest
+      volumeMounts:
+      command: [ "csitestimageblock" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: iscsi-block-pvc

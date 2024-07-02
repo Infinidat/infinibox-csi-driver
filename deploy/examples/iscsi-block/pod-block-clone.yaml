@@ -1,0 +1,23 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: iscsi-block-clone
+  namespace: infinidat-csi
+spec:
+  containers:
+    - name: csitest
+      image: infinidat/csitestimage:latest
+      volumeMounts:
+      command: [ "csitestimage" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: iscsi-block-pvc-clone
+    - name: ibox-csi-volume
+      emptyDir: {}

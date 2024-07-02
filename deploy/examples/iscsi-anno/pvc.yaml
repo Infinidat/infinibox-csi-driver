@@ -4,7 +4,7 @@ metadata:
   name: iscsi-pvc-anno
   namespace: infinidat-csi
   annotations:
-    infinidat.com/network_space: iSCSI
+    infinidat.com/network_space: $_E2E_NETWORK_SPACE
     infinidat.com/pool_name: csitesting
 spec:
   accessModes:

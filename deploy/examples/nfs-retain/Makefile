@@ -1,24 +1,21 @@
-include ../Makefile-vars  # User configured vars
 include ../../../Makefile-help
 
-_purpose = The infindat-csi-driver-demo project demonstrates basic deployment and operatation of our CSI driver using a K3s cluster. Makefiles automate each step showing how this may be accomplished. See The README for details.
-
-##@ NFS Complete Example
+##@ NFS example of using Retain
 .PHONY: setup
-setup:  teardown ## Deploy NFS objects
+setup:  devEnv teardown 
 	@echo -e $(_begin)
-	$(_clinn) create -f ./storageclass.yaml
-	$(_cli) create -f ./pv.yaml
-	$(_cli) create -f ./pvc.yaml
-	$(_cli) create -f ./app.yaml
+	envsubst < ./storageclass.yaml | $(_CLI) create -f -
+	$(_CLIN) create -f ./pv.yaml
+	$(_CLIN) create -f ./pvc.yaml
+	$(_CLIN) create -f ./pod.yaml
 	@echo -e $(_finish)
 
 
 .PHONY: teardown
-teardown:  
+teardown: devEnv
 	@echo -e $(_begin)
-	$(_cli) delete --wait --ignore-not-found=true -f ./app.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./pvc.yaml
-	$(_cli) delete --wait --ignore-not-found=true -f ./pv.yaml
-	$(_clinn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc.yaml
+	$(_CLIN) delete --wait --ignore-not-found=true -f ./pv.yaml
+	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass.yaml
 	@echo -e $(_finish)
