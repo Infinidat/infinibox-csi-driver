@@ -291,6 +291,10 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
 
+func (iscsi *iscsistorage) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (resp *csi.ControllerModifyVolumeResponse, err error) {
+	return nil, nil
+}
+
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	zlog.Debug().Msgf("ControllerPublishVolume node ID: %s volume ID: %s", req.GetNodeId(), req.GetVolumeId())
 

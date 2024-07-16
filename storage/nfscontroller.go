@@ -477,6 +477,10 @@ type ExportPermission struct {
 	Client         string
 }
 
+func (nfs *nfsstorage) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
+	return nil, nil
+}
+
 func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	var err error
 	volumeID := req.GetVolumeId()

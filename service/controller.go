@@ -260,6 +260,12 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	return
 }
 
+// ControllerModifyVolume method
+func (s *ControllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (publishVolResp *csi.ControllerModifyVolumeResponse, err error) {
+	zlog.Info().Msg("ControllerModifyVolume is not implemented")
+	return nil, nil
+}
+
 // ControllerPublishVolume method
 func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (publishVolResp *csi.ControllerPublishVolumeResponse, err error) {
 

@@ -1,11 +1,9 @@
 module infinibox-csi-driver
 
-go 1.22.0
-
-toolchain go1.22.2
+go 1.22.5
 
 require (
-	github.com/container-storage-interface/spec v1.8.0
+	github.com/container-storage-interface/spec v1.9.0
 	github.com/containerd/containerd v1.7.16
 	github.com/go-resty/resty/v2 v2.12.0
 	github.com/golang/protobuf v1.5.4

@@ -269,6 +269,10 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
 
+func (fc *fcstorage) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (resp *csi.ControllerModifyVolumeResponse, err error) {
+	return nil, nil
+}
+
 func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	zlog.Debug().Msgf("ControllerPublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := validateVolumeID(req.GetVolumeId())
