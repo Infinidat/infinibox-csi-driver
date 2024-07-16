@@ -34,18 +34,6 @@ func VerifyAdminTreeqs(config *e2e.TestConfig) (err error) {
 
 func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 
-	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
-	if hostname == "" {
-		return 0, fmt.Errorf("_E2E_IBOX_HOSTNAME env var required")
-	}
-	username := os.Getenv("_E2E_IBOX_USERNAME")
-	if username == "" {
-		return 0, fmt.Errorf("_E2E_IBOX_USERNAME env var required")
-	}
-	password := os.Getenv("_E2E_IBOX_PASSWORD")
-	if password == "" {
-		return 0, fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
-	}
 	poolName := os.Getenv("_E2E_POOL")
 	if poolName == "" {
 		return 0, fmt.Errorf("_E2E_POOL env var required")
@@ -53,29 +41,12 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 
 	fileSystemName := "e2e-treeq-admin" + config.TestNames.UniqueSuffix
 
-	c := make(map[string]string)
-	secrets := map[string]string{
-		"hostname": hostname,
-		"password": password,
-		"username": username,
-	}
-
-	x := api.ClientService{
-		ConfigMap:  c,
-		SecretsMap: secrets,
-	}
-
-	clientsvc, err := x.NewClient()
-	if err != nil {
-		return 0, err
-	}
-
 	// get ip address for network space
 	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
 	if networkSpace == "" {
 		return 0, fmt.Errorf("_E2E_NETWORK_SPACE env var not set, required")
 	}
-	networkSpaceResponse, err := clientsvc.GetNetworkSpaceByName(networkSpace)
+	networkSpaceResponse, err := config.ClientService.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return 0, err
 	}
@@ -86,7 +57,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 
 	networkSpaceIPAddress := networkSpaceResponse.Portals[0].IpAdress
 
-	poolID, err := clientsvc.GetStoragePoolIDByName(poolName)
+	poolID, err := config.ClientService.GetStoragePoolIDByName(poolName)
 	if err != nil {
 		return 0, err
 	}
@@ -98,7 +69,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 		"provtype": common.SC_THIN_PROVISION_TYPE,
 	}
 
-	fs, err := clientsvc.CreateFilesystem(mapRequest)
+	fs, err := config.ClientService.CreateFilesystem(mapRequest)
 	if err != nil {
 		return 0, err
 	}
@@ -113,7 +84,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 			"hard_capacity": common.BytesInOneGibibyte, // 1Gi
 		}
 
-		resp, err := clientsvc.CreateTreeq(fs.ID, treeqParameters)
+		resp, err := config.ClientService.CreateTreeq(fs.ID, treeqParameters)
 		if err != nil {
 			return 0, err
 		}

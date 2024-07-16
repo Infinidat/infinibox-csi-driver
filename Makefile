@@ -30,7 +30,7 @@ _GOLINT             = golangci-lint
 _LOCALDIR ?= $(shell pwd)
 
 # Docker image tag. Read from env or use default
-_IMAGE_TAG   ?= v2.14.0
+_IMAGE_TAG   ?= v2.15.0
 
 _GITLAB_REPO        = git.infinidat.com:4567
 _BINARY_NAME        = infinibox-csi-driver
@@ -167,7 +167,7 @@ docker-login-docker:  ## Login to Dockerhub.
 	@docker login
 
 .PHONY: docker-pull-gitlab
-docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.14.0 make docker-pull-gitlab
+docker-pull-gitlab:  ## Pull all images using tag, e.g. _IMAGE_TAG=v2.15.0 make docker-pull-gitlab
 	@echo -e $(_begin)
 	@declare -a images=($(_IMAGE_NAMES)); \
 	for image in $${images[@]}; do \
@@ -276,10 +276,3 @@ endif
 ifndef _TEST_ONE_THING
 	$(error _TEST_ONE_THING is not set)
 endif
-
-.PHONY: rc-docker-push-dockerhub
-rc-docker-push-dockerhub: docker-login-docker  ## Push host-opensource CSI driver images to dockerhub.
-	@echo -e $(_begin)
-	docker push infinidat/infinidat-csi-driver:v2.14.0-rc
-	done
-	@echo -e $(_finish)

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/log"
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
@@ -42,6 +43,7 @@ type TestConfig struct {
 	PVCAnnotations        *PVCAnnotations
 	AccessMode            v1.PersistentVolumeAccessMode
 	TestNames             *TestResourceNames
+	ClientService         *api.ClientService
 }
 
 func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error) {
@@ -77,6 +79,36 @@ func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error
 	config.AccessMode = v1.ReadWriteOnce
 	config.Testt = t
 	config.Protocol = protocol
+
+	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
+	if hostname == "" {
+		return config, fmt.Errorf("_E2E_IBOX_HOSTNAME env var required")
+	}
+	username := os.Getenv("_E2E_IBOX_USERNAME")
+	if username == "" {
+		return config, fmt.Errorf("_E2E_IBOX_USERNAME env var required")
+	}
+	password := os.Getenv("_E2E_IBOX_PASSWORD")
+	if password == "" {
+		return config, fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
+	}
+
+	c := make(map[string]string)
+	secrets := map[string]string{
+		"hostname": hostname,
+		"password": password,
+		"username": username,
+	}
+
+	x := api.ClientService{
+		ConfigMap:  c,
+		SecretsMap: secrets,
+	}
+
+	config.ClientService, err = x.NewClient()
+	if err != nil {
+		return config, err
+	}
 
 	return config, nil
 

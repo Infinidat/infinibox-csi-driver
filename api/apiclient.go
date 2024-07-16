@@ -385,8 +385,7 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	if len(netspaces) == 0 {
 		apiresp := resp.(client.ApiResponse)
 		netspaces, _ = apiresp.Result.([]NetworkSpace)
-		zlog.Error().Msgf("no such network space: %s", networkSpaceName)
-		return nspace, err
+		return nspace, fmt.Errorf("no such network space: %s", networkSpaceName)
 	}
 
 	if len(netspaces) > 0 {

@@ -697,6 +697,13 @@ func Setup(testConfig *TestConfig) {
 	testConfig.Testt.Log(GetEnvVars())
 
 	var err error
+
+	err = ValidateEnv(testConfig)
+	if err != nil {
+		testConfig.Testt.Fatalf("error validating E2E env vars %s\n", err.Error())
+	}
+	testConfig.Testt.Log("✓ Env Var validation passed")
+
 	ctx := context.Background()
 	err = CreateNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
