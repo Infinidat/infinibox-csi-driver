@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"os"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,13 +22,16 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	}
 
 	// validate network space on the ibox
-	networkSpaceToUse := os.Getenv("_E2E_NETWORK_SPACE")
-	if networkSpaceToUse == "" {
-		return fmt.Errorf("_E2E_NETWORK_SPACE env var is not set and is required")
-	}
-	_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpaceToUse)
-	if err != nil {
-		return err
+	protocol := os.Getenv("_E2E_PROTOCOL")
+	if protocol != common.PROTOCOL_FC {
+		networkSpaceToUse := os.Getenv("_E2E_NETWORK_SPACE")
+		if networkSpaceToUse == "" {
+			return fmt.Errorf("_E2E_NETWORK_SPACE env var is not set and is required")
+		}
+		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpaceToUse)
+		if err != nil {
+			return err
+		}
 	}
 
 	// validate network space 2 on the ibox if set
