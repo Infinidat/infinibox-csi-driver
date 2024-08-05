@@ -55,6 +55,15 @@ type Client interface {
 	GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error)
 	GetLunByVolume(volumeID int) (luninfo []LunInfo, err error)
 
+	// for consistency group (volume group)
+	CreateCG(poolID int, cgName string) (CGInfo, error)
+	AddMemberToSnapshotGroup(volumeID int, cgID int) error
+	RemoveMemberFromSnapshotGroup(volumeID int, cgID int) error
+	GetAllCG() ([]CGInfo, error)
+	GetMembersByCGID(cgID int) ([]MemberInfo, error)
+	GetCG(name string) (CGInfo, error)
+	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
+
 	// for nfs
 	OneTimeValidation(poolname string, networkspace string) (list string, err error)
 	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)

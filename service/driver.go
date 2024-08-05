@@ -41,6 +41,7 @@ type Driver struct {
 	ns          *NodeServer
 	cscap       []*csi.ControllerServiceCapability
 	nscap       []*csi.NodeServiceCapability
+	groupcap    []*csi.GroupControllerServiceCapability
 	volumeLocks *helper.VolumeLocks
 }
 
@@ -64,6 +65,7 @@ func NewDriver(options *DriverOptions) *Driver {
 		csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
 		csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 		csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+
 		/**
 		currently unimplemented
 		*/
@@ -74,6 +76,10 @@ func NewDriver(options *DriverOptions) *Driver {
 		//csi.ControllerServiceCapability_RPC_GET_VOLUME
 		//csi.ControllerServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER
 
+	})
+
+	n.AddGroupControllerServiceCapabilities([]csi.GroupControllerServiceCapability_RPC_Type{
+		csi.GroupControllerServiceCapability_RPC_CREATE_DELETE_GET_VOLUME_GROUP_SNAPSHOT,
 	})
 
 	n.AddNodeServiceCapabilities([]csi.NodeServiceCapability_RPC_Type{
@@ -111,10 +117,17 @@ func (n *Driver) Run(testMode bool) {
 	s := NewNonBlockingGRPCServer()
 	s.Start(n.endpoint,
 		NewDefaultIdentityServer(n),
+		NewVolumeGroupServer(n),
 		NewControllerServer(n),
 		n.ns,
 		testMode)
 	s.Wait()
+}
+
+func NewVolumeGroupServer(d *Driver) *VolumeGroupServer {
+	return &VolumeGroupServer{
+		Driver: d,
+	}
 }
 
 func NewDefaultIdentityServer(d *Driver) *IdentityServer {
@@ -137,6 +150,14 @@ func (n *Driver) AddControllerServiceCapabilities(cl []csi.ControllerServiceCapa
 	n.cscap = csc
 }
 
+func (n *Driver) AddGroupControllerServiceCapabilities(cl []csi.GroupControllerServiceCapability_RPC_Type) {
+	var csc []*csi.GroupControllerServiceCapability
+	for _, c := range cl {
+		csc = append(csc, NewGroupControllerServiceCapability(c))
+	}
+	n.groupcap = csc
+}
+
 func (n *Driver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) {
 	var nsc []*csi.NodeServiceCapability
 	for _, n := range nl {
@@ -149,6 +170,16 @@ func NewControllerServiceCapability(cap csi.ControllerServiceCapability_RPC_Type
 	return &csi.ControllerServiceCapability{
 		Type: &csi.ControllerServiceCapability_Rpc{
 			Rpc: &csi.ControllerServiceCapability_RPC{
+				Type: cap,
+			},
+		},
+	}
+}
+
+func NewGroupControllerServiceCapability(cap csi.GroupControllerServiceCapability_RPC_Type) *csi.GroupControllerServiceCapability {
+	return &csi.GroupControllerServiceCapability{
+		Type: &csi.GroupControllerServiceCapability_Rpc{
+			Rpc: &csi.GroupControllerServiceCapability_RPC{
 				Type: cap,
 			},
 		},

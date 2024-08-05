@@ -490,3 +490,59 @@ func (m *MockApiService) GetMaxFileSystems() (int, error) {
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+
+func (m *MockApiService) CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error) {
+	args := m.Called(cgID, snapName, snapPrefix, snapSuffix)
+	var cg CGInfo
+	if args.Get(0) != nil {
+		cg, _ = args.Get(0).(CGInfo)
+	}
+	err, _ := args.Get(1).(error)
+	return cg, err
+}
+
+func (m *MockApiService) CreateCG(poolID int, cgName string) (CGInfo, error) {
+	args := m.Called(poolID, cgName)
+	var cg CGInfo
+	if args.Get(0) != nil {
+		cg, _ = args.Get(0).(CGInfo)
+	}
+	err, _ := args.Get(1).(error)
+	return cg, err
+}
+
+func (m *MockApiService) AddMemberToSnapshotGroup(volumeID int, cgID int) error {
+	args := m.Called(volumeID, cgID)
+	var err error
+	if args.Get(0) != nil {
+		err, _ = args.Get(0).(error)
+	}
+	return err
+}
+
+func (m *MockApiService) RemoveMemberFromSnapshotGroup(volumeID int, cgID int) error {
+	args := m.Called(volumeID, cgID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+
+func (m *MockApiService) GetAllCG() ([]CGInfo, error) {
+	args := m.Called()
+	cgInfo, _ := args.Get(0).([]CGInfo)
+	err, _ := args.Get(1).(error)
+	return cgInfo, err
+}
+
+func (m *MockApiService) GetCG(name string) (CGInfo, error) {
+	args := m.Called(name)
+	cgInfo, _ := args.Get(0).(CGInfo)
+	err, _ := args.Get(1).(error)
+	return cgInfo, err
+}
+
+func (m *MockApiService) GetMembersByCGID(cgID int) ([]MemberInfo, error) {
+	args := m.Called(cgID)
+	memberInfo, _ := args.Get(0).([]MemberInfo)
+	err, _ := args.Get(1).(error)
+	return memberInfo, err
+}

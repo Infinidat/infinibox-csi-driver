@@ -528,9 +528,10 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	ns := os.Getenv("POD_NAMESPACE")
 	zlog.Debug().Msgf("POD_NAMESPACE=%s", ns)
 	if ns == "" {
-		zlog.Error().Msg("env var POD_NAMESPACE was not set, defaulting to openshift-operators namespace")
-		ns = "openshift-operators"
+		zlog.Error().Msg("env var POD_NAMESPACE was not set, this is a required env var")
+		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, POD_NAMESPACE required to be set: %v", err)
 	}
+
 	secrets, err := cl.GetSecrets(ns)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, error getting secrets: %v", err)
@@ -583,6 +584,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			}
 
 			var parentName string
+			zlog.Debug().Msgf("snapshot datasettype %s", snapshots[i].DatasetType)
 			switch snapshots[i].DatasetType {
 			case "VOLUME":
 				_, err := clientsvc.GetVolume(snapshots[i].ParentId)
@@ -617,6 +619,9 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				Snapshot: snapshot,
 			}
 
+			zlog.Info().Msgf("SourceVolumeId = %s", req.SourceVolumeId)
+			zlog.Info().Msgf("SnapshotId = %s", req.SnapshotId)
+
 			if req.SourceVolumeId != "" {
 				volProto, err := validateVolumeID(req.SourceVolumeId)
 				if err != nil {
@@ -630,6 +635,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 					}
 				}
 			} else if req.SnapshotId != "" {
+				zlog.Debug().Msgf("comparing %d to %d", iValue, snapshots[i].ID)
 				if iValue == snapshots[i].ID {
 					zlog.Debug().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
 					entry.Snapshot.SnapshotId = req.SnapshotId
@@ -653,57 +659,7 @@ func (s *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacity
 
 func (s *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
-		Capabilities: []*csi.ControllerServiceCapability{
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-					},
-				},
-			},
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
-					},
-				},
-			},
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
-					},
-				},
-			},
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-					},
-				},
-			},
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
-					},
-				},
-			},
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
-					},
-				},
-			},
-			{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-					},
-				},
-			},
-		},
+		Capabilities: s.Driver.cscap,
 	}, nil
 }
 

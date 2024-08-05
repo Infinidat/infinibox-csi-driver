@@ -1,0 +1,123 @@
+
+## Install Prereqs
+
+For this we will use the latest external-snapshotter, when you install the external snapshotter (snapshot-controller) on
+your kube system, you will need to make sure to add the volumegroup CRDs to the following external snapshotter configuration
+file:
+	modified:   client/config/crd/kustomization.yaml
+
+Make this file look like the following before performing the snapshotter installation:
+```
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+  - snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+  - snapshot.storage.k8s.io_volumesnapshots.yaml
+  - groupsnapshot.storage.k8s.io_volumegroupsnapshotclasses.yaml
+  - groupsnapshot.storage.k8s.io_volumegroupsnapshotcontents.yaml
+  - groupsnapshot.storage.k8s.io_volumegroupsnapshots.yaml
+```
+
+You also have to enable the feature when the snapshot controller is executed, to do this you
+have to add the feature flag into the container arguments in the following files:
+	modified:   deploy/kubernetes/csi-snapshotter/setup-csi-snapshotter.yaml
+	modified:   deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
+
+The flag arguments look like this:
+```
+        - name: csi-snapshotter
+          image: registry.k8s.io/sig-storage/csi-snapshotter:v8.0.1
+          args:
+            - "--v=5"
+            - "--enable-volume-group-snapshots=true"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=false"
+```
+
+and 
+
+```
+        - name: snapshot-controller
+          image: registry.k8s.io/sig-storage/snapshot-controller:v8.0.1
+          args:
+            - "--v=5"
+            - "--leader-election=true"
+            - "--enable-volume-group-snapshots=true"
+
+```
+
+## Installing the CSI Driver
+
+Make sure your helm template for the controller has the following flag enabled for the snapshotter sidecar:
+```
+        - name: snapshotter
+          image: {{ required "csi snapshotter sidecar container image." .Values.images.snapshottersidecar }}
+          imagePullPolicy: {{ .Values.images.snapshottersidecar_pull_policy | default "Always" | quote }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v=5"
+            - "--enable-volume-group-snapshots=true"
+```
+
+
+## Running the Example
+
+The CG name you will use on the Ibox is specified in the VolumeGroupSnapshotClass as a custom
+parameter such as:
+```
+  infinidat.com/cgname: dogbert
+```
+
+This means that there is a 1-to-1 relationship between CGs and VolumeGroupSnapshotClass(s).
+
+To create the examples, run the following:
+```
+
+kubectl create -f volumegroupsnapshotclass.yaml
+
+cd ../iscsi
+make setup
+cd iscsi-anno
+make setup
+cd volumegroup
+
+kubectl label pvc iscsi-pvc iscsi-pvc-anno app.kubernetes.io/name=mygroup
+
+
+kubectl create -f volumegroupsnapshot.yaml
+kubectl create -f volumegroupsnapshot2.yaml
+```
+
+In the above example, all PVCs with a special label will be added to the Snap Group.
+
+
+## Openshift Install Reqs
+
+Note that VolumeGroupSnapshots are ONLY included in Openshift if you enable them using a feature gate.  This
+is NOT optimal for production deployments but if you need or want to explore this feature, here are instructions
+on how to install the VolumeGroupSnapshot required resources.
+
+To get this example running on Openshift, you need at least v4.16 of openshift.  Then you will need to 
+enable the TechPreview feature gates as follows:
+```
+oc get featuregate cluster -o yaml
+oc edit featuregate cluster
+```
+
+When you edit the featuregate CR, add this into the spec section and save the changes:
+```
+spec:
+  featureSet: TechPreviewNoUpgrade
+```
+
+After a period of time, openshift will configure itself for all the new feature gates and you
+should see the following VolumeGroupSnapshot CRDs installed:
+```
+10:25:35 ~/infinidat-csi-driver (CSIC-193-ibox-api*) $ oc get crd | grep -i volumegroupsnapshot
+volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io           2024-08-05T15:29:05Z
+volumegroupsnapshotcontents.groupsnapshot.storage.k8s.io          2024-08-05T15:29:05Z
+volumegroupsnapshots.groupsnapshot.storage.k8s.io                 2024-08-05T15:29:05Z
+```
+

@@ -16,7 +16,7 @@ import (
 // Defines Non blocking GRPC server interfaces
 type NonBlockingGRPCServer interface {
 	// Start services at the endpoint
-	Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool)
+	Start(endpoint string, ids csi.IdentityServer, vgs csi.GroupControllerServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool)
 	// Waits for the service to stop
 	Wait()
 	// Stops the service gracefully
@@ -35,11 +35,11 @@ type nonBlockingGRPCServer struct {
 	server *grpc.Server
 }
 
-func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool) {
+func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, vgs csi.GroupControllerServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool) {
 
 	s.wg.Add(1)
 
-	go s.serve(endpoint, ids, cs, ns, testMode)
+	go s.serve(endpoint, ids, vgs, cs, ns, testMode)
 }
 
 func (s *nonBlockingGRPCServer) Wait() {
@@ -54,7 +54,7 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 	s.server.Stop()
 }
 
-func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool) {
+func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, vgs csi.GroupControllerServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool) {
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
@@ -81,6 +81,9 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 
 	if ids != nil {
 		csi.RegisterIdentityServer(server, ids)
+	}
+	if vgs != nil {
+		csi.RegisterGroupControllerServer(server, vgs)
 	}
 	if cs != nil {
 		csi.RegisterControllerServer(server, cs)
