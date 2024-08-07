@@ -101,7 +101,7 @@ e2enfsanno:  ## run the infinidat developed e2e nfs tests
 e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/iscsi -tags e2e
+	$(_GOTEST) -timeout=20m -count=1 -v ./e2e/iscsi -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsianno

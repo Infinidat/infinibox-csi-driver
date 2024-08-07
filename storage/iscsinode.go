@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"net"
 
 	"os"
 	"os/exec"
@@ -561,7 +562,19 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				}
 			}
 		} else {
-			zlog.Debug().Msgf("already logged into iscsi target iqn %s using interface %s", targets[i].Iqn, targets[i].Portals[0])
+			/**
+			if len(targets[i].Portals) == 0 {
+				msg := fmt.Sprintf("iscsi login portal error, no portals found iqn: %s", targets[i].Iqn)
+				zlog.Error().Msgf(msg)
+				return "", err
+			}
+			*/
+
+			if len(targets[i].Portals) > 0 {
+				zlog.Debug().Msgf("already logged into iscsi target iqn %s using interface %s", targets[i].Iqn, targets[i].Portals[0])
+			} else {
+				zlog.Debug().Msgf("already logged into iscsi target iqn %s", targets[i].Iqn)
+			}
 		}
 
 	}
@@ -1233,6 +1246,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 		return targets, fmt.Errorf("no api found")
 	}
 
+	var portalsExist bool
 	targets = make([]iscsiTarget, len(networkSpaces))
 
 	for i := 0; i < len(networkSpaces); i++ {
@@ -1243,14 +1257,48 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 			zlog.Err(e)
 			return targets, status.Errorf(codes.InvalidArgument, e.Error())
 		}
+		zlog.Debug().Msgf("got nspace by name: %s", nspace.Name)
+
 		targets[i] = iscsiTarget{
-			Iqn: nspace.Properties.IscsiIqn,
+			Iqn:     nspace.Properties.IscsiIqn,
+			Portals: []string{},
 		}
 		for _, p := range nspace.Portals {
+			if !p.Enabled {
+				zlog.Error().Msgf("network space %s ip address %s is disabled, not adding to list of available ip addresses", nspace.Name, p.IpAdress)
+				continue
+			}
+
+			iscsiAddress := fmt.Sprintf("%s:%d", p.IpAdress, nspace.Properties.IscsiTcpPort)
+			err := testIscsiConnection(iscsiAddress)
+			if err != nil {
+				zlog.Error().Msgf("error getting iscsi network space %s ip connection to %s error: %v", networkSpaces[i], iscsiAddress, err)
+				continue
+			}
+
+			zlog.Debug().Msgf("adding iscsi network space %s ip connection to %s list", networkSpaces[i], iscsiAddress)
 			targets[i].Portals = append(targets[i].Portals, portalMounter(p.IpAdress))
+			portalsExist = true
 		}
 	}
+
+	if !portalsExist {
+		return targets, fmt.Errorf("there are zero network space ip addresses available")
+	}
 	return targets, nil
+}
+
+func testIscsiConnection(ipAndPort string) error {
+	zlog.Debug().Msgf("testing connectivity to iscsi at %s", ipAndPort)
+	d := net.Dialer{Timeout: 2 * time.Second}
+	conn, err := d.Dial("tcp", ipAndPort)
+	if err != nil {
+		return fmt.Errorf("could not connect to iscsi ip address %s: %s", ipAndPort, err.Error())
+	}
+	if conn != nil {
+		conn.Close()
+	}
+	return nil
 }
 
 func getSessionDetails() (results []SessionDetails) {
