@@ -172,7 +172,9 @@ func (nfs *nfsstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetV
 }
 
 func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	zlog.Info().Msgf("nfs NodeExpandVolume called req %+v\n", req)
+	zlog.Info().Msgf("nfs NodeExpandVolume called req volume path %s", req.GetVolumePath())
+	// there is no implementation here for NFS expand since nfs handles resizing automatically
+	// this function does get called only because of the CSI driver design
 	response := csi.NodeExpandVolumeResponse{}
 	return &response, nil
 }

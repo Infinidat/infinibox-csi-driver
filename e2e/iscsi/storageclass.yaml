@@ -17,6 +17,8 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
   storage_protocol: iscsi
   #max_vols_per_host: "100"

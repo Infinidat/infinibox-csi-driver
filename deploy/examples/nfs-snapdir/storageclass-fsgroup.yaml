@@ -23,6 +23,8 @@ parameters:
     csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
     csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
     csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
 
     # InfiniBox configuration
     storage_protocol: nfs

@@ -21,6 +21,8 @@ parameters:
     csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
     csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
 
     # infinibox configuration
     pool_name: csitesting

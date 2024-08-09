@@ -18,7 +18,10 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
   csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
+
   #max_vols_per_host: "100"
   network_space: $_E2E_NETWORK_SPACE
   pool_name: "csitesting"

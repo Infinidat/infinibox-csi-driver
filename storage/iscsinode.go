@@ -396,8 +396,95 @@ func (iscsi *iscsistorage) NodeGetVolumeStats(ctx context.Context, req *csi.Node
 }
 
 func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	zlog.Info().Msgf("iscsi NodeExpandVolume called request %+v\n", req)
+	zlog.Info().Msgf("iscsi NodeExpandVolume called request volume ID %s path %s\n", req.GetVolumeId(), req.GetVolumePath())
 	response := csi.NodeExpandVolumeResponse{}
+
+	// the block volume case
+	block := req.GetVolumeCapability().GetBlock()
+	zlog.Debug().Msgf("block string is [%s]", block.String())
+
+	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
+
+	command := fmt.Sprintf("mount | grep %s", req.GetVolumePath())
+	out, err := execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error getting multipath device name %s - from %s \n", err.Error(), req.GetVolumePath())
+		return nil, err
+	}
+
+	if out == "" {
+		err := fmt.Errorf("error getting multipath devices from output volume path is %s command output was empty", req.GetVolumePath())
+		zlog.Error().Msgf(err.Error())
+		return nil, err
+	}
+
+	output := strings.TrimSpace(out)
+	outputParts := strings.Split(output, " ")
+	multipathDevice := outputParts[0]
+
+	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
+	command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
+	out, err = execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
+		return nil, err
+	}
+
+	if out == "" {
+		err := fmt.Errorf("error getting multipath devices from output %s command output was empty", multipathDevice)
+		zlog.Error().Msgf(err.Error())
+		return nil, err
+	}
+
+	output = strings.TrimSpace(out)
+	zlog.Debug().Msgf("output is [%s]\n", output)
+	outputParts = strings.Split(output, "\n")
+	zlog.Debug().Msgf("lines %d\n", len(outputParts))
+
+	// 3 - echo 1 > /sys/block/path_device/device/rescan  .... run those commands on each device from the previous step
+	for i := 0; i < len(outputParts); i++ {
+		line := strings.TrimSpace(outputParts[i])
+		lineParts := strings.Split(line, " ")
+		if len(lineParts) < 3 {
+			zlog.Error().Msgf("error getting multipath blockDevice from output %v", lineParts)
+			continue
+		}
+		blockDevice := lineParts[2]
+		zlog.Debug().Msgf("device is [%s]\n", blockDevice)
+		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
+		command = fmt.Sprintf("echo 1 > %s", rescanPath)
+		out, err := execScsi.Command(command, "")
+		if err != nil {
+			zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
+			return nil, err
+		}
+		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
+	}
+
+	// 4 - run multipathd resize map multipath_device - where multipath_device is like /dev/mapper/mpathwi from previous step,
+	// we need to strip off the /dev/mapper/ path prefix
+	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
+	if len(mpathPart) < 2 {
+		return nil, fmt.Errorf("error getting mpathPart from %+v", mpathPart)
+	}
+	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
+	out, err = execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error multipathd resize map multipath devices %s \n", err.Error())
+		return nil, err
+	}
+	zlog.Debug().Msgf("multipathd resize map output is [%s]\n", strings.TrimSpace(string(out)))
+
+	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
+	time.Sleep(time.Second * 5)
+	command = fmt.Sprintf("resize2fs %s", multipathDevice)
+	out, err = execScsi.Command(command, "")
+	if err != nil {
+		zlog.Error().Msgf("error resize2fs %s \n", err.Error())
+		return nil, err
+	}
+	zlog.Debug().Msgf("resize2fs output is [%s]\n", strings.TrimSpace(string(out)))
+
 	return &response, nil
 }
 

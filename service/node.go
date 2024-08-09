@@ -272,17 +272,30 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeExpandVolume", volumeId)
 
-	storageHelper := storage.Service{}
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	if len(volproto) != 2 {
+		return nil, status.Error(codes.NotFound, "volume Id does not follow '<id>$$<proto>' pattern")
+	}
 
-	err := storageHelper.NodeExpandVolumeSize(req)
+	protocol := volproto[1]
+
+	config := make(map[string]string)
+
+	// get operator
+	storageNode, err := storage.NewStorageNode(protocol, config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodeExpandVolume failed to build new storage node with volume ID %s: %s", volumeId, err)
+		return nil, err
+	}
+
+	resp, err := storageNode.NodeExpandVolume(context.Background(), req)
 	if err != nil {
 		zlog.Error().Msgf("NodeExpandVolume failed with volume ID %s: %s", volumeId, err)
 		return nil, err
 	}
 
 	zlog.Info().Msgf("NodeExpandVolume Finished - ID: '%s'", volumeId)
-	response := csi.NodeExpandVolumeResponse{}
-	return &response, nil
+	return resp, nil
 }
 
 func getNodeFQDN() string {

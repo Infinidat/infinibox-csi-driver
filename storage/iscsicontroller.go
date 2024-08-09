@@ -711,6 +711,6 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	zlog.Debug().Msgf("volume with ID %d size updated successfully", volumeID)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
-		NodeExpansionRequired: false,
+		NodeExpansionRequired: true,
 	}, nil
 }

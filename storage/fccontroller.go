@@ -634,6 +634,6 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	zlog.Debug().Msg("Volume size updated successfully")
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
-		NodeExpansionRequired: false,
+		NodeExpansionRequired: true,
 	}, nil
 }

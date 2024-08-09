@@ -23,6 +23,8 @@ parameters:
   csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
   csi.storage.k8s.io/fstype: ext4
   pool_name: $_E2E_POOL
   #provision_type: "THIN"
