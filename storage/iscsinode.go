@@ -403,6 +403,15 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	block := req.GetVolumeCapability().GetBlock()
 	zlog.Debug().Msgf("block string is [%s]", block.String())
 
+	if req.GetVolumeCapability().GetBlock() != nil {
+		err := blockExpandVolume(req.GetVolumePath())
+		if err != nil {
+			zlog.Error().Msgf("error expanding block volume name %s - from %s \n", err.Error(), req.GetVolumePath())
+			return nil, err
+		}
+		return &response, nil
+	}
+
 	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
 
 	command := fmt.Sprintf("mount | grep %s", req.GetVolumePath())
@@ -636,9 +645,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				zlog.Debug().Msgf("login to iscsi target iqn %s at all portals using interface %s", targets[i].Iqn, targets[i].Portals[p])
 				_, err = execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[i].Iqn, targets[i].Portals[p]))
 				if err != nil {
-					if err != nil {
-						zlog.Err(err)
-					}
+					zlog.Err(err)
 					if status.Code(err) != codes.AlreadyExists {
 						msg := fmt.Sprintf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[i].Iqn, targets[i].Portals[p], err.Error())
 						zlog.Error().Msgf(msg)

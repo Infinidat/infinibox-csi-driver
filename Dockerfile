@@ -50,6 +50,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/dmsetup \
     && ln -s /ibox/host-chroot.sh /ibox/file \
     && ln -s /ibox/host-chroot.sh /ibox/find \
+    && ln -s /ibox/host-chroot.sh /ibox/findmnt \
     && ln -s /ibox/host-chroot.sh /ibox/fsck \
     && ln -s /ibox/host-chroot.sh /ibox/hostnamectl \
     && ln -s /ibox/host-chroot.sh /ibox/iscsiadm \

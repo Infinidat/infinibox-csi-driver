@@ -255,6 +255,15 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	response := csi.NodeExpandVolumeResponse{}
 
+	if req.GetVolumeCapability().GetBlock() != nil {
+		err := blockExpandVolume(req.GetVolumePath())
+		if err != nil {
+			zlog.Error().Msgf("error expanding block volume name %s - from %s \n", err.Error(), req.GetVolumePath())
+			return nil, err
+		}
+		return &response, nil
+	}
+
 	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
 
 	command := fmt.Sprintf("mount | grep %s", req.GetVolumePath())
@@ -273,6 +282,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	output := strings.TrimSpace(out)
 	outputParts := strings.Split(output, " ")
 	multipathDevice := outputParts[0]
+	zlog.Debug().Msgf("output is [%v] multipathDevice=[%s]", output, multipathDevice)
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
