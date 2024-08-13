@@ -209,8 +209,13 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	if poolToUse == "" {
 		return fmt.Errorf("_E2E_POOL env var is not set and is required")
 	}
+	networkSpaceToUse := os.Getenv("_E2E_NETWORK_SPACE")
+	if poolToUse == "" {
+		return fmt.Errorf("_E2E_NETWORK_SPACE env var is not set and is required")
+	}
 	sc.Name = testConfig.TestNames.SCName
 	sc.Parameters[common.SC_POOL_NAME] = poolToUse
+	sc.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
 	if testConfig.UseFsGroup {
 		delete(sc.Parameters, common.SC_UID)
 		delete(sc.Parameters, common.SC_GID)
