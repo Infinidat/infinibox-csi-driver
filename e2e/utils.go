@@ -341,6 +341,9 @@ func CreateNamespace(ctx context.Context, uniqueName string, clientset *kubernet
 
 	m := metav1.ObjectMeta{
 		Name: uniqueName,
+		Labels: map[string]string{
+			"pod-security.kubernetes.io/enforce": "privileged",
+		},
 	}
 	ns := &v1.Namespace{
 		ObjectMeta: m,
