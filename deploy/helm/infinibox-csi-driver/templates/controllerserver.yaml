@@ -80,6 +80,8 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"   
+            - "--extra-create-metadata=true"   
+            - "--enable-volume-group-snapshots=true"   
             - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created snapshot names" .Values.volumeNamePrefix }}"
             - "--snapshot-name-uuid-length=10"
           env:
