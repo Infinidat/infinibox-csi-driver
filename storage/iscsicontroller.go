@@ -29,13 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-
-	params := req.GetParameters()
-	zlog.Debug().Msgf("requested volume parameters are %v", params)
-
-	zlog.Debug().Msgf("CreateVolume volume: %s of size: %d bytes", req.GetName(), iscsi.capacity)
-
+func (iscsi *iscsistorage) ValidateStorageClass(params map[string]string) error {
 	requiredISCSIParams := map[string]string{
 		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
@@ -45,11 +39,20 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	// validate required parameters
-	err := validateStorageClassParameters(requiredISCSIParams, optionalISCSIParams, params, iscsi.cs.Api)
+	err := ValidateRequiredOptionalSCParameters(requiredISCSIParams, optionalISCSIParams, params)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
+	return nil
+}
+
+func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+
+	params := req.GetParameters()
+	zlog.Debug().Msgf("requested volume parameters are %v", params)
+
+	zlog.Debug().Msgf("CreateVolume volume: %s of size: %d bytes", req.GetName(), iscsi.capacity)
 
 	// Volume name to be created - already verified earlier
 	name := req.GetName()

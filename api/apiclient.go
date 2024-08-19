@@ -65,7 +65,6 @@ type Client interface {
 	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
 
 	// for nfs
-	OneTimeValidation(poolname string, networkspace string) (list string, err error)
 	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
 	DeleteExportPath(exportID int64) (*ExportResponse, error)
 	DeleteFileSystem(fileSystemID int64) (*FileSystem, error)

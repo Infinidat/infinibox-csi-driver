@@ -24,21 +24,42 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func (treeq *treeqstorage) ValidateStorageClass(params map[string]string) error {
+	requiredParams := map[string]string{
+		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+	}
+	optionalParams := map[string]string{
+		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
+		common.SC_MAX_TREEQS_PER_FILESYSTEM: `\A\d+\z`,
+		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
+	}
+
+	err := ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, params)
+	if err != nil {
+		zlog.Err(err)
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	err = validateNFSExportPermissions(params)
+	if err != nil {
+		zlog.Err(err)
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	return nil
+}
+
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	zlog.Debug().Msgf("CreateVolume called pvName %s parameters %v", req.GetName(), req.GetParameters())
 
 	params := req.GetParameters()
 
-	err = nfsSanityCheck(req, map[string]string{
-		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, map[string]string{
-		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
-		common.SC_MAX_TREEQS_PER_FILESYSTEM: `\A\d+\z`,
-		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
-	}, params, treeq.nfsstorage.cs.Api)
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
+	for _, cap := range req.GetVolumeCapabilities() {
+		if block := cap.GetBlock(); block != nil {
+			e := fmt.Errorf("block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
+			zlog.Err(e)
+			return nil, status.Error(codes.InvalidArgument, e.Error())
+		}
 	}
 
 	treeq.nfsstorage.storageClassParameters = params

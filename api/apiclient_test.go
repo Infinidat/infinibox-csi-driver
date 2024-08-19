@@ -1080,59 +1080,6 @@ func (suite *ApiTestSuite) Test_DeleteExportPath_Success() {
 	assert.Nil(suite.T(), err, "Error should  be nil")
 }
 
-func (suite *ApiTestSuite) Test_OneTimeValidation_PoolIDByName_Error() {
-	var poolArry []StoragePool
-	var pool StoragePool
-	pool.ID = 123
-	poolArry = append(poolArry, pool)
-	poolIDResponse := client.ApiResponse{Result: poolArry}
-	suite.clientMock.On("GetWithQueryString").Return(poolIDResponse, nil)
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("Get").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	_, err := service.OneTimeValidation("poolName", "newtworkSpace")
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_Error() {
-	expectedErr := errors.New("some error")
-	var poolArry []StoragePool
-	var pool StoragePool
-	pool.ID = 123
-	poolArry = append(poolArry, pool)
-	poolIDResponse := client.ApiResponse{Result: poolArry}
-	suite.clientMock.On("GetWithQueryString").Return(poolIDResponse, nil)
-	suite.clientMock.On("Get").Return("networkSpace", nil)
-	suite.clientMock.On("Get").Return("networkSpace", expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	_, err := service.OneTimeValidation("poolName", "newtworkSpace")
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_OneTimeValidation_NetworkSpaceByName_notmatch() {
-	var poolArry []StoragePool
-	var pool StoragePool
-	pool.ID = 123
-	poolArry = append(poolArry, pool)
-	poolIDResponse := client.ApiResponse{Result: poolArry}
-
-	suite.clientMock.On("GetWithQueryString").Return(poolIDResponse, nil)
-
-	var netArry []NetworkSpace
-	var network NetworkSpace
-	network.Name = "networkSpace"
-	netArry = append(netArry, network)
-	expectedResponse := client.ApiResponse{Result: netArry}
-
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	_, err := service.OneTimeValidation("poolName", "newtworkSpace")
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-}
-
 func (suite *ApiTestSuite) Test_GetFileSystemByName_Error() {
 	expectedErr := errors.New("some error")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)

@@ -140,10 +140,24 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	storageController, err := storage.NewStorageController(capacity, storageprotocol, configparams, secretsToUse)
+	comnserv, err := storage.BuildCommonService(configparams, secretsToUse)
+	if err != nil {
+		zlog.Error().Msgf("CreateVolume error: %v", err)
+		err = status.Errorf(codes.Internal, "error getting api,  volume '%s' - %s", volName, err.Error())
+		return nil, err
+	}
+
+	storageController, err := storage.NewStorageController(comnserv, capacity, storageprotocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("CreateVolume error: %v", err)
 		err = status.Errorf(codes.Internal, "error while creating volume '%s' - %s", volName, err.Error())
+		return nil, err
+	}
+
+	err = validateCommonStorageClassParameters(comnserv, req.Parameters)
+	if err != nil {
+		zlog.Error().Msgf("CreateVolume error: %v", err)
+		err = status.Errorf(codes.Internal, "error validating StorageClass parameters volume '%s' - %s", volName, err.Error())
 		return nil, err
 	}
 
@@ -158,6 +172,14 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
 		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE])
 		req.Parameters[common.SC_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] //overwrite what was in the storageclass if any
+	}
+
+	// perform protocol specific StorageClass validations
+	err = storageController.ValidateStorageClass(req.Parameters)
+	if err != nil {
+		zlog.Error().Msgf("CreateVolume error: %v", err)
+		err = status.Errorf(codes.Internal, "error validating StorageClass parameters volume '%s' - %s", volName, err.Error())
+		return nil, err
 	}
 
 	createVolResp, err = storageController.CreateVolume(ctx, req)
@@ -243,7 +265,13 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		"nodeid": s.Driver.nodeID,
 	}
 
-	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, secretsToUse)
+	comnserv, err := storage.BuildCommonService(config, secretsToUse)
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %s: %v", volumeId, err)
+		return
+	}
+
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, secretsToUse)
 	if err != nil || storageController == nil {
 		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)
 		return
@@ -308,7 +336,13 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	config := make(map[string]string)
 
-	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %v", err)
+		return
+	}
+
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		zlog.Error().Msgf("failed to create storage controller: %s", volproto.StorageType)
 		err = status.Errorf(codes.Internal, "ControllerPublishVolume failed to initialise storage controller: %s", volproto.StorageType)
@@ -352,7 +386,14 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	}
 
 	config := make(map[string]string)
-	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
+
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %v", err)
+		return
+	}
+
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("ControllerUnpublishVolume failed to initialise storage controller: " + volproto.StorageType)
 		return
@@ -433,7 +474,13 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	}
 
 	config := make(map[string]string)
-	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %v", err)
+		return
+	}
+
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
 		err = errors.New("error ValidateVolumeCapabilities failed to initialize storage controller: " + volproto.StorageType)
 		return
@@ -675,7 +722,13 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
-	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
+
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %v", err)
+		return
+	}
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("Create snapshot failed: %s", err)
 		return nil, err
@@ -709,7 +762,12 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
-	storageController, err := storage.NewStorageController(0, volproto.StorageType, config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %v", err)
+		return
+	}
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("delete snapshot failed: %s", err)
 		return nil, err
@@ -743,7 +801,12 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 
-	storageController, err := storage.NewStorageController(capacity, volproto.StorageType, configparams, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(configparams, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("failed to get ibox api %v", err)
+		return
+	}
+	storageController, err := storage.NewStorageController(comnserv, capacity, volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("expand volume failed: %s", err)
 		return
@@ -798,4 +861,84 @@ func validateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err er
 	volprotoconf.VolumeID = volproto[0]
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil
+}
+
+func validateCommonStorageClassParameters(comnserv storage.Commonservice, scParameters map[string]string) error {
+	poolName := scParameters[common.SC_POOL_NAME]
+	_, err := comnserv.Api.GetStoragePoolIDByName(poolName)
+	if err != nil {
+		return err
+	}
+
+	protocol := scParameters[common.SC_STORAGE_PROTOCOL]
+
+	// skip validation of network space when FC
+	if protocol != common.PROTOCOL_FC {
+		networkspace := scParameters[common.SC_NETWORK_SPACE]
+		arrayofNetworkSpaces := strings.Split(networkspace, ",")
+
+		for _, name := range arrayofNetworkSpaces {
+			_, err := comnserv.Api.GetNetworkSpaceByName(name)
+			if err != nil {
+				zlog.Error().Msgf("network space %s is not found on the ibox", name)
+				return err
+			}
+		}
+		// validate network protocol / networkspace compatability
+		if err := storage.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.Api); err != nil {
+			zlog.Err(err)
+			return err
+		}
+	}
+
+	// validate optional uid and gid parameters
+	gidProvided := scParameters[common.SC_GID]
+	if gidProvided != "" {
+		gid_int, err := strconv.Atoi(gidProvided)
+		if err != nil || gid_int < -1 {
+			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.SC_GID, gidProvided)
+		}
+	}
+
+	uidProvided := scParameters[common.SC_UID]
+	if uidProvided != "" {
+		uid_int, err := strconv.Atoi(uidProvided)
+		if err != nil || uid_int < -1 {
+			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.SC_UID, uidProvided)
+		}
+	}
+
+	unixPermissionsProvided := scParameters[common.SC_UNIX_PERMISSIONS]
+	if unixPermissionsProvided != "" {
+		_, err := strconv.ParseUint(unixPermissionsProvided, 8, 32)
+		if err != nil {
+			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.SC_UNIX_PERMISSIONS, unixPermissionsProvided)
+		}
+	}
+
+	maxVolsProvided := scParameters[common.SC_MAX_VOLS_PER_HOST]
+	if maxVolsProvided != "" {
+		maxVols_int, err := strconv.Atoi(maxVolsProvided)
+		if err != nil || maxVols_int < -1 {
+			return fmt.Errorf("format error in StorageClass, %s appears to not be a valid integer, value entered was %s", common.SC_MAX_VOLS_PER_HOST, maxVolsProvided)
+		}
+	}
+
+	provTypeProvided := scParameters[common.SC_PROVISION_TYPE]
+	if provTypeProvided != "" {
+		p := strings.ToUpper(provTypeProvided)
+		if p != common.SC_THICK_PROVISION_TYPE && p != common.SC_THIN_PROVISION_TYPE {
+			return fmt.Errorf("format error in StorageClass, %s appears to not be a valid value, value entered was %s", common.SC_PROVISION_TYPE, provTypeProvided)
+		}
+	}
+
+	ssdEnabledProvided := scParameters[common.SC_SSD_ENABLED]
+	if ssdEnabledProvided != "" {
+		_, err := strconv.ParseBool(ssdEnabledProvided)
+		if err != nil {
+			return fmt.Errorf("format error in StorageClass, %s appears to not be a valid boolean, value entered was %s", common.SC_SSD_ENABLED, ssdEnabledProvided)
+		}
+	}
+
+	return nil
 }

@@ -223,7 +223,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	return nil
 }
 
-func validateStorageClassParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string, api api.Client) error {
+func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string) error {
 	// Loop through and check required parameters only, consciously ignore parameters that aren't required
 	badParamsMap := make(map[string]string)
 	for param, required_regex := range requiredStorageClassParams {
@@ -236,81 +236,11 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 		}
 	}
 
-	scProtocol := providedStorageClassParams[common.SC_STORAGE_PROTOCOL]
-	scNetSpace := strings.Split(providedStorageClassParams[common.SC_NETWORK_SPACE], ",") // get network_space(s) as array
-
-	// validate network protocol / networkspace compatability
-	if scProtocol != common.PROTOCOL_FC {
-		if err := validateProtocolToNetworkSpace(scProtocol, scNetSpace, api); err != nil {
-			zlog.Err(err)
-			return err
-		}
-	}
-
 	for param, required_regex := range optionalSCParameters {
 		if param_value, ok := providedStorageClassParams[param]; ok {
 			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
 				badParamsMap[param] = "Optional input parameter " + param_value + " didn't match expected pattern " + required_regex
 			}
-		}
-	}
-
-	// validate optional uid and gid parameters
-	gidProvided := providedStorageClassParams[common.SC_GID]
-	uidProvided := providedStorageClassParams[common.SC_UID]
-	unixPermissionsProvided := providedStorageClassParams[common.SC_UNIX_PERMISSIONS]
-
-	if gidProvided != "" {
-		gid_int, err := strconv.Atoi(gidProvided)
-		if err != nil || gid_int < -1 {
-			badParamsMap[common.SC_GID] = "Optional input parameter " + common.SC_GID + " appears to not be a valid integer"
-		}
-	}
-	if uidProvided != "" {
-		uid_int, err := strconv.Atoi(uidProvided)
-		if err != nil || uid_int < -1 {
-			badParamsMap[common.SC_UID] = "Optional input parameter " + common.SC_UID + " appears to not be a valid integer"
-		}
-	}
-
-	if unixPermissionsProvided != "" {
-		_, err := strconv.ParseUint(unixPermissionsProvided, 8, 32)
-		if err != nil {
-			badParamsMap[common.SC_UNIX_PERMISSIONS] = "Optional input parameter " + common.SC_UNIX_PERMISSIONS + " appears to not be a valid integer"
-		}
-	}
-
-	provTypeProvided := providedStorageClassParams[common.SC_PROVISION_TYPE]
-	if provTypeProvided != "" {
-		p := strings.ToUpper(provTypeProvided)
-		if p != common.SC_THICK_PROVISION_TYPE && p != common.SC_THIN_PROVISION_TYPE {
-			badParamsMap[common.SC_PROVISION_TYPE] = fmt.Sprintf("Optional input parameter %s entered as %s is required to be THICK or THIN", common.SC_PROVISION_TYPE, p)
-		}
-	}
-
-	ssdEnabledProvided := providedStorageClassParams[common.SC_SSD_ENABLED]
-	if ssdEnabledProvided != "" {
-		_, err := strconv.ParseBool(ssdEnabledProvided)
-		if err != nil {
-			badParamsMap[common.SC_SSD_ENABLED] = fmt.Sprintf("Optional input parameter %s entered as %s is required to be true or false", common.SC_SSD_ENABLED, ssdEnabledProvided)
-		}
-	}
-
-	// optional and used only for NFS and TREEQ
-	snapdirVisibleProvided := providedStorageClassParams[common.SC_SNAPDIR_VISIBLE]
-	if snapdirVisibleProvided != "" {
-		_, err := strconv.ParseBool(snapdirVisibleProvided)
-		if err != nil {
-			badParamsMap[common.SC_SNAPDIR_VISIBLE] = fmt.Sprintf("Optional input parameter %s entered as %s is required to be true or false", common.SC_SNAPDIR_VISIBLE, snapdirVisibleProvided)
-		}
-	}
-
-	maxVolsProvided := providedStorageClassParams[common.SC_MAX_VOLS_PER_HOST]
-
-	if maxVolsProvided != "" {
-		maxVols_int, err := strconv.Atoi(maxVolsProvided)
-		if err != nil || maxVols_int < -1 {
-			badParamsMap[common.SC_MAX_VOLS_PER_HOST] = fmt.Sprintf("Optional input parameter %s appears to not be a valid integer, value entered was %s", common.SC_MAX_VOLS_PER_HOST, maxVolsProvided)
 		}
 	}
 
@@ -320,48 +250,39 @@ func validateStorageClassParameters(requiredStorageClassParams, optionalSCParame
 		return e
 	}
 
-	// TODO validate uid, guid, unix_permissions globally since it pertains to nfs/treeq/fc
-	// uid should be integer >= -1, if set to -1, then it means don't change
-	// gid should be integer >= -1, if set to -1, then it means don't change
-	// unix_permissions should be valid octal value
+	return nil
+}
 
-	// TODO refactor potential - each protocol would implement a function to isolate it's
-	// particular SC validation logic
-	if providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == common.PROTOCOL_NFS || providedStorageClassParams[common.SC_STORAGE_PROTOCOL] == common.PROTOCOL_TREEQ {
-		if providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
-			// the case when nfs_export_permissions is not set by a user in the SC
-		} else {
-			permissionsMapArray, err := getPermissionMaps(providedStorageClassParams[common.SC_NFS_EXPORT_PERMISSIONS])
-			if err != nil {
-				zlog.Err(err)
-				return err
-			}
+// uid should be integer >= -1, if set to -1, then it means don't change
+// gid should be integer >= -1, if set to -1, then it means don't change
+// unix_permissions should be valid octal value
+func validateNFSExportPermissions(scParameters map[string]string) error {
+	if scParameters[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
+		// the case when nfs_export_permissions is not set by a user in the SC
+	} else {
+		permissionsMapArray, err := getPermissionMaps(scParameters[common.SC_NFS_EXPORT_PERMISSIONS])
+		if err != nil {
+			zlog.Err(err)
+			return err
+		}
 
-			// validation for uid,gid,unix_permissions
-			if providedStorageClassParams[common.SC_UID] != "" || providedStorageClassParams[common.SC_GID] != "" || providedStorageClassParams[common.SC_UNIX_PERMISSIONS] != "" {
-				if len(permissionsMapArray) > 0 {
-					noRootSquash := permissionsMapArray[0]["no_root_squash"]
-					if noRootSquash == false {
-						e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
-						zlog.Err(e)
-						return e
-					}
+		// validation for uid,gid,unix_permissions
+		if scParameters[common.SC_UID] != "" || scParameters[common.SC_GID] != "" || scParameters[common.SC_UNIX_PERMISSIONS] != "" {
+			if len(permissionsMapArray) > 0 {
+				noRootSquash := permissionsMapArray[0]["no_root_squash"]
+				if noRootSquash == false {
+					e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
+					zlog.Err(e)
+					return e
 				}
 			}
 		}
 	}
-
-	_, err := api.OneTimeValidation(providedStorageClassParams[common.SC_POOL_NAME], providedStorageClassParams[common.SC_NETWORK_SPACE])
-	if err != nil {
-		zlog.Err(err)
-		return err
-	}
-
 	return nil
 }
 
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
-func validateProtocolToNetworkSpace(protocol string, networkSpaces []string, api api.Client) error {
+func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api api.Client) error {
 
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
@@ -686,30 +607,6 @@ func logPermissions(note, hostTargetPath string) {
 		zlog.Error().Msgf("error in doing ls command on %s error is  %s\n", hostTargetPath, err.Error())
 	}
 	zlog.Debug().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
-}
-
-func nfsSanityCheck(req *csi.CreateVolumeRequest, requiredParams map[string]string, optionalParams map[string]string, suppliedParams map[string]string, api api.Client) (err error) {
-
-	err = validateStorageClassParameters(requiredParams, optionalParams, suppliedParams, api)
-	if err != nil {
-		zlog.Err(err)
-		return status.Error(codes.InvalidArgument, err.Error())
-	}
-
-	useChap := suppliedParams[common.SC_USE_CHAP]
-	if useChap != "" {
-		zlog.Warn().Msgf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
-	}
-
-	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
-	for _, cap := range req.GetVolumeCapabilities() {
-		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("block access requested for %s PV %s", suppliedParams[common.SC_STORAGE_PROTOCOL], req.GetName())
-			zlog.Err(e)
-			return status.Error(codes.InvalidArgument, e.Error())
-		}
-	}
-	return err
 }
 
 // validateSnapshotLockingParameter validates an input lock_expires parameter string and returns

@@ -24,35 +24,6 @@ import (
 	"strings"
 )
 
-// OneTimeValidation :
-func (c *ClientService) OneTimeValidation(poolname string, networkspace string) (list string, err error) {
-	// validating pool
-	validList := ""
-	_, err = c.GetStoragePoolIDByName(poolname)
-	if err != nil {
-		return validList, err
-	}
-
-	arrayofNetworkSpaces := strings.Split(networkspace, ",")
-	var arrayOfValidnetspaces []string
-
-	for _, name := range arrayofNetworkSpaces {
-		nspace, err := c.GetNetworkSpaceByName(name)
-		if err != nil {
-			zlog.Error().Msgf(err.Error())
-		}
-		if nspace.Name == name {
-			arrayOfValidnetspaces = append(arrayOfValidnetspaces, name)
-		}
-	}
-	if len(arrayOfValidnetspaces) > 0 {
-		validList = strings.Join(arrayOfValidnetspaces, ",")
-		return validList, nil
-	}
-
-	return validList, fmt.Errorf("network space %s is not found on the ibox", networkspace)
-}
-
 // DeleteExportPath :
 func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error) {
 	zlog.Trace().Msgf("Deleting export path with ID %d", exportID)

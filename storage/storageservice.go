@@ -53,6 +53,7 @@ const (
 type Storageoperations interface {
 	csi.ControllerServer
 	csi.NodeServer
+	ValidateStorageClass(params map[string]string) error
 }
 
 // Mutex protecting device rescan and delete operations
@@ -105,26 +106,21 @@ type iscsistorage struct {
 }
 
 // NewStorageController : To return specific implementation of storage
-func NewStorageController(capacity int64, storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
-	comnserv, err := BuildCommonService(configparams[0], configparams[1])
-	if err == nil {
-		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
-		switch storageProtocol {
-		case common.PROTOCOL_FC:
-			return &fcstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}}, nil
-		case common.PROTOCOL_ISCSI:
-			return &iscsistorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
-		case common.PROTOCOL_NFS:
-			return &nfsstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}, nil
-		case common.PROTOCOL_TREEQ:
-			nfs := nfsstorage{capacity: capacity, storageClassParameters: make(map[string]string), cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}
-			service := &TreeqService{nfsstorage: nfs, cs: comnserv}
-			return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
-		default:
-			return nil, errors.New("Error: Invalid storage protocol - " + storageProtocol)
-		}
+func NewStorageController(comnserv Commonservice, capacity int64, storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
+	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
+	switch storageProtocol {
+	case common.PROTOCOL_FC:
+		return &fcstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}}, nil
+	case common.PROTOCOL_ISCSI:
+		return &iscsistorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
+	case common.PROTOCOL_NFS:
+		return &nfsstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}, nil
+	case common.PROTOCOL_TREEQ:
+		nfs := nfsstorage{capacity: capacity, storageClassParameters: make(map[string]string), cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}
+		service := &TreeqService{nfsstorage: nfs, cs: comnserv}
+		return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
 	}
-	return nil, err
+	return nil, errors.New("Error: Invalid storage protocol - " + storageProtocol)
 }
 
 // NewStorageNode : To return specific implementation of storage

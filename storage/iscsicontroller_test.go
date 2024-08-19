@@ -35,22 +35,20 @@ func TestISCSIControllerSuite(t *testing.T) {
 	suite.Run(t, new(ISCSIControllerSuite))
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail() {
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Fail() {
 	service := iscsistorage{cs: *suite.cs}
 	var parameterMap map[string]string
-	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	err := service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
 }
 
-func (suite *ISCSIControllerSuite) Test_CreateVolume_InvalidParameter_Fail2() {
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Fail2() {
 	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_USE_CHAP)
-	createVolReq := tests.GetCreateVolumeRequest("", parameterMap, "")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	err := service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
 }
 

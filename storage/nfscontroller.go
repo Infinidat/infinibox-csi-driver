@@ -61,6 +61,58 @@ const (
 	NfsUnixPermissions   = "777"
 )
 
+func (nfs *nfsstorage) ValidateStorageClass(params map[string]string) error {
+	requiredParams := map[string]string{
+		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+	}
+
+	optionalParams := map[string]string{}
+
+	suppliedParams := params
+	err := ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, suppliedParams)
+	if err != nil {
+		zlog.Err(err)
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	useChap := suppliedParams[common.SC_USE_CHAP]
+	if useChap != "" {
+		zlog.Warn().Msgf("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
+	}
+
+	err = validateNFSExportPermissions(suppliedParams)
+	if err != nil {
+		zlog.Err(err)
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	snapdirVisible := false
+	snapdirVisibleString := params[common.SC_SNAPDIR_VISIBLE]
+	if snapdirVisibleString != "" {
+		snapdirVisible, err = strconv.ParseBool(snapdirVisibleString)
+		if err != nil {
+			e := fmt.Errorf("invalid NFS snapdir_visible value: %s, error: %v", snapdirVisibleString, err)
+			zlog.Err(e)
+			return e
+		}
+	}
+	nfs.snapdirVisible = snapdirVisible
+
+	usePrivilegedPorts := false
+	usePrivilegedPortsString := params[common.SC_PRIV_PORTS]
+	if usePrivilegedPortsString != "" {
+		usePrivilegedPorts, err = strconv.ParseBool(usePrivilegedPortsString)
+		if err != nil {
+			e := fmt.Errorf("invalid NFS privileged_ports_only value: %s, error: %v", usePrivilegedPortsString, err)
+			zlog.Err(e)
+			return status.Error(codes.InvalidArgument, e.Error())
+		}
+	}
+	nfs.usePrivilegedPorts = usePrivilegedPorts
+
+	return nil
+}
+
 func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	zlog.Trace().Msgf("nfstorage.CreateVolume")
 	var err error
@@ -73,42 +125,21 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	zlog.Debug().Msgf(" csi volume caps %+v", req.VolumeCapabilities)
 	zlog.Debug().Msgf(" csi request name %s", req.Name)
 
-	err = nfsSanityCheck(req, map[string]string{
-		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-	}, nil, params, nfs.cs.Api)
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-
-	usePrivilegedPorts := false
-	usePrivilegedPortsString := params[common.SC_PRIV_PORTS]
-	if usePrivilegedPortsString != "" {
-		usePrivilegedPorts, err = strconv.ParseBool(usePrivilegedPortsString)
-		if err != nil {
-			e := fmt.Errorf("invalid NFS privileged_ports_only value: %s, error: %v", usePrivilegedPortsString, err)
+	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
+	for _, cap := range req.GetVolumeCapabilities() {
+		if block := cap.GetBlock(); block != nil {
+			e := fmt.Errorf("block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
 			zlog.Err(e)
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
 	}
-	zlog.Debug().Msgf("Using privileged ports only: %t", usePrivilegedPorts)
 
-	snapdirVisible := false
-	snapdirVisibleString := params[common.SC_SNAPDIR_VISIBLE]
-	if snapdirVisibleString != "" {
-		snapdirVisible, err = strconv.ParseBool(snapdirVisibleString)
-		if err != nil {
-			e := fmt.Errorf("invalid NFS snapdir_visible value: %s, error: %v", snapdirVisibleString, err)
-			zlog.Err(e)
-			return nil, e
-		}
-	}
-	zlog.Debug().Msgf("Snapshot directory is visible: %t", snapdirVisible)
+	zlog.Debug().Msgf("Using privileged ports only: %t", nfs.usePrivilegedPorts)
+
+	zlog.Debug().Msgf("Snapshot directory is visible: %t", nfs.snapdirVisible)
 
 	nfs.pVName = pvName
 	nfs.storageClassParameters = params
-	nfs.usePrivilegedPorts = usePrivilegedPorts
-	nfs.snapdirVisible = snapdirVisible
 	nfs.exportPath = "/" + pvName
 	ipAddress, err := nfs.cs.getNetworkSpaceIP(strings.Trim(params[common.SC_NETWORK_SPACE], " "))
 	if err != nil {
@@ -243,14 +274,6 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 
 // CreateNFSVolume create volume method
 func (nfs *nfsstorage) CreateNFSVolume(req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
-	validnwlist, err := nfs.cs.Api.OneTimeValidation(nfs.storageClassParameters[common.SC_POOL_NAME], nfs.storageClassParameters[common.SC_NETWORK_SPACE])
-	if err != nil {
-		zlog.Err(err)
-		return nil, err
-	}
-	nfs.storageClassParameters[common.SC_NETWORK_SPACE] = validnwlist
-	zlog.Debug().Msgf("networkspace validation success")
-
 	err = nfs.createFileSystem(nfs.pVName)
 	if err != nil {
 		zlog.Error().Msgf("failed to create file system, %v", err)

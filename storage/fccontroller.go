@@ -29,11 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	params := req.GetParameters()
-	fc.configmap = params
-	zlog.Debug().Msgf("requested volume parameters are %v", params)
-
+func (fc *fcstorage) ValidateStorageClass(params map[string]string) error {
 	requiredFCParams := map[string]string{
 		common.SC_POOL_NAME: `\A.*\z`,
 	}
@@ -42,11 +38,18 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 
 	// validate required parameters
-	err := validateStorageClassParameters(requiredFCParams, optionalFCParams, params, fc.cs.Api)
+	err := ValidateRequiredOptionalSCParameters(requiredFCParams, optionalFCParams, params)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
+	return nil
+}
+
+func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	params := req.GetParameters()
+	fc.configmap = params
+	zlog.Debug().Msgf("requested volume parameters are %v", params)
 
 	gid := params[common.SC_GID]
 	uid := params[common.SC_UID]
