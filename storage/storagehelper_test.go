@@ -158,40 +158,40 @@ func (suite *StorageHelperSuite) Test_Snapshot_Locking_Expression_Validation() {
 
 	errString := "expected nil for valid lock_expires_at parameters"
 	inParam := "1 Hours"
-	futureTime, err := validateSnapshotLockingParameter(inParam)
+	futureTime, err := validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.Nil(suite.T(), err, errString)
 	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
 
 	inParam = "1 Days"
-	futureTime, err = validateSnapshotLockingParameter(inParam)
+	futureTime, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.Nil(suite.T(), err, errString)
 	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
 
 	inParam = "1 Weeks"
-	futureTime, err = validateSnapshotLockingParameter(inParam)
+	futureTime, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.Nil(suite.T(), err, errString)
 	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
 
 	inParam = "1 Months"
-	futureTime, err = validateSnapshotLockingParameter(inParam)
+	futureTime, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.Nil(suite.T(), err, errString)
 	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
 
 	inParam = "1 Years"
-	futureTime, err = validateSnapshotLockingParameter(inParam)
+	futureTime, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.Nil(suite.T(), err, errString)
 	fmt.Printf("%s equates to future time of %v or unix millis %d\n", inParam, time.UnixMilli(futureTime), futureTime)
 
 	// these next lock_expires parameters are invalid and should not validate
 	inParam = "1 BadValue"
-	_, err = validateSnapshotLockingParameter(inParam)
+	_, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
 
 	inParam = "X Years"
-	_, err = validateSnapshotLockingParameter(inParam)
+	_, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
 
 	inParam = "1 Years a"
-	_, err = validateSnapshotLockingParameter(inParam)
+	_, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
 }

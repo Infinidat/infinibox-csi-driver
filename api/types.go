@@ -55,6 +55,8 @@ type Volume struct {
 	Depth                 int    `json:"depth,omitempty"`
 	WriteProtected        bool   `json:"write_protected,omitempty"`
 	Mapped                bool   `json:"mapped,omitempty"`
+	LockExpiresAt         int64  `json:"lock_expires_at,omitempty"`
+	LockState             string `json:"lock_state,omitempty"`
 }
 
 type VolumeParam struct {
@@ -244,15 +246,17 @@ type FilesystemRef struct {
 }
 
 type FileSystem struct {
-	ID         int64  `json:"id,omitempty"`
-	PoolID     int64  `json:"pool_id,omitempty"`
-	Name       string `json:"name,omitempty"`
-	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
-	Provtype   string `json:"provtype,omitempty"`
-	Size       int64  `json:"size,omitempty"`
-	ParentID   int64  `json:"parent_id,omitempty"`
-	PoolName   string `json:"pool_name,omitempty"`
-	CreatedAt  int    `json:"created_at,omitempty"`
+	ID            int64  `json:"id,omitempty"`
+	PoolID        int64  `json:"pool_id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
+	Provtype      string `json:"provtype,omitempty"`
+	Size          int64  `json:"size,omitempty"`
+	ParentID      int64  `json:"parent_id,omitempty"`
+	PoolName      string `json:"pool_name,omitempty"`
+	CreatedAt     int    `json:"created_at,omitempty"`
+	LockExpiresAt int64  `json:"lock_expires_at,omitempty"`
+	LockState     string `json:"lock_state,omitempty"`
 }
 
 // FileSystemMetaData
@@ -343,4 +347,22 @@ type FCPort struct {
 	SwitchWWNn   string `json:"switch_wwnn,omitempty"`
 	Vendor       string `json:"vendor,omitempty"`
 	SwitchVendor string `json:"switch_vendor,omitempty"`
+}
+
+type NtpStatus struct {
+	NodeID             int   `json:"node_id"`
+	LastProbeTimestamp int64 `json:"last_probe_timestamp"`
+	NtpPeers           []struct {
+		TallyCode          string  `json:"tally_code"`
+		Remote             string  `json:"remote"`
+		Refid              string  `json:"refid"`
+		Stratum            int     `json:"stratum"`
+		Type               string  `json:"type"`
+		WhenSeconds        int     `json:"when_seconds"`
+		PollSeconds        int     `json:"poll_seconds"`
+		Reach              int     `json:"reach"`
+		DelayMilliseconds  float64 `json:"delay_milliseconds"`
+		OffsetMilliseconds float64 `json:"offset_milliseconds"`
+		JitterMilliseconds float64 `json:"jitter_milliseconds"`
+	} `json:"ntp_peers"`
 }

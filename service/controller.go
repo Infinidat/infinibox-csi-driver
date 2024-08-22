@@ -772,14 +772,19 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		zlog.Error().Msgf("delete snapshot failed: %s", err)
 		return nil, err
 	}
-	if storageController != nil {
-		req.SnapshotId = volproto.VolumeID
-		deleteSnapshotResp, err := storageController.DeleteSnapshot(ctx, req)
-		zlog.Info().Msgf("ControllerDeleteSnapshot Finished - ID:  %s", snapshotID)
-		return deleteSnapshotResp, err
+	if storageController == nil {
+		return nil, errors.New("failed to create storageController for " + volproto.StorageType)
 	}
 
-	return nil, errors.New("failed to create storageController for " + volproto.StorageType)
+	req.SnapshotId = volproto.VolumeID
+
+	deleteSnapshotResp, err = storageController.DeleteSnapshot(ctx, req)
+	if err != nil {
+		zlog.Error().Msgf("delete snapshot failed: %s", err.Error())
+	}
+	zlog.Info().Msgf("ControllerDeleteSnapshot Finished - ID:  %s", snapshotID)
+	return deleteSnapshotResp, err
+
 }
 
 func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolResp *csi.ControllerExpandVolumeResponse, err error) {

@@ -31,6 +31,7 @@ type Client interface {
 	CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error)
 	GetStoragePoolIDByName(name string) (id int64, err error)
 	FindStoragePool(id int64, name string) (StoragePool, error)
+	GetNtpStatus() ([]NtpStatus, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	GetVolumeByName(volumename string) (*Volume, error)
 	GetVolume(volumeid int) (*Volume, error)
@@ -363,7 +364,7 @@ func (c *ClientService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam 
 	valumeParameter[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
 	if lockExpiresAt > 0 {
 		path = path + "?approved=true"
-		valumeParameter["lock_expires_at"] = snapshotParam.LockExpiresAt
+		valumeParameter["lock_expires_at"] = lockExpiresAt
 	}
 
 	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
@@ -826,4 +827,39 @@ func (c *ClientService) GetAllVolumes() ([]Volume, error) {
 	}
 
 	return allvolumes, err
+}
+
+// GetNtpStatus
+func (c *ClientService) GetNtpStatus() ([]NtpStatus, error) {
+	var err error
+	uriList := []string{
+		"/api/rest/system/ntp_status",
+	}
+	allNtpStatus := make([]NtpStatus, 0)
+
+	for u := 0; u < len(uriList); u++ {
+		queryParam := make(map[string]interface{})
+		page := 1
+		total_pages := 1 // start with 1, update after first query.
+		for ok := true; ok; ok = page <= total_pages {
+			queryParam["page"] = strconv.Itoa(page)
+			ntpStats := []NtpStatus{}
+			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &ntpStats)
+			if err != nil {
+				zlog.Error().Msgf("failed to check GetNtpStatus %v response: %v", err, resp)
+				return allNtpStatus, err
+			}
+			apiresp := resp.(client.ApiResponse)
+			zlog.Trace().Msgf("uri %s page %d volumes %d", uriList[u], page, len(ntpStats))
+
+			allNtpStatus = append(allNtpStatus, ntpStats...)
+			if page == 1 {
+				total_pages = apiresp.MetaData.TotalPages
+			}
+			zlog.Trace().Msgf("total pages %d\n", total_pages)
+			page++
+		}
+	}
+
+	return allNtpStatus, err
 }

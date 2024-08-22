@@ -585,12 +585,17 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
-		lockExpiresAt, err = validateSnapshotLockingParameter(lockExpiresAtParameter)
+		ntpStatus, err := iscsi.cs.Api.GetNtpStatus()
+		if err != nil {
+			zlog.Error().Msgf("failed to get ntp status error %v", err)
+			return nil, err
+		}
+		lockExpiresAt, err = validateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
 			zlog.Error().Msgf("failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
 			return nil, err
 		}
-		zlog.Debug().Msgf("snapshot param has a lock_expires_at of %s", lockExpiresAtParameter)
+		zlog.Debug().Msgf("snapshot param has a lock_expires_at of %s int value %d, start time on ibox is %d", lockExpiresAtParameter, lockExpiresAt, ntpStatus[0].LastProbeTimestamp)
 	}
 
 	snapshot, err := iscsi.cs.Api.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
@@ -618,16 +623,21 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
 	zlog.Debug().Msgf("DeleteSnapshot to delete snapshot with ID %d", snapshotID)
+
 	err = iscsi.ValidateDeleteVolume(snapshotID)
 	if err != nil {
+		if status.Code(err) == codes.Aborted {
+			return nil, err
+		}
+
 		if status.Code(err) == codes.NotFound {
 			zlog.Debug().Msgf("snapshot with ID %d not found", snapshotID)
 			return &csi.DeleteSnapshotResponse{}, nil
-		} else {
-			e := fmt.Errorf("failed to delete snapshot with ID %d", snapshotID)
-			zlog.Err(e)
-			return nil, status.Errorf(codes.Internal, e.Error())
 		}
+
+		e := fmt.Errorf("failed to delete snapshot with ID %d", snapshotID)
+		zlog.Err(e)
+		return nil, status.Errorf(codes.Internal, e.Error())
 	}
 	zlog.Debug().Msgf("DeleteSnapshot successfully deleted snapshot with ID %d", snapshotID)
 	return &csi.DeleteSnapshotResponse{}, nil
@@ -647,6 +657,12 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		zlog.Error().Msgf(msg)
 		return status.Errorf(codes.Internal, msg)
 	}
+
+	// this applies for when we are evaluating a snapshot volume
+	if vol.LockState == common.LOCKED_STATE {
+		return status.Errorf(codes.Aborted, "volume %d was locked, can not delete till expire date is reached at %s", volumeID, time.UnixMilli(vol.LockExpiresAt))
+	}
+
 	childVolumes, err := iscsi.cs.Api.GetVolumeSnapshotByParentID(vol.ID)
 	if err != nil {
 		zlog.Err(err)

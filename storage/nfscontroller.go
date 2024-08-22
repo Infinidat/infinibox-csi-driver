@@ -20,6 +20,7 @@ import (
 	"infinibox-csi-driver/common"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -459,12 +460,17 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 // DeleteNFSVolume delete volume method
 func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 
-	_, fileSystemErr := nfs.cs.Api.GetFileSystemByID(nfs.uniqueID)
+	fs, fileSystemErr := nfs.cs.Api.GetFileSystemByID(nfs.uniqueID)
 	if fileSystemErr != nil {
 		zlog.Error().Msgf("failed to get file system by ID %d %v", nfs.uniqueID, fileSystemErr)
 		err = fileSystemErr
 		return
 	}
+
+	if fs.LockState == common.LOCKED_STATE {
+		return status.Errorf(codes.Aborted, "snapshot %d is locked and can't be deleted till it expires at %s", nfs.uniqueID, time.UnixMilli(fs.LockExpiresAt))
+	}
+
 	hasChild := nfs.cs.Api.FileSystemHasChild(nfs.uniqueID)
 	if hasChild {
 		metadata := map[string]interface{}{
@@ -481,9 +487,10 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	parentID := nfs.cs.Api.GetParentID(nfs.uniqueID)
 	err = nfs.cs.Api.DeleteFileSystemComplete(nfs.uniqueID)
 	if err != nil {
-		zlog.Error().Msgf("failed to delete filesystem %s error: %v", nfs.pVName, err)
+		zlog.Error().Msgf("failed to delete filesystem %s error: %v parentID: %d", nfs.pVName, err, parentID)
 		err = errors.New("error while delete file system")
 	}
+
 	if parentID != 0 {
 		err = nfs.cs.Api.DeleteParentFileSystem(parentID)
 		if err != nil {
@@ -676,7 +683,12 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	var lockExpiresAt int64
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	if lockExpiresAtParameter != "" {
-		lockExpiresAt, err = validateSnapshotLockingParameter(lockExpiresAtParameter)
+		ntpStatus, err := nfs.cs.Api.GetNtpStatus()
+		if err != nil {
+			zlog.Error().Msgf("failed to get ntp status error %v", err)
+			return nil, err
+		}
+		lockExpiresAt, err = validateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
 			zlog.Error().Msgf("failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
 			return nil, err
@@ -703,9 +715,15 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 }
 
 func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshot *csi.DeleteSnapshotResponse, err error) {
+	zlog.Debug().Msgf("DeleteSnapshot snapshotID %s", req.GetSnapshotId())
 
-	snapshotID, _ := strconv.ParseInt(req.GetSnapshotId(), 10, 64)
+	snapshotID, err := strconv.ParseInt(req.GetSnapshotId(), 10, 64)
+	if err != nil {
+		zlog.Error().Msgf("failed to parse int from snapshotID, %s, error %s", req.GetSnapshotId(), err.Error())
+		return nil, status.Error(codes.Aborted, err.Error())
+	}
 	nfs.uniqueID = snapshotID
+
 	nfsSnapDeleteErr := nfs.DeleteNFSVolume()
 	if nfsSnapDeleteErr != nil {
 		zlog.Err(nfsSnapDeleteErr)

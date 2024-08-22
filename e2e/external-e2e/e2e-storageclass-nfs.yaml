@@ -30,6 +30,7 @@ parameters:
     csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
     csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
+    fstype: ext4
 
     # InfiniBox configuration
     storage_protocol: nfs

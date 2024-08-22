@@ -525,7 +525,12 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
-		lockExpiresAt, err = validateSnapshotLockingParameter(lockExpiresAtParameter)
+		ntpStatus, err := fc.cs.Api.GetNtpStatus()
+		if err != nil {
+			zlog.Error().Msgf("failed to get ntp status error %v", err)
+			return nil, err
+		}
+		lockExpiresAt, err = validateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
 			zlog.Error().Msgf("failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
 			return nil, err
@@ -555,8 +560,13 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (resp *csi.DeleteSnapshotResponse, err error) {
 
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
+
 	err = fc.ValidateDeleteVolume(snapshotID)
 	if err != nil {
+		if status.Code(err) == codes.Aborted {
+			return nil, err
+		}
+
 		zlog.Error().Msgf("failed to delete snapshot %v", err)
 		return nil, err
 	}
@@ -575,6 +585,11 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 			"error while validating volume status : %s",
 			err.Error())
 	}
+
+	if vol.LockState == common.LOCKED_STATE {
+		return status.Errorf(codes.Aborted, "volume %d was locked, can not delete till expire date %s is reached", volumeID, time.UnixMilli(vol.LockExpiresAt))
+	}
+
 	childVolumes, err := fc.cs.Api.GetVolumeSnapshotByParentID(vol.ID)
 	if err != nil {
 		zlog.Err(err)

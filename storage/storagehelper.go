@@ -610,8 +610,8 @@ func logPermissions(note, hostTargetPath string) {
 }
 
 // validateSnapshotLockingParameter validates an input lock_expires parameter string and returns
-// the time in Unix Milliseconds or an error if the validation fails
-func validateSnapshotLockingParameter(input string) (timeInUnixMilli int64, err error) {
+// the computed expire time in Unix Milliseconds or an error if the validation fails
+func validateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMilli int64, err error) {
 
 	parts := strings.Split(input, " ")
 	if len(parts) != 2 {
@@ -628,45 +628,34 @@ func validateSnapshotLockingParameter(input string) (timeInUnixMilli int64, err 
 		return 0, fmt.Errorf("invalid lock_expires_at count, should be greater than 0")
 	}
 
-	var years, months, days int
-
-	var futureTime time.Time
-	nowTime := time.Now()
+	var futureTime int64
 
 	// input will look like '1 Hours', '1 Days', '1 Weeks', '1 Months', '1 Years'
 	// this function converts an input value into a numerical value representing
 	// a date in the future from the current time
 
+	const millisPerHour = 3600000
+	const millisPerDay = 24 * millisPerHour
+	const millisPerWeek = 7 * millisPerDay
+	const millisPerMonth = 4 * millisPerWeek
+	const millisPerYear = 12 * millisPerMonth
+
 	switch parts[1] {
 	case "Hours":
-		var futureDuration time.Duration
-		futureDuration, err = time.ParseDuration(fmt.Sprintf("%dh", count))
-		if err != nil {
-			return 0, fmt.Errorf("invalid lock_expires_at, parse duration error %s", err.Error())
-		}
-		futureTime = nowTime.Add(futureDuration)
+		futureTime = nowTime + int64((count * millisPerHour))
 	case "Days":
-		days = count
-		futureTime = nowTime.AddDate(years, months, days)
+		futureTime = nowTime + int64((count * millisPerDay))
 	case "Weeks":
-		hoursInWeeks := 168 * count
-		var futureDuration time.Duration
-		futureDuration, err = time.ParseDuration(fmt.Sprintf("%dh", hoursInWeeks))
-		if err != nil {
-			return 0, fmt.Errorf("invalid lock_expires_at, parse duration error %s", err.Error())
-		}
-		futureTime = nowTime.Add(futureDuration)
+		futureTime = nowTime + int64((count * millisPerWeek))
 	case "Months":
-		months = count
-		futureTime = nowTime.AddDate(years, months, days)
+		futureTime = nowTime + int64((count * millisPerMonth))
 	case "Years":
-		years = count
-		futureTime = nowTime.AddDate(years, months, days)
+		futureTime = nowTime + int64((count * millisPerYear))
 	default:
 		return 0, fmt.Errorf("invalid format of lock_expires_at frequency, should be either Days, Hours, Weeks, Months, Years")
 	}
 
-	return futureTime.UnixMilli(), nil
+	return futureTime, nil
 }
 
 func (n Service) ValidateNFSPortalIPAddress(ip string) (err error) {

@@ -59,6 +59,7 @@ const (
 )
 
 const LOCK_EXPIRES_AT_PARAMETER = "lock_expires_at"
+const LOCKED_STATE = "LOCKED"
 
 // PVC annotations
 const (
