@@ -14,12 +14,9 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	kubeapi "k8s.io/kubernetes/pkg/api/v1/pod"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"gopkg.in/yaml.v2"
 	v1 "k8s.io/api/core/v1"
@@ -42,7 +39,8 @@ var (
 		"operatornamespace", "infinidat-csi", "namespace the operator runs within")
 	CleanUp = flag.Bool(
 		"cleanup", true, "clean up test namespace on exit")
-	StorageClassPath string
+	StorageClassPath        string
+	VolumeSnapshotClassPath string
 )
 
 const (
@@ -71,6 +69,7 @@ type TestResourceNames struct {
 	SnapshotClassName string
 	StorageClassName  string
 	UniqueSuffix      string
+	VSCName           string
 }
 
 type PVCAnnotations struct {
@@ -137,8 +136,24 @@ func DeleteNamespace(ctx context.Context, nsName string, clientSet *kubernetes.C
 	return nil
 }
 
+func GetVolumeSnapshot(ctx context.Context, ns string, snapshotName string, snapshotClient *snapshotv6.Clientset) error {
+	_, err := snapshotClient.SnapshotV1().VolumeSnapshots(ns).Get(context.TODO(), snapshotName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func DeleteVolumeSnapshotClass(ctx context.Context, snapshotClassName string, snapshotClient *snapshotv6.Clientset) error {
 	err := snapshotClient.SnapshotV1().VolumeSnapshotClasses().Delete(ctx, snapshotClassName, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func DeleteVolumeSnapshot(ctx context.Context, ns string, snapshotName string, snapshotClient *snapshotv6.Clientset) error {
+	err := snapshotClient.SnapshotV1().VolumeSnapshots(ns).Delete(ctx, snapshotName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -290,52 +305,6 @@ func CreatePVC(config *TestConfig) (err error) {
 	return nil
 }
 
-func CreateVolumeSnapshotClass(ctx context.Context, prefix string, uniqueSuffix string, nsName string, clientSet *snapshotv6.Clientset) (string, error) {
-	m := metav1.ObjectMeta{
-		Name: prefix + uniqueSuffix,
-	}
-
-	vsclass := snapshotapi.VolumeSnapshotClass{
-		ObjectMeta: m,
-		Driver:     "infinidat-csi-driver",
-		Parameters: map[string]string{
-			"csi.storage.k8s.io/snapshotter-secret-name":      "infinibox-creds",
-			"csi.storage.k8s.io/snapshotter-secret-namespace": DRIVER_NAMESPACE,
-		},
-		DeletionPolicy: snapshotapi.VolumeSnapshotContentDelete,
-	}
-	_, err := clientSet.SnapshotV1().VolumeSnapshotClasses().Create(ctx, &vsclass, metav1.CreateOptions{})
-	if err != nil {
-		return "", err
-	}
-	return m.Name, nil
-}
-
-func CreateVolumeSnapshotClassDynamically(ctx context.Context, prefix string, uniqueSuffix string, dClient *dynamic.DynamicClient) (string, error) {
-	VOLUMESNAPSHOTCLASS_GVR := schema.GroupVersionResource{Group: "snapshot.storage.k8s.io", Version: "v1", Resource: "volumesnapshotclasses"}
-
-	mdb := &unstructured.Unstructured{}
-	mdb.SetUnstructuredContent(map[string]interface{}{
-		"apiVersion":     "snapshot.storage.k8s.io/v1",
-		"kind":           "VolumeSnapshotClass",
-		"driver":         "infinidat-csi-driver",
-		"deletionPolicy": snapshotapi.VolumeSnapshotContentDelete,
-		"metadata": map[string]interface{}{
-			"name": prefix + uniqueSuffix,
-		},
-		"parameters": map[string]string{
-			"csi.storage.k8s.io/snapshotter-secret-name":      "infinibox-creds",
-			"csi.storage.k8s.io/snapshotter-secret-namespace": DRIVER_NAMESPACE,
-		},
-	})
-
-	_, err := dClient.Resource(VOLUMESNAPSHOTCLASS_GVR).Create(ctx, mdb, metav1.CreateOptions{})
-	if err != nil {
-		return "", err
-	}
-	return prefix + uniqueSuffix, nil
-}
-
 func CreateNamespace(ctx context.Context, uniqueName string, clientset *kubernetes.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
 
@@ -435,6 +404,13 @@ func GetFlags(t *testing.T) {
 		t.Fatalf(" %s not found\n", StorageClassPath)
 	}
 	t.Logf("%s was found\n", StorageClassPath)
+
+	VolumeSnapshotClassPath = workingDir + "/volumesnapshotclass.yaml"
+	_, err = os.Stat(VolumeSnapshotClassPath)
+	if err != nil {
+		t.Fatalf(" %s not found\n", VolumeSnapshotClassPath)
+	}
+	t.Logf("%s was found\n", VolumeSnapshotClassPath)
 
 	x := os.Getenv("_E2E_NAMESPACE")
 	if x == "" {
@@ -646,18 +622,17 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	return nil
 }
 
-func CreateSnapshot(pvcName string, volumeSnapshotClassName string, ns string, clientSet *snapshotv6.Clientset) (err error) {
+func CreateSnapshot(pvcName string, vscName string, ns string, clientSet *snapshotv6.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
 
 	m := metav1.ObjectMeta{
 		Name:      SNAPSHOT_NAME,
 		Namespace: ns,
 	}
-	volumeSnapshotClassName = "ibox-snapshotclass-demo"
 	snapshot := snapshotapi.VolumeSnapshot{
 		ObjectMeta: m,
 		Spec: snapshotapi.VolumeSnapshotSpec{
-			VolumeSnapshotClassName: &volumeSnapshotClassName,
+			VolumeSnapshotClassName: &vscName,
 			Source: snapshotapi.VolumeSnapshotSource{
 				PersistentVolumeClaimName: &pvcName,
 			},
@@ -665,6 +640,7 @@ func CreateSnapshot(pvcName string, volumeSnapshotClassName string, ns string, c
 	}
 	_, err = clientSet.SnapshotV1().VolumeSnapshots(ns).Create(context.TODO(), &snapshot, createOptions)
 	if err != nil {
+		fmt.Printf("error creating snapshot %s", err.Error())
 		return err
 	}
 	return nil
@@ -726,6 +702,12 @@ func Setup(testConfig *TestConfig) {
 		testConfig.Testt.Fatalf("error creating StorageClass %s\n", err.Error())
 	}
 	testConfig.Testt.Logf("✓ StorageClass %s is created\n", testConfig.TestNames.SCName)
+
+	err = CreateVolumeSnapshotClass(testConfig, VolumeSnapshotClassPath)
+	if err != nil {
+		testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
+	}
+	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is created\n", testConfig.TestNames.VSCName)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
@@ -798,14 +780,6 @@ func Setup(testConfig *TestConfig) {
 		testConfig.Testt.Logf("✓ Pod %s is running\n", ANTI_AF_POD_NAME)
 	}
 
-	/**
-	testConfig.TestNames.SnapshotClassName, err = CreateVolumeSnapshotClassDynamically(ctx, VOLUME_SNAPSHOT_CLASS, testConfig.TestNames.UniqueSuffix, testConfig.DynamicClient)
-	if err != nil {
-		testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
-	}
-	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is created\n", testConfig.TestNames.SnapshotClassName)
-	*/
-
 	testConfig.Testt.Log("SETUP ENDS")
 }
 
@@ -820,6 +794,12 @@ func TearDown(testConfig *TestConfig) {
 	}
 	testConfig.Testt.Logf("✓ pod %s is deleted\n", POD_NAME)
 
+	err = DeleteVolumeSnapshot(ctx, testConfig.TestNames.NSName, SNAPSHOT_NAME, testConfig.SnapshotClient)
+	if err != nil {
+		testConfig.Testt.Logf("error deleting volume snapshot %s\n", err.Error())
+	}
+	testConfig.Testt.Logf("✓ volume snapshot %s is deleted\n", SNAPSHOT_NAME)
+
 	err = DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
 	if err != nil {
 		testConfig.Testt.Logf("error deleting PVC %s\n", err.Error())
@@ -832,13 +812,11 @@ func TearDown(testConfig *TestConfig) {
 	}
 	testConfig.Testt.Logf("✓ StorageClass %s is deleted\n", testConfig.TestNames.SCName)
 
-	/**
-	err = DeleteVolumeSnapshotClass(ctx, testConfig.TestNames.SnapshotClassName, testConfig.SnapshotClient)
+	err = DeleteVolumeSnapshotClass(ctx, testConfig.TestNames.VSCName, testConfig.SnapshotClient)
 	if err != nil {
 		testConfig.Testt.Logf("error deleting VolumeSnapshotClass %s\n", err.Error())
 	}
-	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is deleted\n", testConfig.TestNames.SnapshotClassName)
-	*/
+	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is deleted\n", testConfig.TestNames.VSCName)
 
 	err = DeleteNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
@@ -993,4 +971,36 @@ func GetPVName(pvcName string, ns string, clientset *kubernetes.Clientset) (stri
 	}
 
 	return pvc.Spec.VolumeName, nil
+}
+
+func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) {
+
+	fileContent, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	vsc := &snapshotapi.VolumeSnapshotClass{}
+
+	err = yaml.Unmarshal(fileContent, vsc)
+	if err != nil {
+		return err
+	}
+
+	vsc.ObjectMeta = metav1.ObjectMeta{
+		Name: testConfig.TestNames.VSCName,
+	}
+	vsc.DeletionPolicy = snapshotapi.VolumeSnapshotContentDelete
+
+	if testConfig.UseSnapshotLock {
+		vsc.Parameters[common.LOCK_EXPIRES_AT_PARAMETER] = "1 Hours"
+	}
+
+	createOptions := metav1.CreateOptions{}
+
+	_, err = testConfig.SnapshotClient.SnapshotV1().VolumeSnapshotClasses().Create(context.TODO(), vsc, createOptions)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

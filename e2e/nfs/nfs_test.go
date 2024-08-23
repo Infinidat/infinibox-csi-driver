@@ -3,15 +3,64 @@
 package nfs
 
 import (
+	"context"
+	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 )
 
-func TestNfs(t *testing.T) {
+func TestNfsSnapshotLocking(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	testConfig.UseSnapshotLock = true
+
+	e2e.Setup(testConfig)
+
+	time.Sleep(time.Second * 5)
+
+	err = e2e.CreateSnapshot(testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
+	if err != nil {
+		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
+	}
+
+	time.Sleep(time.Second * 5)
+
+	err = e2e.WaitForSnapshot(t, e2e.SNAPSHOT_NAME, testConfig.TestNames.NSName, testConfig.SnapshotClient)
+	if err != nil {
+		t.Fatalf("error waiting for volumesnapshot %s", err.Error())
+	}
+
+	// the snapshot should be locked so this delete should not work
+	err = e2e.DeleteVolumeSnapshot(context.Background(), testConfig.TestNames.NSName, e2e.SNAPSHOT_NAME, testConfig.SnapshotClient)
+	if err != nil {
+		testConfig.Testt.Logf("error deleting volume snapshot %s\n", err.Error())
+	}
+	t.Log("delete attempted of VolumeSnapshot")
+
+	// you should be able to get the snapshot since it was not deleted
+	err = e2e.GetVolumeSnapshot(context.Background(), testConfig.TestNames.NSName, e2e.SNAPSHOT_NAME, testConfig.SnapshotClient)
+	if err != nil {
+		t.Fatalf("error getting volumesnapshot %s", err.Error())
+	}
+	t.Log("got locked VolumeSnapshot, locking logic worked")
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+}
+
+func TestNfsSnapshot(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
 	if err != nil {
@@ -20,22 +69,36 @@ func TestNfs(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
-	/** TODO snapshots not working currently from this test
-
 	time.Sleep(time.Second * 5)
 
-	err = e2e.CreateSnapshot(testNames.PVCName, testNames.SnapshotClassName, testNames.NSName, snapshotClient)
+	err = e2e.CreateSnapshot(testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
 	if err != nil {
 		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
 	}
 
 	time.Sleep(time.Second * 5)
 
-	err = e2e.WaitForSnapshot(t, e2e.SNAPSHOT_NAME, testNames.NSName, snapshotClient)
+	err = e2e.WaitForSnapshot(t, e2e.SNAPSHOT_NAME, testConfig.TestNames.NSName, testConfig.SnapshotClient)
 	if err != nil {
 		t.Fatalf("error waiting for volumesnapshot %s", err.Error())
 	}
-	*/
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+}
+
+func TestNfs(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	fmt.Printf("jeff here in TestNfs vsc = [%s]\n", testConfig.TestNames.VSCName)
+	e2e.Setup(testConfig)
 
 	if *e2e.CleanUp {
 		e2e.TearDown(testConfig)

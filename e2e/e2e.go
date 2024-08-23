@@ -40,6 +40,7 @@ type TestConfig struct {
 	ReadOnlyPod           bool
 	ReadOnlyPodVolume     bool
 	UseSELinux            bool
+	UseSnapshotLock       bool
 	PVCAnnotations        *PVCAnnotations
 	AccessMode            v1.PersistentVolumeAccessMode
 	TestNames             *TestResourceNames
@@ -57,6 +58,7 @@ func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error
 	config.TestNames.NSName = e2eNamespace + config.TestNames.UniqueSuffix
 	scName := fmt.Sprintf(SC_NAME, protocol)
 	config.TestNames.SCName = scName + config.TestNames.UniqueSuffix
+	config.TestNames.VSCName = scName + config.TestNames.UniqueSuffix
 	config.TestNames.PVCName = fmt.Sprintf(PVC_NAME, protocol)
 
 	//connect to kube
