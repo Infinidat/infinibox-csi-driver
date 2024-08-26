@@ -1,9 +1,0 @@
-apiVersion: snapshot.storage.k8s.io/v1
-kind: VolumeSnapshotClass
-metadata:
-  name: e2e-ibox-snapshotclass
-driver: infinibox-csi-driver
-deletionPolicy: Delete
-parameters:
-  csi.storage.k8s.io/snapshotter-secret-name: infinibox-creds
-  csi.storage.k8s.io/snapshotter-secret-namespace: infinidat-csi

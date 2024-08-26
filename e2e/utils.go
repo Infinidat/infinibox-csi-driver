@@ -405,7 +405,8 @@ func GetFlags(t *testing.T) {
 	}
 	t.Logf("%s was found\n", StorageClassPath)
 
-	VolumeSnapshotClassPath = workingDir + "/volumesnapshotclass.yaml"
+	// go up a level to find the volumesnapshotclass yaml
+	VolumeSnapshotClassPath = workingDir + "/../volumesnapshotclass.yaml"
 	_, err = os.Stat(VolumeSnapshotClassPath)
 	if err != nil {
 		t.Fatalf(" %s not found\n", VolumeSnapshotClassPath)
