@@ -411,14 +411,10 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 
 func (nfs *nfsstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.CreateVolumeResponse {
 	infinidatVol := &infinidatVolume{
-		VolID:        fmt.Sprint(nfs.fileSystemID),
-		VolName:      nfs.pVName,
-		VolSize:      nfs.capacity,
-		VolPath:      nfs.exportPath,
-		IpAddress:    nfs.ipAddress,
-		ExportID:     nfs.exportID,
-		ExportBlock:  nfs.exportBlock,
-		FileSystemID: nfs.fileSystemID,
+		VolID:     fmt.Sprint(nfs.fileSystemID),
+		VolPath:   nfs.exportPath,
+		IpAddress: nfs.ipAddress,
+		ExportID:  nfs.exportID,
 	}
 	nfs.storageClassParameters["ipAddress"] = (*infinidatVol).IpAddress
 	nfs.storageClassParameters["exportID"] = strconv.Itoa(int((*infinidatVol).ExportID))

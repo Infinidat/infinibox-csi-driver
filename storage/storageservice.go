@@ -701,8 +701,6 @@ func (cs *Commonservice) isCorruptedMnt(err error) bool {
 	}
 	var underlyingError error
 	switch pe := err.(type) {
-	case nil:
-		return false
 	case *os.PathError:
 		underlyingError = pe.Err
 	case *os.LinkError:

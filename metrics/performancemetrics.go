@@ -62,16 +62,14 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 				zlog.Trace().Msgf("performance metrics: nas data %+v\n", nasResponse)
 				opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
 				zlog.Trace().Msgf("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
-				if err == nil {
-					labels := prometheus.Labels{
-						METRIC_IBOX_IP:       ibox.IboxIpAddress,
-						METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
-						METRIC_IBOX_PROTOCOL: "NAS"}
+				labels := prometheus.Labels{
+					METRIC_IBOX_IP:       ibox.IboxIpAddress,
+					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
+					METRIC_IBOX_PROTOCOL: "NAS"}
 
-					MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
-					MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
-					MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
-				}
+				MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
+				MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
+				MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
 
 				sanResponse, err := getCollectorData(sanID, ibox)
 				if err != nil {
@@ -95,7 +93,7 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 				}
 				zlog.Trace().Msgf("performance metrics: deleted SAN collector %d\n", sanID)
 
-				labels := prometheus.Labels{
+				labels = prometheus.Labels{
 					METRIC_IBOX_IP:       ibox.IboxIpAddress,
 					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
 					METRIC_IBOX_PROTOCOL: "SAN"}

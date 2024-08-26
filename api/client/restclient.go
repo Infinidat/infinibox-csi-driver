@@ -198,7 +198,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 			}
 			return apiresp, nil
 		} else {
-			return apiresp, errors.New("empty response for " + res.Request.URL)
+			return apiresp, errors.New("empty response")
 		}
 		// end: bind to given struct
 	} else {
@@ -225,7 +225,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 				return apiresp, errors.New("empty response for " + res.Request.URL)
 			}
 		} else {
-			return apiresp, errors.New("empty response for " + res.Request.URL)
+			return apiresp, errors.New("empty response")
 		}
 	}
 }

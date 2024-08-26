@@ -362,7 +362,7 @@ func (suite *FCControllerSuite) Test_ControllerExpandVolume() {
 func (suite *FCControllerSuite) Test_ValidateVolumeCapabilities() {
 	service := fcstorage{cs: *suite.cs}
 	var parameterMap map[string]string
-	validateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
+	validateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest(parameterMap)
 
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := service.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)

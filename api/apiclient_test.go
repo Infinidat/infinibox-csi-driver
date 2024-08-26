@@ -1125,18 +1125,11 @@ func (suite *ApiTestSuite) Test_ExportFileSystem_Error() {
 	export.Export_path = "/exportPath"
 	export.Name = "exportName"
 
-	var exportResp ExportResponse
-	exportResp.ID = 100
-	exportResp.ExportPath = "/exportPath"
-	exportResp.FilesystemId = 101
-
 	expectedResponse := client.ApiResponse{}
 	expectedErr := errors.New("some error")
-	//suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)
 	suite.clientMock.On("Post").Return(expectedResponse, expectedErr)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	_, err := service.ExportFileSystem(export)
-	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
 }
 
@@ -1474,9 +1467,6 @@ func (suite *ApiTestSuite) Test_GetTreeqByName_success() {
 func getExportResponse() *[]ExportResponse {
 	exportRespArry := []ExportResponse{}
 
-	exportResp := ExportResponse{}
-	exportResp.ID = 100
-	exportResp.ExportPath = "/exportPath"
 	return &exportRespArry
 }
 

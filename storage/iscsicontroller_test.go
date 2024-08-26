@@ -372,7 +372,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerExpandVolume() {
 func (suite *ISCSIControllerSuite) Test_ValidateVolumeCapabilities() {
 	service := iscsistorage{cs: *suite.cs}
 	var parameterMap map[string]string
-	validateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest("", parameterMap)
+	validateVolCapsReq := getISCSIValidateVolumeCapabilitiesRequest(parameterMap)
 
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := service.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
@@ -523,7 +523,7 @@ func getNetworkspace() api.NetworkSpace {
 	return nspace
 }
 
-func getISCSIValidateVolumeCapabilitiesRequest(pvName string, parameterMap map[string]string) *csi.ValidateVolumeCapabilitiesRequest {
+func getISCSIValidateVolumeCapabilitiesRequest(parameterMap map[string]string) *csi.ValidateVolumeCapabilitiesRequest {
 	capa := csi.VolumeCapability{
 		AccessMode: &csi.VolumeCapability_AccessMode{
 			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,

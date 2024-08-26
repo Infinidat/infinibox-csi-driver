@@ -616,7 +616,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		for i := 0; i < len(targets); i++ {
 			for p := 0; p < len(targets[i].Portals); p++ {
 				zlog.Debug().Msgf("target iface: %s iqn: %s - use CHAP at portal: %s", b.Iface, targets[i].Iqn, targets[i].Portals[p])
-				err = iscsi.updateISCSINode(b, b.Iface, targets[i].Iqn, targets[i].Portals[p])
+				err = iscsi.updateISCSINode(b, targets[i].Iqn, targets[i].Portals[p])
 				if err != nil {
 					zlog.Err(err)
 					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
@@ -1042,13 +1042,12 @@ func (iscsi *iscsistorage) parseSessionSecret(useChap string, secretParams map[s
 	return secret, nil
 }
 
-func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iface string, iqn string, portal string) error {
+func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, portal string) error {
 	if !b.chap_session {
 		return nil
 	}
 
 	zlog.Debug().Msgf("update node with CHAP")
-	//out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn, iface))
 	out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
 	if err != nil {
 		return fmt.Errorf("iscsi: failed to update node with CHAP, output: %v", string(out))
@@ -1058,7 +1057,6 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iface string, iqn
 		v := b.secret[k]
 		if len(v) > 0 {
 			zlog.Debug().Msgf("update node session key/value")
-			//out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --interface %s --op update --name %q --value %q", portal, iqn, iface, k, v))
 			out, err := execScsi.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, k, v))
 			if err != nil {
 				return fmt.Errorf("iscsi: failed to update node session key %q with value %q error: %v", k, v, string(out))
@@ -1070,10 +1068,10 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iface string, iqn
 
 func (iscsi *iscsistorage) waitForPathToExist(devicePath *string, maxRetries int, deviceTransport string) bool {
 	// This makes unit testing a lot easier
-	return iscsi.waitForPathToExistInternal(devicePath, maxRetries, deviceTransport, os.Stat, filepath.Glob)
+	return iscsi.waitForPathToExistInternal(devicePath, maxRetries, deviceTransport, filepath.Glob)
 }
 
-func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRetries int, deviceTransport string, osStat StatFunc, filepathGlob GlobFunc) bool {
+func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRetries int, deviceTransport string, filepathGlob GlobFunc) bool {
 	if devicePath == nil {
 		return false
 	}
