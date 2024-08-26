@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -66,6 +68,8 @@ func TestIscsiSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
+
+	testConfig.UseSnapshot = true
 
 	e2e.Setup(testConfig)
 
@@ -389,6 +393,54 @@ func TestIscsiBrokenLink(t *testing.T) {
 	err = e2e.WaitForPod(t, e2e.POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*2)
 	if err != nil {
 		t.Fatalf("error in recreated pod from starting %s", err.Error())
+	}
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+
+func TestIscsiClone(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	e2e.Setup(testConfig)
+
+	// create a PVC that references the previously created PVC
+	// this is what a clone is, a PVC based off of an existing PVC
+
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("error getting existing PVC %s", err.Error())
+	}
+
+	clonePVC := existingPVC
+	ds := v1.TypedLocalObjectReference{
+		Kind: "PersistentVolumeClaim",
+		Name: testConfig.TestNames.PVCName,
+	}
+	clonePVC.Spec.DataSource = &ds
+	clonePVC.ObjectMeta = metav1.ObjectMeta{
+		Name:      testConfig.TestNames.PVCName + "-clone",
+		Namespace: testConfig.TestNames.NSName,
+	}
+	clonePVC.Spec.VolumeMode = nil
+	clonePVC.Spec.VolumeName = ""
+
+	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Create(context.TODO(), clonePVC, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error creating clone PVC %s", err.Error())
+	}
+
+	err = e2e.WaitForPVC(t, clonePVC.ObjectMeta.Name, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*1)
+	if err != nil {
+		t.Fatalf("error waiting on clone PVC %s", err.Error())
 	}
 
 	if *e2e.CleanUp {

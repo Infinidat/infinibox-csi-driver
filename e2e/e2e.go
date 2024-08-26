@@ -40,6 +40,7 @@ type TestConfig struct {
 	ReadOnlyPod           bool
 	ReadOnlyPodVolume     bool
 	UseSELinux            bool
+	UseSnapshot           bool
 	UseSnapshotLock       bool
 	PVCAnnotations        *PVCAnnotations
 	AccessMode            v1.PersistentVolumeAccessMode

@@ -795,11 +795,13 @@ func TearDown(testConfig *TestConfig) {
 	}
 	testConfig.Testt.Logf("✓ pod %s is deleted\n", POD_NAME)
 
-	err = DeleteVolumeSnapshot(ctx, testConfig.TestNames.NSName, SNAPSHOT_NAME, testConfig.SnapshotClient)
-	if err != nil {
-		testConfig.Testt.Logf("error deleting volume snapshot %s\n", err.Error())
+	if testConfig.UseSnapshot || testConfig.UseSnapshotLock {
+		err = DeleteVolumeSnapshot(ctx, testConfig.TestNames.NSName, SNAPSHOT_NAME, testConfig.SnapshotClient)
+		if err != nil {
+			testConfig.Testt.Logf("error deleting volume snapshot %s\n", err.Error())
+		}
+		testConfig.Testt.Logf("✓ volume snapshot %s is deleted\n", SNAPSHOT_NAME)
 	}
-	testConfig.Testt.Logf("✓ volume snapshot %s is deleted\n", SNAPSHOT_NAME)
 
 	err = DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
 	if err != nil {
