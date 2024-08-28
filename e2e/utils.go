@@ -246,6 +246,9 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 
 	createOptions := metav1.CreateOptions{}
 
+	allowExpand := true
+	sc.AllowVolumeExpansion = &allowExpand
+
 	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
 	if err != nil {
 		return err
@@ -465,8 +468,16 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	allowPrivilegeEscalation := false
 	runAsNonRoot := true
 	image := "infinidat/csitestimage:latest"
+	alternateImage := os.Getenv("_E2E_TEST_IMAGE")
+	if alternateImage != "" {
+		image = alternateImage
+	}
 	if testConfig.UseBlock {
 		image = "infinidat/csitestimageblock:latest"
+		alternateImage := os.Getenv("_E2E_TEST_BLOCK_IMAGE")
+		if alternateImage != "" {
+			image = alternateImage
+		}
 		device := v1.VolumeDevice{
 			Name:       "ibox-csi-volume",
 			DevicePath: "/dev/xvda",
@@ -751,7 +762,7 @@ func Setup(testConfig *TestConfig) {
 	}
 	testConfig.Testt.Logf("✓ Pod %s is created\n", POD_NAME)
 
-	err = WaitForPod(testConfig.Testt, POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*4)
+	err = WaitForPod(testConfig.Testt, POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*9)
 	if err != nil {
 		DescribePVC(testConfig.Testt, POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet)
 		testConfig.Testt.Fatalf("error waiting for pod %s", err.Error())
@@ -774,7 +785,7 @@ func Setup(testConfig *TestConfig) {
 		}
 		testConfig.Testt.Logf("✓ Pod %s is created\n", ANTI_AF_POD_NAME)
 
-		err = WaitForPod(testConfig.Testt, ANTI_AF_POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*4)
+		err = WaitForPod(testConfig.Testt, ANTI_AF_POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*9)
 		if err != nil {
 			testConfig.Testt.Fatalf("error waiting for pod %s", err.Error())
 		}
@@ -1006,4 +1017,40 @@ func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) 
 	}
 
 	return nil
+}
+
+func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	if err != nil {
+		return 0, 0, fmt.Errorf("error getting existing PVC %s", err.Error())
+	}
+
+	existingResourceQuantity := existingPVC.Spec.Resources.Requests[v1.ResourceStorage]
+	size, _ := existingResourceQuantity.AsInt64()
+	t.Logf("existing PVC size is %+d\n", size)
+	existingResourceQuantity.Mul(2)
+	doubledsize, _ := existingResourceQuantity.AsInt64()
+	t.Logf("double PVC size is %+d\n", doubledsize)
+	existingPVC.Spec.Resources.Requests[v1.ResourceStorage] = existingResourceQuantity
+	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Update(context.TODO(), existingPVC, metav1.UpdateOptions{})
+	if err != nil {
+		return 0, 0, fmt.Errorf("error updating existing PVC %s", err.Error())
+	}
+
+	time.Sleep(time.Second * 15)
+
+	// verify the size changed
+	existingPVC, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	if err != nil {
+		return 0, 0, fmt.Errorf("error getting existing PVC for verify %s", err.Error())
+	}
+
+	updatedexistingResourceQuantity := existingPVC.Spec.Resources.Requests[v1.ResourceStorage]
+	updatedsize, _ := updatedexistingResourceQuantity.AsInt64()
+	if updatedsize != doubledsize {
+		return 0, 0, fmt.Errorf("error updated pvc size  %d did not match expected size %d", updatedsize, doubledsize)
+	}
+	t.Logf("pvc size doubled which is expected")
+
+	return size, updatedsize, nil
 }

@@ -9,8 +9,8 @@ setup:  devEnv teardown
 	$(_CLI) create -f ./pv-user2.yaml
 	$(_CLIN) create -f ./pvc-user1.yaml
 	$(_CLIN) create -f ./pvc-user2.yaml
-	$(_CLIN) create -f ./pod-user1.yaml
-	$(_CLIN) create -f ./pod-user2.yaml
+	envsubst < ./pod-user1.yaml | $(_CLIN) create -f -
+	envsubst < ./pod-user2.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 

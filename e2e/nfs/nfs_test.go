@@ -289,3 +289,41 @@ func TestNfsClone(t *testing.T) {
 		t.Log("not cleaning up namespace")
 	}
 }
+
+func TestNfsExpand(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	e2e.Setup(testConfig)
+
+	// we want to patch the PVC size up and then check for an expand of the PVC size
+	// e.g. kubectl patch pvc nfs-pvc --type='merge' -p '{"spec":{"resources":{"requests":{"storage": "2Gi"}}}}'
+	var updatedSize int64
+	_, updatedSize, err = e2e.ExpandPVC(t, testConfig)
+	if err != nil {
+		t.Fatalf("error expanding existing PVC %s", err.Error())
+	}
+
+	// wait an undetermined amount of time for the filesystem to be expanded inside the running pod
+	time.Sleep(time.Second * 5)
+
+	mountSize, err := e2e.GetMountSize(common.PROTOCOL_NFS, testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	if err != nil {
+		t.Fatalf("error execing into pod %s", err.Error())
+	}
+
+	if mountSize != updatedSize {
+		t.Logf("error expected updates size to match %d %d in pod", mountSize, updatedSize)
+		t.FailNow()
+	}
+	t.Logf("updated size matches %d %d in pod", mountSize, updatedSize)
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+}

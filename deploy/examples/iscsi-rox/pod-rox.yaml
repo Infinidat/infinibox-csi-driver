@@ -9,7 +9,7 @@ spec:
       type: "spc_t"
   containers:
     - name: csitest
-      image: "infinidat/csitestimage:latest"
+      image: $_E2E_TEST_IMAGE
       env:
       - name: READ_ONLY
         value: "true"

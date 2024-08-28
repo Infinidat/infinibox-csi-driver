@@ -10,7 +10,7 @@ spec:
     fsGroup: 3000
   containers:
     - name: csitest
-      image: infinidat/csitestimage:latest
+      image: $_E2E_TEST_IMAGE
       volumeMounts:
       - mountPath: "/tmp/csitesting"
         name: ibox-csi-volume

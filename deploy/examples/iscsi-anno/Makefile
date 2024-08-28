@@ -6,7 +6,7 @@ setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc.yaml | $(_CLIN) create -f -
-	$(_CLIN) create -f ./pod.yaml
+	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown
@@ -22,7 +22,7 @@ setup-fsgroup: devEnv  teardown-fsgroup ## Deploy iscsi objects
 	@echo -e $(_begin)
 	envsubst < ./storageclass-fsg.yaml | $(_CLI) create -f -
 	envsubst < ./pvc-fsg.yaml | $(_CLIN) create -f -
-	$(_CLIN) create -f ./pod-fsg.yaml
+	envsubst < ./pod-fsg.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-fsgroup
@@ -37,7 +37,7 @@ teardown-fsgroup: devEnv  ## Remove resources from setup-iscsi
 setup-clone: devEnv  teardown-clone
 	@echo -e $(_begin)
 	envsubst < ./pvc-clone.yaml | $(_CLIN) create -f -
-	$(_CLIN) create -f ./pod-clone.yaml
+	envsubst < ./pod-clone.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-clone
@@ -55,7 +55,7 @@ setup-snapshot: devEnv teardown-snapshot
 	sleep 5
 	$(_CLIN) create -f ./restore-snapshot.yaml
 	sleep 5
-	$(_CLIN) create -f ./pod-restore-snapshot.yaml
+	envsubst < ./pod-restore-snapshot.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-snapshot
@@ -72,7 +72,7 @@ setup-block: devEnv teardown-block
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc-block.yaml | $(_CLIN) create -f -
-	$(_CLIN) create -f ./pod-block.yaml
+	enbsubst < ./pod-block.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-block
@@ -88,7 +88,7 @@ setup-block-clone: devEnv teardown-block-clone
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc-block-clone.yaml | $(_CLIN) create -f -
-	$(_CLIN) create -f ./pod-block-clone.yaml
+	envsubst < ./pod-block-clone.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-block-clone

@@ -6,7 +6,7 @@ setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	$(_CLIN) create -f ./pvc.yaml
-	$(_CLIN) create -f ./pod.yaml
+	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown
@@ -23,7 +23,7 @@ setup-rox:  devEnv teardown-rox
 	envsubst < ./storageclass-rox.yaml | $(_CLI) create -f -
 	$(_CLIN) create -f ./pv-rox.yaml
 	$(_CLIN) create -f ./pvc-rox.yaml
-	$(_CLIN) create -f ./pod-rox.yaml
+	envsubst < ./pod-rox.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-rox

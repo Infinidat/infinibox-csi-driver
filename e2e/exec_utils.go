@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -261,5 +263,92 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	//fmt.Printf("cmd stdout %s\n", stdOut)
 
 	return nil
+
+}
+
+func GetMountSize(protocol string, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
+
+	catFileCmd := "df /tmp/csitesting"
+
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(stdErr) > 0 {
+		return 0, fmt.Errorf("error: %s", stdErr)
+	}
+
+	//fmt.Printf("stdout %s\n", stdOut)
+
+	mountLines := strings.Split(stdOut, "\n")
+
+	if len(mountLines) < 3 {
+		return 0, fmt.Errorf("df output is not correctly formatted %d lines", len(mountLines))
+	}
+	for _, line := range mountLines {
+		fmt.Printf("line=[%s]\n", line)
+	}
+
+	var blocksString string
+	contentLine := mountLines[1]
+	if protocol == common.PROTOCOL_NFS {
+		contentLine = mountLines[2]
+
+		fmt.Printf("line to parse =[%s]\n", contentLine)
+		parts := strings.Split(strings.Trim(contentLine, " "), " ")
+		if len(parts) < 1 {
+			return 0, fmt.Errorf("could not parse content line %s", contentLine)
+		}
+		fmt.Printf("len %d parts 0 %+s\n", len(parts), parts[0])
+		blocksString = parts[0]
+	} else {
+		// fc and iscsi
+		fields := strings.Fields(contentLine)
+		fmt.Printf("fields %+v\n", fields)
+		if len(fields) < 2 {
+			fmt.Printf("error in splitting df output into expected fields %+v\n", fields)
+		}
+		blocksString = fields[1]
+	}
+	raw, err := strconv.Atoi(blocksString)
+	if err != nil {
+		fmt.Printf("error converting raw size into int %s\n", err.Error())
+	}
+	byteCount := raw * 1024
+	fmt.Printf("1K blocks count %d - bytes size %d\n", raw, byteCount)
+
+	return int64(byteCount), nil
+
+}
+
+func GetBlockVolumeSize(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
+
+	catFileCmd := "blockdev --getsize64 /dev/xvda"
+
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(stdErr) > 0 {
+		return 0, fmt.Errorf("error: %s", stdErr)
+	}
+
+	//fmt.Printf("stdout %s\n", stdOut)
+
+	blockDeviceSizeString := strings.Fields(stdOut)
+
+	if blockDeviceSizeString[0] == "" {
+		return 0, fmt.Errorf("blockdev output is not correctly formatted %s lines", blockDeviceSizeString[0])
+	}
+
+	raw, err := strconv.Atoi(blockDeviceSizeString[0])
+	if err != nil {
+		fmt.Printf("error converting raw size into int %s\n", err.Error())
+	}
+	fmt.Printf("block device byte size %d \n", raw)
+
+	return int64(raw), nil
 
 }

@@ -6,7 +6,6 @@ provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
-# mountOptions: []
 parameters:
   csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
   csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
@@ -22,8 +21,7 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
 
-  max_vols_per_host: "100"
-  network_space: "iSCSI"
+  network_space: $_E2E_NETWORK_SPACE
   pool_name: "csitesting"
   provision_type: "THIN"
   ssd_enabled: "false"

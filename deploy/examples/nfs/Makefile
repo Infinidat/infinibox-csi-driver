@@ -6,7 +6,7 @@ setup: devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	$(_CLIN) create -f ./pvc.yaml
-	$(_CLIN) create -f ./pod.yaml
+	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 
@@ -24,7 +24,7 @@ setup-fsgroup:  devEnv teardown-fsgroup
 	@echo -e $(_begin)
 	envsubst < ./storageclass-fsgroup.yaml | $(_CLI) create -f -
 	$(_CLIN) create -f ./pvc-fsgroup.yaml
-	$(_CLIN) create -f ./pod-fsgroup.yaml
+	envsubst < ./pod-fsgroup.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 
@@ -40,7 +40,7 @@ teardown-fsgroup: devEnv
 setup-clone:  devEnv teardown-clone 
 	@echo -e $(_begin)
 	$(_CLIN) create -f ./pvc-clone.yaml
-	$(_CLIN) create -f ./pod-clone.yaml
+	envsubst < ./pod-clone.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-clone
@@ -59,7 +59,7 @@ setup-snapshot:  devEnv teardown-snapshot
 	sleep 5
 	$(_CLIN) create -f ./pvc-restore-snapshot.yaml
 	sleep 5
-	$(_CLIN) create -f ./pod-restore-snapshot.yaml
+	envsubst < ./pod-restore-snapshot.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-snapshot

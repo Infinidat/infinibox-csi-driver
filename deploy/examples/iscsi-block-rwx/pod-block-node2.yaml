@@ -16,7 +16,7 @@ spec:
         topologyKey: kubernetes.io/hostname
   containers:
     - name: csitest
-      image: infinidat/csitestimageblock:latest
+      image: $_E2E_TEST_BLOCK_IMAGE
       volumeMounts:
       command: [ "csitestimageblock" ]
       volumeDevices:

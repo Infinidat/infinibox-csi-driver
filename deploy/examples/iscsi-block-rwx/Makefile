@@ -6,7 +6,8 @@ setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	$(_CLIN) create -f ./pvc-block-rwx.yaml
-	$(_CLIN) create -f './pod-block-*.yaml'
+	envsubst < ./pod-block-node1.yaml | $(_CLIN) create -f -
+	envsubst < ./pod-block-node2.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown

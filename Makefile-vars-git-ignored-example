@@ -1,9 +1,13 @@
 _GITLAB_USER=username
-_IMAGE_TAG = develop
+_IMAGE_TAG = v2.16.0
 _IMAGE_NAMES = "infinidat-csi-driver infinidat-csi-metrics infinidat-csi-operator"
 
 _TEST_ONE_THING_DIR=storage
 _TEST_ONE_THING=TestISCSIControllerSuite/Test_CreateVolume_content_success
+
+# location of test images, if not set, default is to use dockerhub as the registry
+_E2E_TEST_IMAGE=infinidat/csitestimage:latest
+_E2E_TEST_BLOCK_IMAGE=infinidat/csitestimageblock:latest
 
 _E2E_NAMESPACE=infinidat-csi
 _E2E_POOL=csitesting
@@ -12,8 +16,8 @@ _E2E_NETWORK_SPACE=NAS
 _E2E_NETWORK_SPACE2=
 _E2E_IBOX_SECRET=infinibox-creds
 _E2E_IBOX_SECRET2=infinibox-creds2
-_E2E_K8S_VERSION=v1.29.0
-_E2E_OCP_VERSION=v4.15
+_E2E_K8S_VERSION=v1.30.1
+_E2E_OCP_VERSION=v4.16
 _E2E_IBOX_USERNAME=someusername
 _E2E_IBOX_PASSWORD=somepassword
 _E2E_IBOX_HOSTNAME=somehost
