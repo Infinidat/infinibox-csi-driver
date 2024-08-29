@@ -23,6 +23,7 @@ import (
 
 	snapshotapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
+	groupsnapshotv1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1alpha1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -78,26 +79,31 @@ type PVCAnnotations struct {
 	IboxPool         string
 }
 
-func GetKubeClient(kubeConfigPath string) (*kubernetes.Clientset, *dynamic.DynamicClient, *snapshotv6.Clientset, error) {
+func GetKubeClient(testConfig *TestConfig, kubeConfigPath string) error {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	testConfig.ClientSet, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
-	dynamicClient, err := dynamic.NewForConfig(config)
+	testConfig.DynamicClient, err = dynamic.NewForConfig(config)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	snapshotClient, err := snapshotv6.NewForConfig(config)
+	testConfig.SnapshotClient, err = snapshotv6.NewForConfig(config)
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
-	return clientset, dynamicClient, snapshotClient, nil
+	testConfig.GroupSnapshotClient, err = groupsnapshotv1alpha1.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func GetRestConfig(kubeConfigPath string) *rest.Config {

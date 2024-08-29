@@ -104,6 +104,13 @@ e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2eiscsivolumegroup
+e2eiscsivolumegroup:  ## VolumeGroupSnapshot test using iscsi volume
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -count=1 -v ./e2e/iscsi-volumegroup -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2eiscsianno
 e2eiscsianno:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)

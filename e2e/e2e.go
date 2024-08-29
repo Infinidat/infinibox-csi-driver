@@ -11,6 +11,7 @@ import (
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
+	groupsnapshotv1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	v1 "k8s.io/api/core/v1"
@@ -30,6 +31,7 @@ type TestConfig struct {
 	ClientSet             *kubernetes.Clientset
 	DynamicClient         *dynamic.DynamicClient
 	SnapshotClient        *snapshotv6.Clientset
+	GroupSnapshotClient   *groupsnapshotv1alpha1.GroupsnapshotV1alpha1Client
 	RestConfig            *rest.Config
 	UsePVCVolumeRef       bool
 	UseFsGroup            bool
@@ -63,8 +65,7 @@ func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error
 	config.TestNames.PVCName = fmt.Sprintf(PVC_NAME, protocol)
 
 	//connect to kube
-	config.ClientSet, config.DynamicClient, config.SnapshotClient, err = GetKubeClient(*KubeConfigPath)
-
+	err = GetKubeClient(config, *KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
