@@ -4,6 +4,8 @@ metadata:
   name: iscsi-block-node2
   namespace: infinidat-csi
 spec:
+  imagePullSecrets:
+  - name: private-docker-reg-secret
   affinity:
     podAntiAffinity: 
       requiredDuringSchedulingIgnoredDuringExecution: 

@@ -4,6 +4,8 @@ metadata:
   name: nfs-test-using-clone-anno-secret
   namespace: infinidat-csi
 spec:
+  imagePullSecrets:
+  - name: private-docker-reg-secret
   containers:
     - name: csitest
       image: $_E2E_TEST_IMAGE

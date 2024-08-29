@@ -4,6 +4,8 @@ metadata:
   name: iscsi-test-using-clone
   namespace: infinidat-csi
 spec:
+  imagePullSecrets:
+  - name: private-docker-reg-secret
   containers:
     - name: csitest
       image: $_E2E_TEST_IMAGE

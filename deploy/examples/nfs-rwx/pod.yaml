@@ -6,6 +6,8 @@ metadata:
   labels:
     security: s1
 spec:
+  imagePullSecrets:
+  - name: private-docker-reg-secret
   containers:
     - name: csitest
       image: busybox

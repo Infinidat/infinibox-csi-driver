@@ -4,6 +4,8 @@ metadata:
   name: iscsi-test-fsg
   namespace: infinidat-csi
 spec:
+  imagePullSecrets:
+  - name: private-docker-reg-secret
   securityContext:
     fsGroup: 3000
   containers:
