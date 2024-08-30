@@ -153,6 +153,7 @@ func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error
 	return storageclasses, nil
 }
 
+/**
 func (kc *kubeclient) GetNodeIdByNodeName(nodeName string) (InternalIp string, err error) {
 	node, err := kc.client.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
@@ -166,6 +167,7 @@ func (kc *kubeclient) GetNodeIdByNodeName(nodeName string) (InternalIp string, e
 	}
 	return nodeip, err
 }
+*/
 
 func (kc *kubeclient) GetClusterVerion() (string, error) {
 	info, err := kc.client.Discovery().ServerVersion()
