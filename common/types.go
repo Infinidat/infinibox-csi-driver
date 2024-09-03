@@ -69,3 +69,6 @@ const (
 )
 
 const BytesInOneGibibyte = 1073741824
+
+// for iscsi and fc host metadata
+const CSI_CREATED_HOST = "csi-created-host"

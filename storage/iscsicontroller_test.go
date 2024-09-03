@@ -8,6 +8,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/test_helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
@@ -230,6 +231,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume() {
 	service := iscsistorage{cs: *suite.cs}
 	//	var parameterMap map[string]string
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
@@ -275,6 +277,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError(
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 	service := iscsistorage{cs: *suite.cs}
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
@@ -315,12 +318,26 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr(
 	service := iscsistorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
 	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume DeleteHost")
+}
+
+func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_Metadata_Error() {
+	service := iscsistorage{cs: *suite.cs}
+	expectedErr := errors.New("some Error")
+	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
+	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
+	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
+	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume Metadata Error")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateSnapshot() {

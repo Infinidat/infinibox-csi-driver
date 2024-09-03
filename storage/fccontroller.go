@@ -428,10 +428,27 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 			zlog.Error().Msgf("failed to retrive luns for host %d with error %v", host.ID, err)
 		}
 		if len(luns) == 0 {
-			err = fc.cs.Api.DeleteHost(host.ID)
-			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-				zlog.Error().Msgf("failed to delete host with error %v", err)
-				return nil, status.Error(codes.Internal, err.Error())
+			meta, err := fc.cs.Api.GetMetadata(host.ID)
+			if err != nil {
+				e := fmt.Errorf("failed to get metadata for host ID %d. Error: %v", host.ID, err)
+				zlog.Err(e)
+				return nil, status.Error(codes.Internal, e.Error())
+			}
+			var createdByCSI bool
+			for i := 0; i < len(meta); i++ {
+				if meta[i].Key == common.CSI_CREATED_HOST {
+					createdByCSI = true
+				}
+			}
+
+			if createdByCSI {
+				err = fc.cs.Api.DeleteHost(host.ID)
+				if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+					zlog.Error().Msgf("failed to delete host with error %v", err)
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+			} else {
+				zlog.Debug().Msgf("ControllerUnpublishVolume not deleting host because it was not created by CSI host %d", host.ID)
 			}
 		}
 	}

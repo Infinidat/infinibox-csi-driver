@@ -8,6 +8,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/test_helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
@@ -266,6 +267,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume() {
 	service := fcstorage{cs: *suite.cs}
 	//	var parameterMap map[string]string
 	unpublishVolReq := getISCSIControllerUnpublishVolume()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
@@ -305,12 +307,26 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
 	service := fcstorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	unpublishVolReq := getISCSIControllerUnpublishVolume()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
 	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerUnpublishVolume DeleteHost")
+}
+
+func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_MetadataErr() {
+	service := fcstorage{cs: *suite.cs}
+	expectedErr := errors.New("some Error")
+	unpublishVolReq := getISCSIControllerUnpublishVolume()
+	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
+	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
+	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
+	_, err := service.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerUnpublishVolume Metadata Error")
 }
 
 func (suite *FCControllerSuite) Test_CreateSnapshot_GetVolumeByNameErr() {

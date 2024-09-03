@@ -546,3 +546,17 @@ func (m *MockApiService) GetMembersByCGID(cgID int) ([]MemberInfo, error) {
 	err, _ := args.Get(1).(error)
 	return memberInfo, err
 }
+
+func (m *MockApiService) GetMetadata(objectID int) ([]MetadataResult, error) {
+	args := m.Called(objectID)
+	res, _ := args.Get(0).([]MetadataResult)
+	err, _ := args.Get(1).(error)
+	return res, err
+}
+
+func (m *MockApiService) PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error) {
+	args := m.Called(objectID, key, value)
+	res, _ := args.Get(0).(PutMetadataResponse)
+	err, _ := args.Get(1).(error)
+	return &res, err
+}

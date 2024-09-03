@@ -100,6 +100,9 @@ type Client interface {
 	GetMaxTreeqPerFs() (int, error)
 	GetMaxFileSystems() (int, error)
 	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
+
+	PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error)
+	GetMetadata(objectID int) ([]MetadataResult, error)
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -434,7 +437,13 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 		host, _ = apiresp.Result.(Host)
 	}
 
-	zlog.Trace().Msgf("created host with name %s", host.Name)
+	_, err = c.PutMetadata(host.ID, common.CSI_CREATED_HOST, "true")
+	if err != nil {
+		zlog.Error().Msgf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
+		return host, err
+	}
+
+	zlog.Trace().Msgf("created host with name %s ID %d", host.Name, host.ID)
 	return host, nil
 }
 
@@ -862,4 +871,64 @@ func (c *ClientService) GetNtpStatus() ([]NtpStatus, error) {
 	}
 
 	return allNtpStatus, err
+}
+
+// Put Metadata : add a single key-value pair metadata for an object
+func (c *ClientService) PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error) {
+	zlog.Trace().Msgf("Put metadata %s/%s to object %d", key, value, objectID)
+
+	mymap := map[string]string{
+		key: value,
+	}
+	uri := "api/rest/metadata/" + strconv.Itoa(objectID)
+	putResponse := PutMetadataResponse{}
+	var putResponseResults []MetadataResult
+
+	resp, err := c.getJSONResponse(http.MethodPut, uri, mymap, &putResponseResults)
+	if err != nil {
+		zlog.Error().Msgf("error occured while updating volume : %s", err)
+		return nil, err
+	}
+
+	apiresp := resp.(client.ApiResponse)
+	putResponse, _ = apiresp.Result.(PutMetadataResponse)
+
+	putResponse.Results = putResponseResults
+
+	zlog.Trace().Msgf("Added metadata to object: %d object_type: %v", objectID, putResponse)
+	return &putResponse, nil
+}
+
+// GetMetadataForObject - Get all metadata for an object ID
+func (c *ClientService) GetMetadata(objectID int) (results []MetadataResult, err error) {
+
+	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	total_pages := 1 // start with 1, update after first query.
+
+	zlog.Trace().Msgf("Get all metadata for object %d", objectID)
+
+	for page := 1; page <= total_pages; page++ {
+		uri := "api/rest/metadata/" + strconv.Itoa(objectID) + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
+		zlog.Trace().Msgf("calling %s", uri)
+
+		resp, err := c.getResponseWithQueryString(uri, nil, &results)
+
+		if err != nil {
+			zlog.Error().Msgf("failed to get metadata for object %d with error %v", objectID, err)
+			return results, err
+		}
+
+		apiresp := resp.(client.ApiResponse)
+		currentResults, _ := apiresp.Result.([]MetadataResult)
+		results = append(results, currentResults...)
+		responseSize := apiresp.MetaData.NoOfObject
+		zlog.Trace().Msgf("added %d items to results", responseSize)
+		if page == 1 {
+			total_pages = apiresp.MetaData.TotalPages
+		}
+		page++
+	}
+
+	zlog.Trace().Msgf("got %d metadata for object %d", len(results), objectID)
+	return results, nil
 }

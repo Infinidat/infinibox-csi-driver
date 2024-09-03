@@ -482,11 +482,28 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 			zlog.Error().Msgf("failed to get LUNs for host with ID %d. Error: %v", host.ID, err)
 		}
 		if len(luns) == 0 {
-			err = iscsi.cs.Api.DeleteHost(host.ID)
-			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-				e := fmt.Errorf("failed to delete host with ID %d. Error: %v", host.ID, err)
+			meta, err := iscsi.cs.Api.GetMetadata(host.ID)
+			if err != nil {
+				e := fmt.Errorf("failed to get metadata for host ID %d. Error: %v", host.ID, err)
 				zlog.Err(e)
 				return nil, status.Error(codes.Internal, e.Error())
+			}
+			var createdByCSI bool
+			for i := 0; i < len(meta); i++ {
+				if meta[i].Key == common.CSI_CREATED_HOST {
+					createdByCSI = true
+				}
+			}
+
+			if createdByCSI {
+				err = iscsi.cs.Api.DeleteHost(host.ID)
+				if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+					e := fmt.Errorf("failed to delete host with ID %d. Error: %v", host.ID, err)
+					zlog.Err(e)
+					return nil, status.Error(codes.Internal, e.Error())
+				}
+			} else {
+				zlog.Debug().Msgf("ControllerUnpublishVolume not deleting host because it was not created by CSI host %d", host.ID)
 			}
 		}
 	}

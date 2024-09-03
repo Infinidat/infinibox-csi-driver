@@ -1,6 +1,7 @@
 package test_helper
 
 import (
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -12,6 +13,15 @@ func GetSecret() map[string]string {
 		"password": "123456",
 		"hostname": "https://172.17.35.61/",
 	}
+}
+
+func GetHostMetadata() (results []api.MetadataResult) {
+	metadata := api.MetadataResult{
+		Key:   common.CSI_CREATED_HOST,
+		Value: "true",
+	}
+	results = append(results, metadata)
+	return results
 }
 
 // TODO: below only generates a MountVolume request, not a BlockVolume request. We should test both. CSIC-342

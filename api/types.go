@@ -366,3 +366,31 @@ type NtpStatus struct {
 		JitterMilliseconds float64 `json:"jitter_milliseconds"`
 	} `json:"ntp_peers"`
 }
+
+type MetadataResult struct {
+	ID         int    `json:"id"`
+	ObjectID   int    `json:"object_id"`
+	Key        string `json:"key"`
+	Value      string `json:"value"`
+	ObjectType string `json:"object_type"`
+}
+
+type PutMetadataResponse struct {
+	Results  []MetadataResult `json:"results"`
+	Error    any              `json:"error"`
+	Metadata struct {
+		Ready bool `json:"ready"`
+	} `json:"metadata"`
+}
+
+type GetMetadataResponse struct {
+	Results  []MetadataResult `json:"results"`
+	Error    any              `json:"error"`
+	Metadata struct {
+		Ready           bool `json:"ready"`
+		NumberOfObjects int  `json:"number_of_objects"`
+		PageSize        int  `json:"page_size"`
+		PagesTotal      int  `json:"pages_total"`
+		Page            int  `json:"page"`
+	} `json:"metadata"`
+}
