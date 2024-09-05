@@ -21,5 +21,6 @@ _E2E_OCP_VERSION=v4.16
 _E2E_IBOX_USERNAME=someusername
 _E2E_IBOX_PASSWORD=somepassword
 _E2E_IBOX_HOSTNAME=somehost
+_E2E_IMAGE_PULL_SECRET=private-docker-reg-secret
 _CLI=kubectl
 _CLIN=$(_CLI) -n $(_E2E_NAMESPACE)

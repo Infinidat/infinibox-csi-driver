@@ -17,8 +17,8 @@ setup:  devEnv teardown
 .PHONY: teardown
 teardown: devEnv
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-user1.yaml
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-user2.yaml
+	envsubst < ./pod-user1.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
+	envsubst < ./pod-user2.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-user1.yaml
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-user2.yaml
 	$(_CLI) delete --wait --ignore-not-found=true -f ./pv-user1.yaml

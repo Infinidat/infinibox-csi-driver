@@ -12,7 +12,7 @@ setup:  devEnv teardown
 .PHONY: teardown
 teardown: devEnv
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod.yaml
+	envsubst < ./pod.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc.yaml
 	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass.yaml
 	@echo -e $(_finish)
@@ -29,7 +29,7 @@ setup-rox:  devEnv teardown-rox
 .PHONY: teardown-rox
 teardown-rox: devEnv
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-rox.yaml
+	envsubst < ./pod-rox.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-rox.yaml
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pv-rox.yaml
 	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass-rox.yaml

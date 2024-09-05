@@ -14,7 +14,7 @@ setup-fsgroup:  devEnv teardown-fsgroup
 .PHONY: teardown-fsgroup
 teardown-fsgroup:  devEnv
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-fsgroup.yaml
+	envsubst < ./pod-fsgroup.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-fsgroup.yaml
 	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass-fsgroup.yaml
 	@echo -e $(_finish)

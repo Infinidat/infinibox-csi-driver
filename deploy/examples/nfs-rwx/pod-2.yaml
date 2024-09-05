@@ -5,7 +5,7 @@ metadata:
   namespace: infinidat-csi
 spec:
   imagePullSecrets:
-  - name: private-docker-reg-secret
+  - name: $_E2E_IMAGE_PULL_SECRET
   affinity:
     podAntiAffinity: 
       requiredDuringSchedulingIgnoredDuringExecution: 
@@ -18,7 +18,7 @@ spec:
         topologyKey: kubernetes.io/hostname
   containers:
     - name: csitest
-      image: busybox
+      image: quay.io/quay/busybox
       volumeMounts:
       - mountPath: "/tmp/data"
         name: ibox-csi-volume

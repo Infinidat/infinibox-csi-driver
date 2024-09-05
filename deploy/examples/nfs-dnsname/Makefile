@@ -13,7 +13,7 @@ setup:  devEnv teardown
 .PHONY: teardown
 teardown: devEnv  
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod.yaml
+	envsubst < ./pod.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc.yaml
 	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass.yaml
 	@echo -e $(_finish)
@@ -28,7 +28,7 @@ setup-clone: devEnv teardown-clone
 .PHONY: teardown-clone
 teardown-clone: devEnv 
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-clone.yaml
+	envsubst < ./pod-clone.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-clone.yaml
 	@echo -e $(_finish)
 
@@ -47,7 +47,7 @@ setup-snapshot:  devEnv teardown-snapshot
 .PHONY: teardown-snapshot
 teardown-snapshot: devEnv 
 	@echo -e $(_begin)
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pod-restore-snapshot.yaml
+	envsubst < ./pod-restore-snapshot.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-restore-snapshot.yaml
 	$(_CLIN) delete --wait --ignore-not-found=true -f ./snapshot.yaml
 	$(_CLIN) delete --wait --ignore-not-found=true -f ../volumesnapshotclass.yaml

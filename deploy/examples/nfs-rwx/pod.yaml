@@ -7,10 +7,10 @@ metadata:
     security: s1
 spec:
   imagePullSecrets:
-  - name: private-docker-reg-secret
+  - name: $_E2E_IMAGE_PULL_SECRET
   containers:
     - name: csitest
-      image: busybox
+      image: quay.io/quay/busybox
       volumeMounts:
       - mountPath: "/tmp/data"
         name: ibox-csi-volume
