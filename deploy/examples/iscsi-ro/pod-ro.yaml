@@ -19,5 +19,5 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: iscsi-ro-pvc
+        claimName: iscsi-ro-pvc-from-existing-pv
         readOnly: true
