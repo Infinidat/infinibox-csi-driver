@@ -1,0 +1,21 @@
+apiVersion: groupsnapshot.storage.k8s.io/v1alpha1
+kind: VolumeGroupSnapshotContent
+metadata:
+  annotations:
+    groupsnapshot.storage.kubernetes.io/deletion-secret-name: infinibox-creds
+    groupsnapshot.storage.kubernetes.io/deletion-secret-namespace: infinidat-csi
+  name: statically-created-content
+spec:
+  deletionPolicy: Delete
+  driver: infinibox-csi-driver
+  source:
+    groupSnapshotHandles:
+      volumeGroupSnapshotHandle: "138869243" 
+      volumeSnapshotHandles:
+      - 138869241$$iscsi 
+  volumeGroupSnapshotClassName: infinibox-groupsnapclass
+  volumeGroupSnapshotRef:
+    apiVersion: groupsnapshot.storage.k8s.io/v1alpha1
+    kind: VolumeGroupSnapshot
+    name: mygroup-groupsnapshot-static
+    namespace: infinidat-csi

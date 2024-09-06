@@ -1,10 +1,10 @@
 apiVersion: groupsnapshot.storage.k8s.io/v1alpha1
 kind: VolumeGroupSnapshotClass
 metadata:
-  name: infinibox-groupsnapclass2
+  name: infinibox-groupsnapclass
 deletionPolicy: Delete
 driver: infinibox-csi-driver
 parameters:
   csi.storage.k8s.io/group-snapshotter-secret-name: infinibox-creds
   csi.storage.k8s.io/group-snapshotter-secret-namespace: infinidat-csi
-  infinidat.com/cgname: dogbert2
+  infinidat.com/cgname: dogbert

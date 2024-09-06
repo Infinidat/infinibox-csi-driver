@@ -1,0 +1,9 @@
+apiVersion: groupsnapshot.storage.k8s.io/v1alpha1
+kind: VolumeGroupSnapshot
+metadata:
+  name: mygroup-groupsnapshot-static
+  namespace: infinidat-csi
+spec:
+  source:
+    volumeGroupSnapshotContentName: statically-created-content
+  volumeGroupSnapshotClassName: infinibox-groupsnapclass

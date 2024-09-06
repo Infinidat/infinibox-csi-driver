@@ -323,7 +323,7 @@ func (c *ClientService) DeleteSG(sgID int) (err error) {
 // GetCGByID gets the consistency group (by ID) from the ibox
 func (c *ClientService) GetCGByID(id int) (*CGInfo, error) {
 	cg := CGInfo{}
-	path := "/api/rest/volumes/" + strconv.Itoa(id)
+	path := "/api/rest/cgs/" + strconv.Itoa(id)
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &cg)
 	if err != nil {
 		return nil, err

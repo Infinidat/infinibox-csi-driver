@@ -232,6 +232,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 		return nil, status.Errorf(codes.InvalidArgument, "failed to convert group_snapshot_id %s to int error %v", req.GroupSnapshotId, err)
 	}
 
+	//sgID is the volume ID of the snap group, the parent_id will be the cg MASTER volume
 	cg, err := cl.GetCGByID(int(sgID))
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "error getting CG group_snapshot_id %s error %v", req.GroupSnapshotId, err)
@@ -261,7 +262,8 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 		var sourceVolumeId string
 
 		for _, sv := range req.SnapshotIds {
-			idString := strconv.Itoa(m.FamilyID)
+			//idString := strconv.Itoa(m.FamilyID)
+			idString := strconv.Itoa(m.ID)
 			zlog.Debug().Msgf("contains check %s %s", sv, idString)
 			if strings.Contains(sv, idString) {
 				sourceVolumeId = sv
