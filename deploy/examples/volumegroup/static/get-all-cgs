@@ -1,0 +1,1 @@
+curl --insecure -u "username:password" https://ibox0000.example.com/api/rest/cgs | jq > ./all-cgs
