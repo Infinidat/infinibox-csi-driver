@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: iscsi-pvc-replica
+  namespace: infinidat-csi
+  annotations:
+    infinidat.com/replica: iscsivolreplica
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-iscsi-replica
+  #volumeName: <<pv name>> #need to uncomment if want to existing pv

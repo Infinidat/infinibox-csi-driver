@@ -2,6 +2,7 @@
 #infinibox-csi-driver
 
 # Folders
+bin
 vendor
 artifact
 

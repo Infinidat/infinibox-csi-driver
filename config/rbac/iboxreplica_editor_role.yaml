@@ -1,0 +1,27 @@
+# permissions for end users to edit iboxreplicas.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: api2
+    app.kubernetes.io/managed-by: kustomize
+  name: iboxreplica-editor-role
+rules:
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxreplicas
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxreplicas/status
+  verbs:
+  - get

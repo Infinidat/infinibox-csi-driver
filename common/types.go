@@ -72,3 +72,15 @@ const BytesInOneGibibyte = 1073741824
 
 // for iscsi and fc host metadata
 const CSI_CREATED_HOST = "csi-created-host"
+
+// iboxreplica controller
+const (
+	PVC_ANNOTATION_SECRET_NAME      = "infinidat.com/secret_name"
+	PVC_ANNOTATION_SECRET_NAMESPACE = "infinidat.com/secret_namespace"
+
+	REPLICA_ENTITY_CONSISTENCY_GROUP = "CONSISTENCY_GROUP"
+	REPLICA_ENTITY_VOLUME            = "VOLUME"
+	REPLICA_ENTITY_FILESYSTEM        = "FILESYSTEM"
+	REPLICATION_TYPE_ASYNC           = "ASYNC"
+	REPLICATION_BASE_ACTION_NEW      = "NEW"
+)

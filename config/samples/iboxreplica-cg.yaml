@@ -1,0 +1,17 @@
+apiVersion: csidriver.infinidat.com/v1
+kind: Iboxreplica
+metadata:
+  annotations:
+    infinidat.com/secret_name: infinibox-creds
+    infinidat.com/secret_namespace: infinidat-csi
+  name: iboxreplica-cg-sample
+spec:
+  sync_interval: 240000
+  description: "mycgreplicatest"
+  entity_type: "CONSISTENCY_GROUP"
+  local_entity_name: "jeff-cg"
+  replication_type: "ASYNC"
+  base_action: "NEW"
+  link_remote_system_name: "box-ht12"
+  rpo_value: 300000
+  remote_pool_id: 65993

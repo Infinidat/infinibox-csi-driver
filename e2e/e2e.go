@@ -137,7 +137,7 @@ func SetupControllerClient() (pb.ControllerClient, error) {
 }
 
 func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
-	conn, err := grpc.Dial(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		zlog.Err(err)
 		return nil, err

@@ -533,6 +533,27 @@ func (m *MockApiService) GetAllCG() ([]CGInfo, error) {
 	return cgInfo, err
 }
 
+func (m *MockApiService) GetLinks() ([]Link, error) {
+	args := m.Called()
+	links, _ := args.Get(0).([]Link)
+	err, _ := args.Get(1).(error)
+	return links, err
+}
+
+func (m *MockApiService) GetLink(id int) (*Link, error) {
+	args := m.Called(id)
+	link, _ := args.Get(0).(Link)
+	err, _ := args.Get(1).(error)
+	return &link, err
+}
+
+func (m *MockApiService) CreateReplica(req CreateReplicaRequest) (Replica, error) {
+	args := m.Called(req)
+	resp, _ := args.Get(0).(Replica)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
 func (m *MockApiService) GetCG(name string) (CGInfo, error) {
 	args := m.Called(name)
 	cgInfo, _ := args.Get(0).(CGInfo)

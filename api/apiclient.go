@@ -103,6 +103,11 @@ type Client interface {
 
 	PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error)
 	GetMetadata(objectID int) ([]MetadataResult, error)
+
+	// replication
+	CreateReplica(request CreateReplicaRequest) (Replica, error)
+	GetLink(linkID int) (*Link, error)
+	GetLinks() ([]Link, error)
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations

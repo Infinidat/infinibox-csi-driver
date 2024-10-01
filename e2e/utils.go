@@ -680,15 +680,26 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 	result.ObjectMeta.Namespace = ns
 	result.Namespace = ns
 	result.ResourceVersion = ""
-	createOptions := metav1.CreateOptions{}
 
-	_, err = clientset.CoreV1().Secrets(ns).Create(context.TODO(), result, createOptions)
+	_, err = clientset.CoreV1().Secrets(ns).Get(context.TODO(), IMAGE_PULL_SECRET, metav1.GetOptions{})
 	if err != nil {
-		return err
+		if apierrors.IsNotFound(err) {
+			t.Logf("image pull secret %s not found in operator namespace %s\n", IMAGE_PULL_SECRET, ns)
+			createOptions := metav1.CreateOptions{}
 
+			_, err = clientset.CoreV1().Secrets(ns).Create(context.TODO(), result, createOptions)
+			if err != nil {
+				return err
+			}
+
+			t.Logf("imagepullsecret %s created in ns %s\n", IMAGE_PULL_SECRET, ns)
+			return nil
+		} else {
+			return err
+		}
 	}
 
-	t.Logf("imagepullsecret %s created in ns %s\n", IMAGE_PULL_SECRET, ns)
+	t.Logf("image pull secret %s found in operator namespace %s\n", IMAGE_PULL_SECRET, ns)
 
 	return nil
 }

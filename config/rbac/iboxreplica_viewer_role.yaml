@@ -1,0 +1,23 @@
+# permissions for end users to view iboxreplicas.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: api2
+    app.kubernetes.io/managed-by: kustomize
+  name: iboxreplica-viewer-role
+rules:
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxreplicas
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxreplicas/status
+  verbs:
+  - get

@@ -16,7 +16,12 @@ fi
 # enabled per https://github.com/rexray/gocsi
 #export X_CSI_DEBUG=true
 
-# Start infinibox-csi-driver
-exec "/infinibox-csi-driver"
+# Start infinibox-csi-driver or the iboxreplica-controller
+if [ -z "$IBOXREPLICA_CONTROLLER" ]
+then 
+	exec "/infinibox-csi-driver"
+else 
+	exec "/iboxreplica-controller"
+fi
 
 # exec /infinibox-csi-driver $*

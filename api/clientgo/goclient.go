@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var zlog = log.Get() // grab the logger for package use
@@ -33,10 +34,28 @@ type KubeClient interface {
 }
 
 type kubeclient struct {
-	client kubernetes.Interface
+	client     kubernetes.Interface
+	restConfig *rest.Config
 }
 
 var clientapi kubeclient
+
+func BuildOffClusterClient(kubeConfigPath string) (kc *kubeclient, err error) {
+	zlog.Debug().Msgf("BuildOffClusterClient called.")
+	if clientapi.client == nil {
+		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+		if err != nil {
+			return nil, err
+		}
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+
+		clientapi = kubeclient{client: clientset, restConfig: config}
+	}
+	return &clientapi, err
+}
 
 // BuildClient
 func BuildClient() (kc *kubeclient, err error) {
@@ -53,7 +72,7 @@ func BuildClient() (kc *kubeclient, err error) {
 			zlog.Error().Msgf("BuildClient Error while creating client: %s", err)
 			return nil, err
 		}
-		clientapi = kubeclient{clientset}
+		clientapi = kubeclient{client: clientset, restConfig: config}
 	}
 	return &clientapi, err
 }
