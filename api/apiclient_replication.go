@@ -15,7 +15,6 @@ package api
 import (
 	"infinibox-csi-driver/api/client"
 	"net/http"
-	"reflect"
 	"strconv"
 )
 
@@ -262,14 +261,10 @@ func (c *ClientService) CreateReplica(req CreateReplicaRequest) (replica Replica
 
 	path := "/api/rest/replicas?approved=true"
 
-	resp, err := c.getJSONResponse(http.MethodPost, path, req, &replica)
+	_, err = c.getJSONResponse(http.MethodPost, path, req, &replica)
 
 	if err != nil {
 		return replica, err
-	}
-	if reflect.DeepEqual(replica, (Replica{})) {
-		apiresp := resp.(client.ApiResponse)
-		replica, _ = apiresp.Result.(Replica)
 	}
 
 	zlog.Trace().Msgf("CreateReplica completed - %s", replica.Description)
@@ -295,14 +290,9 @@ func (c *ClientService) GetLink(linkid int) (*Link, error) {
 	zlog.Trace().Msgf("GetLink called - ID %d", linkid)
 	link := Link{}
 	path := "/api/rest/links/" + strconv.Itoa(linkid)
-	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &link)
+	_, err := c.getJSONResponse(http.MethodGet, path, nil, &link)
 	if err != nil {
 		return nil, err
-	}
-
-	if reflect.DeepEqual(link, (Link{})) {
-		apiresp := resp.(client.ApiResponse)
-		link, _ = apiresp.Result.(Link)
 	}
 
 	return &link, nil
@@ -330,14 +320,9 @@ func (c *ClientService) GetReplica(replicaID int) (*Replica, error) {
 	zlog.Trace().Msgf("GetReplica called - ID %d", replicaID)
 	replica := Replica{}
 	path := "/api/rest/replicas/" + strconv.Itoa(replicaID)
-	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &replica)
+	_, err := c.getJSONResponse(http.MethodGet, path, nil, &replica)
 	if err != nil {
 		return nil, err
-	}
-
-	if reflect.DeepEqual(replica, (Replica{})) {
-		apiresp := resp.(client.ApiResponse)
-		replica, _ = apiresp.Result.(Replica)
 	}
 
 	return &replica, nil

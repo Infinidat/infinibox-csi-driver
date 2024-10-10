@@ -17,7 +17,6 @@ import (
 	"infinibox-csi-driver/api/client"
 	"infinibox-csi-driver/common"
 	"net/http"
-	"reflect"
 	"strconv"
 )
 
@@ -120,14 +119,10 @@ func (c *ClientService) CreateCG(poolID int, cgName string) (newCG CGInfo, err e
 		"pool_id": poolID,
 	}
 
-	resp, err := c.getJSONResponse(http.MethodPost, path, body, &newCG)
+	_, err = c.getJSONResponse(http.MethodPost, path, body, &newCG)
 
 	if err != nil {
 		return newCG, err
-	}
-	if reflect.DeepEqual(resp, (CGInfo{})) {
-		apiresp := resp.(client.ApiResponse)
-		newCG, _ = apiresp.Result.(CGInfo)
 	}
 
 	zlog.Trace().Msgf("CreateCG Name : poolID %d cdName %s newCG ID %d", poolID, cgName, newCG.ID)
@@ -148,10 +143,6 @@ func (c *ClientService) AddMemberToSnapshotGroup(volumeID int, cgID int) (err er
 	resp, err := c.getJSONResponse(http.MethodPost, path, body, &info)
 	if err != nil {
 		return err
-	}
-	if reflect.DeepEqual(resp, (CGInfo{})) {
-		apiresp := resp.(client.ApiResponse)
-		resp, _ = apiresp.Result.(CGInfo)
 	}
 
 	zlog.Trace().Msgf("AddMemberToSnapshotGroup volume ID %d cg ID %d completed response %v", volumeID, cgID, resp)
@@ -251,14 +242,9 @@ func (c *ClientService) CreateSnapshotGroup(cgID int, snapName, snapPrefix, snap
 		"snap_suffix": snapSuffix,
 	}
 
-	resp, err := c.getJSONResponse(http.MethodPost, path, body, &newCG)
-
+	_, err = c.getJSONResponse(http.MethodPost, path, body, &newCG)
 	if err != nil {
 		return newCG, err
-	}
-	if reflect.DeepEqual(resp, (CGInfo{})) {
-		apiresp := resp.(client.ApiResponse)
-		newCG, _ = apiresp.Result.(CGInfo)
 	}
 
 	zlog.Trace().Msgf("CreateSnapshotGroup Name : cgID %d snapName: %s", cgID, snapName)

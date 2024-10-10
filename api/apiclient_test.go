@@ -920,30 +920,6 @@ func (suite *ApiTestSuite) Test_GetParentID() {
 	assert.Equal(suite.T(), int64(0), parentID)
 }
 
-func (suite *ApiTestSuite) Test_GetParentID_success() {
-	var FilesystemID int64 = 3111
-	// expectedErr := errors.New("some error")
-	expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	parentID := service.GetParentID(FilesystemID)
-	// Assert
-	assert.Equal(suite.T(), int64(100), parentID)
-}
-
-func (suite *ApiTestSuite) Test_GetFileSystemByID_success() {
-	var FilesystemID int64 = 3111
-	var parentID int64 = 100
-
-	expectedResponse := client.ApiResponse{Result: FileSystem{ParentID: 100}}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	filesys, err := service.GetFileSystemByID(FilesystemID)
-	// Assert
-	assert.Nil(suite.T(), err)
-	assert.Equal(suite.T(), filesys.ParentID, parentID)
-}
-
 func (suite *ApiTestSuite) Test_GetFileSystemByID_Error() {
 	var FilesystemID int64 = 3111
 	expectedErr := errors.New("some error")
@@ -1326,30 +1302,6 @@ func (suite *ApiTestSuite) Test_DeleteNodeFromExport_already_deleted() {
 	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
 	// Assert
 	assert.Nil(suite.T(), err, "Error should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_DeleteNodeFromExport_updateError() {
-	exportResp := ExportResponse{}
-	exportResp.ID = 1009
-
-	permissionsArry := []Permissions{}
-	permissions := Permissions{}
-	permissions.Access = "RW"
-	permissions.Client = "10.20.30.40"
-	permissions.NoRootSquash = false
-	permissionsArry = append(permissionsArry, permissions)
-
-	exportResp.Permissions = append(exportResp.Permissions, permissionsArry...)
-
-	expectedResponse := client.ApiResponse{Result: exportResp}
-
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("Put").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
 }
 
 func (suite *ApiTestSuite) Test_DeleteNodeFromExport_update_success() {

@@ -20,7 +20,6 @@ import (
 	"infinibox-csi-driver/common"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -168,14 +167,10 @@ func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
 	zlog.Trace().Msgf("add chap atuhentication for hostID %d : ", hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
-	resp, err := c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
+	_, err = c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
 	if err != nil {
 		zlog.Error().Msgf("failed to add chap security to host %d with error %v", hostID, err)
 		return host, err
-	}
-	if reflect.DeepEqual(host, (Host{})) {
-		apiresp := resp.(client.ApiResponse)
-		host, _ = apiresp.Result.(Host)
 	}
 	zlog.Trace().Msgf("created chap authentication for host %s: ", host.Name)
 	return host, nil
@@ -186,7 +181,7 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 	zlog.Trace().Msgf("add port for hostID %s %d : ", portAddress, hostID)
 	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports?approved=true"
 	body := map[string]interface{}{"address": portAddress, "type": portType}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
+	_, err = c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
 	if err != nil {
 		if strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
 			zlog.Trace().Msgf("Success: No need to add port '%s' to host with ID %d, port already belongs to host", portAddress, hostID)
@@ -195,10 +190,6 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 			zlog.Error().Msgf("error adding port '%s' to host with ID %d, error: %+v", portAddress, hostID, err)
 			return hostPort, err
 		}
-	}
-	if reflect.DeepEqual(hostPort, (HostPort{})) {
-		apiresp := resp.(client.ApiResponse)
-		hostPort, _ = apiresp.Result.(HostPort)
 	}
 
 	zlog.Trace().Msgf("created host port: %s", hostPort.PortAddress)
@@ -275,13 +266,9 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 			queryParam["name"] = storagepoolname
 		}
 		storagePool := StoragePool{}
-		resp, err := c.getResponseWithQueryString("api/rest/pools", queryParam, &storagePool)
+		_, err := c.getResponseWithQueryString("api/rest/pools", queryParam, &storagePool)
 		if err != nil {
 			return nil, err
-		}
-		if reflect.DeepEqual(storagePool, (StoragePool{})) {
-			apiresp := resp.(client.ApiResponse)
-			storagePool, _ = apiresp.Result.(StoragePool)
 		}
 	}
 
@@ -365,23 +352,19 @@ func (c *ClientService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam 
 	zlog.Trace().Msgf("Create a snapshot: %s", snapshotParam.SnapshotName)
 	path := "/api/rest/volumes"
 	snapResp := SnapshotVolumesResp{}
-	valumeParameter := make(map[string]interface{})
-	valumeParameter["parent_id"] = snapshotParam.ParentID
-	valumeParameter["name"] = snapshotParam.SnapshotName
-	valumeParameter["write_protected"] = snapshotParam.WriteProtected
-	valumeParameter[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
+	parameters := make(map[string]interface{})
+	parameters["parent_id"] = snapshotParam.ParentID
+	parameters["name"] = snapshotParam.SnapshotName
+	parameters["write_protected"] = snapshotParam.WriteProtected
+	parameters[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
 	if lockExpiresAt > 0 {
 		path = path + "?approved=true"
-		valumeParameter["lock_expires_at"] = lockExpiresAt
+		parameters["lock_expires_at"] = lockExpiresAt
 	}
 
-	resp, err := c.getJSONResponse(http.MethodPost, path, valumeParameter, &snapResp)
+	_, err := c.getJSONResponse(http.MethodPost, path, parameters, &snapResp)
 	if err != nil {
 		return nil, err
-	}
-	if reflect.DeepEqual(snapResp, (SnapshotVolumesResp{})) {
-		apiresp := resp.(client.ApiResponse)
-		snapResp, _ = apiresp.Result.(SnapshotVolumesResp)
 	}
 	zlog.Trace().Msgf("Created snapshot: %s", snapResp.Name)
 	return &snapResp, nil
@@ -432,14 +415,10 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	zlog.Trace().Msgf("create host with name %s", hostName)
 	uri := "api/rest/hosts"
 	body := map[string]interface{}{"name": hostName}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &host)
+	_, err = c.getJSONResponse(http.MethodPost, uri, body, &host)
 	if err != nil {
 		zlog.Error().Msgf("error creating host : %s error : %v", hostName, err)
 		return host, err
-	}
-	if reflect.DeepEqual(host, (Host{})) {
-		apiresp := resp.(client.ApiResponse)
-		host, _ = apiresp.Result.(Host)
 	}
 
 	_, err = c.PutMetadata(host.ID, common.CSI_CREATED_HOST, "true")

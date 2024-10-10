@@ -929,6 +929,8 @@ func GetEnvVars() string {
 	sb.WriteString(fmt.Sprintf("_E2E_IBOX_USERNAME [%s]\n", os.Getenv("_E2E_IBOX_USERNAME")))
 	sb.WriteString(fmt.Sprintf("_E2E_IBOX_PASSWORD [%s]\n", os.Getenv("_E2E_IBOX_PASSWORD")))
 	sb.WriteString(fmt.Sprintf("_E2E_IBOX_HOSTNAME [%s]\n", os.Getenv("_E2E_IBOX_HOSTNAME")))
+	sb.WriteString(fmt.Sprintf("_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME [%s]\n", os.Getenv("_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME")))
+	sb.WriteString(fmt.Sprintf("_E2E_IBOX_REMOTE_POOL_ID [%s]\n", os.Getenv("_E2E_IBOX_REMOTE_POOL_ID")))
 
 	return sb.String()
 }

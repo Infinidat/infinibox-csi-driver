@@ -34,6 +34,7 @@ func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error
 		zlog.Error().Msgf("Error occured while deleting export path : %s ", err)
 		return nil, err
 	}
+	// this next DeepEqual block actually gets called
 	if reflect.DeepEqual(eResp, (ExportResponse{})) {
 		apiresp := resp.(client.ApiResponse)
 		eResp, _ = apiresp.Result.(ExportResponse)
@@ -122,15 +123,11 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 	zlog.Trace().Msgf("Export FileSystem with ID %d", export.FilesystemID)
 	urlPost := "api/rest/exports"
 	exportResp := ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
+	_, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
 	if err != nil {
 		return nil, err
 	}
 
-	if reflect.DeepEqual(exportResp, ExportResponse{}) {
-		apiresp := resp.(client.ApiResponse)
-		exportResp, _ = apiresp.Result.(ExportResponse)
-	}
 	zlog.Trace().Msgf("Exported FileSystem with ID %d", exportResp.FilesystemId)
 	return &exportResp, nil
 }
@@ -192,11 +189,6 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		return nil, err
 	} else {
 		var respResult interface{} = respApiResponse.Result
-		//var respMetaData client.Resultmetadata = respApiResponse.MetaData
-		//var respError interface{} = respApiResponse.Error
-		// zlog.Trace().Msgf("Current export with export ID %d. GET response Result: %v", exportID, respResult)
-		// zlog.Trace().Msgf("Current export with export ID %d. GET response MetaData: %v", exportID, respMetaData)
-		// zlog.Trace().Msgf("Current export with export ID %d. GET response Error: %v", exportID, respError)
 
 		if exportResponse, ok := respResult.(*ExportResponse); !ok {
 			msg := fmt.Sprintf("Export response for export with ID %d is not of type ExportResponse", exportID)
@@ -267,14 +259,10 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 	for _, export := range *exportArray {
 		uri := "api/rest/exports/" + strconv.FormatInt(export.ID, 10)
 		eResp := ExportResponse{}
-		resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+		_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 		if err != nil {
 			zlog.Error().Msgf("Error occured while getting export path : %s", err)
 			return err
-		}
-		if reflect.DeepEqual(eResp, ExportResponse{}) {
-			apiresp := resp.(client.ApiResponse)
-			eResp, _ = apiresp.Result.(ExportResponse)
 		}
 		permissionList := eResp.Permissions
 		for _, permission := range permissionList {
@@ -299,14 +287,10 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 	exportPathRef := ExportPathRef{}
 	uri := "api/rest/exports/" + strconv.FormatInt(exportID, 10)
 	eResp := ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
 		zlog.Error().Msgf("Error occured while getting export path : %s", err)
 		return nil, err
-	}
-	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(ExportResponse)
 	}
 	permissionList := eResp.Permissions
 	for i, permission := range permissionList {
@@ -326,12 +310,13 @@ func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRo
 			permissionList = append(permissionList, defaultPermission)
 		}
 		exportPathRef.Permissions = permissionList
-		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
+		resp, err := c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
 		if err != nil {
 			zlog.Error().Msgf("Error occured while updating permission : %s", err)
 			return nil, err
 		}
 		if reflect.DeepEqual(eResp, ExportResponse{}) {
+			zlog.Trace().Msgf("inside DeepEquals Deleted node from export with ID %d", exportID)
 			eResp, _ = resp.(ExportResponse)
 		}
 	} else {
@@ -461,14 +446,10 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 	zlog.Trace().Msgf("Get filesystem with ID %d", fileSystemID)
 	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
 	eResp := FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
 		zlog.Error().Msgf("Error occured while getting fileSystem: %s", err)
 		return nil, err
-	}
-	if reflect.DeepEqual(eResp, FileSystem{}) {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(FileSystem)
 	}
 	zlog.Trace().Msgf("Got filesystem with ID %d", fileSystemID)
 	return &eResp, nil
