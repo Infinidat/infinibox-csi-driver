@@ -8,6 +8,8 @@ _TEST_ONE_THING=TestISCSIControllerSuite/Test_CreateVolume_content_success
 # location of test images, if not set, default is to use dockerhub as the registry
 _E2E_TEST_IMAGE=infinidat/csitestimage:latest
 _E2E_TEST_BLOCK_IMAGE=infinidat/csitestimageblock:latest
+#_E2E_TEST_IMAGE=your-internal-registry/infinidat-csi-driver/csitestimage:latest
+#_E2E_TEST_BLOCK_IMAGE=your-internal-registry/infinidat-csi-driver/csitestimageblock:latest
 
 _E2E_NAMESPACE=infinidat-csi
 _E2E_POOL=csitesting
@@ -24,3 +26,8 @@ _E2E_IBOX_HOSTNAME=somehost
 _E2E_IMAGE_PULL_SECRET=private-docker-reg-secret
 _CLI=kubectl
 _CLIN=$(_CLI) -n $(_E2E_NAMESPACE)
+
+# for replication testing
+#_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME=your-test-ibox-name
+#_E2E_IBOX_REMOTE_POOL_ID=123456
+

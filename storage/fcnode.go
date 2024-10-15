@@ -20,6 +20,7 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"io/fs"
+	"regexp"
 
 	"os"
 	"os/exec"
@@ -64,6 +65,7 @@ type FCMounter struct {
 var execFc helper.ExecScsi
 
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	var err error
 	zlog.Debug().Msgf("NodeStageVolume called with PublishContext: %+v", req.GetPublishContext())
 	hostIdString := req.GetPublishContext()["hostID"]
@@ -110,6 +112,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 }
 
 func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	var err error
 	defer func() {
 		if err == nil {
@@ -167,15 +170,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	var err error
-	/**
-	defer func() {
-		if err == nil {
-			zlog.Debug().Msgf("NodeUnpublishVolume succeeded with volume ID %s", req.GetVolumeId())
-		} else {
-			zlog.Debug().Msgf("NodeUnpublishVolume failed with volume ID %s: %+v", req.GetVolumeId(), err)
-		}
-	}()
-	*/
+	defer helper.TimeTrack(zlog, time.Now())
 
 	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 
@@ -189,6 +184,7 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 }
 
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("Called FC NodeUnstageVolume")
 	var mpathDevice string
 	stagePath := req.GetStagingTargetPath()
@@ -251,6 +247,7 @@ func (fc *fcstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 }
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Info().Msgf("fc NodeExpandVolume called request %+v\n", req)
 
 	response := csi.NodeExpandVolumeResponse{}
@@ -351,6 +348,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 }
 
 func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
+	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("fc MountFCDisk called request %+v devicePath %s", fm, devicePath)
 
 	var mounted bool
@@ -648,6 +646,7 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 
 // FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent
 func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (string, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("In findMultipathDeviceForDevice")
 	disk, err := fc.findDeviceForPath(device)
 	if err != nil {
@@ -673,6 +672,7 @@ func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (
 }
 
 func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("In findDeviceForPath")
 	devicePath, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -691,7 +691,7 @@ func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
 }
 
 func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
-
+	defer helper.TimeTrack(zlog, time.Now())
 	// deviceMu.Lock()
 	zlog.Debug().Msgf("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
 
@@ -728,6 +728,7 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
+	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("Called searchDisk")
 	var diskIds []string // target wwns
 	var disk string
@@ -771,15 +772,19 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 
 // find the fc device and device mapper parent
 func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) {
+	defer helper.TimeTrack(zlog, time.Now())
+
 	zlog.Debug().Msgf("findFcDisk called with wwn %s and lun %s", wwn, lun)
-	FcPath := "-fc-0x" + wwn + "-lun-" + lun
+	FcPath := "^(pci-.*-fc|fc)-0x" + wwn + "-lun-" + lun + "$"
+	r := regexp.MustCompile(FcPath)
 	DevPath := "/host/dev/disk/by-path/"
 	if dirs, err := io.ReadDir(DevPath); err == nil {
 		for _, f := range dirs {
 			name := f.Name()
-			if strings.Contains(name, FcPath) {
+			if r.MatchString(name) {
 				if disk, err1 := io.EvalSymlinks(DevPath + name); err1 == nil {
 					if dm, err2 := fc.findMultipathDeviceForDevice(disk, io); err2 == nil {
+						zlog.Trace().Msgf("findFcDisk found it with wwn %s and lun %s and name %s", wwn, lun, name)
 						return disk, dm
 					} else {
 						zlog.Error().Msgf("could not find disk with error %v", err2)
@@ -796,6 +801,7 @@ func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) 
 }
 
 func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
+	defer helper.TimeTrack(zlog, time.Now())
 	FcPath := "scsi-" + wwid
 	DevID := "/dev/disk/by-id/"
 	if dirs, err := io.ReadDir(DevID); err == nil {
@@ -816,25 +822,6 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
 	zlog.Error().Msgf("fc: failed to find a disk [%s]", DevID+FcPath)
 	return "", ""
 }
-
-// Find and return FC disk
-/**
-func (fc *fcstorage) getFCDisk2(c Connector, io ioHandler) (string, error) {
-	if io == nil {
-		io = &OSioHandler{}
-	}
-	zlog.Debug().Msgf("getFCDisk() called")
-	devicePath, err := fc.searchDisk(c, io)
-	if err != nil {
-		zlog.Debug().Msgf("getFCDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
-		return "", err
-	}
-	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	zlog.Debug().Msgf("FC device path %s found", devicePath)
-
-	return devicePath, nil
-}
-*/
 
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
