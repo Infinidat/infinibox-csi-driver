@@ -350,6 +350,15 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		hostName = useHostName
 	}
 
+	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
+	if removeDomainName != "" && removeDomainName == "true" {
+		shortName := strings.Split(hostName, ".")
+		if len(shortName) > 0 {
+			zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
+			hostName = shortName[0]
+		}
+	}
+
 	host, err := iscsi.cs.validateHost(hostName)
 	if err != nil {
 		zlog.Err(err)
@@ -467,8 +476,10 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
 	if removeDomainName != "" && removeDomainName == "true" {
 		shortName := strings.Split(hostName, ".")
-		zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
-		hostName = shortName[0]
+		if len(shortName) > 0 {
+			zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
+			hostName = shortName[0]
+		}
 	}
 
 	host, err := iscsi.cs.Api.GetHostByName(hostName)
