@@ -673,3 +673,30 @@ func (n Service) ValidateNFSPortalIPAddress(ip string) (err error) {
 	zlog.Debug().Msgf("NFS network space portal IP address %s is reachable, time: %s", nfsAddress, elapsed)
 	return nil
 }
+
+func determineHostName(nodeID string) (hostName string, err error) {
+	useHostName := os.Getenv("USE_HOST_NAME")
+	if useHostName == "" {
+		if nodeID == "" {
+			return "", status.Error(codes.InvalidArgument, "node ID empty")
+		}
+		nodeNameIP := strings.Split(nodeID, "$$")
+		if len(nodeNameIP) != 2 {
+			return "", status.Error(codes.NotFound, fmt.Sprintf("node ID: %s not found", nodeID))
+		}
+		hostName = nodeNameIP[0]
+	} else {
+		zlog.Debug().Msgf("USE_HOST_NAME env var was set, will use it for the host name %s", useHostName)
+		hostName = useHostName
+	}
+
+	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
+	if removeDomainName != "" && removeDomainName == "true" {
+		shortName := strings.Split(hostName, ".")
+		if len(shortName) > 0 {
+			zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
+			hostName = shortName[0]
+		}
+	}
+	return hostName, nil
+}
