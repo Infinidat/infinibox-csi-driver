@@ -333,15 +333,22 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	nodeID := req.GetNodeId()
-	if nodeID == "" {
-		return nil, status.Error(codes.InvalidArgument, "node ID empty")
+	var hostName string
+	useHostName := os.Getenv("USE_HOST_NAME")
+	if useHostName == "" {
+		nodeID := req.GetNodeId()
+		if nodeID == "" {
+			return nil, status.Error(codes.InvalidArgument, "node ID empty")
+		}
+		nodeNameIP := strings.Split(nodeID, "$$")
+		if len(nodeNameIP) != 2 {
+			return nil, status.Error(codes.NotFound, fmt.Sprintf("node ID: %s not found", nodeID))
+		}
+		hostName = nodeNameIP[0]
+	} else {
+		zlog.Debug().Msgf("ControllerPublishVolume USE_HOST_NAME env var was set, will use it for the host name %s", useHostName)
+		hostName = useHostName
 	}
-	nodeNameIP := strings.Split(nodeID, "$$")
-	if len(nodeNameIP) != 2 {
-		return nil, status.Error(codes.NotFound, fmt.Sprintf("node ID: %s not found", nodeID))
-	}
-	hostName := nodeNameIP[0]
 
 	host, err := iscsi.cs.validateHost(hostName)
 	if err != nil {
@@ -437,17 +444,25 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		zlog.Error().Msgf(msg)
 		return nil, status.Error(codes.Internal, msg)
 	}
-	kubeNodeID := req.GetNodeId()
-	if kubeNodeID == "" {
-		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+
+	var hostName string
+	useHostName := os.Getenv("USE_HOST_NAME")
+	if useHostName == "" {
+		kubeNodeID := req.GetNodeId()
+		if kubeNodeID == "" {
+			return nil, status.Error(codes.InvalidArgument, "node ID is required")
+		}
+		nodeNameIP := strings.Split(kubeNodeID, "$$")
+		if len(nodeNameIP) != 2 {
+			msg = fmt.Sprintf("node ID not found in %s", kubeNodeID)
+			zlog.Error().Msgf(msg)
+			return nil, status.Error(codes.NotFound, msg)
+		}
+		hostName = nodeNameIP[0]
+	} else {
+		zlog.Debug().Msgf("ControllerUnpublishVolume USE_HOST_NAME env var was set, will use it for the host name %s", useHostName)
+		hostName = useHostName
 	}
-	nodeNameIP := strings.Split(kubeNodeID, "$$")
-	if len(nodeNameIP) != 2 {
-		msg = fmt.Sprintf("node ID not found in %s", kubeNodeID)
-		zlog.Error().Msgf(msg)
-		return nil, status.Error(codes.NotFound, msg)
-	}
-	hostName := nodeNameIP[0]
 
 	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
 	if removeDomainName != "" && removeDomainName == "true" {

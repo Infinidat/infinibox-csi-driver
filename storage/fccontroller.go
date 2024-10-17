@@ -284,15 +284,23 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, errors.New("error getting volume id")
 	}
 	volID, _ := strconv.Atoi(volproto.VolumeID)
-	kubeNodeID := req.GetNodeId()
-	if kubeNodeID == "" {
-		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+
+	var hostName string
+	useHostName := os.Getenv("USE_HOST_NAME")
+	if useHostName == "" {
+		kubeNodeID := req.GetNodeId()
+		if kubeNodeID == "" {
+			return nil, status.Error(codes.InvalidArgument, "node ID is required")
+		}
+		nodeNameIP := strings.Split(kubeNodeID, "$$")
+		if len(nodeNameIP) != 2 {
+			return nil, errors.New("not found Node ID")
+		}
+		hostName = nodeNameIP[0]
+	} else {
+		zlog.Debug().Msgf("ControllerPublishVolume USE_HOST_NAME env var was set, will use it for the host name %s", useHostName)
+		hostName = useHostName
 	}
-	nodeNameIP := strings.Split(kubeNodeID, "$$")
-	if len(nodeNameIP) != 2 {
-		return nil, errors.New("not found Node ID")
-	}
-	hostName := nodeNameIP[0]
 
 	host, err := fc.cs.validateHost(hostName)
 	if err != nil {
@@ -388,15 +396,22 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		zlog.Error().Msgf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
-	kubeNodeID := req.GetNodeId()
-	if kubeNodeID == "" {
-		return nil, status.Error(codes.InvalidArgument, "node ID is required")
+	var hostName string
+	useHostName := os.Getenv("USE_HOST_NAME")
+	if useHostName == "" {
+		kubeNodeID := req.GetNodeId()
+		if kubeNodeID == "" {
+			return nil, status.Error(codes.InvalidArgument, "node ID is required")
+		}
+		nodeNameIP := strings.Split(kubeNodeID, "$$")
+		if len(nodeNameIP) != 2 {
+			return nil, errors.New("node ID not found")
+		}
+		hostName = nodeNameIP[0]
+	} else {
+		zlog.Debug().Msgf("ControllerUnpublishVolume USE_HOST_NAME env var was set, will use it for the host name %s", useHostName)
+		hostName = useHostName
 	}
-	nodeNameIP := strings.Split(kubeNodeID, "$$")
-	if len(nodeNameIP) != 2 {
-		return nil, errors.New("node ID not found")
-	}
-	hostName := nodeNameIP[0]
 
 	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
 	if removeDomainName != "" && removeDomainName == "true" {
