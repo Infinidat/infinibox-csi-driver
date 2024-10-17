@@ -691,7 +691,7 @@ func determineHostName(nodeID string) (hostName string, err error) {
 	}
 
 	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
-	if removeDomainName != "" && removeDomainName == "true" {
+	if removeDomainName == "true" {
 		shortName := strings.Split(hostName, ".")
 		if len(shortName) > 0 {
 			zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
