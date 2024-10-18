@@ -675,20 +675,14 @@ func (n Service) ValidateNFSPortalIPAddress(ip string) (err error) {
 }
 
 func determineHostName(nodeID string) (hostName string, err error) {
-	useHostName := os.Getenv("USE_HOST_NAME")
-	if useHostName == "" {
-		if nodeID == "" {
-			return "", status.Error(codes.InvalidArgument, "node ID empty")
-		}
-		nodeNameIP := strings.Split(nodeID, "$$")
-		if len(nodeNameIP) != 2 {
-			return "", status.Error(codes.NotFound, fmt.Sprintf("node ID: %s not found", nodeID))
-		}
-		hostName = nodeNameIP[0]
-	} else {
-		zlog.Debug().Msgf("USE_HOST_NAME env var was set, will use it for the host name %s", useHostName)
-		hostName = useHostName
+	if nodeID == "" {
+		return "", status.Error(codes.InvalidArgument, "node ID empty")
 	}
+	nodeNameIP := strings.Split(nodeID, "$$")
+	if len(nodeNameIP) != 2 {
+		return "", status.Error(codes.NotFound, fmt.Sprintf("node ID: %s not found", nodeID))
+	}
+	hostName = nodeNameIP[0]
 
 	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
 	if removeDomainName == "true" {

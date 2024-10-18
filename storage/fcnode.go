@@ -93,6 +93,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, "Port name not found")
 	}
 	for _, fcp := range fcPorts {
+		zlog.Debug().Msgf("NodeStageVolume comparing %s with %s", ports, fcp)
 		if !strings.Contains(ports, fcp) {
 			zlog.Debug().Msgf("host port %s is not created, creating it", fcp)
 			err = fc.cs.AddPortForHost(hostId, "FC", fcp)
