@@ -1,5 +1,5 @@
 _GITLAB_USER=username
-_IMAGE_TAG = v2.17.0
+_IMAGE_TAG = v2.16.1
 _IMAGE_NAMES = "infinidat-csi-driver infinidat-csi-metrics infinidat-csi-operator"
 
 _TEST_ONE_THING_DIR=storage
