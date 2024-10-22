@@ -85,7 +85,10 @@ func blockExpandVolume(volumePath string) error {
 	multipathDevice := "/dev" + deviceNameParts[0]
 	zlog.Debug().Msgf("findmnt output is [%v] multipathDevice=[%s]", output, multipathDevice)
 
-	multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
+	//multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
+	wildcards := "\"%n_/%d_\""
+	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceNameParts[0]+"_")
+	zlog.Debug().Msgf("command is [%s]", multipathCommand)
 	out, err = execScsi.Command(multipathCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipath command name %s - %s", multipathCommand, err.Error())
@@ -94,23 +97,21 @@ func blockExpandVolume(volumePath string) error {
 	if out == "" {
 		return fmt.Errorf("error getting multipath command output")
 	}
-	zlog.Debug().Msgf("multipath output is [%v]", out)
-	multipathOutput := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-	if len(multipathOutput) == 0 {
+	zlog.Debug().Msgf("multipathd show maps output is [%v]", out)
+	if out == "" {
 		return fmt.Errorf("error with multipath command name output %s, lines were zero ", out)
 	}
-	firstLineParts := strings.Split(multipathOutput[0], " ")
-	if len(firstLineParts) == 0 {
-		return fmt.Errorf("error with multipath command 1st line output %v, lines were zero ", multipathOutput)
-	}
-	userFriendlyName := strings.TrimSpace(firstLineParts[0])
+	multipathOutput := strings.Split(out, "_")
+	userFriendlyName := multipathOutput[0]
+	zlog.Debug().Msgf("user friendly name [%s]", userFriendlyName)
 
 	format := "\"%m,%d\""
-	multipathdCommand := fmt.Sprintf("multipathd show paths format %s | grep %s", format, userFriendlyName)
+	multipathdCommand := fmt.Sprintf("multipathd show paths format %s | grep %s", format, "\""+userFriendlyName+" \"")
 	out, err = execScsi.Command(multipathdCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd command name %s - %s", multipathdCommand, err.Error())
 	}
+	zlog.Debug().Msgf("multipathd show paths command [%s]", multipathdCommand)
 
 	if out == "" {
 		return fmt.Errorf("error getting multipathd command output")

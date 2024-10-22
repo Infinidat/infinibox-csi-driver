@@ -283,7 +283,12 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	zlog.Debug().Msgf("output is [%v] multipathDevice=[%s]", output, multipathDevice)
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
-	command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
+	multipathDeviceBase := filepath.Base(multipathDevice)
+	//command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
+	commandWildcards := "%m_%d_"
+	command = fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
+	zlog.Debug().Msgf("command is [%s]", command)
+	//command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
 	out, err = execScsi.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
@@ -303,22 +308,23 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	// 3 - echo 1 > /sys/block/path_device/device/rescan  .... run those commands on each device from the previous step
 	for i := 0; i < len(outputParts); i++ {
-		line := strings.TrimSpace(outputParts[i])
-		lineParts := strings.Split(line, " ")
-		if len(lineParts) < 3 {
-			zlog.Error().Msgf("error getting multipath blockDevice from output %v", lineParts)
-			continue
+		if outputParts[i] != "" {
+			line := strings.Split(outputParts[i], "_")
+			if len(line) < 2 {
+				zlog.Error().Msgf("error getting multipath blockDevice from output %v", line)
+				continue
+			}
+			blockDevice := line[1]
+			zlog.Debug().Msgf("device is [%s]\n", blockDevice)
+			rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
+			command = fmt.Sprintf("echo 1 > %s", rescanPath)
+			out, err := execScsi.Command(command, "")
+			if err != nil {
+				zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
+				return nil, err
+			}
+			zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
 		}
-		blockDevice := lineParts[2]
-		zlog.Debug().Msgf("device is [%s]\n", blockDevice)
-		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
-		command = fmt.Sprintf("echo 1 > %s", rescanPath)
-		out, err := execScsi.Command(command, "")
-		if err != nil {
-			zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
-			return nil, err
-		}
-		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
 	}
 
 	// 4 - run multipathd resize map multipath_device - where multipath_device is like /dev/mapper/mpathwi from previous step,
