@@ -530,7 +530,8 @@ func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
 	}
 
 	for _, host := range hosts {
-		if err := waitForDeviceState(host, lun, "running"); err != nil {
+		_, err := waitForDeviceState(host, lun, "running")
+		if err != nil {
 			zlog.Err(err)
 			return err
 		}

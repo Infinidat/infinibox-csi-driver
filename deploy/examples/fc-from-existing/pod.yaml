@@ -1,0 +1,17 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: fc-test-from-existing
+  namespace: infinidat-csi
+spec:
+  containers:
+    - name: csitest
+      image: git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimage:latest
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: fc-pvc-from-existing

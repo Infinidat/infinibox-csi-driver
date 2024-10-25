@@ -15,12 +15,10 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"io/fs"
-	"regexp"
 
 	"os"
 	"os/exec"
@@ -323,7 +321,9 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 				zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
 				return nil, err
 			}
-			zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
+			if out != "" {
+				zlog.Debug().Msgf("rescan output is [%s]\n", out)
+			}
 		}
 	}
 
@@ -651,53 +651,7 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 	return os.WriteFile(filename, data, perm)
 }
 
-// FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent
-func (fc *fcstorage) findMultipathDeviceForDevice(device string, io ioHandler) (string, error) {
-	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("In findMultipathDeviceForDevice")
-	disk, err := fc.findDeviceForPath(device)
-	if err != nil {
-		zlog.Err(err)
-		return "", err
-	}
-	sysPath := "/sys/block/"
-	if dirs, err2 := io.ReadDir(sysPath); err2 == nil {
-		for _, f := range dirs {
-			name := f.Name()
-			if strings.HasPrefix(name, "dm-") {
-				if _, err1 := io.Lstat(sysPath + name + "/slaves/" + disk); err1 == nil {
-					return "/dev/" + name, nil
-				}
-			}
-		}
-	} else {
-		zlog.Error().Msgf("failed to find multipath device with error %v", err)
-		return "", err2
-	}
-	zlog.Debug().Msgf("multipath not configured")
-	return "", nil
-}
-
-func (fc *fcstorage) findDeviceForPath(path string) (string, error) {
-	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("In findDeviceForPath")
-	devicePath, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		zlog.Err(err)
-		return "", err
-	}
-	// if path /dev/hdX split into "", "dev", "hdX" then we will
-	// return just the last part
-	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	parts := strings.Split(devicePath, "/")
-	if len(parts) == 3 && strings.HasPrefix(parts[1], "dev") {
-		zlog.Debug().Msgf("found device: %s", parts[2])
-		return parts[2], nil
-	}
-	return "", errors.New("Illegal path for device " + devicePath)
-}
-
-func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
+func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) (string, error) {
 	defer helper.TimeTrack(zlog, time.Now())
 	// deviceMu.Lock()
 	zlog.Debug().Msgf("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
@@ -705,7 +659,7 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 	fcHosts, err := findHosts("fc")
 	if err != nil {
 		zlog.Err(err)
-		return err
+		return "", err
 	}
 
 	// For each host, scan using lun
@@ -715,23 +669,25 @@ func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) error {
 		_, err = execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
 			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, volumeId, lun, err)
-			return err
+			return "", err
 		}
 	}
 
+	var wwid string
 	for _, fcHost := range fcHosts {
-		if err := waitForDeviceState(fcHost, lun, "running"); err != nil {
-			return err
+		wwid, err = waitForDeviceState(fcHost, lun, "running")
+		if err != nil {
+			return "", err
 		}
 	}
 
 	if err := waitForMultipath(fcHosts[0], lun); err != nil {
 		zlog.Debug().Msgf("Rescan hosts failed for volume ID '%s' and lun '%s'", volumeId, lun)
-		return err
+		return "", err
 	}
 
 	zlog.Debug().Msgf("Rescan hosts complete for volume ID '%s' and lun '%s'", volumeId, lun)
-	return err
+	return wwid, nil
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
@@ -747,18 +703,21 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 		diskIds = c.WWIDs
 	}
 
-	zlog.Debug().Msgf("searchDisk rescan scsi host")
-	_ = fc.rescanDeviceMap(diskIds[0], c.Lun)
+	wwid, err := fc.rescanDeviceMap(diskIds[0], c.Lun)
+	zlog.Debug().Msgf("searchDisk rescan scsi host wwid is [%s]", wwid)
+	if err != nil {
+		return "", err
+	}
+	if wwid == "" {
+		return "", fmt.Errorf("wwid not found")
+	}
 
 	for _, diskID := range diskIds {
 		if len(c.TargetWWNs) != 0 {
-			disk, dm = fc.findFcDisk(diskID, c.Lun, io)
-		} else {
-			disk, dm = fc.getDisksWwids(diskID, io)
+			dm = fc.getDisksWwids(wwid, io)
 		}
-		// if multipath device is found, break
-		zlog.Debug().Msgf("searchDisk() found disk '%s' and dm '%s'", disk, dm)
 		if dm != "" {
+			zlog.Debug().Msgf("searchDisk() found disk '%s' and dm '%s' diskID '%s'", disk, dm, diskID)
 			break
 		}
 	}
@@ -770,64 +729,38 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 
 	// if multipath devicemapper device is found, use it; otherwise use raw disk
 	if dm != "" {
-		zlog.Debug().Msgf("Multipath devicemapper device is found %s", disk)
+		zlog.Debug().Msgf("searchDisk dm device found disk [%s] dm [%s]", disk, dm)
 		return dm, nil
 	}
-	zlog.Debug().Msgf("Multipath devicemapper device not found, using raw disk %s", disk)
+	zlog.Debug().Msgf("searchDisk dm device not found, using raw disk %s", disk)
 	return disk, nil
 }
 
-// find the fc device and device mapper parent
-func (fc *fcstorage) findFcDisk(wwn, lun string, io ioHandler) (string, string) {
+// return the dm device path
+func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (dm string) {
 	defer helper.TimeTrack(zlog, time.Now())
-
-	zlog.Debug().Msgf("findFcDisk called with wwn %s and lun %s", wwn, lun)
-	FcPath := "^(pci-.*-fc|fc)-0x" + wwn + "-lun-" + lun + "$"
-	r := regexp.MustCompile(FcPath)
-	DevPath := "/host/dev/disk/by-path/"
-	if dirs, err := io.ReadDir(DevPath); err == nil {
-		for _, f := range dirs {
-			name := f.Name()
-			if r.MatchString(name) {
-				if disk, err1 := io.EvalSymlinks(DevPath + name); err1 == nil {
-					if dm, err2 := fc.findMultipathDeviceForDevice(disk, io); err2 == nil {
-						zlog.Trace().Msgf("findFcDisk found it with wwn %s and lun %s and name %s", wwn, lun, name)
-						return disk, dm
-					} else {
-						zlog.Error().Msgf("could not find disk with error %v", err2)
-					}
-				} else {
-					zlog.Error().Msgf("could not find disk with error %v", err1)
-				}
-			}
-		}
-	} else {
-		zlog.Error().Msgf("could not find disk with error %v", err)
-	}
-	return "", ""
-}
-
-func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (string, string) {
-	defer helper.TimeTrack(zlog, time.Now())
-	FcPath := "scsi-" + wwid
-	DevID := "/dev/disk/by-id/"
+	wwid = strings.TrimPrefix(wwid, "naa.")
+	zlog.Debug().Msgf("wwid [%s]", wwid)
+	FcPath := "scsi-3" + wwid
+	DevID := "/host/dev/disk/by-id/"
 	if dirs, err := io.ReadDir(DevID); err == nil {
 		for _, f := range dirs {
 			name := f.Name()
+			zlog.Debug().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
 			if name == FcPath {
-				disk, err := io.EvalSymlinks(DevID + name)
+				dmResult, err := io.EvalSymlinks(DevID + name)
 				if err != nil {
 					zlog.Error().Msgf("fc: failed to find a corresponding disk from symlink[%s], error %v", DevID+name, err)
-					return "", ""
+					return ""
 				}
-				if dm, err1 := fc.findMultipathDeviceForDevice(disk, io); err1 != nil {
-					return disk, dm
-				}
+				zlog.Debug().Msgf("EvalSymLinks matched return dm [%s]", dmResult)
+
+				return dmResult
 			}
 		}
 	}
-	zlog.Error().Msgf("fc: failed to find a disk [%s]", DevID+FcPath)
-	return "", ""
+	zlog.Error().Msgf("fc: failed to find a dm [%s]", DevID+FcPath)
+	return ""
 }
 
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {

@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jeff-volume
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  csi:
+    controllerExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    controllerPublishSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    driver: infinibox-csi-driver
+    fsType: ext4
+    nodePublishSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    nodeStageSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    volumeAttributes:
+      storage.kubernetes.io/csiProvisionerIdentity: 1729700510875-1395-infinibox-csi-driver
+      storage_protocol: fc
+      uid: "3000"
+      gid: "3000"
+    volumeHandle: 2037666$$fc
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: ibox-fc
+  volumeMode: Filesystem

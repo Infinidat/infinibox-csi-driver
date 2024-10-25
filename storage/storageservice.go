@@ -482,26 +482,27 @@ func detachDiskByLun(hosts []string, lun string) error {
 	return err
 }
 
-func waitForDeviceState(hostId string, lun string, state string) (err error) {
+func waitForDeviceState(hostId string, lun string, state string) (wwid string, err error) {
 	targetsPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s", hostId, lun)
 	targets, err := filepath.Glob(targetsPath)
 	if err != nil || len(targets) == 0 {
 		zlog.Warn().Msgf("No fc targets found at path %s: %+v", targetsPath, err)
-		return nil
+		return "", nil
 	}
 	for _, targetString := range targets {
 		target := strings.Split(targetString, ":")[2]
-		_ = waitForOneDeviceState(hostId, target, lun, state)
+		wwid, _ = waitForOneDeviceState(hostId, target, lun, state)
 	}
-	return nil
+	return wwid, nil
 }
 
-func waitForOneDeviceState(hostId string, target string, lun string, state string) error {
+func waitForOneDeviceState(hostId string, target string, lun string, state string) (string, error) {
 	// Wait for device to be in state.
 	var sleepCount time.Duration = 1
 	hostPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/state", hostId, target, lun)
 	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:%s:%s/device/wwid", hostId, target, lun)
 
+	var wwid string
 	zlog.Debug().Msgf("Checking device state within %s", hostPath)
 	for i := 1; i <= 5; i++ {
 		// Get state of device
@@ -516,7 +517,7 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 		if err != nil {
 			zlog.Warn().Msgf("Failed (%d): Cannot get wwid of wwid file %s: %s", i, wwidPath, err)
 		} else {
-			wwid := strings.TrimSpace(string(wwidOutput))
+			wwid = strings.TrimSpace(string(wwidOutput))
 			zlog.Debug().Msgf("Device %s has wwid '%s'", wwidPath, wwid)
 		}
 
@@ -531,14 +532,14 @@ func waitForOneDeviceState(hostId string, target string, lun string, state strin
 			break
 		}
 	}
-	return nil
+	return wwid, nil
 }
 
 func waitForMultipath(hostId string, lun string) error {
 	defer helper.TimeTrack(zlog, time.Now())
-	var sleepCount time.Duration = 500
+	var sleepCount time.Duration = 250
 	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s/device/block/*/holders/*/slaves/*", hostId, lun)
-	loopCount := 20
+	loopCount := 40
 	for i := 1; i <= loopCount; i++ {
 		zlog.Debug().Msgf("looping in waitForMultipath host %s lun %s", hostId, lun)
 		devices, err := filepath.Glob(masterPath)
