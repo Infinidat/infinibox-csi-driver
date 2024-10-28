@@ -28,7 +28,7 @@ e2etesting: "false"
 removeDomainName: "false"
 
 # set to true if you are using FC and require boot-from-SAN
-sharedFCHost: "false"
+bootFromSAN: "false"
 
 # Image paths
 images:

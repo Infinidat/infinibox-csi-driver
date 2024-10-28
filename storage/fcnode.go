@@ -84,16 +84,16 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, "Port name not found")
 	}
 
-	var sharedFCHost bool
-	x := os.Getenv("SHARED_FC_HOST")
+	var bootFromSAN bool
+	x := os.Getenv("BOOT_FROM_SAN")
 	if x != "" {
-		sharedFCHost, err = strconv.ParseBool(x)
+		bootFromSAN, err = strconv.ParseBool(x)
 		if err != nil {
-			zlog.Error().Msgf("SHARED_FC_HOST env var is not a valid boolean value, defaulting to false")
+			zlog.Error().Msgf("BOOT_FROM_SAN env var is not a valid boolean value, defaulting to false")
 		}
 	}
 
-	if sharedFCHost {
+	if bootFromSAN {
 		// see if any of those ports are on a different host, and if so, use that host
 		// in this use case, the host will still be created, the volume will still be mapped by the controller
 		// to that host,
@@ -103,14 +103,14 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		// this can be tested by creating a FC host with a fully qualified name, and creating a volume mapped
 		// to that host, then run the CSI driver with the removeDomainName option set to true, this will
 		// normally cause a conflict port error when the new host name (short name) is registered, you
-		// can then set the SHARED_FC_HOST env var to true and it will exercise this logic
-		zlog.Debug().Msgf("shared FC host feature - ports are %v", fcPorts)
+		// can then set the BOOT_FROM_SAN env var to true and it will exercise this logic
+		zlog.Debug().Msgf("boot from SAN feature - ports are %v", fcPorts)
 		existingHost, err := fc.locateExistingHost(fcPorts)
 		if err != nil {
-			zlog.Error().Msgf("shared FC host feature - could not find port on any ibox host")
+			zlog.Error().Msgf("boot from SAN feature - could not find port on any ibox host")
 			hostId = 0
 		} else {
-			zlog.Debug().Msgf("shared FC host feature - port on ibox host %s found", existingHost.Name)
+			zlog.Debug().Msgf("boot from SAN feature - port on ibox host %s found", existingHost.Name)
 			hostId = existingHost.ID
 		}
 	}
@@ -123,7 +123,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if sharedFCHost {
+	if bootFromSAN {
 		// dont register ports to host in the case because we are reusing an existing host with same ports
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
