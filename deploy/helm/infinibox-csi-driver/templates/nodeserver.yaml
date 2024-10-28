@@ -88,6 +88,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.hostIP
+        {{- if eq .Values.sharedFCHost "true" }}
+            - name: SHARED_FC_HOST
+              value: "true"
+        {{- end }}
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/infinibox.infinidat.com

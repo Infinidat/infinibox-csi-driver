@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"io/fs"
@@ -77,6 +78,43 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	fcPorts := getPortName()
+	if len(fcPorts) == 0 {
+		zlog.Error().Msgf("port name not found on worker")
+		return nil, status.Error(codes.Internal, "Port name not found")
+	}
+
+	var sharedFCHost bool
+	x := os.Getenv("SHARED_FC_HOST")
+	if x != "" {
+		sharedFCHost, err = strconv.ParseBool(x)
+		if err != nil {
+			zlog.Error().Msgf("SHARED_FC_HOST env var is not a valid boolean value, defaulting to false")
+		}
+	}
+
+	if sharedFCHost {
+		// see if any of those ports are on a different host, and if so, use that host
+		// in this use case, the host will still be created, the volume will still be mapped by the controller
+		// to that host,
+		// however, there will be no ports added to the host in this section of code, instead
+		// the actual host that holds the fc ports will be re-used and no ports will be added to
+		// the kube host as normal.
+		// this can be tested by creating a FC host with a fully qualified name, and creating a volume mapped
+		// to that host, then run the CSI driver with the removeDomainName option set to true, this will
+		// normally cause a conflict port error when the new host name (short name) is registered, you
+		// can then set the SHARED_FC_HOST env var to true and it will exercise this logic
+		zlog.Debug().Msgf("shared FC host feature - ports are %v", fcPorts)
+		existingHost, err := fc.locateExistingHost(fcPorts)
+		if err != nil {
+			zlog.Error().Msgf("shared FC host feature - could not find port on any ibox host")
+			hostId = 0
+		} else {
+			zlog.Debug().Msgf("shared FC host feature - port on ibox host %s found", existingHost.Name)
+			hostId = existingHost.ID
+		}
+	}
+
 	zlog.Debug().Msgf("Publishing volume to host with host ID %d", hostId)
 	// validate host exists
 	if hostId < 1 {
@@ -85,11 +123,11 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	fcPorts := getPortName()
-	if len(fcPorts) == 0 {
-		zlog.Error().Msgf("port name not found on worker")
-		return nil, status.Error(codes.Internal, "Port name not found")
+	if sharedFCHost {
+		// dont register ports to host in the case because we are reusing an existing host with same ports
+		return &csi.NodeStageVolumeResponse{}, nil
 	}
+
 	for _, fcp := range fcPorts {
 		zlog.Debug().Msgf("NodeStageVolume comparing %s with %s", ports, fcp)
 		if !strings.Contains(ports, fcp) {
@@ -794,4 +832,27 @@ func (fc *fcstorage) loadFcDiskInfoFromFile(conf *diskInfo, mnt string) error {
 		return fmt.Errorf("fc: decode err: %v ", err)
 	}
 	return nil
+}
+
+func (fc *fcstorage) locateExistingHost(ports []string) (correctHost *api.Host, err error) {
+	hosts, err := fc.cs.Api.GetAllHosts()
+	if err != nil {
+		return nil, err
+	}
+	for i := 0; i < len(hosts); i++ {
+		host := hosts[i]
+		hostPorts := host.Ports
+		for j := 0; j < len(hostPorts); j++ {
+			p := hostPorts[j]
+			for k := 0; k < len(ports); k++ {
+				zlog.Debug().Msgf("comparing port %s to port %s", ports[k], p.PortAddress)
+				if ports[k] == p.PortAddress {
+					zlog.Debug().Msgf("port match is found %s on host %s", p.PortAddress, host.Name)
+					return &host, nil
+				}
+			}
+		}
+
+	}
+	return nil, fmt.Errorf("no host found for any of the ports")
 }

@@ -27,6 +27,9 @@ e2etesting: "false"
 # is useful if you have really long domain names which can exceed what the ibox can support for host name length
 removeDomainName: "false"
 
+# set to true if you are using FC and require boot-from-SAN
+sharedFCHost: "false"
+
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html

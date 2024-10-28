@@ -42,6 +42,7 @@ type Client interface {
 	GetAllSnapshots() ([]Volume, error)
 	GetAllVolumes() ([]Volume, error)
 
+	GetAllHosts() (host []Host, err error)
 	GetHostByName(hostName string) (host Host, err error)
 	CreateHost(hostName string) (host Host, err error)
 	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
@@ -915,4 +916,24 @@ func (c *ClientService) GetMetadata(objectID int) (results []MetadataResult, err
 
 	zlog.Trace().Msgf("got %d metadata for object %d", len(results), objectID)
 	return results, nil
+}
+
+// GetAllHosts - get all host details
+func (c *ClientService) GetAllHosts() ([]Host, error) {
+	zlog.Trace().Msgf("get all hosts ")
+	uri := "api/rest/hosts"
+	hosts := []Host{}
+	//queryParam := map[string]interface{}{}
+	resp, err := c.getResponseWithQueryString(uri, nil, &hosts)
+	if err != nil {
+		zlog.Error().Msgf("hosts  not found ")
+		return hosts, err
+	}
+	if len(hosts) == 0 {
+		apiresp := resp.(client.ApiResponse)
+		hosts, _ = apiresp.Result.([]Host)
+	}
+
+	zlog.Trace().Msgf("fetched hosts len %d", len(hosts))
+	return hosts, nil
 }

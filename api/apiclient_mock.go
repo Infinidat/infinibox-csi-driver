@@ -429,6 +429,14 @@ func (m *MockApiService) GetHostByName(hostName string) (Host, error) {
 	return host, err
 }
 
+// GetAllHosts
+func (m *MockApiService) GetAllHosts() ([]Host, error) {
+	args := m.Called()
+	hosts, _ := args.Get(0).([]Host)
+	err, _ := args.Get(1).(error)
+	return hosts, err
+}
+
 // GetAllLunByHost
 func (m *MockApiService) GetAllLunByHost(hostID int) ([]LunInfo, error) {
 	args := m.Called(hostID)
