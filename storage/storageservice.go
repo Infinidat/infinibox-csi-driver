@@ -348,14 +348,15 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 
 		if strings.HasPrefix(dstPath, "/dev/dm-") {
 			devices, err = findSlaveDevicesOnMultipath(dstPath)
+			if err != nil {
+				zlog.Error().Msgf("error looking for slave devices for multipath [%s]", dstPath)
+				return err
+			}
 		} else {
 			// Add single targetPath to devices
 			devices = append(devices, dstPath)
 		}
 
-		if err != nil {
-			return err
-		}
 		helper.PrettyKlogDebug("multipath devices", devices)
 
 		lun, err := findLunOnDevice(devices[0])
@@ -478,6 +479,9 @@ func detachDiskByLun(hosts []string, lun string) error {
 
 	for _, host := range hosts {
 		err = removeFromScsiSubsystemByHostLun(host, lun)
+		if err != nil {
+			zlog.Error().Msgf("error removing scsi subsystem host=[%s] lun=[%s]", host, lun)
+		}
 	}
 	return err
 }

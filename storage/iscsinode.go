@@ -1301,17 +1301,28 @@ func multipathFlush(mpath string) {
 // Given a device like '/dev/dm-0', find its matching multipath name such as 'mpathab'.
 func findMpathFromDevice(device string) (mpath string, err error) {
 	deviceName := strings.Replace(device, "/dev/", "", 1)
-	command := fmt.Sprintf("multipath -l | grep --word-regexp %s | awk '{print $1}'", deviceName)
+	//command := fmt.Sprintf("multipath -l | grep --word-regexp %s | awk '{print $1}'", deviceName)
+	wildcards := "\"%n_%d_\""
+	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+	zlog.Debug().Msgf("command [%s]", command)
 
 	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
-	mpath = strings.TrimSpace(string(out))
-
 	if err != nil {
 		e := fmt.Errorf("cannot findMpathFromDevice: %s, Error: %s: %v", device, mpath, err)
 		zlog.Err(e)
 		return mpath, e
 	}
+	outParts := strings.Split(string(out), "_")
+	if len(outParts) < 1 {
+		e := fmt.Errorf("cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
+		zlog.Err(e)
+		return mpath, e
+	}
+	if len(outParts) > 0 {
+		mpath = outParts[0]
+	}
+
 	zlog.Debug().Msgf("device %s corresponds to multipath %s", device, mpath)
 	return
 }
