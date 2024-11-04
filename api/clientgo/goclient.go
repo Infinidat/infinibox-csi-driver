@@ -143,12 +143,12 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 	for _, pv := range persistentVolumes.Items {
 		persistentVolumeName := pv.ObjectMeta.GetName()
 		provisionedBy := pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
-		zlog.Debug().Msgf("pv name: %+v\n", persistentVolumeName)
+		zlog.Trace().Msgf("pv name: %+v\n", persistentVolumeName)
 		if provisionedBy == common.SERVICE_NAME {
-			zlog.Debug().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
+			zlog.Trace().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
 			infiPersistentVolumeList.Items = append(infiPersistentVolumeList.Items, pv)
 		} else {
-			zlog.Debug().Msgf("pv %s provisioned by foreign CSI driver %s", persistentVolumeName, provisionedBy)
+			zlog.Trace().Msgf("pv %s provisioned by foreign CSI driver %s", persistentVolumeName, provisionedBy)
 		}
 	}
 	return &infiPersistentVolumeList, nil

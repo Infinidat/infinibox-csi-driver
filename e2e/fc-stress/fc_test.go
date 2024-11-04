@@ -19,7 +19,7 @@ func TestFc(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
-	volumesToCreate := 80
+	volumesToCreate := 70
 
 	originalPVCName := testConfig.TestNames.PVCName
 

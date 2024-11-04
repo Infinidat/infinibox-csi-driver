@@ -1282,7 +1282,7 @@ func findDeviceForPath(path string) (string, error) {
 }
 
 // Flush a multipath device map for device.
-/**
+
 func multipathFlush(mpath string) {
 	zlog.Debug().Msgf("Running multipath -f '%s'", mpath)
 
@@ -1293,10 +1293,9 @@ func multipathFlush(mpath string) {
 		zlog.Debug().Msgf("multipath -f '%s' succeeded: %s", mpath, out)
 	}
 
-	_, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)
-	_, _ = execScsi.Command("ls", "/host/dev/sd*; echo", isToLogOutput)
+	// _, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)
+	// _, _ = execScsi.Command("ls", "/host/dev/sd*; echo", isToLogOutput)
 }
-*/
 
 // Given a device like '/dev/dm-0', find its matching multipath name such as 'mpathab'.
 func findMpathFromDevice(device string) (mpath string, err error) {

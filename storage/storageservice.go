@@ -20,6 +20,7 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"os/exec"
 
 	"math/rand"
 	"os"
@@ -371,7 +372,11 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 		}
 		zlog.Debug().Msgf("mpath device is %s\n", mpath)
 
-		// multipathFlush(mpath)
+		// 1
+		multipathFlush(mpath)
+
+		zlog.Debug().Msgf("sleeping in between flush of device and detach of scsi disks")
+		time.Sleep(time.Second * 1) //TODO ideally this would be configurable
 
 		// Warn if there are not exactly mpathDeviceCount devices
 		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
@@ -383,7 +388,24 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 			return err
 		}
 
-		_ = detachDiskByLun(hosts, lun)
+		// 2
+		err = detachDiskByLun(hosts, lun)
+		if err != nil {
+			zlog.Debug().Msgf("error but continuing: %s", err.Error())
+		}
+
+		// 3
+		err = removeMultipathDevices(devices)
+		if err != nil {
+			zlog.Debug().Msgf("error but continuing: %s", err.Error())
+		}
+
+		// 4
+		err = removeWWIDEntry(mpath)
+		if err != nil {
+			zlog.Debug().Msgf("error but continuing: %s", err.Error())
+		}
+
 	}
 	zlog.Debug().Msgf("detachMpathDevice() completed with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
 	return nil
@@ -550,7 +572,7 @@ func waitForMultipath(hostId string, lun string) error {
 		if err != nil {
 			zlog.Debug().Msgf("Failed to Glob devices using path '%s': %+v", masterPath, err)
 		} else {
-			zlog.Debug().Msgf("Glob devices '%s'", devices)
+			zlog.Trace().Msgf("Glob devices '%s'", devices)
 		}
 
 		if err != nil || len(devices) < mpathDeviceCount {
@@ -737,4 +759,38 @@ func (st *nfsstorage) ControllerGetVolume(
 ) (*csi.ControllerGetVolumeResponse, error) {
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func removeMultipathDevices(devices []string) error {
+	zlog.Debug().Msgf("removeMultipathDevices() called with hosts %+v", devices)
+
+	for _, device := range devices {
+		command := fmt.Sprintf("multipathd del path %s", device)
+		pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+		zlog.Debug().Msgf("command [%s]", command)
+
+		out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+		if err != nil {
+			zlog.Error().Msgf("%s command failed %s", command, err.Error())
+		} else {
+			zlog.Debug().Msgf("%s command succeeded %s", command, out)
+		}
+	}
+	return nil
+}
+
+// removeWWIDEntry causes WWID entries to be removed/cleaned up in /etc/multipath/wwids
+// this is accomplished by runnning 'multipath -w %s' (or WWID)'", mpath
+func removeWWIDEntry(mpath string) error {
+	command := fmt.Sprintf("multipath -w  %s", mpath)
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+	zlog.Debug().Msgf("command [%s]", command)
+
+	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	if err != nil {
+		zlog.Error().Msgf("%s command failed %s", command, err.Error())
+	} else {
+		zlog.Debug().Msgf("%s command succeeded: %s", command, out)
+	}
+	return nil
 }

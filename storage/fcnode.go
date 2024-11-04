@@ -784,7 +784,7 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (dm string) {
 	if dirs, err := io.ReadDir(DevID); err == nil {
 		for _, f := range dirs {
 			name := f.Name()
-			zlog.Debug().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
+			zlog.Trace().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
 			if name == FcPath {
 				dmResult, err := io.EvalSymlinks(DevID + name)
 				if err != nil {
