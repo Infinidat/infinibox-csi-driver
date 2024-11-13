@@ -1037,6 +1037,11 @@ func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) 
 	if testConfig.UseSnapshotLock {
 		vsc.Parameters[common.LOCK_EXPIRES_AT_PARAMETER] = "1 Hours"
 	}
+	secretToUse := os.Getenv("_E2E_IBOX_SECRET")
+	if secretToUse == "" {
+		return fmt.Errorf("_E2E_IBOX_SECRET env var is not set and is required")
+	}
+	vsc.Parameters[common.VOLUME_SNAPSHOT_CLASS_SECRET_NAME] = secretToUse
 
 	createOptions := metav1.CreateOptions{}
 

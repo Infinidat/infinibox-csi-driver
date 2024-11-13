@@ -92,4 +92,5 @@ const (
 	SC_NODE_PUBLISH_SECRET_NAME       = "csi.storage.k8s.io/node-publish-secret-name"
 	SC_CONTROLLER_EXPAND_SECRET_NAME  = "csi.storage.k8s.io/controller-expand-secret-name"
 	SC_NODE_EXPAND_SECRET_NAME        = "csi.storage.k8s.io/node-expand-secret-name"
+	VOLUME_SNAPSHOT_CLASS_SECRET_NAME = "csi.storage.k8s.io/snapshotter-secret-name"
 )
