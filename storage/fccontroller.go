@@ -324,6 +324,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	if ports != "" {
 		ports = ports[1:]
 	}
+	zlog.Debug().Msgf("ports=[%v]", ports)
 	for _, lun := range lunList {
 		if lun.VolumeID == volID {
 			volCtx := map[string]string{

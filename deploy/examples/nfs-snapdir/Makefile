@@ -1,3 +1,6 @@
+include ../../../Makefile-vars-git-ignored
+export
+
 include ../../../Makefile-help
 
 _purpose = an example of nfs specifying snapdirvisible parameter

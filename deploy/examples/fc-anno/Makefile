@@ -1,3 +1,6 @@
+include ../../../Makefile-vars-git-ignored
+export
+
 include ../../../Makefile-help
 
 ##@ fc with pvc annotations example
@@ -50,7 +53,7 @@ teardown-clone: devEnv
 .PHONY: setup-snapshot
 setup-snapshot:  devEnv teardown-snapshot
 	@echo -e $(_begin)
-	$(_CLI) create -f ../volumesnapshotclass.yaml
+	envsubst < ../volumesnapshotclass.yaml | $(_CLI) create -f -
 	$(_CLIN) create -f ./snapshot.yaml
 	sleep 5
 	$(_CLIN) create -f ./pvc-restore-snapshot.yaml

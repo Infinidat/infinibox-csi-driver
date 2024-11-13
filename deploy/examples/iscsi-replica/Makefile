@@ -1,3 +1,6 @@
+include ../../../Makefile-vars-git-ignored
+export
+
 include ../../../Makefile-help
 
 ##@ iscsi example using pvc annotations for creating a replica

@@ -1,3 +1,6 @@
+include ../../../Makefile-vars-git-ignored
+export
+
 include ../../../Makefile-help
 
 ##@ iscsi chap example

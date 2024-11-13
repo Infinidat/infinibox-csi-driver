@@ -35,7 +35,7 @@ teardown-clone: devEnv
 .PHONY: setup-snapshot
 setup-snapshot:  devEnv teardown-snapshot
 	@echo -e $(_begin)
-	$(_CLIN) create -f ../volumesnapshotclass.yaml
+	envsubst < ../volumesnapshotclass.yaml | $(_CLI) create -f -
 	sleep 5
 	$(_CLIN) create -f ./snapshot.yaml
 	sleep 5

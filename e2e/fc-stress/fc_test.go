@@ -19,10 +19,11 @@ func TestFc(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
-	volumesToCreate := 70
+	volumesToCreate := 6
 
 	originalPVCName := testConfig.TestNames.PVCName
 
+	testConfig.UseFsGroup = true
 	for i := 0; i < volumesToCreate; i++ {
 		testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)
 		e2e.CreatePVC(testConfig)

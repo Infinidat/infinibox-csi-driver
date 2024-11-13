@@ -172,9 +172,12 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	var err error
 	defer helper.TimeTrack(zlog, time.Now())
 
-	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
+	volproto := strings.Split(req.GetVolumeId(), "$$")
+	volName := volproto[0] // TODO check for zero length array
 
 	targetPath := req.GetTargetPath()
+	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s targetPath %s", volName, targetPath)
+
 	err = unmountAndCleanUp(targetPath)
 	if err != nil {
 		zlog.Err(err)
@@ -185,9 +188,17 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("Called FC NodeUnstageVolume")
-	var mpathDevice string
 	stagePath := req.GetStagingTargetPath()
+	zlog.Debug().Msgf("Called FC NodeUnstageVolume stagePath[%s]", stagePath)
+	cmd := exec.Command("ls", "/host/"+stagePath)
+	out, err2 := cmd.Output()
+
+	if err2 != nil {
+		zlog.Debug().Msgf("ls Error %s", err2)
+	} else {
+		zlog.Debug().Msgf("ls output %s", string(out))
+	}
+	var mpathDevice string
 
 	volproto := strings.Split(req.GetVolumeId(), "$$")
 	volName := volproto[0]
@@ -459,9 +470,8 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 
 		err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options)
 		if err != nil {
-			zlog.Debug().Msgf("FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
+			zlog.Error().Msgf("FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			zlog.Debug().Msgf("Search error for matches to handle: %s", err)
 
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
 				zlog.Error().Msgf("Device %s is already mounted on %s", devicePath, mountPoint)
@@ -477,10 +487,12 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		dskinfo.MpathDevice = devicePath
 		dskinfo.IsBlock = fm.fcDisk.isBlock
 		dskinfo.VolName = fm.fcDisk.connector.VolumeName
+		zlog.Debug().Msgf("attempting to create FC config file dskinfo [%+v] stagePath [%s] targetPath [%s]", dskinfo, fm.StagePath, fm.TargetPath)
 		if err := fc.createFcConfigFile(dskinfo, fm.StagePath); err != nil {
 			zlog.Error().Msgf("fc: failed to save fc config with error: %v", err)
 			return err
 		}
+		zlog.Debug().Msgf("created FC config file at [%s]", fm.StagePath)
 	}
 	zlog.Debug().Msgf("FormatAndMount succeeded. devicePath: %s, targetPath: %s, fsType: %s", devicePath, fm.TargetPath, fm.FsType)
 	return nil
@@ -652,48 +664,49 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 	return os.WriteFile(filename, data, perm)
 }
 
-func (fc *fcstorage) rescanDeviceMap(volumeId string, lun string) (string, error) {
+func (fc *fcstorage) rescanDeviceMap(diskid string, lun string) (string, error) {
 	defer helper.TimeTrack(zlog, time.Now())
 	// deviceMu.Lock()
-	zlog.Debug().Msgf("Rescan hosts for volume '%s' and lun '%s'", volumeId, lun)
+	zlog.Debug().Msgf("Rescan hosts for diskid '%s' and lun '%s'", diskid, lun)
 
 	fcHosts, err := findHosts("fc")
 	if err != nil {
 		zlog.Err(err)
 		return "", err
 	}
+	zlog.Debug().Msgf("Rescan hosts fcHosts [%v]", fcHosts)
 
 	// For each host, scan using lun
 	for _, fcHost := range fcHosts {
 		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", fcHost)
-		zlog.Debug().Msgf("Rescanning host path at '%s' for volume ID '%s' and lun '%s'", scsiHostPath, volumeId, lun)
+		zlog.Debug().Msgf("Rescanning host path at '%s' for disk ID '%s' and lun '%s'", scsiHostPath, diskid, lun)
 		_, err = execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
-			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, volumeId, lun, err)
+			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, diskid, lun, err)
 			return "", err
 		}
 	}
 
 	var wwid string
 	for _, fcHost := range fcHosts {
-		wwid, err = waitForDeviceState(fcHost, lun, "running")
+		wwid, err = waitForDeviceState(fcHost, lun, "running", diskid)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	if err := waitForMultipath(fcHosts[0], lun); err != nil {
-		zlog.Debug().Msgf("Rescan hosts failed for volume ID '%s' and lun '%s'", volumeId, lun)
+		zlog.Debug().Msgf("Rescan hosts failed for diskid '%s' and lun '%s'", diskid, lun)
 		return "", err
 	}
 
-	zlog.Debug().Msgf("Rescan hosts complete for volume ID '%s' and lun '%s'", volumeId, lun)
+	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
 	return wwid, nil
 }
 
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("Called searchDisk")
+	zlog.Debug().Msgf("Called searchDisk targetWWNs=[%+v] wwids=[%v]", c.TargetWWNs, c.WWIDs)
 	var diskIds []string // target wwns
 	var disk string
 	var dm string
@@ -705,13 +718,24 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	}
 
 	wwid, err := fc.rescanDeviceMap(diskIds[0], c.Lun)
-	zlog.Debug().Msgf("searchDisk rescan scsi host wwid is [%s]", wwid)
 	if err != nil {
+		zlog.Error().Msgf("searchDisk rescan error %s", err.Error())
 		return "", err
 	}
 	if wwid == "" {
+		zlog.Error().Msgf("searchDisk rescan error wwid not found")
 		return "", fmt.Errorf("wwid not found")
 	}
+	zlog.Debug().Msgf("searchDisk rescan scsi host wwid is [%s]", wwid)
+
+	zlog.Debug().Msgf("searchDisk sleeping 3 seconds to allow devmapper time to work")
+	// during testing, I found that devmapper would not create the dm-X device quick enough
+	// after the rescan above for the code below to work, instead of seeing a dm-X device
+	// the path would be /dev/sdaX whic is not what we want, sleeping a bit gives devmapper
+	// time to construct the dm-X device path
+	// ideally this sleep time would be configurable
+	// TODO make this a poll and present an error if /dev/dm-X is not returned
+	time.Sleep(time.Second * 3)
 
 	for _, diskID := range diskIds {
 		if len(c.TargetWWNs) != 0 {
@@ -747,7 +771,7 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (dm string) {
 	if dirs, err := io.ReadDir(DevID); err == nil {
 		for _, f := range dirs {
 			name := f.Name()
-			zlog.Trace().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
+			zlog.Debug().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
 			if name == FcPath {
 				dmResult, err := io.EvalSymlinks(DevID + name)
 				if err != nil {
@@ -765,7 +789,9 @@ func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (dm string) {
 }
 
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
+	zlog.Debug().Msgf("createFcConfigFile called with diskInfo %v and mnt %s", conf, mnt)
 	file := path.Join("/host", mnt, conf.VolName+".json")
+	zlog.Debug().Msgf("createFcConfigFile about to create %s", file)
 	fp, err := os.Create(file)
 	if err != nil {
 		zlog.Error().Msgf("fc: failed creating persist file with error %v", err)
@@ -783,6 +809,14 @@ func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 
 func (fc *fcstorage) loadFcDiskInfoFromFile(conf *diskInfo, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
+	zlog.Debug().Msgf("loadFcDiskInfoFromFile file [%s]", file)
+	b, err := os.ReadFile(file)
+	if err != nil {
+		zlog.Error().Msgf("loadFcDiskInfoFromFile error in file read [%s]", err.Error())
+	} else {
+		zlog.Debug().Msgf("loadFcDiskInfoFromFile file content [%s]", string(b))
+	}
+
 	fp, err := os.Open(file)
 	if err != nil {
 		zlog.Err(err)

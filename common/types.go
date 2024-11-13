@@ -84,3 +84,12 @@ const (
 	REPLICATION_TYPE_ASYNC           = "ASYNC"
 	REPLICATION_BASE_ACTION_NEW      = "NEW"
 )
+
+const (
+	SC_PROVISIONER_SECRET_NAME        = "csi.storage.k8s.io/provisioner-secret-name"
+	SC_CONTROLLER_PUBLISH_SECRET_NAME = "csi.storage.k8s.io/controller-publish-secret-name"
+	SC_NODE_STAGE_SECRET_NAME         = "csi.storage.k8s.io/node-stage-secret-name"
+	SC_NODE_PUBLISH_SECRET_NAME       = "csi.storage.k8s.io/node-publish-secret-name"
+	SC_CONTROLLER_EXPAND_SECRET_NAME  = "csi.storage.k8s.io/controller-expand-secret-name"
+	SC_NODE_EXPAND_SECRET_NAME        = "csi.storage.k8s.io/node-expand-secret-name"
+)

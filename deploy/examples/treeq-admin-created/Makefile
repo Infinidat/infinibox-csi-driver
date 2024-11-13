@@ -1,3 +1,6 @@
+include ../../../Makefile-vars-git-ignored
+export
+
 include ../../../Makefile-help
 
 ##@ This example shows how treeq can be pre-provisioned by an ibox admin, then used by kube admins.

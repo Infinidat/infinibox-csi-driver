@@ -234,9 +234,19 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	if poolToUse == "" {
 		return fmt.Errorf("_E2E_NETWORK_SPACE env var is not set and is required")
 	}
+	secretToUse := os.Getenv("_E2E_IBOX_SECRET")
+	if secretToUse == "" {
+		return fmt.Errorf("_E2E_IBOX_SECRET env var is not set and is required")
+	}
 	sc.Name = testConfig.TestNames.SCName
 	sc.Parameters[common.SC_POOL_NAME] = poolToUse
 	sc.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
+	sc.Parameters[common.SC_PROVISIONER_SECRET_NAME] = secretToUse
+	sc.Parameters[common.SC_CONTROLLER_PUBLISH_SECRET_NAME] = secretToUse
+	sc.Parameters[common.SC_NODE_STAGE_SECRET_NAME] = secretToUse
+	sc.Parameters[common.SC_NODE_PUBLISH_SECRET_NAME] = secretToUse
+	sc.Parameters[common.SC_CONTROLLER_EXPAND_SECRET_NAME] = secretToUse
+	sc.Parameters[common.SC_NODE_EXPAND_SECRET_NAME] = secretToUse
 	if testConfig.UseFsGroup {
 		delete(sc.Parameters, common.SC_UID)
 		delete(sc.Parameters, common.SC_GID)
