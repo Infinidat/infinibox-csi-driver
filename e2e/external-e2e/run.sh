@@ -12,6 +12,10 @@ if [[ -z "$_E2E_NETWORK_SPACE" ]]; then
     echo "Must provide _E2E_NETWORK_SPACE in environment" 1>&2
     exit 1
 fi
+if [[ -z "$_E2E_IBOX_SECRET" ]]; then
+    echo "Must provide _E2E_IBOX_SECRET in environment" 1>&2
+    exit 1
+fi
 if [[ -z "$_E2E_NAMESPACE" ]]; then
     echo "Must provide _E2E_NAMESPACE in environment" 1>&2
     exit 1
@@ -20,6 +24,7 @@ fi
 echo $_E2E_NAMESPACE is e2e namespace
 
 echo $_E2E_PROTOCOL is the protocol we are testing
+echo $_E2E_IBOX_SECRET is the secret we are testing with
 
 echo 'running external e2e.test ...'
 # create working dir

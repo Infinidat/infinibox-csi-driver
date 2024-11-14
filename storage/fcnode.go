@@ -691,13 +691,16 @@ func (fc *fcstorage) rescanDeviceMap(diskid string, lun string) (string, error) 
 	for _, fcHost := range fcHosts {
 		wwid, err = waitForDeviceState(fcHost, lun, "running", diskid)
 		if err != nil {
+			zlog.Error().Msgf("waitForDeviceState hosts failed for fcHost [%s] diskid [%s] lun [%s] error [%s]", fcHost, diskid, lun, err.Error())
 			return "", err
 		}
 	}
 
-	if err := waitForMultipath(fcHosts[0], lun); err != nil {
-		zlog.Debug().Msgf("Rescan hosts failed for diskid '%s' and lun '%s'", diskid, lun)
-		return "", err
+	for _, fcHost := range fcHosts {
+		if err := waitForMultipath(fcHost, lun); err != nil {
+			zlog.Error().Msgf("Rescan hosts failed for fcHost [%s] diskid [%s] lun [%s] error [%s]", fcHost, diskid, lun, err.Error())
+			return "", err
+		}
 	}
 
 	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
@@ -734,17 +737,24 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	// the path would be /dev/sdaX whic is not what we want, sleeping a bit gives devmapper
 	// time to construct the dm-X device path
 	// ideally this sleep time would be configurable
-	// TODO make this a poll and present an error if /dev/dm-X is not returned
-	time.Sleep(time.Second * 3)
 
-	for _, diskID := range diskIds {
-		if len(c.TargetWWNs) != 0 {
-			dm = fc.getDisksWwids(wwid, io)
+	tries := 10 //currently this means a max of 10 seconds which is ample
+
+	for i := 0; i < tries; i++ {
+		for _, diskID := range diskIds {
+			if len(c.TargetWWNs) != 0 {
+				dm = fc.getDMDevicePath(wwid, io)
+			}
+			if dm != "" {
+				zlog.Debug().Msgf("searchDisk() found disk '%s' and dm '%s' diskID '%s'", disk, dm, diskID)
+				break
+			}
 		}
-		if dm != "" {
-			zlog.Debug().Msgf("searchDisk() found disk '%s' and dm '%s' diskID '%s'", disk, dm, diskID)
+		if dm != "" && strings.Contains(dm, "dm-") {
+			zlog.Debug().Msgf("searchDisk() found a valid dm device [%s] iteration %d", dm, i)
 			break
 		}
+		time.Sleep(time.Second * 1)
 	}
 
 	// if no disk matches input wwn and lun, exit
@@ -762,13 +772,14 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 }
 
 // return the dm device path
-func (fc *fcstorage) getDisksWwids(wwid string, io ioHandler) (dm string) {
+func (fc *fcstorage) getDMDevicePath(wwid string, io ioHandler) (dm string) {
 	defer helper.TimeTrack(zlog, time.Now())
 	wwid = strings.TrimPrefix(wwid, "naa.")
 	zlog.Debug().Msgf("wwid [%s]", wwid)
 	FcPath := "scsi-3" + wwid
 	DevID := "/host/dev/disk/by-id/"
 	if dirs, err := io.ReadDir(DevID); err == nil {
+		zlog.Debug().Msgf("read %d dirs", len(dirs))
 		for _, f := range dirs {
 			name := f.Name()
 			zlog.Debug().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
