@@ -5,10 +5,10 @@ include ../../../Makefile-help
 
 ##@ iscsi multiple network spaces example
 .PHONY: setup
-setup:  devEnv teardown
+setup:  devEnv #teardown
 	@echo -e $(_begin)
-	envsubst < ./storageclass.yaml | $(_CLI) create -f -
-	$(_CLIN) create -f ./pvc.yaml
+	#envsubst < ./storageclass.yaml | $(_CLI) create -f -
+	#$(_CLIN) create -f ./pvc.yaml
 	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
