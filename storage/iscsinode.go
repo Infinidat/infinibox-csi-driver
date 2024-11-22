@@ -280,7 +280,6 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	zlog.Debug().Msgf("staging target path: %s", stagePath)
 
 	// Load iscsi disk config from json file
-	// diskConfigFound := true
 	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
 		zlog.Debug().Msgf("successfully loaded disk information from %s", stagePath)
 		mpathDevice = diskUnmounter.iscsiDisk.MpathDevice
@@ -308,14 +307,10 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 			}
 		}
 		zlog.Warn().Msgf("failed to get iscsi config from stage path '%s': %v", stagePath, err)
-		// diskConfigFound = false
 	}
 
-	//_ = diskConfigFound
-
 	// remove multipath
-	protocol := "iscsi"
-	err = detachMpathDevice(mpathDevice, protocol)
+	err = detachMpathDevice(mpathDevice, common.PROTOCOL_ISCSI)
 	if err != nil {
 		zlog.Warn().Msgf("NodeUnstageVolume cannot detach volume with ID %s: %+v", req.GetVolumeId(), err)
 	}
@@ -433,7 +428,6 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
-	//command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
 	commandWildcards := "%m_%d_"
 	command = fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("command is [%s]", command)
@@ -505,53 +499,9 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	return &response, nil
 }
 
-func (iscsi *iscsistorage) rescanDeviceMap(volumeId string, lun string) error {
-
-	// deviceMu.Lock()
-	zlog.Debug().Msgf("rescan hosts for volume %s and lun %s", volumeId, lun)
-
-	// Find hosts. TODO - take heed of portals.
-	hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
-	if err != nil {
-		zlog.Error().Msgf("finding hosts failed: %s", err)
-		return err
-	}
-
-	// For each host, scan using lun
-
-	hosts := strings.Fields(hostIds)
-	for _, host := range hosts {
-		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
-		_, err = execScsi.Command("echo", fmt.Sprintf("'0 0 %s' > %s", lun, scsiHostPath))
-		if err != nil {
-			zlog.Error().Msgf("rescan of host %s failed for volume ID %s and lun %s: %s", scsiHostPath, volumeId, lun, err)
-			return err
-		}
-	}
-
-	for _, host := range hosts {
-		_, err := waitForDeviceState(host, lun, "running", volumeId)
-		if err != nil {
-			zlog.Err(err)
-			return err
-		}
-	}
-
-	if err := waitForMultipath(hosts[0], lun); err != nil {
-		zlog.Debug().Msgf("rescan hosts failed for volume ID %s and lun %s", volumeId, lun)
-		zlog.Err(err)
-		return err
-	}
-
-	zlog.Debug().Msgf("rescan hosts complete for volume ID %s and lun %s", volumeId, lun)
-	return err
-}
-
 func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err error) {
 	var devicePath string
-	var devicePaths []string
 	var iscsiTransport string
-	var lastErr error
 
 	zlog.Debug().Msgf("AttachDisk, disk: %v fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s",
 		b.iscsiDisk, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
@@ -629,7 +579,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				if err != nil {
 					zlog.Err(err)
 					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
-					lastErr = fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", targets[i].Portals[p], err)
+					zlog.Err(fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", targets[i].Portals[p], err))
 					continue
 				}
 			}
@@ -665,14 +615,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				}
 			}
 		} else {
-			/**
-			if len(targets[i].Portals) == 0 {
-				msg := fmt.Sprintf("iscsi login portal error, no portals found iqn: %s", targets[i].Iqn)
-				zlog.Error().Msgf(msg)
-				return "", err
-			}
-			*/
-
 			if len(targets[i].Portals) > 0 {
 				zlog.Debug().Msgf("already logged into iscsi target iqn %s using interface %s", targets[i].Iqn, targets[i].Portals[0])
 			} else {
@@ -685,45 +627,59 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	zlog.Debug().Msgf("list sessions after any logins: %v", sessionDetails)
 
 	// Rescan for LUN b.lun
-	if err := iscsi.rescanDeviceMap(b.VolName, b.lun); err != nil {
+	// Find hosts. TODO - take heed of portals.
+	hosts, err := getHostIDs()
+	if err != nil {
+		zlog.Error().Msgf("finding hosts failed: %s", err)
+		return "", err
+	}
+	zlog.Debug().Msgf("hosts [%+v] len %d", hosts, len(hosts))
+
+	// For each host, scan using lun
+
+	wwid, err := rescanDeviceMap(hosts, b.VolName, b.lun)
+	if err != nil {
 		zlog.Error().Msgf("rescanDeviceMap failed for volume ID %s and lun %s: %s", b.VolName, b.lun, err)
 		return "", err
 	}
 
-	for i := 0; i < len(targets); i++ {
-		for j := 0; j < len(targets[i].Portals); j++ {
-			if iscsiTransport == ISCSI_TCP_TRANSPORT {
-				devicePath = strings.Join([]string{"/host/dev/disk/by-path/ip", targets[i].Portals[j], "iscsi", targets[i].Iqn, "lun", b.lun}, "-")
-			} else {
-				devicePath = strings.Join([]string{"/host/dev/disk/by-path/pci", "*", "ip", targets[i].Portals[j], "iscsi", targets[i].Iqn, "lun", b.lun}, "-")
-			}
+	if wwid == "" {
+		zlog.Error().Msgf("searchDisk rescan error wwid not found")
+		return "", fmt.Errorf("wwid not found")
+	}
 
-			// zlog.Debug().Msgf("Wait for iscsi device path: %s to appear", devicePath)
-			timeout := 30
-			if devExists := iscsi.waitForPathToExist(&devicePath, timeout, iscsiTransport); devExists {
-				zlog.Debug().Msgf("iscsi device path found: %s", devicePath)
-				devicePaths = append(devicePaths, devicePath)
-			} else {
-				msg := fmt.Sprintf("failed to attach iqn: %s lun: %s portal: %s - timeout after %ds", targets[i].Iqn, b.lun, targets[i].Portals[j], timeout)
-				zlog.Error().Msgf(msg)
-				// update last error
-				lastErr = fmt.Errorf("iscsi: " + msg)
-				continue
-			}
+	zlog.Debug().Msgf("searchDisk sleeping 3 seconds to allow devmapper time to work wwid [%s]", wwid)
+
+	tries := 10 //currently this means a max of 10 seconds which is ample
+
+	var dm string
+	for i := 0; i < tries; i++ {
+		dm = getDMDevicePath(wwid)
+		if dm != "" {
+			zlog.Debug().Msgf("found wwid '%s' and dm '%s'", wwid, dm)
+			break
 		}
+		if dm != "" && strings.Contains(dm, "dm-") {
+			zlog.Debug().Msgf("found a valid dm device [%s] iteration %d", dm, i)
+			break
+		}
+		time.Sleep(time.Second * 1)
 	}
+	zlog.Debug().Msgf("found dm [%s]", dm)
 
-	if len(devicePaths) == 0 {
-		e := fmt.Errorf("failed to get any path for iscsi disk, last error seen:%v", lastErr)
-		zlog.Err(e)
-		return "", e
+	if dm == "" {
+		return "", fmt.Errorf("error, could not find a dm device for wwid %s", wwid)
 	}
-	if lastErr != nil {
-		zlog.Error().Msgf("last error occurred during iscsi init:%v", lastErr)
+	trimmedDeviceName := strings.Replace(dm, "/host", "", 1)
+	var thisMpath string
+	thisMpath, err = findMpathFromDevice(trimmedDeviceName)
+	if err != nil {
+		zlog.Error().Msgf("findMpathFromDevice for [%s] error is [%s]", trimmedDeviceName, err.Error())
 	}
+	// here trimmedDeviceName is /dev/dm-3 and thisMpath is mpathtf
+	zlog.Debug().Msgf("AttachDisk iscsi for [%s] thisMpath is [%s]", trimmedDeviceName, thisMpath)
 
 	// Make sure we use a valid devicepath to find mpio device.
-	devicePath = devicePaths[0]
 	mntPath = b.targetPath
 	// Mount device
 	notMnt, err := b.mounter.IsLikelyNotMountPoint(mntPath)
@@ -737,17 +693,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		return "", status.Errorf(codes.Internal, "%s exists but IsLikelyNotMountPoint failed: %v", mntPath, err)
 	}
 
-	for _, path := range devicePaths {
-		if path == "" {
-			continue
-		}
-		// check if the dev is using mpio and if so mount it via the dm-XX device
-		if mappedDevicePath := iscsi.findMultipathDeviceForDevice(path); mappedDevicePath != "" {
-			devicePath = mappedDevicePath
-			b.iscsiDisk.MpathDevice = mappedDevicePath
-			break
-		}
-	}
+	devicePath = trimmedDeviceName
+	b.iscsiDisk.MpathDevice = trimmedDeviceName
 
 	mountOptionMode := "rw"
 	mode := "0750" //rwx
@@ -761,8 +708,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	if b.isBlock {
 		// A block volume is a volume that will appear as a block device inside the container.
 		zlog.Debug().Msgf("mounting raw block volume at given path %s", mntPath)
-
-		zlog.Debug().Msgf("mount point does not exist, creating mount point.")
 
 		zlog.Debug().Msgf("run: mkdir --parents --mode %s '%s' ", mode, filepath.Dir(mntPath))
 		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
@@ -780,6 +725,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			zlog.Err(e)
 			return "", e
 		}
+
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
 		// TODO: validate this further, see CSIC-341
@@ -800,23 +746,11 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		// A mounted (file) volume is volume that will be mounted using a specified file system
 		// and appear as a directory inside the container.
 		mountPoint := mntPath
+
+		// devicePath at this point is /dev/dm-N
 		zlog.Debug().Msgf("mounting volume %s with filesystem at given path %s", devicePath, mountPoint)
 
-		// Attempt to find a mapper device to use rather than a bare devicePath.
-		// If not found, use the devicePath.
-		dmsetupInfo, dmsetupErr := dmsetup.Info(devicePath)
-		if dmsetupErr != nil {
-			zlog.Error().Msgf("Failed to get dmsetup info for: '%s', err: %s", devicePath, dmsetupErr)
-		} else {
-			for i, info := range dmsetupInfo {
-				zlog.Debug().Msgf("dmsetupInfo[%d]: %+v", i, *info)
-			}
-			if len(dmsetupInfo) == 1 { // One and only one mapper should be in the slice since the devicePath was given.
-				mapperPath := devMapperDir + dmsetupInfo[0].Name
-				zlog.Debug().Msgf("using mapper device: '%s' mapped to path: '%s'", devicePath, mapperPath)
-				devicePath = mapperPath
-			}
-		}
+		devicePath = devMapperDir + thisMpath
 
 		// Create mountPoint if it does not exist.
 		_, err := os.Stat(mountPoint)
@@ -835,9 +769,6 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 		options = append(options, mountOptionMode) // BUG: what if user separately specified "rw" option?
 		options = append(options, b.mountOptions...)
-
-		zlog.Debug().Msgf("strip /host from %s", devicePath)
-		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
 		// Persist here so that even if mount fails, the globalmount metadata json
 		// file will contain an mpath to use during clean up.
@@ -1075,54 +1006,6 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, porta
 	return nil
 }
 
-func (iscsi *iscsistorage) waitForPathToExist(devicePath *string, maxRetries int, deviceTransport string) bool {
-	// This makes unit testing a lot easier
-	return iscsi.waitForPathToExistInternal(devicePath, maxRetries, deviceTransport, filepath.Glob)
-}
-
-func (iscsi *iscsistorage) waitForPathToExistInternal(devicePath *string, maxRetries int, deviceTransport string, filepathGlob GlobFunc) bool {
-	if devicePath == nil {
-		return false
-	}
-
-	for i := 0; i < maxRetries; i++ {
-		var err error
-
-		if deviceTransport == ISCSI_TCP_TRANSPORT {
-			_, err = os.Stat(*devicePath)
-			if err != nil {
-				zlog.Err(err)
-			}
-		} else {
-			fpath, _ := filepathGlob(*devicePath)
-			if fpath == nil {
-				err = os.ErrNotExist
-			} else {
-				// There might be a case that fpath contains multiple device paths if
-				// multiple PCI devices connect to same iscsi target. We handle this
-				// case at subsequent logic. Pick up only first path here.
-				*devicePath = fpath[0]
-			}
-		}
-
-		if err == nil {
-			zlog.Debug().Msgf("device path %s exists", *devicePath)
-			return true
-		}
-		zlog.Debug().Msgf("device path %s does not exist: %v", *devicePath, err)
-		if !errors.Is(err, os.ErrNotExist) {
-			// os.Stat did not return ErrNotExist, so we assume there is a problem anyway
-			return false
-		}
-		if i == maxRetries-1 {
-			break
-		}
-		time.Sleep(time.Second)
-	}
-	zlog.Error().Msgf("timed out waiting for device path %s to exist", *devicePath)
-	return false
-}
-
 func (iscsi *iscsistorage) createISCSIConfigFile(conf iscsiDisk, mnt string) error {
 	file := path.Join("/host", mnt, conf.VolName+".json")
 	zlog.Debug().Msgf("creating iscsi config file at path %s", file)
@@ -1237,48 +1120,6 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 		}
 	}
 	return lastErr
-}
-
-// FindMultipathDeviceForDevice given a device name like /dev/sdx, find the devicemapper parent
-func (iscsi *iscsistorage) findMultipathDeviceForDevice(device string) string {
-	disk, err := findDeviceForPath(device)
-	if err != nil {
-		zlog.Err(err)
-		return ""
-	}
-	// TODO: Does this need a /host prefix?
-	sysPath := "/sys/block/"
-
-	dirs, err := os.ReadDir(sysPath)
-	if err != nil {
-		zlog.Error().Msgf("failed to find multipath device with error %v", err)
-		return ""
-	}
-	for _, f := range dirs {
-		name := f.Name()
-		if strings.HasPrefix(name, "dm-") {
-			if _, err1 := os.Lstat(sysPath + name + "/slaves/" + disk); err1 == nil {
-				return "/dev/" + name
-			}
-		}
-	}
-	return ""
-}
-
-func findDeviceForPath(path string) (string, error) {
-	devicePath, err := filepath.EvalSymlinks(path)
-	if err != nil {
-		zlog.Err(err)
-		return "", err
-	}
-	// if path /dev/hdX split into "", "dev", "hdX" then we will
-	// return just the last part
-	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	parts := strings.Split(devicePath, "/")
-	if len(parts) == 3 && strings.HasPrefix(parts[1], "dev") {
-		return parts[2], nil
-	}
-	return "", errors.New("iscsi: illegal path for device " + devicePath)
 }
 
 // Flush a multipath device map for device.
@@ -1477,4 +1318,42 @@ func logoutAllSessions() (err error) {
 	}
 	zlog.Debug().Msgf("isciadm logoutall output %s", string(out))
 	return nil
+}
+
+func getHostIDs() (hosts []string, err error) {
+	rawOutput, err := execScsi.Command("iscsiadm", "-m host -P0")
+	if err != nil {
+		zlog.Error().Msgf("finding hosts failed: %s", err)
+		return hosts, err
+	}
+
+	// this raw output should look like this
+	/**
+		root@csi-test:~# iscsiadm -m host -P0
+	tcp: [34] 172.20.65.31,[<empty>],<empty> <empty>
+	tcp: [35] 172.20.65.31,[<empty>],<empty> <empty>
+	tcp: [36] 172.20.65.31,[<empty>],<empty> <empty>
+	tcp: [37] 172.20.65.31,[<empty>],<empty> <empty>
+	tcp: [38] 172.20.65.31,[<empty>],<empty> <empty>
+	tcp: [39] 172.20.65.31,[<empty>],<empty> <empty>
+
+	the returned parsed string array should be ["34","35","36","37,"38","39"]
+	*/
+
+	parts := strings.Split(rawOutput, "\n")
+	for i := 0; i < len(parts); i++ {
+		if strings.Contains(parts[i], "tcp") {
+			trim := strings.TrimLeft(parts[i], " ")
+			rawNumber := strings.Split(trim, " ")
+			if len(rawNumber) < 2 {
+				err = fmt.Errorf("error, could not parse host number [%s]", trim)
+				return hosts, err
+			}
+			replaced := strings.ReplaceAll(rawNumber[1], "[", "")
+			hostID := strings.ReplaceAll(replaced, "]", "")
+			hosts = append(hosts, hostID)
+		}
+	}
+
+	return hosts, nil
 }

@@ -664,49 +664,6 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 	return os.WriteFile(filename, data, perm)
 }
 
-func (fc *fcstorage) rescanDeviceMap(diskid string, lun string) (string, error) {
-	defer helper.TimeTrack(zlog, time.Now())
-	// deviceMu.Lock()
-	zlog.Debug().Msgf("Rescan hosts for diskid '%s' and lun '%s'", diskid, lun)
-
-	fcHosts, err := findHosts("fc")
-	if err != nil {
-		zlog.Err(err)
-		return "", err
-	}
-	zlog.Debug().Msgf("Rescan hosts fcHosts [%v]", fcHosts)
-
-	// For each host, scan using lun
-	for _, fcHost := range fcHosts {
-		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", fcHost)
-		zlog.Debug().Msgf("Rescanning host path at '%s' for disk ID '%s' and lun '%s'", scsiHostPath, diskid, lun)
-		_, err = execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
-		if err != nil {
-			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, diskid, lun, err)
-			return "", err
-		}
-	}
-
-	var wwid string
-	for _, fcHost := range fcHosts {
-		wwid, err = waitForDeviceState(fcHost, lun, "running", diskid)
-		if err != nil {
-			zlog.Error().Msgf("waitForDeviceState hosts failed for fcHost [%s] diskid [%s] lun [%s] error [%s]", fcHost, diskid, lun, err.Error())
-			return "", err
-		}
-	}
-
-	for _, fcHost := range fcHosts {
-		if err := waitForMultipath(fcHost, lun); err != nil {
-			zlog.Error().Msgf("Rescan hosts failed for fcHost [%s] diskid [%s] lun [%s] error [%s]", fcHost, diskid, lun, err.Error())
-			return "", err
-		}
-	}
-
-	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
-	return wwid, nil
-}
-
 func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("Called searchDisk targetWWNs=[%+v] wwids=[%v]", c.TargetWWNs, c.WWIDs)
@@ -720,7 +677,14 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 		diskIds = c.WWIDs
 	}
 
-	wwid, err := fc.rescanDeviceMap(diskIds[0], c.Lun)
+	fcHosts, err := findHosts("fc")
+	if err != nil {
+		zlog.Err(err)
+		return "", err
+	}
+
+	zlog.Debug().Msgf("Rescan hosts fcHosts [%v]", fcHosts)
+	wwid, err := rescanDeviceMap(fcHosts, diskIds[0], c.Lun)
 	if err != nil {
 		zlog.Error().Msgf("searchDisk rescan error %s", err.Error())
 		return "", err
@@ -743,7 +707,7 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	for i := 0; i < tries; i++ {
 		for _, diskID := range diskIds {
 			if len(c.TargetWWNs) != 0 {
-				dm = fc.getDMDevicePath(wwid, io)
+				dm = getDMDevicePath(wwid)
 			}
 			if dm != "" {
 				zlog.Debug().Msgf("searchDisk() found disk '%s' and dm '%s' diskID '%s'", disk, dm, diskID)
@@ -769,34 +733,6 @@ func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
 	}
 	zlog.Debug().Msgf("searchDisk dm device not found, using raw disk %s", disk)
 	return disk, nil
-}
-
-// return the dm device path
-func (fc *fcstorage) getDMDevicePath(wwid string, io ioHandler) (dm string) {
-	defer helper.TimeTrack(zlog, time.Now())
-	wwid = strings.TrimPrefix(wwid, "naa.")
-	zlog.Debug().Msgf("wwid [%s]", wwid)
-	FcPath := "scsi-3" + wwid
-	DevID := "/host/dev/disk/by-id/"
-	if dirs, err := io.ReadDir(DevID); err == nil {
-		zlog.Debug().Msgf("read %d dirs", len(dirs))
-		for _, f := range dirs {
-			name := f.Name()
-			zlog.Debug().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
-			if name == FcPath {
-				dmResult, err := io.EvalSymlinks(DevID + name)
-				if err != nil {
-					zlog.Error().Msgf("fc: failed to find a corresponding disk from symlink[%s], error %v", DevID+name, err)
-					return ""
-				}
-				zlog.Debug().Msgf("EvalSymLinks matched return dm [%s]", dmResult)
-
-				return dmResult
-			}
-		}
-	}
-	zlog.Error().Msgf("fc: failed to find a dm [%s]", DevID+FcPath)
-	return ""
 }
 
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {

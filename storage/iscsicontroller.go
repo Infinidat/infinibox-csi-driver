@@ -446,7 +446,7 @@ func (iscsi *iscsistorage) ControllerUnpublishVolume(ctx context.Context, req *c
 		zlog.Error().Msgf(msg)
 		return nil, status.Error(codes.NotFound, msg)
 	}
-	zlog.Debug().Msgf("unmapping host's luns: host id: %d, name: %s, LUNs: %v", host.ID, host.Name, host.Luns)
+	zlog.Debug().Msgf("unmapping host's luns: host id: %d, name: %s lun count %d", host.ID, host.Name, len(host.Luns))
 	if len(host.Luns) > 0 {
 		volID, _ := strconv.Atoi(volproto.VolumeID)
 		zlog.Debug().Msgf("unmap volume %d from host %d", volID, host.ID)

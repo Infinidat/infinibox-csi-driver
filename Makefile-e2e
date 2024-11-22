@@ -153,6 +153,13 @@ e2efcstressout:  ## create a bunch of fc volumes
 	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc-stress -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2eiscsistressout
+e2eiscsistressout:  ## create a bunch of iscsi volumes
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-stress -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2efcanno
 e2efcanno:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)

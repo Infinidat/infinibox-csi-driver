@@ -1,14 +1,12 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ibox-fc-storageclass-demo
+  name: ibox-iscsi-stress
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
 parameters: 
-  pool_name: csitesting
-  storage_protocol: fc
   csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
   csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
   csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
@@ -22,7 +20,10 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
   csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
-  # optional parameters
-  uid: "3000"
-  gid: "3000"
-  #unix_permissions: "777"
+  storage_protocol: iscsi
+  network_space: "$_E2E_NETWORK_SPACE"
+  pool_name: "$_E2E_POOL"
+  useCHAP: "none" # none / chap / mutual_chap
+  uid: "3000" # UID of volume
+  gid: "3000" # GID of volume
+  # unix_permissions: 777 # chmod -R of volume

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/log"
 	"io"
 	"io/fs"
@@ -693,4 +694,70 @@ func determineHostName(nodeID string) (hostName string, err error) {
 		}
 	}
 	return hostName, nil
+}
+
+// return the dm device path
+func getDMDevicePath(wwid string) (dm string) {
+	io := &OSioHandler{}
+	defer helper.TimeTrack(zlog, time.Now())
+	wwid = strings.TrimPrefix(wwid, "naa.")
+	zlog.Debug().Msgf("wwid [%s]", wwid)
+	FcPath := "scsi-3" + wwid
+	DevID := "/host/dev/disk/by-id/"
+	if dirs, err := io.ReadDir(DevID); err == nil {
+		zlog.Debug().Msgf("read %d dirs", len(dirs))
+		for _, f := range dirs {
+			name := f.Name()
+			zlog.Trace().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
+			if name == FcPath {
+				dmResult, err := io.EvalSymlinks(DevID + name)
+				if err != nil {
+					zlog.Error().Msgf("fc: failed to find a corresponding disk from symlink[%s], error %v", DevID+name, err)
+					return ""
+				}
+				zlog.Debug().Msgf("EvalSymLinks matched return dm [%s]", dmResult)
+
+				return dmResult
+			}
+		}
+	}
+	zlog.Error().Msgf("failed to find a dm [%s]", DevID+FcPath)
+	return ""
+}
+
+func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) {
+	defer helper.TimeTrack(zlog, time.Now())
+	// deviceMu.Lock()
+	zlog.Debug().Msgf("Rescan hosts for diskid '%s' and lun '%s'", diskid, lun)
+
+	// For each host, scan using lun
+	for _, host := range hosts {
+		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
+		zlog.Debug().Msgf("Rescanning host path at '%s' for disk ID '%s' and lun '%s'", scsiHostPath, diskid, lun)
+		_, err := execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
+		if err != nil {
+			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, diskid, lun, err)
+			return "", err
+		}
+	}
+
+	var wwid string
+	var err error
+	for _, host := range hosts {
+		wwid, err = waitForDeviceState(host, lun, "running", diskid)
+		if err != nil {
+			zlog.Error().Msgf("waitForDeviceState hosts failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
+			return "", err
+		}
+	}
+
+	for _, host := range hosts {
+		if err := waitForMultipath(host, lun); err != nil {
+			zlog.Error().Msgf("Rescan hosts failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
+			return "", err
+		}
+	}
+
+	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
+	return wwid, nil
 }

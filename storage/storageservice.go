@@ -403,23 +403,6 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 	return nil
 }
 
-// this function does not work for multiple targets (iboxes)
-/**
-func removeFromScsiSubsystemByHostLun(host string, lun string) (err error) {
-	targetsPath := fmt.Sprintf("/sys/class/scsi_disk/%s:0:*:%s", host, lun)
-	targets, err := filepath.Glob(targetsPath)
-	if err != nil || len(targets) == 0 {
-		zlog.Warn().Msgf("No fc targets found at path %s: %+v", targetsPath, err)
-		return nil
-	}
-	for _, targetString := range targets {
-		target := strings.Split(targetString, ":")[2]
-		_ = removeOneFromScsiSubsystemByHostLun(host, target, lun)
-	}
-	return nil
-}
-*/
-
 func removeOneFromScsiSubsystemByHostLun(host string, channel string, target string, lun string) (err error) {
 	// fileName := "/sys/block/" + deviceName + "/device/delete"
 	// zlog.Debug().Msgf("remove device from scsi-subsystem: path: %s", fileName)
@@ -462,7 +445,6 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	}
 
 	// Echo 1 to delete device
-	zlog.Debug().Msgf("Running 'echo 1 > %s'", deletePath)
 	output, err = execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if err != nil {
 		zlog.Error().Msgf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
@@ -485,12 +467,12 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 func detachDiskByDeviceName(deviceName string) error {
 
 	// we get in a device name like /dev/sda
-	zlog.Debug().Msgf("detachDiskByDeviceName() called with device name %s", deviceName)
+	zlog.Debug().Msgf("detachDiskByDeviceName(%s) called", deviceName)
 	deviceNameParts := strings.Split(deviceName, "/")
 	if len(deviceNameParts) != 3 {
 		return fmt.Errorf("device name %s did not parse to 3 parts as normal", deviceName)
 	}
-	zlog.Debug().Msgf("deviceNameParts length = %d, parts are [%v] one=[%s]", len(deviceNameParts), deviceNameParts, deviceNameParts[2])
+	zlog.Trace().Msgf("deviceNameParts length = %d, parts are [%v] one=[%s]", len(deviceNameParts), deviceNameParts, deviceNameParts[2])
 
 	blockPath := fmt.Sprintf("/sys/block/%s/device", deviceNameParts[2])
 	zlog.Debug().Msgf("blockpath [%s]", blockPath)
@@ -503,11 +485,10 @@ func detachDiskByDeviceName(deviceName string) error {
 	// /sys/devices/pci0000:00/0000:00:15.0/0000:03:00.0/host32/rport-32:0-7/target32:0:9/32:0:9:1
 	// we want the last part which is the H:C:T:L
 
-	zlog.Debug().Msgf("hctlPath [%s]", hctlPath)
 	hctlPathParts := strings.Split(hctlPath, "/")
 
 	hctl := hctlPathParts[len(hctlPathParts)-1]
-	zlog.Debug().Msgf("hctl [%s]", hctl)
+	zlog.Trace().Msgf("hctl path [%s] - parsed as [%s]", hctlPath, hctl)
 
 	hctlParts := strings.Split(hctl, ":")
 
@@ -515,7 +496,7 @@ func detachDiskByDeviceName(deviceName string) error {
 	channel := hctlParts[1]
 	target := hctlParts[2]
 	lun := hctlParts[3]
-	zlog.Debug().Msgf("hctl host [%s] channel [%s] target [%s] lun [%s]", host, channel, target, lun)
+	zlog.Debug().Msgf("hctl path [%s] host [%s] channel [%s] target [%s] lun [%s]", hctlPath, host, channel, target, lun)
 	err = removeOneFromScsiSubsystemByHostLun(host, channel, target, lun)
 	if err != nil {
 		return err
@@ -523,29 +504,6 @@ func detachDiskByDeviceName(deviceName string) error {
 
 	return nil
 }
-
-// detachDisk removes scsi device file such as /dev/sdX from the node.
-/**
-func detachDiskByLun(hosts []string, lun string) error {
-	defer func() {
-		zlog.Debug().Msgf("detachDiskByLun() with hosts '%+v' and lun %s completed", hosts, lun)
-		// deviceMu.Unlock()
-		// May happen if unlocking a mutex that was not locked
-		zlog.Debug().Msgf("detachDiskByLun succeeded for lun '%s'", lun)
-	}()
-
-	zlog.Debug().Msgf("detachDiskByLun() called with hosts %+v and lun %s", hosts, lun)
-	var err error
-
-	for _, host := range hosts {
-		err = removeFromScsiSubsystemByHostLun(host, lun)
-		if err != nil {
-			zlog.Error().Msgf("error removing scsi subsystem host=[%s] lun=[%s]", host, lun)
-		}
-	}
-	return err
-}
-*/
 
 func waitForDeviceState(hostId string, lun string, state string, diskid string) (wwid string, err error) {
 	zlog.Debug().Msgf("waitForDeviceState hostid %s lun %s state %s diskid %s", hostId, lun, state, diskid)
@@ -726,63 +684,6 @@ func findHosts(protocol string) ([]string, error) {
 	return nil, err
 }
 
-// FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
-/**
-func findLunOnDevice(devicePath string) (string, error) {
-	var lun string
-	// Split path /dev/sdaa into "", "dev", "sdaa"
-	parts := strings.Split(devicePath, "/")
-	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
-		return "", fmt.Errorf("invalid device name %s", devicePath)
-	}
-	device := parts[2]
-	scsiDevicePath := fmt.Sprintf("/sys/class/block/%s/device/scsi_device", device)
-
-	files, err := os.ReadDir(scsiDevicePath)
-	if err != nil {
-		return "", fmt.Errorf("cannot read scsi device path %s", scsiDevicePath)
-	}
-
-	hctl := files[0].Name()
-	partsLun := strings.Split(hctl, ":")
-	lun = partsLun[3]
-	return lun, nil
-}
-*/
-
-/**
-func (cs *commonservice) ExecuteWithTimeout(mSeconds int, command string, args []string) ([]byte, error) {
-	zlog.Debug().Msgf("Executing command : {%v} with args : {%v}. and timeout : {%v} mseconds", command, args, mSeconds)
-
-	// Create a new context and add a timeout to it
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(mSeconds)*time.Millisecond)
-	defer cancel() // The cancel should be deferred so resources are cleaned up
-
-	// Create the command with our context
-	cmd := exec.CommandContext(ctx, command, args...)
-
-	// This time we can simply use Output() to get the result.
-	out, err := cmd.Output()
-
-	// We want to check the context error to see if the timeout was executed.
-	// The error returned by cmd.Output() will be OS specific based on what
-	// happens when a process is killed.
-	if ctx.Err() == context.DeadlineExceeded {
-		zlog.Debug().Msgf("Command %s timeout reached", command)
-		return nil, ctx.Err()
-	}
-
-	// If there's no context error, we know the command completed (or errored).
-	zlog.Debug().Msgf("Output from command: %s", string(out))
-	if err != nil {
-		zlog.Debug().Msgf("Non-zero exit code: %s", err)
-	}
-
-	zlog.Debug().Msgf("Finished executing command")
-	return out, err
-}
-*/
-
 func (cs *Commonservice) pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -844,7 +745,6 @@ func removeMultipathDevices(devices []string) error {
 	for _, device := range devices {
 		command := fmt.Sprintf("multipathd del path %s", device)
 		pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
-		zlog.Debug().Msgf("command [%s]", command)
 
 		out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 		if err != nil {
