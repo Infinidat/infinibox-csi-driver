@@ -259,7 +259,7 @@ func (fc *fcstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Info().Msgf("fc NodeExpandVolume called request %+v\n", req)
+	zlog.Debug().Msgf("fc NodeExpandVolume called request %s\n", req.GetVolumeId())
 
 	response := csi.NodeExpandVolumeResponse{}
 
