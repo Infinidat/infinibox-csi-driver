@@ -22,6 +22,9 @@ spec:
     nodeStageSecretRef:
       name: infinibox-creds
       namespace: infinidat-csi
+    nodeExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
     volumeAttributes:
       iqn: iqn.2009-11.com.infinidat:storage:infinibox-sn-1111
       portals: 1.1.1.1,1.1.1.2,1.1.1.3

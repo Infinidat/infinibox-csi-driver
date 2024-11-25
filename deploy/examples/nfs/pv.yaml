@@ -23,6 +23,9 @@ spec:
     nodeStageSecretRef:
       name: infinibox-creds
       namespace: infinidat-csi
+    nodeExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
     volumeAttributes:
       exportID: 3000
       ipAddress: 172.17.35.45

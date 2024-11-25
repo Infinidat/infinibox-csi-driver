@@ -22,12 +22,13 @@ spec:
     nodeStageSecretRef:
       name: infinibox-creds
       namespace: infinidat-csi
+    nodeExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
     volumeAttributes:
-      storage.kubernetes.io/csiProvisionerIdentity: 1729700510875-1395-infinibox-csi-driver
+      storage.kubernetes.io/csiProvisionerIdentity: 1731709114360-6181-infinibox-csi-driver
       storage_protocol: fc
-      uid: "3000"
-      gid: "3000"
-    volumeHandle: 2037666$$fc
+    volumeHandle: 2922277$$fc
   persistentVolumeReclaimPolicy: Delete
   storageClassName: ibox-fc
   volumeMode: Filesystem
