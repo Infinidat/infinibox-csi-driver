@@ -24,7 +24,7 @@ func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.C
 
 	command := fmt.Sprintf("ls -ld %s", MOUNT_PATH)
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, command)
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, command, "")
 
 	if err != nil {
 		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err.Error())
@@ -58,14 +58,14 @@ func VerifyGroupIdIsUsed(clientSet *kubernetes.Clientset, config *restclient.Con
 	createFileCmd := fmt.Sprintf("touch %s/testfile.txt", MOUNT_PATH)
 	testFileCmd := fmt.Sprintf("ls -l %s/testfile.txt", MOUNT_PATH)
 
-	_, _, err := execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd)
+	_, _, err := execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd, "")
 
 	if err != nil {
 		fmt.Println("Error happened creating test file")
 		return false, "", err
 	}
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd)
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd, "")
 
 	if err != nil {
 		fmt.Println("Error happened reading test file")
@@ -93,7 +93,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 
 	nodeNameCmd := "echo $KUBE_NODE_NAME"
 
-	nodeName, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, nodeNameCmd)
+	nodeName, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, nodeNameCmd, "")
 
 	if len(stdErr) > 0 {
 		fmt.Printf("Error: %s\n", stdErr)
@@ -116,7 +116,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 
 	// fmt.Printf("Character count is: %d and testCmd: %s\n", charCount, testFileCmd)
 
-	blockRead, stdErr2, err2 := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd)
+	blockRead, stdErr2, err2 := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd, "")
 
 	if len(stdErr2) > 0 {
 		fmt.Printf("Error: %s\n", stdErr2)
@@ -137,7 +137,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 
 // execCmdInPod - exec command on specific pod and wait the command's output.
 func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
-	command string) (string, string, error) {
+	command string, containerName string) (string, string, error) {
 
 	stdOut := &bytes.Buffer{}
 	stdErr := &bytes.Buffer{}
@@ -156,11 +156,12 @@ func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, po
 
 	req.VersionedParams(
 		&v1.PodExecOptions{
-			Command: cmd,
-			Stdin:   false,
-			Stdout:  true,
-			Stderr:  true,
-			TTY:     true,
+			Container: containerName,
+			Command:   cmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
 		},
 		scheme.ParameterCodec,
 	)
@@ -185,7 +186,7 @@ func VerifyReadOnlyMount(clientSet *kubernetes.Clientset, config *restclient.Con
 
 	catFileCmd := "cat /proc/mounts"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd)
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {
 		return err
 	}
@@ -222,7 +223,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	// create a broken link
 	createLinkCmd := "ln -s /tmp/monkey /tmp/csitesting/brokenlink"
 
-	_, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, createLinkCmd)
+	_, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, createLinkCmd, "")
 	if err != nil {
 		return err
 	}
@@ -237,7 +238,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	validFileName := "/tmp/csitesting/validfile"
 	createFileCmd := fmt.Sprintf("cp /etc/hosts %s", validFileName)
 
-	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd)
+	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd, "")
 	if err != nil {
 		return err
 	}
@@ -251,7 +252,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	// create a working sym link
 	createValidLinkCmd := fmt.Sprintf("ln -s %s /tmp/csitesting/validlink", validFileName)
 
-	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createValidLinkCmd)
+	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createValidLinkCmd, "")
 	if err != nil {
 		return err
 	}
@@ -270,7 +271,7 @@ func GetMountSize(protocol string, clientSet *kubernetes.Clientset, config *rest
 
 	catFileCmd := "df /tmp/csitesting"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd)
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {
 		return 0, err
 	}
@@ -326,7 +327,7 @@ func GetBlockVolumeSize(clientSet *kubernetes.Clientset, config *restclient.Conf
 
 	catFileCmd := "blockdev --getsize64 /dev/xvda"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd)
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {
 		return 0, err
 	}
@@ -350,5 +351,55 @@ func GetBlockVolumeSize(clientSet *kubernetes.Clientset, config *restclient.Conf
 	fmt.Printf("block device byte size %d \n", raw)
 
 	return int64(raw), nil
+
+}
+
+func GetMpathDevicePath(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (string, error) {
+
+	mountCmd := "mount | grep /tmp/csitesting"
+
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, mountCmd, "")
+	if err != nil {
+		fmt.Printf("mount command stdErr %s \n", stdErr)
+		return "", err
+	}
+
+	mountStrings := strings.Fields(stdOut)
+	if len(mountStrings) == 0 {
+		return "", fmt.Errorf("mount output is not correctly formatted len was zero %s", stdOut)
+	}
+
+	mpathDevicePath := mountStrings[0]
+	if mpathDevicePath == "" {
+		return "", fmt.Errorf("mount output is not correctly formatted %s lines", mpathDevicePath)
+	}
+
+	return mpathDevicePath, nil
+
+}
+
+func MpathExists(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, mpath string) (bool, error) {
+
+	multipathCommand := "multipathd show multipaths | grep " + mpath + " | wc -l"
+
+	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, multipathCommand, "driver")
+	if err != nil {
+		fmt.Printf("mount command stdErr %s \n", stdErr)
+		return false, err
+	}
+
+	fmt.Printf("multipath command stdOut %s \n", stdOut)
+	if stdOut == "" {
+		return false, fmt.Errorf("multipath command output was not valid %s", stdOut)
+	}
+
+	count, err := strconv.Atoi(strings.TrimRight(stdOut, "\r\n"))
+	if err != nil {
+		return false, fmt.Errorf("multipath command output conversion error %s not valid %s", stdOut, err.Error())
+	}
+	if count > 0 {
+		return true, nil
+	}
+	return false, nil
 
 }

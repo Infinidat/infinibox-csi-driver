@@ -146,6 +146,13 @@ e2efc:  ## run the infinidat developed e2e fc tests
 	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2efccleanup
+e2efccleanup:  ## this tests if fc performs a device cleanup
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fccleanup -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2efcstressout
 e2efcstressout:  ## create a bunch of fc volumes
 	@echo -e $(_begin)
