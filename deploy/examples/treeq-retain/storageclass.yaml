@@ -38,7 +38,7 @@ parameters:
     gid: "3000"
     # the following parameters can be used to override ibox limits
     #max_filesystems: "999"
-    #max_treeqs_per_filesystem: "20"
+    max_treeqs_per_filesystem: "20"
     #max_filesystem_size: 30gib
     #
     # uncomment if you do not want to have the default export (e.g. node ip address) created

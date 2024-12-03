@@ -18,16 +18,15 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
   csi.storage.k8s.io/node-expand-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
   csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
 
-  #  NOTE:  the following 2 csi parameters are commented out specifically to avoid errors in the external-provisioner
+  #  NOTE:  the following 1 csi parameters are commented out specifically to avoid errors in the external-provisioner
   #  on DeleteVolume() calls, the CSI driver instead removes the PV based on its pvc annotation logic
   #csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
-  #csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
 
   csi.storage.k8s.io/fstype: ext4
   storage_protocol: iscsi
-  #max_vols_per_host: "100"
-  network_space: "iSCSI"
+  network_space: "default_iscsi_space"
   pool_name: "csitesting"
   #provision_type: "THIN"
   #ssd_enabled: "false"

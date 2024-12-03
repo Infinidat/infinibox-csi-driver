@@ -12,22 +12,22 @@ mountOptions:
   - wsize=1048576
 parameters: 
     pool_name: csitesting
-    network_space: NAS
+    network_space: $_E2E_NETWORK_SPACE
     #provision_type: THIN
     storage_protocol: nfs_treeq
     #fs_prefix: csit_
     #ssd_enabled: "true"
-    csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+    csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
     csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
-    csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+    csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
     csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
-    csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
     csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
-    csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
     csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
-    csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
+    csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
     csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
-    csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+    csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
     csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
     fstype: ext4
 
@@ -36,7 +36,7 @@ parameters:
     gid: "3000"
     # the following parameters can be used to override ibox limits
     # max_filesystems: "999"
-    # max_treeqs_per_filesystem: "20"
+    max_treeqs_per_filesystem: "20"
     # max_filesystem_size: 30gib
     #
     # uncomment if you do not want to have the default export (e.g. node ip address) created

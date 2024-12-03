@@ -23,6 +23,14 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 
 	// validate network space on the ibox
 	protocol := os.Getenv("_E2E_PROTOCOL")
+
+	switch protocol {
+	case common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
+		fmt.Printf("valid protocol found in env vars [%s]\n", protocol)
+	default:
+		return fmt.Errorf("protocol specified in env var not recognized [%s], must be a valid protocol [%s,%s,%s,%s]", protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ)
+	}
+
 	if protocol != common.PROTOCOL_FC {
 		networkSpaceToUse := os.Getenv("_E2E_NETWORK_SPACE")
 		if networkSpaceToUse == "" {
