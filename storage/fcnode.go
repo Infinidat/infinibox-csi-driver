@@ -272,34 +272,20 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return &response, nil
 	}
 
-	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
-
-	command := fmt.Sprintf("mount | grep %s", req.GetVolumePath())
-	out, err := execScsi.Command(command, "")
+	// 1 - find the multipath device name (e.g. /dev/mapper/mpathwi) from the list of mounts
+	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		zlog.Error().Msgf("error getting multipath device name %s - from %s \n", err.Error(), req.GetVolumePath())
-		return nil, err
-	}
-
-	if out == "" {
-		err := fmt.Errorf("error getting multipath device name volume path is %s, command output was empty", req.GetVolumePath())
 		zlog.Error().Msgf(err.Error())
 		return nil, err
 	}
-
-	output := strings.TrimSpace(out)
-	outputParts := strings.Split(output, " ")
-	multipathDevice := outputParts[0]
-	zlog.Debug().Msgf("output is [%v] multipathDevice=[%s]", output, multipathDevice)
+	zlog.Debug().Msgf("multipathDevice=[%s]", multipathDevice)
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
-	//command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
 	commandWildcards := "%m_%d_"
-	command = fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
+	command := fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("command is [%s]", command)
-	//command = fmt.Sprintf("multipath -l %s | tail -n +4", multipathDevice)
-	out, err = execScsi.Command(command, "")
+	out, err := execScsi.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
 		return nil, err
@@ -311,9 +297,9 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, err
 	}
 
-	output = strings.TrimSpace(out)
+	output := strings.TrimSpace(out)
 	zlog.Debug().Msgf("output is [%s]\n", output)
-	outputParts = strings.Split(output, "\n")
+	outputParts := strings.Split(output, "\n")
 	zlog.Debug().Msgf("lines %d\n", len(outputParts))
 
 	// 3 - echo 1 > /sys/block/path_device/device/rescan  .... run those commands on each device from the previous step

@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"net"
 
 	"os"
 	"os/exec"
@@ -225,7 +224,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	iscsiDisk.Targets = targets
-	zlog.Debug().Msgf("iscsiDisk: %v", iscsiDisk)
+	zlog.Debug().Msgf("iscsiDisk: vol name %s lun %s", iscsiDisk.VolName, iscsiDisk.lun)
 
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	if err != nil {
@@ -408,31 +407,19 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	}
 
 	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
-
-	command := fmt.Sprintf("mount | grep %s", req.GetVolumePath())
-	out, err := execScsi.Command(command, "")
+	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		zlog.Error().Msgf("error getting multipath device name %s - from %s \n", err.Error(), req.GetVolumePath())
-		return nil, err
-	}
-
-	if out == "" {
-		err := fmt.Errorf("error getting multipath devices from output volume path is %s command output was empty", req.GetVolumePath())
 		zlog.Error().Msgf(err.Error())
 		return nil, err
 	}
 
-	output := strings.TrimSpace(out)
-	outputParts := strings.Split(output, " ")
-	multipathDevice := outputParts[0]
-
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
 	commandWildcards := "%m_%d_"
-	command = fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
+	command := fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("command is [%s]", command)
 
-	out, err = execScsi.Command(command, "")
+	out, err := execScsi.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
 		return nil, err
@@ -444,9 +431,9 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 		return nil, err
 	}
 
-	output = strings.TrimSpace(out)
+	output := strings.TrimSpace(out)
 	zlog.Debug().Msgf("output is [%s]\n", output)
-	outputParts = strings.Split(output, "\n")
+	outputParts := strings.Split(output, "\n")
 	zlog.Debug().Msgf("lines %d\n", len(outputParts))
 
 	// 3 - echo 1 > /sys/block/path_device/device/rescan  .... run those commands on each device from the previous step
@@ -1222,7 +1209,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 			}
 
 			iscsiAddress := fmt.Sprintf("%s:%d", p.IpAdress, nspace.Properties.IscsiTcpPort)
-			err := testIscsiConnection(iscsiAddress)
+			err := testConnection(iscsiAddress)
 			if err != nil {
 				zlog.Error().Msgf("error getting iscsi network space %s ip connection to %s error: %v", networkSpaces[i], iscsiAddress, err)
 				continue
@@ -1238,19 +1225,6 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 		return targets, fmt.Errorf("there are zero network space ip addresses available")
 	}
 	return targets, nil
-}
-
-func testIscsiConnection(ipAndPort string) error {
-	zlog.Debug().Msgf("testing connectivity to iscsi at %s", ipAndPort)
-	d := net.Dialer{Timeout: 2 * time.Second}
-	conn, err := d.Dial("tcp", ipAndPort)
-	if err != nil {
-		return fmt.Errorf("could not connect to iscsi ip address %s: %s", ipAndPort, err.Error())
-	}
-	if conn != nil {
-		conn.Close()
-	}
-	return nil
 }
 
 func getSessionDetails() (results []SessionDetails) {

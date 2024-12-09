@@ -13,6 +13,7 @@ limitations under the License.
 package storage
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -760,4 +761,56 @@ func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 
 	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
 	return wwid, nil
+}
+
+func testConnection(ipAndPort string) error {
+	zlog.Debug().Msgf("testing connectivity to %s", ipAndPort)
+	d := net.Dialer{Timeout: 2 * time.Second}
+	conn, err := d.Dial("tcp", ipAndPort)
+	if err != nil {
+		return fmt.Errorf("could not connect to ip address %s: %s", ipAndPort, err.Error())
+	}
+	if conn != nil {
+		conn.Close()
+	}
+	return nil
+}
+
+func findMultipathDeviceFromVolumePath(volumePath string) (string, error) {
+	pathParts := strings.Split(volumePath, "/")
+	lenPathParts := len(pathParts)
+	if lenPathParts < 5 {
+		return "", fmt.Errorf("error parsing volumepath %s, len %d", volumePath, lenPathParts)
+	}
+	volumeName := pathParts[lenPathParts-2]
+	zlog.Trace().Msgf("volumeName parsed to [%s] from path [%s]", volumeName, volumePath)
+
+	readFile, err := os.Open("/proc/mounts")
+	if err != nil {
+		zlog.Error().Msgf("error reading /proc/mounts %s", err.Error())
+		return "", err
+	}
+	fileScanner := bufio.NewScanner(readFile)
+
+	fileScanner.Split(bufio.ScanLines)
+
+	var device string
+	for fileScanner.Scan() {
+		parts := strings.Split(fileScanner.Text(), " ")
+		device = parts[0]
+		mountPath := parts[1]
+		zlog.Trace().Msgf("looking for %s in %s", volumeName, fileScanner.Text())
+		if strings.Contains(mountPath, volumeName) {
+			zlog.Debug().Msgf("found %s in %s for volume %s", device, mountPath, volumeName)
+			break
+		}
+	}
+
+	readFile.Close()
+
+	if device == "" {
+		return "", fmt.Errorf("error finding device from volume in list of mounts - volume %s", volumeName)
+	}
+
+	return device, nil
 }
