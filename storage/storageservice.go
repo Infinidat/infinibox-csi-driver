@@ -13,7 +13,6 @@ limitations under the License.
 package storage
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
@@ -106,6 +105,13 @@ type iscsistorage struct {
 	storageHelper StorageHelper
 }
 
+type nvmestorage struct {
+	capacity      int64
+	cs            Commonservice
+	osHelper      helper.OsHelper
+	storageHelper StorageHelper
+}
+
 // NewStorageController : To return specific implementation of storage
 func NewStorageController(comnserv Commonservice, capacity int64, storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
 	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
@@ -114,6 +120,8 @@ func NewStorageController(comnserv Commonservice, capacity int64, storageProtoco
 		return &fcstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}}, nil
 	case common.PROTOCOL_ISCSI:
 		return &iscsistorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
+	case common.PROTOCOL_NVME:
+		return &nvmestorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_NFS:
 		return &nfsstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_TREEQ:
@@ -134,6 +142,8 @@ func NewStorageNode(storageProtocol string, configparams ...map[string]string) (
 			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
 		case common.PROTOCOL_ISCSI:
 			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
+		case common.PROTOCOL_NVME:
+			return &nvmestorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
 		case common.PROTOCOL_NFS:
 			return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
 		case common.PROTOCOL_TREEQ:
@@ -716,27 +726,6 @@ func (cs *Commonservice) isCorruptedMnt(err error) bool {
 	}
 
 	return underlyingError == syscall.ENOTCONN || underlyingError == syscall.ESTALE || underlyingError == syscall.EIO
-}
-
-func (st *fcstorage) ControllerGetVolume(
-	_ context.Context, _ *csi.ControllerGetVolumeRequest,
-) (*csi.ControllerGetVolumeResponse, error) {
-	// Infinidat does not support ControllerGetVolume
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (st *iscsistorage) ControllerGetVolume(
-	_ context.Context, _ *csi.ControllerGetVolumeRequest,
-) (*csi.ControllerGetVolumeResponse, error) {
-	// Infinidat does not support ControllerGetVolume
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (st *nfsstorage) ControllerGetVolume(
-	_ context.Context, _ *csi.ControllerGetVolumeRequest,
-) (*csi.ControllerGetVolumeResponse, error) {
-	// Infinidat does not support ControllerGetVolume
-	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func removeMultipathDevices(devices []string) error {

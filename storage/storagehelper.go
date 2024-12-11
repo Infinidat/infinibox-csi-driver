@@ -68,6 +68,7 @@ var protoToServiceMap = map[string]string{
 	common.PROTOCOL_NFS:   common.NS_NFS_SVC,
 	common.PROTOCOL_TREEQ: common.NS_NFS_SVC,
 	common.PROTOCOL_ISCSI: common.NS_ISCSI_SVC,
+	common.PROTOCOL_NVME:  common.NS_NVME_SVC,
 }
 
 func isMountedByListMethod(targetHostPath string) (bool, error) {

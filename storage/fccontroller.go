@@ -657,3 +657,10 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 		NodeExpansionRequired: true,
 	}, nil
 }
+
+func (st *fcstorage) ControllerGetVolume(
+	_ context.Context, _ *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+	// Infinidat does not support ControllerGetVolume
+	return nil, status.Error(codes.Unimplemented, "")
+}

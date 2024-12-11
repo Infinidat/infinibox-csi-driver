@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvme-pvc-restore-from-snapshot
+  namespace: infinidat-csi
+spec:
+  storageClassName: ibox-nvme
+  dataSource:
+    name: nvme-snapshot
+    kind: VolumeSnapshot
+    apiGroup: "snapshot.storage.k8s.io"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+

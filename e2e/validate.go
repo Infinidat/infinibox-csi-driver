@@ -25,10 +25,10 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	protocol := os.Getenv("_E2E_PROTOCOL")
 
 	switch protocol {
-	case common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
+	case common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME:
 		fmt.Printf("valid protocol found in env vars [%s]\n", protocol)
 	default:
-		return fmt.Errorf("protocol specified in env var not recognized [%s], must be a valid protocol [%s,%s,%s,%s]", protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ)
+		return fmt.Errorf("protocol specified in env var not recognized [%s], must be a valid protocol [%s,%s,%s,%s,%s]", protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME)
 	}
 
 	if protocol != common.PROTOCOL_FC {

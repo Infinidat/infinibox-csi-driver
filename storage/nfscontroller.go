@@ -764,3 +764,10 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 		NodeExpansionRequired: false,
 	}, nil
 }
+
+func (st *nfsstorage) ControllerGetVolume(
+	_ context.Context, _ *csi.ControllerGetVolumeRequest,
+) (*csi.ControllerGetVolumeResponse, error) {
+	// Infinidat does not support ControllerGetVolume
+	return nil, status.Error(codes.Unimplemented, "")
+}

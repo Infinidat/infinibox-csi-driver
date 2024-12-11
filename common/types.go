@@ -38,6 +38,7 @@ const (
 	NS_NFS_SVC         = "NAS_SERVICE"
 	NS_ISCSI_SVC       = "ISCSI_SERVICE"
 	NS_REPLICATION_SVC = "RMR_SERVICE"
+	NS_NVME_SVC        = "SAN_SERVICE"
 
 	SC_MAX_TREEQS_PER_FILESYSTEM = "max_treeqs_per_filesystem"
 	SC_MAX_FILESYSTEMS           = "max_filesystems"
@@ -50,6 +51,7 @@ const (
 	PROTOCOL_TREEQ = "nfs_treeq"
 	PROTOCOL_ISCSI = "iscsi"
 	PROTOCOL_FC    = "fc"
+	PROTOCOL_NVME  = "nvme"
 )
 
 // Service name in
