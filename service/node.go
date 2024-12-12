@@ -109,7 +109,7 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 	zlog.Trace().Msgf("NodeUnpublishVolume called with req %+v", req)
-	volproto, err := validateVolumeID(req.GetVolumeId())
+	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -228,7 +228,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
 
-	volproto, err := validateVolumeID(volumeId)
+	volproto, err := storage.ValidateVolumeID(volumeId)
 	if err != nil {
 		zlog.Error().Msgf("NodeUnstageVolume failed - volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())

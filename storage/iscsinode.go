@@ -26,7 +26,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -127,23 +126,16 @@ type GlobFunc func(string) ([]string, error)
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	zlog.Debug().Msgf("NodeStageVolume called with publish context: %s", req.GetPublishContext())
 
-	hostIDString := req.GetPublishContext()["hostID"]
-	hostID, err := strconv.Atoi(hostIDString)
+	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		err := fmt.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
 		zlog.Err(err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	ports := req.GetPublishContext()["hostPorts"]
+
 	hostSecurity := req.GetPublishContext()["securityMethod"]
 	useChap := req.GetVolumeContext()[common.SC_USE_CHAP]
 	zlog.Debug().Msgf("Publishing volume to host with hostID %d", hostID)
 
-	// validate host exists
-	if hostID < 1 {
-		e := fmt.Errorf("hostID %d is not valid host ID", hostID)
-		return nil, status.Error(codes.Internal, e.Error())
-	}
 	initiatorName := getInitiatorName()
 	if initiatorName == "" {
 		e := fmt.Errorf("iscsi initiator name not found")
@@ -1152,27 +1144,6 @@ func findMpathFromDevice(device string) (mpath string, err error) {
 
 	zlog.Debug().Msgf("device %s corresponds to multipath %s", device, mpath)
 	return
-}
-
-// Used for debugging. Log a path, found by debugWalkDir, to log.
-func debugLogPath(path string, info os.FileInfo, err error) error {
-	if err != nil {
-		zlog.Err(err)
-		return err
-	}
-	zlog.Debug().Msgf("found path %s", path)
-	return nil
-}
-
-// Used for debugging. For given walk_path, log all files found within.
-func debugWalkDir(walkPath string) (err error) {
-	zlog.Debug().Msgf("walkPath %s", walkPath)
-	err = filepath.Walk(walkPath, debugLogPath)
-	if err != nil {
-		zlog.Err(err)
-		return err
-	}
-	return nil
 }
 
 func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (targets []iscsiTarget, err error) {

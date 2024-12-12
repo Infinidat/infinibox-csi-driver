@@ -78,29 +78,13 @@ type NVMEDevices struct {
 
 const NVME_DISCOVERY_PORT = 8009
 
-const (
-	NVME_HOST_PORTS_PUBLISH_CONTEXT = "hostPorts"
-	NVME_HOST_ID_PUBLISH_CONTEXT    = "hostID"
-	NVME_LUN_PUBLISH_CONTEXT        = "lun"
-)
-
 func (nvme *nvmestorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	zlog.Debug().Msgf("NodeStageVolume called with publish context: %s", req.GetPublishContext())
 
-	hostIDString := req.GetPublishContext()[NVME_HOST_ID_PUBLISH_CONTEXT]
-	hostID, err := strconv.Atoi(hostIDString)
+	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		err := fmt.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
 		zlog.Err(err)
 		return nil, status.Error(codes.Internal, err.Error())
-	}
-	ports := req.GetPublishContext()[NVME_HOST_PORTS_PUBLISH_CONTEXT]
-	zlog.Debug().Msgf("Publishing volume to host with hostID %d ports are %v", hostID, ports)
-
-	// validate host exists
-	if hostID < 1 {
-		e := fmt.Errorf("hostID %d is not valid host ID", hostID)
-		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	hostNQN, err := getHostNQN()
@@ -184,10 +168,7 @@ func (nvme *nvmestorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 
 	zlog.Debug().Msgf("NodeUnstageVolume volume ID %s", req.GetVolumeId())
 
-	//diskUnmounter := nvme.getNVMEDiskUnmounter(req.GetVolumeId())
 	stagePath := req.GetStagingTargetPath()
-	//var mpathDevice string
-
 	zlog.Debug().Msgf("staging target path: %s", stagePath)
 
 	removePath := path.Join("/host", stagePath)
@@ -195,26 +176,14 @@ func (nvme *nvmestorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 
 	_ = debugWalkDir(removePath)
 
-	// Check if removePath is a directory or a file
-	isADir, isADirError := IsDirectory(removePath)
-	if isADirError != nil {
-		err := fmt.Errorf("failed to check if removePath '%s' is a directory: %v", removePath, isADirError)
-		zlog.Err(err)
-		return nil, err
-	}
-
 	// Remove directory contents
-	if isADir {
-		zlog.Debug().Msgf("removePath '%s' is a directory", removePath)
-		volumeId := strings.Split(req.GetVolumeId(), "$$")[0]
-		jsonPath := fmt.Sprintf("%s/%s.json", removePath, volumeId)
-		zlog.Debug().Msgf("removing json file '%s'", jsonPath)
-		if err := os.Remove(jsonPath); err != nil {
-			zlog.Error().Msgf("failed to remove json file '%s': %v", jsonPath, err)
-			return nil, err
-		}
-	} else {
-		zlog.Debug().Msgf("removePath '%s' is not a directory", removePath)
+	zlog.Debug().Msgf("removePath '%s' is a directory", removePath)
+	volumeId := strings.Split(req.GetVolumeId(), "$$")[0]
+	jsonPath := fmt.Sprintf("%s/%s.json", removePath, volumeId)
+	zlog.Debug().Msgf("removing json file '%s'", jsonPath)
+	if err := os.Remove(jsonPath); err != nil {
+		zlog.Error().Msgf("failed to remove json file '%s': %v", jsonPath, err)
+		return nil, err
 	}
 
 	// Remove directory or file
@@ -300,14 +269,10 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mn
 		return "", err
 	}
 
-	time.Sleep(2 * time.Second)
-
 	err = nvmeConnectAll(ipAddressOnly[0])
 	if err != nil {
 		return "", err
 	}
-
-	time.Sleep(2 * time.Second)
 
 	devices, err := getNVMENamespaces()
 	if err != nil {
@@ -461,7 +426,7 @@ func (nvme *nvmestorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDi
 	publishContext := req.GetPublishContext()
 	zlog.Debug().Msgf("volume: %s context: %v publish context: %v", volName, volContext, publishContext)
 
-	lun := publishContext[NVME_LUN_PUBLISH_CONTEXT]
+	lun := publishContext[LUN_PUBLISH_CONTEXT]
 	if lun == "" {
 		return nil, fmt.Errorf("nvme: LUN is missing")
 	}

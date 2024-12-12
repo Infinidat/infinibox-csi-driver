@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -66,14 +65,10 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	defer helper.TimeTrack(zlog, time.Now())
 	var err error
 	zlog.Debug().Msgf("NodeStageVolume called with PublishContext: %+v", req.GetPublishContext())
-	hostIdString := req.GetPublishContext()["hostID"]
-	ports := req.GetPublishContext()["hostPorts"]
 
-	hostId, err := strconv.Atoi(hostIdString)
+	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
 		zlog.Err(err)
-		err := fmt.Errorf("hostID string '%s' is not valid host ID: %s", hostIdString, err)
-		zlog.Error().Msgf(err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -83,24 +78,18 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, "Port name not found")
 	}
 
-	zlog.Debug().Msgf("Publishing volume to host with host ID %d", hostId)
-	// validate host exists
-	if hostId < 1 {
-		err := fmt.Errorf("hostId %d is not valid host Id", hostId)
-		zlog.Error().Msgf(err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	zlog.Debug().Msgf("Publishing volume to host with host ID %d", hostID)
 
 	for _, fcp := range fcPorts {
 		zlog.Debug().Msgf("NodeStageVolume comparing %s with %s", ports, fcp)
 		if !strings.Contains(ports, fcp) {
 			zlog.Debug().Msgf("host port %s is not created, creating it", fcp)
-			err = fc.cs.AddPortForHost(hostId, "FC", fcp)
+			err = fc.cs.AddPortForHost(hostID, "FC", fcp)
 			if err != nil {
 				zlog.Error().Msgf("error creating host port %v", err)
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			_, err := fc.cs.Api.GetHostPort(hostId, fcp)
+			_, err := fc.cs.Api.GetHostPort(hostID, fcp)
 			if err != nil {
 				zlog.Error().Msgf("failed to get host port %s with error %v", fcp, err)
 				return nil, status.Error(codes.Internal, err.Error())

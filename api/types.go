@@ -319,7 +319,7 @@ type FileSystemSnapshotResponce struct {
 }
 
 type VolumeProtocolConfig struct {
-	VolumeID      string
+	VolumeID      int
 	StorageType   string
 	ChildVolumeID string
 }

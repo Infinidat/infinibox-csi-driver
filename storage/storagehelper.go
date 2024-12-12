@@ -63,6 +63,13 @@ const (
 
 var zlog = log.Get() // grab the logger for storage package use
 
+const (
+	HOST_PORTS_PUBLISH_CONTEXT      = "hostPorts"
+	HOST_ID_PUBLISH_CONTEXT         = "hostID"
+	LUN_PUBLISH_CONTEXT             = "lun"
+	SECURITY_METHOD_PUBLISH_CONTEXT = "securityMethod"
+)
+
 // used to look up expected service for protocol
 var protoToServiceMap = map[string]string{
 	common.PROTOCOL_NFS:   common.NS_NFS_SVC,
@@ -212,16 +219,17 @@ func unmountAndCleanUp(targetPath string) (err error) {
 			return err
 		}
 		zlog.Debug().Msgf("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
-	} else {
-		// TODO - Could check this is a file using IsDirectory().
-		zlog.Debug().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
-		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
-			err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-			zlog.Error().Msgf(err.Error())
-			return err
-		}
-		zlog.Debug().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
+		return nil
 	}
+
+	// not a directory
+	zlog.Debug().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
+	if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
+		err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
+		zlog.Error().Msgf(err.Error())
+		return err
+	}
+	zlog.Debug().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
 
 	return nil
 }
@@ -327,12 +335,27 @@ func copyRequestParameters(parameters, out map[string]string) {
 	}
 }
 
-func validateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+func ValidateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
+	if str == "" {
+		return volprotoconf, errors.New("volume Id string is empty")
+	}
 	volproto := strings.Split(str, "$$")
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")
 	}
-	volprotoconf.VolumeID = volproto[0]
+
+	if volproto[0] == "" {
+		return volprotoconf, errors.New("volume Id in volproto is empty")
+	}
+	volprotoconf.VolumeID, err = strconv.Atoi(volproto[0])
+	if err != nil {
+		zlog.Error().Msgf("failed to validate volume id: %v", err)
+		return volprotoconf, status.Errorf(codes.InvalidArgument, "invalid volume id (non-numeric): %s", volproto[0])
+	}
+
+	if volproto[1] == "" {
+		return volprotoconf, errors.New("volume storagetype in volproto is empty")
+	}
 	volprotoconf.StorageType = volproto[1]
 	return volprotoconf, nil
 }
@@ -765,7 +788,7 @@ func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 }
 
 func testConnection(ipAndPort string) error {
-	zlog.Debug().Msgf("testing connectivity to %s", ipAndPort)
+	zlog.Trace().Msgf("testing connectivity to %s", ipAndPort)
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", ipAndPort)
 	if err != nil {
@@ -814,4 +837,44 @@ func findMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 	}
 
 	return device, nil
+}
+
+func validatePublishContext(publishContext map[string]string) (hostID int, ports string, err error) {
+	hostIDString := publishContext[HOST_ID_PUBLISH_CONTEXT]
+	hostID, err = strconv.Atoi(hostIDString)
+	if err != nil {
+		err := fmt.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
+		zlog.Err(err)
+		return 0, "", status.Error(codes.Internal, err.Error())
+	}
+
+	if hostID < 1 {
+		e := fmt.Errorf("hostID %d is not valid host ID", hostID)
+		return 0, "", status.Error(codes.Internal, e.Error())
+	}
+
+	ports = publishContext[HOST_PORTS_PUBLISH_CONTEXT]
+
+	return hostID, ports, nil
+}
+
+// Used for debugging. Log a path, found by debugWalkDir, to log.
+func debugLogPath(path string, info os.FileInfo, err error) error {
+	if err != nil {
+		zlog.Err(err)
+		return err
+	}
+	zlog.Trace().Msgf("found path %s", path)
+	return nil
+}
+
+// Used for debugging. For given walk_path, log all files found within.
+func debugWalkDir(walkPath string) (err error) {
+	zlog.Trace().Msgf("walkPath %s", walkPath)
+	err = filepath.Walk(walkPath, debugLogPath)
+	if err != nil {
+		zlog.Err(err)
+		return err
+	}
+	return nil
 }

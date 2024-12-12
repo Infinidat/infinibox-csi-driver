@@ -15,6 +15,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
@@ -136,7 +137,8 @@ func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidID_success() {
 		},
 	}
 	_, err := cs.DeleteVolume(context.Background(), deleteVolumeReq)
-	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteVolume with invalid volume ID")
+	fmt.Printf("error is %v\n", err)
+	assert.NotNil(suite.T(), err)
 }
 
 func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidProtocol() {
@@ -260,7 +262,7 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_InvalidID_success() {
 		},
 	}
 	_, err := cs.DeleteSnapshot(context.Background(), deleteSnapshotReq)
-	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot invalid snapshot ID")
+	assert.NotNil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot invalid snapshot ID")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_Invalid_protocol() {
