@@ -1,0 +1,20 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nvme-block
+  namespace: infinidat-csi
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_BLOCK_IMAGE
+      volumeMounts:
+      command: [ "csitestimageblock" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: nvme-block-pvc

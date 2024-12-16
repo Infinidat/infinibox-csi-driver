@@ -196,3 +196,10 @@ csitestimageblock-push:
 	docker tag git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver/csitestimageblock:latest git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimageblock:latest
 	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimageblock:latest 
 	@echo -e $(_finish)
+
+.PHONY: e2envme
+e2envme:  ## run the infinidat developed e2e nvme tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme -tags e2e
+	@echo -e $(_finish)

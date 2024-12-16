@@ -1,0 +1,25 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nvme-block-clone
+  namespace: infinidat-csi
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE
+      volumeMounts:
+      command: [ "csitestimage" ]
+      volumeDevices:
+        - name: data
+          devicePath: /dev/xvda
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: nvme-block-pvc-clone
+    - name: ibox-csi-volume
+      emptyDir: {}
