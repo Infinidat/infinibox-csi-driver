@@ -15,7 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func XTestNvmeSnapshotLocking(t *testing.T) {
+func TestNvmeSnapshotLocking(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -62,7 +62,7 @@ func XTestNvmeSnapshotLocking(t *testing.T) {
 
 }
 
-func XTestNvmeSnapshot(t *testing.T) {
+func TestNvmeSnapshot(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -95,7 +95,7 @@ func XTestNvmeSnapshot(t *testing.T) {
 
 }
 
-func XTestNvme(t *testing.T) {
+func TestNvme(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -112,7 +112,7 @@ func XTestNvme(t *testing.T) {
 
 }
 
-func XTestNvmeFsGroup(t *testing.T) {
+func TestNvmeFsGroup(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -174,7 +174,7 @@ func TestNvmeBlock(t *testing.T) {
 
 }
 
-func XTestNvmeROX(t *testing.T) {
+func TestNvmeROX(t *testing.T) {
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
@@ -271,7 +271,7 @@ func XTestNvmeROX(t *testing.T) {
 
 }
 
-func XTestNvmeRO(t *testing.T) {
+func TestNvmeRO(t *testing.T) {
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
@@ -329,7 +329,7 @@ func XTestNvmeRO(t *testing.T) {
 
 }
 
-func XTestNvmeClone(t *testing.T) {
+func TestNvmeClone(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -377,7 +377,7 @@ func XTestNvmeClone(t *testing.T) {
 
 }
 
-func XTestNvmeExpand(t *testing.T) {
+func TestNvmeExpand(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
