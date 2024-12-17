@@ -590,7 +590,7 @@ func getNVMENamespaces() (devices NVMEDevices, err error) {
 		zlog.Error().Msgf("%s failed, err: %v, %s", cmd, err, rawOutput)
 		return devices, err
 	}
-	zlog.Debug().Msgf("%s raw output %s", cmd, rawOutput)
+	zlog.Trace().Msgf("%s raw output %s", cmd, rawOutput)
 
 	err = json.Unmarshal([]byte(rawOutput), &devices)
 	if err != nil {
@@ -621,7 +621,7 @@ func nvmeDiscover(ipAddress string) (err error) {
 		zlog.Error().Msgf("%s failed, err: %v, %s", cmd, err, rawOutput)
 		return err
 	}
-	zlog.Debug().Msgf("%s - raw output %s", cmd, rawOutput)
+	zlog.Trace().Msgf("%s - raw output %s", cmd, rawOutput)
 
 	return nil
 }

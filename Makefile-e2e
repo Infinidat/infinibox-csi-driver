@@ -203,3 +203,10 @@ e2envme:  ## run the infinidat developed e2e nvme tests
 	@echo -e kubeconfig here is ${KUBECONFIG}
 	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme -tags e2e
 	@echo -e $(_finish)
+
+.PHONY: e2envmestressout
+e2envmestressout:  ## create a bunch of nvme volumes
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme-stress -tags e2e
+	@echo -e $(_finish)
