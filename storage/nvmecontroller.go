@@ -59,7 +59,7 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	if err != nil {
 		zlog.Err(err)
 		if !strings.Contains(err.Error(), "volume with given name not found") {
-			return nil, status.Errorf(codes.NotFound, fmt.Sprintf("CreateVolume failed: %v", err))
+			return nil, status.Errorf(codes.NotFound, "CreateVolume failed: %v", err)
 		}
 	}
 	if targetVol != nil {
@@ -72,8 +72,8 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 			}, nil
 		}
 		msg := fmt.Sprintf("CreateVolume failed: volume %s exists but has different size", name)
-		zlog.Error().Msgf(msg)
-		return nil, status.Errorf(codes.AlreadyExists, msg)
+		zlog.Error().Msg(msg)
+		return nil, status.Error(codes.AlreadyExists, msg)
 	}
 
 	// Volume content source support volume and snapshots
@@ -97,7 +97,7 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	if err != nil {
 		e := fmt.Errorf("error creating volume: %s pool %s error: %v", name, poolName, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	vi := nvme.cs.getCSIResponse(volumeResp, req)
 
@@ -137,7 +137,7 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	if err != nil {
 		e := fmt.Errorf("failed to attach metadata for volume : %s, err: %v", name, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	zlog.Debug().Msgf("successfully created volume with name %s and ID %d", name, volID)
@@ -184,21 +184,21 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	if err != nil {
 		e := fmt.Errorf("failed to validate storage type restoreType: %s source id: %s, err: %v", restoreType, volumeContentID, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.NotFound, e.Error())
+		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	srcVol, err := nvme.cs.Api.GetVolume(volproto.VolumeID)
 	if err != nil {
 		e := fmt.Errorf("error GetVolume id: %d restoreType: %s error: %v", volproto.VolumeID, restoreType, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.NotFound, e.Error())
+		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	// Validate the size is the same.
 	if int64(srcVol.Size) != sizeInBytes {
 		msg := fmt.Sprintf("%s %s has incompatible size. size is %d bytes with requested size %d bytes", restoreType, volumeContentID, srcVol.Size, sizeInBytes)
-		zlog.Error().Msgf(msg)
-		return nil, status.Errorf(codes.InvalidArgument, msg)
+		zlog.Error().Msg(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	params := req.GetParameters()
@@ -208,12 +208,12 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	if err != nil {
 		e := fmt.Errorf("error GetStoragePoolIDByName name: %s error: %v", storagePool, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	if storagePoolID != srcVol.PoolId {
 		msg = fmt.Sprintf("volume storage pool is different than the requested storage pool %s", storagePool)
-		zlog.Error().Msgf(msg)
-		return nil, status.Errorf(codes.InvalidArgument, msg)
+		zlog.Error().Msg(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	// Create snapshot descriptor
@@ -227,7 +227,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	snapResponse, err := nvme.cs.Api.CreateSnapshotVolume(0, snapshotParam)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Retrieve created destination volume
@@ -235,7 +235,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	dstVol, err := nvme.cs.Api.GetVolume(volID)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, msg)
+		return nil, status.Error(codes.Internal, msg)
 	}
 
 	// Create a volume response and return it
@@ -249,7 +249,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	if err != nil {
 		e := fmt.Errorf("error attach metadata for volume : %s, err: %v", dstVol.Name, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	zlog.Debug().Msgf("from source %s with ID %d, created volume %s with ID %s in storage pool %s",
@@ -270,10 +270,6 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		e := fmt.Errorf("failed to validate storage type for volume ID: %s, err: %v", volIdStr, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.NotFound, e.Error())
-	}
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Error(codes.NotFound, err.Error())
 	}
 
 	zlog.Debug().Msgf("volID: %d", volproto.VolumeID)
@@ -385,7 +381,7 @@ func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 	volproto, err := ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		msg = fmt.Sprintf("failed to validate volume with ID %s: %v", req.GetVolumeId(), err)
-		zlog.Error().Msgf(msg)
+		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.Internal, msg)
 	}
 
@@ -400,7 +396,7 @@ func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 			return &csi.ControllerUnpublishVolumeResponse{}, nil
 		}
 		msg = fmt.Sprintf("failed to get host: %s, err: %v", hostName, err)
-		zlog.Error().Msgf(msg)
+		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.NotFound, msg)
 	}
 	zlog.Debug().Msgf("unmapping host's luns: host id: %d, name: %s lun count %d", host.ID, host.Name, len(host.Luns))
@@ -568,7 +564,7 @@ func (nvme *nvmestorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnap
 
 		e := fmt.Errorf("failed to delete snapshot with ID %d", snapshotID)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	zlog.Debug().Msgf("DeleteSnapshot successfully deleted snapshot with ID %d", snapshotID)
 	return &csi.DeleteSnapshotResponse{}, nil
@@ -585,8 +581,8 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 			return status.Errorf(codes.NotFound, "volume not found")
 		}
 		msg := fmt.Sprintf("failed to get volume: %d, err: %s", volumeID, err.Error())
-		zlog.Error().Msgf(msg)
-		return status.Errorf(codes.Internal, msg)
+		zlog.Error().Msg(msg)
+		return status.Error(codes.Internal, msg)
 	}
 
 	// this applies for when we are evaluating a snapshot volume
@@ -615,8 +611,8 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 	zlog.Debug().Msgf("deleting volume named %s with ID %d", vol.Name, vol.ID)
 	if err = nvme.cs.Api.DeleteVolume(vol.ID); err != nil {
 		msg := fmt.Sprintf("Error deleting volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
-		zlog.Error().Msgf(msg)
-		return status.Errorf(codes.Internal, msg)
+		zlog.Error().Msg(msg)
+		return status.Error(codes.Internal, msg)
 	}
 	zlog.Debug().Msgf("deleted volume named %s with ID %d", vol.Name, vol.ID)
 

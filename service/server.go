@@ -58,7 +58,7 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, v
 
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
-		zlog.Fatal().Msgf(err.Error())
+		zlog.Fatal().Msg(err.Error())
 	}
 
 	if proto == "unix" {

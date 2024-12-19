@@ -38,6 +38,8 @@ import (
 // ControllerServer controller server setting
 type ControllerServer struct {
 	Driver *Driver
+	csi.UnimplementedControllerServer
+	csi.UnimplementedGroupControllerServer
 }
 
 var zlog = log.Get() // grab the logger for package use
@@ -228,7 +230,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	pvList, err := kc.GetAllPersistentVolumes()
 	if err != nil {
 		err := fmt.Errorf("cant fetch PVs %s", err.Error())
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 
 	}
@@ -241,7 +243,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			annoPVCSecret, err := kc.GetSecret(annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
 			if err != nil {
 				err := fmt.Errorf("pvc annotation %s get error %v", annoPVCSecretName, err)
-				zlog.Error().Msgf(err.Error())
+				zlog.Error().Msg(err.Error())
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 			zlog.Debug().Msgf("DeleteVolume - using secret %s", annoPVCSecretName)
@@ -291,14 +293,14 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	if req.VolumeCapability == nil {
 		err = fmt.Errorf("ControllerPublishVolume request VolumeCapability was nil")
-		zlog.Error().Msgf(err.Error())
-		err = status.Errorf(codes.InvalidArgument, err.Error())
+		zlog.Error().Msg(err.Error())
+		err = status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
 	if req.GetVolumeId() == "" {
 		err = fmt.Errorf("ControllerPublishVolume request volumeId was empty")
-		zlog.Error().Msgf(err.Error())
-		err = status.Errorf(codes.InvalidArgument, err.Error())
+		zlog.Error().Msg(err.Error())
+		err = status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
 
@@ -311,8 +313,8 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	if req.GetNodeId() == "" {
 		err = fmt.Errorf("ControllerPublishVolume request nodeId was empty")
-		zlog.Error().Msgf(err.Error())
-		err = status.Errorf(codes.InvalidArgument, err.Error())
+		zlog.Error().Msg(err.Error())
+		err = status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
 
@@ -353,8 +355,8 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	if req.GetVolumeId() == "" {
 		err = fmt.Errorf("ControllerUnpublishVolume request volumeId parameter was empty")
-		zlog.Error().Msgf(err.Error())
-		err = status.Errorf(codes.InvalidArgument, err.Error())
+		zlog.Error().Msg(err.Error())
+		err = status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
 	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
@@ -440,17 +442,17 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 
 	if req.GetVolumeId() == "" {
 		err := fmt.Errorf("ValidateVolumeCapabilities error volumeId parameter was empty")
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.VolumeCapabilities == nil {
 		err := fmt.Errorf("ValidateVolumeCapabilities error volumeCapabilities parameter was nil")
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if len(req.VolumeCapabilities) == 0 {
 		err := fmt.Errorf("ValidateVolumeCapabilities error volumeCapabilities parameter was empty")
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -486,7 +488,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		if err != nil {
 			e := fmt.Errorf("failed to find volume with ID %d. Error: %v", volproto.VolumeID, err)
 			zlog.Err(e)
-			err = status.Errorf(codes.NotFound, e.Error())
+			err = status.Error(codes.NotFound, e.Error())
 			return
 		}
 		zlog.Debug().Msgf("volume volID: %d volume: %v", volproto.VolumeID, vol)
@@ -524,7 +526,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 	if req.StartingToken == "" || req.StartingToken == "next-token" {
 	} else {
 		err := fmt.Errorf("ListVolumes error startingToken parameter was incorrect [%s]", req.StartingToken)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
 	}
 
@@ -549,7 +551,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 			var status csi.ListVolumesResponse_VolumeStatus
 			status.PublishedNodeIds = append(status.PublishedNodeIds, pv.ObjectMeta.GetName())
 			// TODO Handle csi.ListVolumesResponse_VolumeStatus.VolumeCondition?
-			zlog.Info().Msgf("status: %#v", status)
+			zlog.Info().Msgf("status: %s", status.String())
 
 			var volume csi.Volume
 
@@ -566,7 +568,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 			var entry csi.ListVolumesResponse_Entry
 			entry.Volume = &volume
 			entry.Status = &status
-			zlog.Info().Msgf("entry: %#v", entry)
+			zlog.Info().Msgf("entry: %s", entry.String())
 
 			res.Entries = append(res.Entries, &entry)
 		}
@@ -635,10 +637,6 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				return res, nil
 			}
 			iValue = volProto.VolumeID
-			if err != nil {
-				zlog.Error().Msgf("error converting VolumeID %d", volProto.VolumeID)
-				return nil, status.Errorf(codes.Unavailable, "cannot convert VolumeID: %d error %v", volProto.VolumeID, err)
-			}
 		}
 
 		for i := 0; i < len(snapshots); i++ {

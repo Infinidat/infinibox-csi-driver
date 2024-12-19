@@ -137,7 +137,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	err = treeq.nfsstorage.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	zlog.Debug().Msgf("mount sourcePath %v, targetPath %v", source, targetPath)
@@ -145,7 +145,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	if err != nil {
 		e := fmt.Errorf("failed to mount targetPath %s sourcePath '%s' : %v", targetPath, source, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	zlog.Debug().Msgf("mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
 
@@ -158,7 +158,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	if err != nil {
 		e := fmt.Errorf("failed to set volume permissions '%v'", err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil

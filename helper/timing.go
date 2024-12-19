@@ -14,7 +14,6 @@ limitations under the License.
 */
 
 import (
-	"fmt"
 	"regexp"
 	"runtime"
 	"time"
@@ -42,11 +41,11 @@ func TimeTrack(zlog zerolog.Logger, start time.Time) {
 	runtimeFunc := regexp.MustCompile(`^.*\.(.*)$`)
 	name := runtimeFunc.ReplaceAllString(funcObj.Name(), "$1")
 
-	zlog.Debug().Msgf(fmt.Sprintf("%s took %s", name, elapsed.Round(1*time.Millisecond)))
+	zlog.Debug().Msgf("%s took %s", name, elapsed.Round(1*time.Millisecond))
 }
 
 func TimeTrackBasic(zlog zerolog.Logger, start time.Time, msg string) {
 	elapsed := time.Since(start)
 
-	zlog.Debug().Msgf(fmt.Sprintf("%s took %s", msg, elapsed.Round(1*time.Millisecond)))
+	zlog.Debug().Msgf("%s took %s", msg, elapsed.Round(1*time.Millisecond))
 }

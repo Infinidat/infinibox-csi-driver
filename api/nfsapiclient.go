@@ -184,7 +184,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 	zlog.Trace().Msgf("Current export with export ID %d. Response type: %T,  response: %v", exportID, resp, resp)
 	if respApiResponse, ok := resp.(client.ApiResponse); !ok {
 		msg := fmt.Sprintf("Getting current export with ID %d returned a resp that is not of type client.ApiResponse", exportID)
-		zlog.Error().Msgf(msg)
+		zlog.Error().Msg(msg)
 		err = errors.New(msg)
 		return nil, err
 	} else {
@@ -192,7 +192,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 
 		if exportResponse, ok := respResult.(*ExportResponse); !ok {
 			msg := fmt.Sprintf("Export response for export with ID %d is not of type ExportResponse", exportID)
-			zlog.Trace().Msgf(msg)
+			zlog.Trace().Msg(msg)
 		} else {
 			zlog.Trace().Msgf("Current export with export ID %d. exportResponse: %v", exportID, *exportResponse)
 		}

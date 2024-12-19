@@ -30,6 +30,7 @@ import (
 // VolumeGroupServer controller server setting
 type VolumeGroupServer struct {
 	Driver *Driver
+	csi.UnimplementedGroupControllerServer
 }
 
 func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *csi.CreateVolumeGroupSnapshotRequest) (resp *csi.CreateVolumeGroupSnapshotResponse, err error) {

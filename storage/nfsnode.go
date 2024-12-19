@@ -119,7 +119,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	err = nfs.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	ep := req.GetVolumeContext()["volPathd"]
@@ -129,7 +129,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if err != nil {
 		e := fmt.Errorf("failed to mount source '%s ' target %s: %v", source, targetPath, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	zlog.Debug().Msgf("successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
@@ -141,7 +141,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	err = nfs.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil

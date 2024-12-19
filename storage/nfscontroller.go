@@ -260,7 +260,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	if err != nil {
 		e := fmt.Errorf("failed to create snapshot: %s error: %v", newSnapshotParams.SnapshotName, err)
 		zlog.Err(e)
-		return nil, status.Errorf(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	zlog.Debug().Msgf("createVolumeFrmPVCSource successfully created volume from clone with name: %s", newSnapshotName)
 	nfs.fileSystemID = newSnapshot.SnapshotID
@@ -373,8 +373,8 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 	case common.SC_THIN_PROVISION_TYPE, common.SC_THICK_PROVISION_TYPE:
 	default:
 		errStr := fmt.Sprintf("%s valid values are THICK or THIN, THIN is the default when not specified, entered value was [%s]", common.SC_PROVISION_TYPE, provtype)
-		zlog.Error().Msgf(errStr)
-		return fmt.Errorf(errStr)
+		zlog.Error().Msg(errStr)
+		return fmt.Errorf("%s", errStr)
 	}
 
 	if provtype == "" {
@@ -392,8 +392,8 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 		ssd, err := strconv.ParseBool(ssdEnabled)
 		if err != nil {
 			errStr := fmt.Sprintf("%s invalid format, needs to be true or false, %s was specified", common.SC_SSD_ENABLED, ssdEnabled)
-			zlog.Error().Msgf(errStr)
-			return fmt.Errorf(errStr)
+			zlog.Error().Msg(errStr)
+			return fmt.Errorf("%s", errStr)
 			//return err
 		}
 		mapRequest[common.SC_SSD_ENABLED] = ssd

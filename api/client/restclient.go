@@ -177,7 +177,7 @@ func (rc *restclient) checkResponse(res *resty.Response, err error, respStruct i
 	}
 
 	if err != nil {
-		zlog.Error().Msgf("Error in Resty call: " + err.Error() + " for " + res.Request.URL)
+		zlog.Error().Msgf("Error in Resty call: %s for %s ", err.Error(), res.Request.URL)
 		return apiresp, err
 	}
 	if respStruct != nil {

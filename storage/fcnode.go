@@ -121,7 +121,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	devicePath, err := fc.searchDisk(*fcDetails.connector, &OSioHandler{})
+	devicePath, err := fc.searchDisk(*fcDetails.connector)
 	if err != nil {
 		zlog.Error().Msgf("fc.searchDisk() failed. Unable to find disk given WWNN or WWIDs: %+v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -264,7 +264,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 1 - find the multipath device name (e.g. /dev/mapper/mpathwi) from the list of mounts
 	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 	zlog.Debug().Msgf("multipathDevice=[%s]", multipathDevice)
@@ -282,7 +282,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	if out == "" {
 		err := fmt.Errorf("error getting multipath device name %s, command output was empty", multipathDevice)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 
@@ -452,8 +452,8 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 				zlog.Error().Msgf("Device %s is already mounted on %s", devicePath, mountPoint)
 			} else {
 				msg := fmt.Sprintf("fc: failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
-				zlog.Error().Msgf(msg)
-				return status.Errorf(codes.Internal, msg)
+				zlog.Error().Msg(msg)
+				return status.Errorf(codes.Internal, "%s", msg)
 			}
 		}
 	}
@@ -569,7 +569,7 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		// - something about read-only access?
 	} else {
 		errMsg := "Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
-		zlog.Error().Msgf(errMsg)
+		zlog.Error().Msg(errMsg)
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
@@ -584,13 +584,6 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		TargetPath:   req.GetTargetPath(),
 		StagePath:    req.GetStagingTargetPath(),
 	}, nil
-}
-
-type ioHandler interface {
-	ReadDir(dirname string) ([]os.FileInfo, error)
-	Lstat(name string) (os.FileInfo, error)
-	EvalSymlinks(path string) (string, error)
-	WriteFile(filename string, data []byte, perm os.FileMode) error
 }
 
 // Connector provides a struct to hold all of the needed parameters to make our Fibre Channel connection
@@ -639,7 +632,7 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 	return os.WriteFile(filename, data, perm)
 }
 
-func (fc *fcstorage) searchDisk(c Connector, io ioHandler) (string, error) {
+func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("Called searchDisk targetWWNs=[%+v] wwids=[%v]", c.TargetWWNs, c.WWIDs)
 	var diskIds []string // target wwns

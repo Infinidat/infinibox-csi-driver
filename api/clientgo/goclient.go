@@ -123,7 +123,7 @@ func (kc *kubeclient) GetSecrets(nameSpace string) ([]map[string]string, error) 
 func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.PersistentVolume, error) {
 	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(context.TODO(), volumeName, metav1.GetOptions{})
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 	return persistVol, nil
@@ -157,7 +157,7 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error) {
 	storageclasses, err := kc.client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 	zlog.Debug().Msgf("GetStorageClasses() called")
@@ -191,7 +191,7 @@ func (kc *kubeclient) GetNodeIdByNodeName(nodeName string) (InternalIp string, e
 func (kc *kubeclient) GetClusterVerion() (string, error) {
 	info, err := kc.client.Discovery().ServerVersion()
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return "", err
 	}
 	return info.GitVersion, nil

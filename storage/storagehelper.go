@@ -119,12 +119,12 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 	// Verify mount/ directory is empty. Fail if mount/ is not empty as that may be volume data.
 	if isMountEmptyErr != nil {
 		err := fmt.Errorf("failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return err
 	}
 	if !isMountEmpty {
 		err := fmt.Errorf("error: mount/ directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return err
 	}
 	zlog.Trace().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
@@ -136,7 +136,7 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 		zlog.Trace().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-			zlog.Error().Msgf(err.Error())
+			zlog.Error().Msg(err.Error())
 			return err
 		}
 	}
@@ -187,13 +187,13 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	isMounted, isMountedErr := isMountedByListMethod(targetHostPath)
 	if isMountedErr != nil {
 		err := fmt.Errorf("error: failed to check if targetHostPath '%s' is unmounted after unmounting %v", targetHostPath, isMountedErr)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return err
 	}
 	if isMounted {
 		// TODO - Should include volume ID
 		err := fmt.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return err
 	}
 	zlog.Debug().Msgf("Verified that targetHostPath '%s' is not mounted", targetHostPath)
@@ -208,7 +208,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	isADir, isADirError := IsDirectory(targetHostPath)
 	if isADirError != nil {
 		err := fmt.Errorf("failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return err
 	}
 
@@ -226,7 +226,7 @@ func unmountAndCleanUp(targetPath string) (err error) {
 	zlog.Debug().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
 	if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 		err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return err
 	}
 	zlog.Debug().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
@@ -535,7 +535,7 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		if err != nil {
 			e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
 			zlog.Err(e)
-			return status.Errorf(codes.Internal, e.Error())
+			return status.Error(codes.Internal, e.Error())
 		}
 	}
 
@@ -547,14 +547,14 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 		if err != nil {
 			e := fmt.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
 			zlog.Err(e)
-			return status.Errorf(codes.Internal, e.Error())
+			return status.Error(codes.Internal, e.Error())
 		}
 		mode := uint(tempVal)
 		err = os.Chmod(hostTargetPath, os.FileMode(mode))
 		if err != nil {
 			e := fmt.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err)
 			zlog.Err(e)
-			return status.Errorf(codes.Internal, e.Error())
+			return status.Error(codes.Internal, e.Error())
 		}
 	}
 

@@ -82,6 +82,8 @@ type nfsstorage struct {
 	mounter                mount.Interface
 	osHelper               helper.OsHelper
 	storageHelper          StorageHelper
+	csi.UnimplementedControllerServer
+	csi.UnimplementedNodeServer
 }
 
 type treeqstorage struct {
@@ -96,6 +98,8 @@ type fcstorage struct {
 	cs            Commonservice
 	configmap     map[string]string
 	storageHelper StorageHelper
+	csi.UnimplementedControllerServer
+	csi.UnimplementedNodeServer
 }
 
 type iscsistorage struct {
@@ -103,6 +107,8 @@ type iscsistorage struct {
 	cs            Commonservice
 	osHelper      helper.OsHelper
 	storageHelper StorageHelper
+	csi.UnimplementedControllerServer
+	csi.UnimplementedNodeServer
 }
 
 type nvmestorage struct {
@@ -110,6 +116,8 @@ type nvmestorage struct {
 	cs            Commonservice
 	osHelper      helper.OsHelper
 	storageHelper StorageHelper
+	csi.UnimplementedControllerServer
+	csi.UnimplementedNodeServer
 }
 
 // NewStorageController : To return specific implementation of storage
@@ -444,7 +452,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 		if deviceState == "blocked" {
 			if i == 5 {
 				msg := fmt.Sprintf("Device %s is blocked", statePath)
-				zlog.Error().Msgf(msg)
+				zlog.Error().Msg(msg)
 				err = errors.New(msg)
 				return
 			}
@@ -640,7 +648,7 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 	parts := strings.Split(dm, "/")
 	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
 		err := fmt.Errorf("findSlaveDevicesOnMultipath() for dm '%s' failed", dm)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 	disk := parts[2]
@@ -655,7 +663,7 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 	}
 	if len(devices) == 0 {
 		err := fmt.Errorf("findSlaveDevicesOnMultipath() for dm %s found no devices", dm)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 	return devices, nil
@@ -690,7 +698,7 @@ func findHosts(protocol string) ([]string, error) {
 		return hosts, nil
 	}
 	err := fmt.Errorf("unsupported protocol: %s", protocol)
-	zlog.Error().Msgf(err.Error())
+	zlog.Error().Msg(err.Error())
 	return nil, err
 }
 

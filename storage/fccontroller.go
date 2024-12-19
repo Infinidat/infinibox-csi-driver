@@ -155,7 +155,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
 	}
 
-	zlog.Debug().Msgf("CreateVolume resp: %v", *csiResp)
 	zlog.Debug().Msgf("created volume: %s id: %d", name, volID)
 	return csiResp, err
 }

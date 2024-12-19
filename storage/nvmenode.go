@@ -142,7 +142,7 @@ func (nvme *nvmestorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 		err = nvme.storageHelper.SetVolumePermissions(req)
 		if err != nil {
 			zlog.Err(err)
-			return nil, status.Errorf(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -234,7 +234,7 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	// run find the multipath device name (e.g. /dev/nvme0n2) in the list of mounts
 	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 
@@ -493,7 +493,7 @@ func (nvme *nvmestorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 		// - something about read-only access?
 	} else {
 		errMsg := "Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
-		zlog.Error().Msgf(errMsg)
+		zlog.Error().Msg(errMsg)
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
@@ -538,7 +538,7 @@ func (nvme *nvmestorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)
 			zlog.Err(e)
-			return targets, status.Errorf(codes.InvalidArgument, e.Error())
+			return targets, status.Error(codes.InvalidArgument, e.Error())
 		}
 		zlog.Debug().Msgf("got nspace by name: %s", nspace.Name)
 

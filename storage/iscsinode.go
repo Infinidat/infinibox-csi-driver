@@ -238,7 +238,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		err = iscsi.storageHelper.SetVolumePermissions(req)
 		if err != nil {
 			zlog.Err(err)
-			return nil, status.Errorf(codes.Internal, err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -401,7 +401,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
 	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 
@@ -419,7 +419,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 
 	if out == "" {
 		err := fmt.Errorf("error getting multipath devices from output %s command output was empty", multipathDevice)
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 
@@ -586,7 +586,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 					zlog.Err(err)
 					if status.Code(err) != codes.AlreadyExists {
 						msg := fmt.Sprintf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[i].Iqn, targets[i].Portals[p], err.Error())
-						zlog.Error().Msgf(msg)
+						zlog.Error().Msg(msg)
 						return "", err
 					} else {
 						zlog.Debug().Msgf("already logged in to target iqn: %s portal %s", targets[i].Iqn, targets[i].Portals[p])
@@ -785,11 +785,11 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 func mountPathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		zlog.Debug().Msgf("mountPathExists: Path " + path + " exists")
+		zlog.Debug().Msgf("mountPathExists: Path %s exists", path)
 		return true, nil
 	}
 	if os.IsNotExist(err) {
-		zlog.Debug().Msgf("mountPathExists: Path " + path + " does not exist")
+		zlog.Debug().Msgf("mountPathExists: Path %s does not exist", path)
 		return false, nil
 	}
 	return false, err
@@ -913,7 +913,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 		// - something about read-only access?
 	} else {
 		errMsg := "Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
-		zlog.Error().Msgf(errMsg)
+		zlog.Error().Msg(errMsg)
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
@@ -1165,7 +1165,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)
 			zlog.Err(e)
-			return targets, status.Errorf(codes.InvalidArgument, e.Error())
+			return targets, status.Error(codes.InvalidArgument, e.Error())
 		}
 		zlog.Debug().Msgf("got nspace by name: %s", nspace.Name)
 
@@ -1206,7 +1206,7 @@ func getSessionDetails() (results []SessionDetails) {
 	}
 	lines, err := stringToLines(rawOutput)
 	if err != nil {
-		zlog.Error().Msgf(err.Error())
+		zlog.Error().Msg(err.Error())
 		return results
 	}
 	results = make([]SessionDetails, 0)

@@ -13,6 +13,6 @@ func PrettyKlogDebug(msg string, v interface{}) {
 		zlog.Debug().Msgf("%s %s", msg, string(b))
 	} else {
 		msg := fmt.Sprintf("Failed to pretty print. Falling back to print. Message: %s. Var: %+v. Error: %+v.", msg, v, err)
-		zlog.Error().Msgf(msg)
+		zlog.Error().Msg(msg)
 	}
 }

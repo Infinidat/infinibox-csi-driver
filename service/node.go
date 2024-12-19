@@ -32,6 +32,7 @@ import (
 type NodeServer struct {
 	Driver  *Driver
 	mounter mount.Interface
+	csi.UnimplementedNodeServer
 }
 
 func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
