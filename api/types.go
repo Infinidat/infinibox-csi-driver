@@ -394,3 +394,33 @@ type GetMetadataResponse struct {
 		Page            int  `json:"page"`
 	} `json:"metadata"`
 }
+
+type CustomEventRequest struct {
+	Data                []CustomEventRequestData `json:"data"`
+	DescriptionTemplate string                   `json:"description_template"`
+	Visibility          string                   `json:"visibility"`
+	Level               string                   `json:"level"`
+}
+type CustomEventRequestData struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+type CustomEvent struct {
+	TenantID            int    `json:"tenant_id,omitempty"`
+	Code                string `json:"code,omitempty"`
+	SourceNodeID        int    `json:"source_node_id,omitempty"`
+	Visibility          string `json:"visibility,omitempty"`
+	DescriptionTemplate string `json:"description_template,omitempty"`
+	Data                []any  `json:"data,omitempty"`
+	Level               string `json:"level,omitempty"`
+	Description         string `json:"description,omitempty"`
+	Reporter            string `json:"reporter,omitempty"`
+	SeqNum              int    `json:"seq_num,omitempty"`
+	SystemVersion       string `json:"system_version,omitempty"`
+	ID                  int    `json:"id,omitempty"`
+	AffectedEntityID    int    `json:"affected_entity_id,omitempty"`
+	Timestamp           int    `json:"timestamp,omitempty"`
+	Username            string `json:"username,omitempty"`
+}

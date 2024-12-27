@@ -15,6 +15,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
@@ -72,17 +73,53 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	config := make(map[string]string)
 
-	// get operator
-	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
-	if storageNode != nil {
-		zlog.Info().Msgf("NodePublishVolume Finished - ID: '%s'", req.GetVolumeId())
-		req.VolumeContext["nodeID"] = s.Driver.nodeID
-		return storageNode.NodePublishVolume(ctx, req)
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	storageNode, err := storage.NewStorageNode(comnserv, storageProtocol, config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+	zlog.Info().Msgf("NodePublishVolume Finished - ID: '%s'", req.GetVolumeId())
+	req.VolumeContext["nodeID"] = s.Driver.nodeID
+	response, err := storageNode.NodePublishVolume(ctx, req)
+	if err != nil {
+		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
-	return nil, status.Error(codes.Internal, err.Error())
+	eventData := make([]api.CustomEventRequestData, 0)
+	protocolData := api.CustomEventRequestData{
+		Name:  "protocol",
+		Type:  "String",
+		Value: storageProtocol,
+	}
+	eventData = append(eventData, protocolData)
+
+	volumeIDData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_VOLUME_ID,
+		Type:  "String",
+		Value: req.GetVolumeId(),
+	}
+	eventData = append(eventData, volumeIDData)
+
+	actionData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_ACTION,
+		Type:  "String",
+		Value: "Mounted Volume",
+	}
+	eventData = append(eventData, actionData)
+
+	err = helper.CreateCustomEvent(comnserv.Api, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
+	if err != nil {
+		zlog.Err(err)
+	}
+
+	return response, nil
 }
 
 func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
@@ -116,7 +153,7 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{}, volproto.StorageType, nil, nil)
 	if err != nil {
 		zlog.Error().Msgf("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -193,9 +230,15 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	zlog.Debug().Msgf("VolumeMountGroup: %s", fsGroup)
 	config := make(map[string]string)
-	// get operator
+
 	zlog.Debug().Msgf("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)
-	storageNode, err := storage.NewStorageNode(storageProtocol, config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodeStageVolume failed with volume ID %s: %s", volumeId, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	storageNode, err := storage.NewStorageNode(comnserv, storageProtocol, config, req.GetSecrets())
 	if storageNode != nil {
 		zlog.Info().Msgf("NodeStageVolume Finished - ID: '%s'", volumeId)
 		return storageNode.NodeStageVolume(ctx, req)
@@ -234,7 +277,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		zlog.Error().Msgf("NodeUnstageVolume failed - volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	protocolOperation, err := storage.NewStorageNode(volproto.StorageType, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{}, volproto.StorageType, nil, nil)
 	if err != nil {
 		zlog.Error().Msgf("NodeUnstageVolume failed - volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -282,8 +325,13 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	config := make(map[string]string)
 
-	// get operator
-	storageNode, err := storage.NewStorageNode(protocol, config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodeExpandVolume failed to build common service with volume ID %s: %s", volumeId, err)
+		return nil, err
+	}
+
+	storageNode, err := storage.NewStorageNode(comnserv, protocol, config, req.GetSecrets())
 	if err != nil {
 		zlog.Error().Msgf("NodeExpandVolume failed to build new storage node with volume ID %s: %s", volumeId, err)
 		return nil, err

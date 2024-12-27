@@ -13,9 +13,15 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"infinibox-csi-driver/api/clientgo"
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/log"
 	"infinibox-csi-driver/service"
 	"os"
+	"strconv"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 var version string
@@ -59,10 +65,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	node, nodeCount, err := getKubeNode()
+	if err != nil {
+		zlog.Error().Msgf("error in getting kube node %s", err.Error())
+		os.Exit(1)
+	}
+
+	osVersion := node.Status.NodeInfo.OSImage
+	kubeVersion := node.Status.NodeInfo.KubeletVersion
+
+	// set the env vars so we can get it in other parts of the driver to create events
+	os.Setenv(common.ENV_VAR_CSI_DRIVER_VERSION, version)
+	os.Setenv(common.ENV_VAR_OS_VERSION, osVersion)
+	os.Setenv(common.ENV_VAR_KUBE_VERSION, kubeVersion)
+	os.Setenv(common.ENV_VAR_NODE_COUNT, nodeCount)
+
 	zlog.Info().Msgf("NodeIP: %s", nodeIP)
+	zlog.Info().Msgf("HostName: %s", os.Getenv("HOSTNAME"))
 	zlog.Info().Msgf("DriverName: %s", driverName)
 	zlog.Info().Msgf("Endpoint: %s", csiEndpoint)
 	zlog.Info().Msgf("Version: %s", version)
+	zlog.Info().Msgf("OS Version: %s", osVersion)
+	zlog.Info().Msgf("Kube Version: %s", kubeVersion)
+	zlog.Info().Msgf("Kube Node Count: %s", nodeCount)
 
 	driverOptions := service.DriverOptions{
 		NodeID:     nodeIP,
@@ -72,4 +97,19 @@ func main() {
 	}
 	d := service.NewDriver(&driverOptions)
 	d.Run(false)
+}
+
+func getKubeNode() (node v1.Node, nodeCount string, err error) {
+
+	kc, err := clientgo.BuildClient()
+	if err != nil {
+		return node, "", err
+	}
+	nodes, err := kc.GetNodes()
+	if len(nodes) == 0 {
+		return node, "", fmt.Errorf("zero nodes found, problem getting a node")
+	}
+
+	// assumption is that all kube nodes are running the same version
+	return nodes[0], strconv.Itoa(len(nodes)), err
 }

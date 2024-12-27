@@ -96,3 +96,19 @@ const (
 	SC_NODE_EXPAND_SECRET_NAME        = "csi.storage.k8s.io/node-expand-secret-name"
 	VOLUME_SNAPSHOT_CLASS_SECRET_NAME = "csi.storage.k8s.io/snapshotter-secret-name"
 )
+
+const (
+	ENV_VAR_CSI_DRIVER_VERSION = "CSI_DRIVER_VERSION"
+	ENV_VAR_CREATE_EVENTS      = "CREATE_EVENTS"
+	ENV_VAR_OS_VERSION         = "OS_VERSION"
+	ENV_VAR_KUBE_VERSION       = "KUBE_VERSION"
+	ENV_VAR_NODE_COUNT         = "NODE_COUNT"
+)
+
+const (
+	CUSTOM_EVENT_CAPACITY    = "capacity"
+	CUSTOM_EVENT_VOLUME_CAPS = "volume_caps"
+	CUSTOM_EVENT_VOLUME_ID   = "volume_id"
+	CUSTOM_EVENT_VOLUME_NAME = "volume_name"
+	CUSTOM_EVENT_ACTION      = "csi_action"
+)

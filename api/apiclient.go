@@ -108,6 +108,8 @@ type Client interface {
 	CreateReplica(request CreateReplicaRequest) (Replica, error)
 	GetLink(linkID int) (*Link, error)
 	GetLinks() ([]Link, error)
+
+	CreateCustomEvent(request CustomEventRequest) error
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -936,4 +938,17 @@ func (c *ClientService) GetAllHosts() ([]Host, error) {
 
 	zlog.Trace().Msgf("fetched hosts len %d", len(hosts))
 	return hosts, nil
+}
+
+func (c *ClientService) CreateCustomEvent(request CustomEventRequest) error {
+
+	path := "/api/rest/events/custom"
+	eventResult := CustomEvent{}
+	_, err := c.getJSONResponse(http.MethodPost, path, request, &eventResult)
+	if err != nil {
+		return err
+	}
+	zlog.Debug().Msgf("Created CustomEvent with ID %d", eventResult.ID)
+
+	return nil
 }

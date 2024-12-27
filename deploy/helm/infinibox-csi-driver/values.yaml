@@ -27,6 +27,10 @@ e2etesting: "false"
 # is useful if you have really long domain names which can exceed what the ibox can support for host name length
 removeDomainName: "false"
 
+# set to false to prevent events from being created on the ibox for CSI related events
+# the default is "true" when not set
+#createEvents: "false"
+
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html

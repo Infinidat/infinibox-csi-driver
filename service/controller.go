@@ -79,9 +79,11 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if len(reqCapabilities) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "no VolumeCapabilities provided to CreateVolume")
 	}
-	error := validateCapabilities(reqCapabilities)
-	if error != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "VolumeCapabilities invalid: %v", error)
+
+	var summary string
+	summary, err = validateCapabilities(reqCapabilities)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "VolumeCapabilities invalid: %v", err)
 	}
 	if reqParameters[common.SC_POOL_NAME] == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "no 'pool_name' provided to CreateVolume, verify pool_name is specified in StorageClass")
@@ -203,6 +205,56 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
+
+	eventData := make([]api.CustomEventRequestData, 0)
+	protocolData := api.CustomEventRequestData{
+		Name:  common.SC_STORAGE_PROTOCOL,
+		Type:  "String",
+		Value: storageprotocol,
+	}
+	eventData = append(eventData, protocolData)
+
+	capacityData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_CAPACITY,
+		Type:  "String",
+		Value: strconv.FormatInt(capacity, 10),
+	}
+	eventData = append(eventData, capacityData)
+
+	volumeCapsData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_VOLUME_CAPS,
+		Type:  "String",
+		Value: summary,
+	}
+	eventData = append(eventData, volumeCapsData)
+
+	volumeIDData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_VOLUME_ID,
+		Type:  "String",
+		Value: createVolResp.Volume.VolumeId,
+	}
+	eventData = append(eventData, volumeIDData)
+
+	volumeNameData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_VOLUME_NAME,
+		Type:  "String",
+		Value: volName,
+	}
+	eventData = append(eventData, volumeNameData)
+
+	actionData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_ACTION,
+		Type:  "String",
+		Value: "Create Volume",
+	}
+	eventData = append(eventData, actionData)
+
+	eventDesc := fmt.Sprintf("CSI - Create Volume: id %s name %s", createVolResp.Volume.VolumeId, volName)
+	err = helper.CreateCustomEvent(comnserv.Api, eventDesc, eventData)
+	if err != nil {
+		zlog.Err(err)
+		// only log errors if custom event fails
+	}
 
 	zlog.Info().Msgf("CreateVolume Finish - Name: %s ID: %s", volName, createVolResp.Volume.VolumeId)
 	return
@@ -398,23 +450,28 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	return
 }
 
-func validateCapabilities(capabilities []*csi.VolumeCapability) error {
+func validateCapabilities(capabilities []*csi.VolumeCapability) (summary string, err error) {
 	isBlock := false
 	isFile := false
 
 	if capabilities == nil {
-		return errors.New("no volume capabilities specified")
+		return "", errors.New("no volume capabilities specified")
 	}
 
+	modes := ""
 	for _, capability := range capabilities {
 		// validate accessMode
 		accessMode := capability.GetAccessMode()
 		if accessMode == nil {
-			return errors.New("no accessmode specified in volume capability")
+			return "", errors.New("no accessmode specified in volume capability")
 		}
 		mode := accessMode.GetMode()
 		// TODO: do something to actually reject invalid access modes, if any
 		// there aren't any that we don't support yet, but some combinations are dumb?
+		if modes != "" {
+			modes = modes + ", "
+		}
+		modes = modes + fmt.Sprintf("mode: %s", mode.String())
 
 		// check block and file behavior
 		if block := capability.GetBlock(); block != nil {
@@ -431,10 +488,12 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) error {
 	}
 
 	if isBlock && isFile {
-		return errors.New("both file and block volume capabilities specified")
+		return "", errors.New("both file and block volume capabilities specified")
 	}
 
-	return nil
+	summary = summary + fmt.Sprintf("modes: %s isBlock: %t isFile: %t", modes, isBlock, isFile)
+
+	return summary, nil
 }
 
 func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
@@ -750,15 +809,58 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		zlog.Error().Msgf("Create snapshot failed: %s", err)
 		return nil, err
 	}
-	if storageController != nil {
-		createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
-		return createSnapshotResp, err
+	createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
+	if err != nil {
+		zlog.Error().Msgf("Create snapshot failed: %s", err)
+		return nil, err
 	}
 
-	// TODO - fix this bad logic so success is at end of method.
-	zlog.Info().Msgf("ControllerCreateSnapshot Finished - ID: %s", req.GetSourceVolumeId())
+	eventData := make([]api.CustomEventRequestData, 0)
+	locking := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
+	if locking != "" {
+		lockingData := api.CustomEventRequestData{
+			Name:  common.LOCK_EXPIRES_AT_PARAMETER,
+			Type:  "String",
+			Value: locking,
+		}
+		eventData = append(eventData, lockingData)
+	}
+	protocolData := api.CustomEventRequestData{
+		Name:  common.SC_STORAGE_PROTOCOL,
+		Type:  "String",
+		Value: volproto.StorageType,
+	}
+	eventData = append(eventData, protocolData)
 
-	return nil, errors.New("failed to create storageController for " + volproto.StorageType)
+	volumeNameData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_VOLUME_NAME,
+		Type:  "String",
+		Value: req.GetName(),
+	}
+	eventData = append(eventData, volumeNameData)
+
+	volumeIDData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_VOLUME_ID,
+		Type:  "String",
+		Value: req.GetSourceVolumeId(),
+	}
+	eventData = append(eventData, volumeIDData)
+
+	actionData := api.CustomEventRequestData{
+		Name:  common.CUSTOM_EVENT_ACTION,
+		Type:  "String",
+		Value: "Create Snapshot",
+	}
+	eventData = append(eventData, actionData)
+
+	eventDesc := fmt.Sprintf("CSI - Create Snapshot- name: %s volume id: %s", req.GetName(), req.GetSourceVolumeId())
+	err = helper.CreateCustomEvent(comnserv.Api, eventDesc, eventData)
+	if err != nil {
+		zlog.Err(err)
+		// only log errors if custom event fails
+	}
+
+	return createSnapshotResp, nil
 }
 
 func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {

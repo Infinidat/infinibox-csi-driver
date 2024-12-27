@@ -141,29 +141,25 @@ func NewStorageController(comnserv Commonservice, capacity int64, storageProtoco
 }
 
 // NewStorageNode : To return specific implementation of storage
-func NewStorageNode(storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
-	comnserv, err := BuildCommonService(configparams[0], configparams[1])
-	if err == nil {
-		storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
-		switch storageProtocol {
-		case common.PROTOCOL_FC:
-			return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
-		case common.PROTOCOL_ISCSI:
-			return &iscsistorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
-		case common.PROTOCOL_NVME:
-			return &nvmestorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
-		case common.PROTOCOL_NFS:
-			return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
-		case common.PROTOCOL_TREEQ:
-			//nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
-			nfs := nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
-			service := &TreeqService{nfsstorage: nfs, cs: comnserv}
-			return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
-		default:
-			return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
-		}
+func NewStorageNode(comnserv Commonservice, storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
+	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
+	switch storageProtocol {
+	case common.PROTOCOL_FC:
+		return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
+	case common.PROTOCOL_ISCSI:
+		return &iscsistorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
+	case common.PROTOCOL_NVME:
+		return &nvmestorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
+	case common.PROTOCOL_NFS:
+		return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+	case common.PROTOCOL_TREEQ:
+		//nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
+		nfs := nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
+		service := &TreeqService{nfsstorage: nfs, cs: comnserv}
+		return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
+	default:
+		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
-	return nil, err
 }
 
 func BuildCommonService(config map[string]string, secretMap map[string]string) (Commonservice, error) {
