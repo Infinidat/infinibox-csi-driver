@@ -69,9 +69,9 @@ func CreateCustomEvent(cl api.Client, desc string, eventData []api.CustomEventRe
 	data = append(data, kubeVersionData)
 
 	kubeNodeNameData := api.CustomEventRequestData{
-		Name:  "kube_host_name",
+		Name:  "kube_node_name",
 		Type:  "String",
-		Value: os.Getenv("HOSTNAME"),
+		Value: os.Getenv("KUBE_NODE_NAME"),
 	}
 	data = append(data, kubeNodeNameData)
 

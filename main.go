@@ -81,7 +81,7 @@ func main() {
 	os.Setenv(common.ENV_VAR_NODE_COUNT, nodeCount)
 
 	zlog.Info().Msgf("NodeIP: %s", nodeIP)
-	zlog.Info().Msgf("HostName: %s", os.Getenv("HOSTNAME"))
+	zlog.Info().Msgf("KubeNodeName: %s", os.Getenv("KUBE_NODE_NAME"))
 	zlog.Info().Msgf("DriverName: %s", driverName)
 	zlog.Info().Msgf("Endpoint: %s", csiEndpoint)
 	zlog.Info().Msgf("Version: %s", version)
