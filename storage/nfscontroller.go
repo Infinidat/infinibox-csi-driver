@@ -221,10 +221,16 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 		zlog.Error().Msgf("failed to validate volume id: %s, err: %v", srcVolumeID, err)
 		return nil, status.Errorf(codes.NotFound, "invalid source volume id format: %s", srcVolumeID)
 	}
-	sourceVolumeID := int64(volproto.VolumeID)
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
+	sourceVolumeID := int64(volumeID)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.InvalidArgument, "invalid source volume volume id (non-numeric): %d", volproto.VolumeID)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid source volume volume id (non-numeric): %d", volumeID)
 	}
 
 	// Look up the source volume
@@ -611,11 +617,17 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		zlog.Error().Msgf("failed to validate storage type for volume %s, %v", srcVolumeId, err)
 		return
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
-	sourceFilesystemID := int64(volproto.VolumeID)
+	sourceFilesystemID := int64(volumeID)
 	snapshotArray, err := nfs.cs.Api.GetSnapshotByName(snapshotName)
 	if err != nil {
-		zlog.Error().Msgf("error GetSnapshotByName %d, %v", volproto.VolumeID, err)
+		zlog.Error().Msgf("error GetSnapshotByName %d, %v", volumeID, err)
 		return
 	}
 	if len(*snapshotArray) > 0 {

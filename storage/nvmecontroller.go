@@ -187,9 +187,16 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
-	srcVol, err := nvme.cs.Api.GetVolume(volproto.VolumeID)
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("error GetVolume id: %d restoreType: %s error: %v", volproto.VolumeID, restoreType, err)
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
+
+	srcVol, err := nvme.cs.Api.GetVolume(volumeID)
+	if err != nil {
+		e := fmt.Errorf("error GetVolume id: %s restoreType: %s error: %v", volproto.VolumeID, restoreType, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
@@ -218,7 +225,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 
 	// Create snapshot descriptor
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       volproto.VolumeID,
+		ParentID:       volumeID,
 		SnapshotName:   name,
 		WriteProtected: false,
 	}
@@ -253,7 +260,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	}
 
 	zlog.Debug().Msgf("from source %s with ID %d, created volume %s with ID %s in storage pool %s",
-		restoreType, volproto.VolumeID, csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
+		restoreType, volumeID, csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
 
@@ -272,10 +279,17 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
-	zlog.Debug().Msgf("volID: %d", volproto.VolumeID)
-	v, err := nvme.cs.Api.GetVolume(volproto.VolumeID)
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("failed to find volume by volume ID '%d': %v", volproto.VolumeID, err)
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
+
+	zlog.Debug().Msgf("volID: %s", volproto.VolumeID)
+	v, err := nvme.cs.Api.GetVolume(volumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to find volume by volume ID '%s': %v", volproto.VolumeID, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
@@ -318,13 +332,13 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	}
 	zlog.Debug().Msgf("got LUNs for host: %s, LUNs: %+v", host.Name, lunList)
 	for _, lun := range lunList {
-		if lun.VolumeID == volproto.VolumeID {
+		if lun.VolumeID == volumeID {
 			publishVolCtxt := map[string]string{
 				LUN_PUBLISH_CONTEXT:        strconv.Itoa(lun.Lun),
 				HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
 				HOST_PORTS_PUBLISH_CONTEXT: ports,
 			}
-			zlog.Debug().Msgf("vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", volproto.VolumeID, host.Name, host.ID, lun.Lun, ports)
+			zlog.Debug().Msgf("vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", volumeID, host.Name, host.ID, lun.Lun, ports)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: publishVolCtxt,
 			}, nil
@@ -354,8 +368,8 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	}
 
 	// map volume to host
-	zlog.Debug().Msgf("mapping volume %d to host %s", volproto.VolumeID, host.Name)
-	luninfo, err := nvme.cs.mapVolumeTohost(volproto.VolumeID, host.ID)
+	zlog.Debug().Msgf("mapping volume %d to host %s", volumeID, host.Name)
+	luninfo, err := nvme.cs.mapVolumeTohost(volumeID, host.ID)
 	if err != nil {
 		e := fmt.Errorf("failed to map volume to host with error %v", err)
 		zlog.Err(e)
@@ -367,7 +381,7 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
 		HOST_PORTS_PUBLISH_CONTEXT: ports,
 	}
-	zlog.Debug().Msgf("mapped volume %d, publish context: %v", volproto.VolumeID, publishVolCtxt)
+	zlog.Debug().Msgf("mapped volume %d, publish context: %v", volumeID, publishVolCtxt)
 
 	zlog.Debug().Msgf("ControllerPublishVolume completed node ID: %s volume ID: %s", req.GetNodeId(), req.GetVolumeId())
 	return &csi.ControllerPublishVolumeResponse{
@@ -383,6 +397,12 @@ func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 		msg = fmt.Sprintf("failed to validate volume with ID %s: %v", req.GetVolumeId(), err)
 		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.Internal, msg)
+	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	hostName, err := determineHostName(req.GetNodeId())
@@ -401,10 +421,10 @@ func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 	}
 	zlog.Debug().Msgf("unmapping host's luns: host id: %d, name: %s lun count %d", host.ID, host.Name, len(host.Luns))
 	if len(host.Luns) > 0 {
-		zlog.Debug().Msgf("unmap volume %d from host %d", volproto.VolumeID, host.ID)
-		err = nvme.cs.unmapVolumeFromHost(host.ID, volproto.VolumeID)
+		zlog.Debug().Msgf("unmap volume %d from host %d", volumeID, host.ID)
+		err = nvme.cs.unmapVolumeFromHost(host.ID, volumeID)
 		if err != nil {
-			e := fmt.Errorf("failed to unmap volume with ID %d from host with ID %d. Error: %v", volproto.VolumeID, host.ID, err)
+			e := fmt.Errorf("failed to unmap volume with ID %d from host with ID %d. Error: %v", volumeID, host.ID, err)
 			zlog.Err(e)
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -481,11 +501,17 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		return nil, err
 	}
 
-	sourceVolumeID := volproto.VolumeID
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
+
 	volumeSnapshot, err := nvme.cs.Api.GetVolumeByName(snapshotName)
 	if err != nil {
 		zlog.Debug().Msgf("Snapshot with name %s not found", snapshotName)
-	} else if volumeSnapshot.ParentId == sourceVolumeID {
+	} else if volumeSnapshot.ParentId == volumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
@@ -498,13 +524,13 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		}, nil
 	} else {
 		e := fmt.Errorf("snapshot named %s with ID %d exists. Different source volume with ID %d requested",
-			snapshotName, volumeSnapshot.ParentId, sourceVolumeID)
+			snapshotName, volumeSnapshot.ParentId, volumeID)
 		zlog.Err(e)
 		return nil, status.Error(codes.AlreadyExists, e.Error())
 	}
 
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       sourceVolumeID,
+		ParentID:       volumeID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
 	}

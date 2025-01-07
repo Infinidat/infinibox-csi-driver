@@ -347,11 +347,7 @@ func ValidateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err er
 	if volproto[0] == "" {
 		return volprotoconf, errors.New("volume Id in volproto is empty")
 	}
-	volprotoconf.VolumeID, err = strconv.Atoi(volproto[0])
-	if err != nil {
-		zlog.Error().Msgf("failed to validate volume id: %v", err)
-		return volprotoconf, status.Errorf(codes.InvalidArgument, "invalid volume id (non-numeric): %s", volproto[0])
-	}
+	volprotoconf.VolumeID = volproto[0]
 
 	if volproto[1] == "" {
 		return volprotoconf, errors.New("volume storagetype in volproto is empty")

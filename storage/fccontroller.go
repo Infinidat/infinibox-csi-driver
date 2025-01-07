@@ -196,8 +196,14 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		zlog.Error().Msgf("failed to validate storage type for source id: %s, err: %v", volumeContentID, err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
-	srcVol, err := fc.cs.Api.GetVolume(volproto.VolumeID)
+	srcVol, err := fc.cs.Api.GetVolume(volumeID)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", volproto.VolumeID)
@@ -227,7 +233,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 	ssdEnabled, _ := strconv.ParseBool(ssd)
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       volproto.VolumeID,
+		ParentID:       volumeID,
 		SnapshotName:   name,
 		WriteProtected: false,
 		SsdEnabled:     ssdEnabled,
@@ -276,6 +282,12 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		zlog.Error().Msgf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
 	hostName, err := determineHostName(req.GetNodeId())
 	if err != nil {
@@ -288,7 +300,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	v, err := fc.cs.Api.GetVolume(volproto.VolumeID)
+	v, err := fc.cs.Api.GetVolume(volumeID)
 	if err != nil {
 		zlog.Error().Msgf("failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
 		return nil, errors.New("error getting volume by id")
@@ -319,7 +331,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	}
 	zlog.Debug().Msgf("ports=[%v]", ports)
 	for _, lun := range lunList {
-		if lun.VolumeID == volproto.VolumeID {
+		if lun.VolumeID == volumeID {
 			volCtx := map[string]string{
 				LUN_PUBLISH_CONTEXT:        strconv.Itoa(lun.Lun),
 				HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
@@ -353,8 +365,8 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		}
 	}
 	// map volume to host
-	zlog.Debug().Msgf("mapping volume %d to host %s", volproto.VolumeID, host.Name)
-	luninfo, err := fc.cs.mapVolumeTohost(volproto.VolumeID, host.ID)
+	zlog.Debug().Msgf("mapping volume %d to host %s", volumeID, host.Name)
+	luninfo, err := fc.cs.mapVolumeTohost(volumeID, host.ID)
 	if err != nil {
 		zlog.Error().Msgf("failed to map volume to host with error %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -377,6 +389,12 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		zlog.Error().Msgf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
 	hostName, err := determineHostName(req.GetNodeId())
 	if err != nil {
@@ -392,10 +410,10 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		return nil, err
 	}
 	if len(host.Luns) > 0 {
-		zlog.Debug().Msgf("unmap volume %d from host %d", volproto.VolumeID, host.ID)
-		err = fc.cs.unmapVolumeFromHost(host.ID, volproto.VolumeID)
+		zlog.Debug().Msgf("unmap volume %d from host %d", volumeID, host.ID)
+		err = fc.cs.unmapVolumeFromHost(host.ID, volumeID)
 		if err != nil {
-			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", volproto.VolumeID, host.ID, err)
+			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", volumeID, host.ID, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -463,13 +481,18 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		zlog.Error().Msgf("failed to validate storage type %v", err)
 		return
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
-	sourceVolumeID := volproto.VolumeID
 	volumeSnapshot, err := fc.cs.Api.GetVolumeByName(snapshotName)
 	if err != nil {
 		zlog.Err(err)
 		zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
-	} else if volumeSnapshot.ParentId == sourceVolumeID {
+	} else if volumeSnapshot.ParentId == volumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
@@ -485,7 +508,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	}
 
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       sourceVolumeID,
+		ParentID:       volumeID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
 	}

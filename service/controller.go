@@ -318,7 +318,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)
 		return
 	}
-	req.VolumeId = strconv.Itoa(volproto.VolumeID)
+	req.VolumeId = volproto.VolumeID
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
 		zlog.Error().Msgf("failed to delete volume with ID %s: %v", volumeId, err)
@@ -521,6 +521,12 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed: %v", err)
 		return
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
 	config := make(map[string]string)
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
@@ -534,23 +540,23 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 
 	if protocol == common.PROTOCOL_NFS || protocol == common.PROTOCOL_TREEQ {
 		var fs *api.FileSystem
-		fs, err = comnserv.Api.GetFileSystemByID(int64(volproto.VolumeID))
+		fs, err = comnserv.Api.GetFileSystemByID(int64(volumeID))
 		if err != nil {
-			zlog.Error().Msgf("failed to find volume ID: %d, %v", volproto.VolumeID, err)
-			err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find filesystem ID: %d, %v", volproto.VolumeID, err)
+			zlog.Error().Msgf("failed to find volume ID: %d, %v", volumeID, err)
+			err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find filesystem ID: %d, %v", volumeID, err)
 			return
 		}
-		zlog.Debug().Msgf("filesystem volID: %d volume: %v", volproto.VolumeID, fs)
+		zlog.Debug().Msgf("filesystem volID: %d volume: %v", volumeID, fs)
 	} else {
 		var vol *api.Volume
-		vol, err = comnserv.Api.GetVolume(volproto.VolumeID)
+		vol, err = comnserv.Api.GetVolume(volumeID)
 		if err != nil {
-			e := fmt.Errorf("failed to find volume with ID %d. Error: %v", volproto.VolumeID, err)
+			e := fmt.Errorf("failed to find volume with ID %d. Error: %v", volumeID, err)
 			zlog.Err(e)
 			err = status.Error(codes.NotFound, e.Error())
 			return
 		}
-		zlog.Debug().Msgf("volume volID: %d volume: %v", volproto.VolumeID, vol)
+		zlog.Debug().Msgf("volume volID: %d volume: %v", volumeID, vol)
 	}
 	validateVolCapsResponse = &csi.ValidateVolumeCapabilitiesResponse{
 		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
@@ -695,7 +701,13 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				zlog.Error().Msgf("error validating snapshot ID %s", err.Error())
 				return res, nil
 			}
-			iValue = volProto.VolumeID
+			volumeID, err := strconv.Atoi(volProto.VolumeID)
+			if err != nil {
+				e := fmt.Errorf("failed to validate volume id %s, err: %v", volProto.VolumeID, err)
+				zlog.Err(e)
+				return nil, status.Error(codes.NotFound, e.Error())
+			}
+			iValue = volumeID
 		}
 
 		for i := 0; i < len(snapshots); i++ {
@@ -750,8 +762,14 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				if err != nil {
 					zlog.Error().Msgf("error validating sourceVolumeId %s %s", req.SourceVolumeId, err.Error())
 				} else {
-					zlog.Debug().Msgf("comparing %d to %s whole thing %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
-					if strconv.Itoa(volProto.VolumeID) == entry.Snapshot.SourceVolumeId {
+					volumeID, err := strconv.Atoi(volProto.VolumeID)
+					if err != nil {
+						e := fmt.Errorf("failed to validate volume id %s, err: %v", volProto.VolumeID, err)
+						zlog.Err(e)
+						return nil, status.Error(codes.NotFound, e.Error())
+					}
+					zlog.Debug().Msgf("comparing %d to %s whole thing %+v\n", volumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
+					if strconv.Itoa(volumeID) == entry.Snapshot.SourceVolumeId {
 						zlog.Debug().Msgf("matches!")
 						entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs
 						res.Entries = append(res.Entries, &entry)
@@ -877,6 +895,12 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			return nil, err
 		}
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
@@ -895,7 +919,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		return nil, errors.New("failed to create storageController for " + volproto.StorageType)
 	}
 
-	req.SnapshotId = strconv.Itoa(volproto.VolumeID)
+	req.SnapshotId = strconv.Itoa(volumeID)
 
 	deleteSnapshotResp, err = storageController.DeleteSnapshot(ctx, req)
 	if err != nil {
@@ -922,6 +946,12 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	if err != nil {
 		return
 	}
+	volumeID, err := strconv.Atoi(volproto.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 
@@ -936,7 +966,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		return
 	}
 	if storageController != nil {
-		req.VolumeId = strconv.Itoa(volproto.VolumeID)
+		req.VolumeId = strconv.Itoa(volumeID)
 		expandVolResp, err = storageController.ControllerExpandVolume(ctx, req)
 		return expandVolResp, err
 	}
