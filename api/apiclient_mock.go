@@ -596,3 +596,10 @@ func (m *MockApiService) CreateCustomEvent(message CustomEventRequest) error {
 	err, _ := args.Get(0).(error)
 	return err
 }
+
+// CreateEvent
+func (m *MockApiService) CreateEvent(message EventRequest) error {
+	args := m.Called(message)
+	err, _ := args.Get(0).(error)
+	return err
+}

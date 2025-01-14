@@ -424,3 +424,53 @@ type CustomEvent struct {
 	Timestamp           int    `json:"timestamp,omitempty"`
 	Username            string `json:"username,omitempty"`
 }
+
+type EventRequest struct {
+	Data []EventRequestData `json:"data"`
+	Code string             `json:"code"`
+}
+type EventRequestData struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+type Error struct {
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+	Reasons  []any  `json:"reasons"`
+	Severity string `json:"severity"`
+	IsRemote bool   `json:"is_remote"`
+	Data     any    `json:"data"`
+}
+
+type EventResponse struct {
+	Result   EventResponseResult `json:"result"`
+	Error    Error               `json:"error"`
+	Metadata Metadata            `json:"metadata"`
+}
+type EventResponseData struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+type EventResponseResult struct {
+	TenantID            int                 `json:"tenant_id"`
+	Code                string              `json:"code"`
+	SourceNodeID        int                 `json:"source_node_id"`
+	Visibility          string              `json:"visibility"`
+	DescriptionTemplate string              `json:"description_template"`
+	Data                []EventResponseData `json:"data"`
+	Level               string              `json:"level"`
+	Description         string              `json:"description"`
+	Reporter            string              `json:"reporter"`
+	SeqNum              int                 `json:"seq_num"`
+	SystemVersion       string              `json:"system_version"`
+	ID                  int                 `json:"id"`
+	AffectedEntityID    int                 `json:"affected_entity_id"`
+	Timestamp           int64               `json:"timestamp"`
+	Username            string              `json:"username"`
+}
+type EventResponseMetadata struct {
+	Ready bool `json:"ready"`
+}

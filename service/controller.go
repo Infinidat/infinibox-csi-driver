@@ -206,43 +206,43 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
 
-	eventData := make([]api.CustomEventRequestData, 0)
-	protocolData := api.CustomEventRequestData{
+	eventData := make([]api.EventRequestData, 0)
+	protocolData := api.EventRequestData{
 		Name:  common.SC_STORAGE_PROTOCOL,
 		Type:  "String",
 		Value: storageprotocol,
 	}
 	eventData = append(eventData, protocolData)
 
-	capacityData := api.CustomEventRequestData{
+	capacityData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_CAPACITY,
 		Type:  "String",
 		Value: strconv.FormatInt(capacity, 10),
 	}
 	eventData = append(eventData, capacityData)
 
-	volumeCapsData := api.CustomEventRequestData{
+	volumeCapsData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_CAPS,
 		Type:  "String",
 		Value: summary,
 	}
 	eventData = append(eventData, volumeCapsData)
 
-	volumeIDData := api.CustomEventRequestData{
+	volumeIDData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_ID,
 		Type:  "String",
 		Value: createVolResp.Volume.VolumeId,
 	}
 	eventData = append(eventData, volumeIDData)
 
-	volumeNameData := api.CustomEventRequestData{
+	volumeNameData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_NAME,
 		Type:  "String",
 		Value: volName,
 	}
 	eventData = append(eventData, volumeNameData)
 
-	actionData := api.CustomEventRequestData{
+	actionData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_ACTION,
 		Type:  "String",
 		Value: "Create Volume",
@@ -250,9 +250,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	eventData = append(eventData, actionData)
 
 	eventDesc := fmt.Sprintf("CSI - Create Volume: id %s name %s", createVolResp.Volume.VolumeId, volName)
-	err = helper.CreateCustomEvent(comnserv.Api, eventDesc, eventData)
-	if err != nil {
-		zlog.Err(err)
+	eventErr := helper.CreateEvent(comnserv.Api, eventDesc, eventData)
+	if eventErr != nil {
+		zlog.Err(eventErr)
 		// only log errors if custom event fails
 	}
 
@@ -833,38 +833,38 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, err
 	}
 
-	eventData := make([]api.CustomEventRequestData, 0)
+	eventData := make([]api.EventRequestData, 0)
 	locking := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	if locking != "" {
-		lockingData := api.CustomEventRequestData{
+		lockingData := api.EventRequestData{
 			Name:  common.LOCK_EXPIRES_AT_PARAMETER,
 			Type:  "String",
 			Value: locking,
 		}
 		eventData = append(eventData, lockingData)
 	}
-	protocolData := api.CustomEventRequestData{
+	protocolData := api.EventRequestData{
 		Name:  common.SC_STORAGE_PROTOCOL,
 		Type:  "String",
 		Value: volproto.StorageType,
 	}
 	eventData = append(eventData, protocolData)
 
-	volumeNameData := api.CustomEventRequestData{
+	volumeNameData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_NAME,
 		Type:  "String",
 		Value: req.GetName(),
 	}
 	eventData = append(eventData, volumeNameData)
 
-	volumeIDData := api.CustomEventRequestData{
+	volumeIDData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_ID,
 		Type:  "String",
 		Value: req.GetSourceVolumeId(),
 	}
 	eventData = append(eventData, volumeIDData)
 
-	actionData := api.CustomEventRequestData{
+	actionData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_ACTION,
 		Type:  "String",
 		Value: "Create Snapshot",
@@ -872,9 +872,9 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	eventData = append(eventData, actionData)
 
 	eventDesc := fmt.Sprintf("CSI - Create Snapshot- name: %s volume id: %s", req.GetName(), req.GetSourceVolumeId())
-	err = helper.CreateCustomEvent(comnserv.Api, eventDesc, eventData)
-	if err != nil {
-		zlog.Err(err)
+	eventErr := helper.CreateEvent(comnserv.Api, eventDesc, eventData)
+	if eventErr != nil {
+		zlog.Err(eventErr)
 		// only log errors if custom event fails
 	}
 

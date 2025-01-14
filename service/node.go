@@ -92,31 +92,32 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	eventData := make([]api.CustomEventRequestData, 0)
-	protocolData := api.CustomEventRequestData{
+	eventData := make([]api.EventRequestData, 0)
+	protocolData := api.EventRequestData{
 		Name:  "protocol",
 		Type:  "String",
 		Value: storageProtocol,
 	}
 	eventData = append(eventData, protocolData)
 
-	volumeIDData := api.CustomEventRequestData{
+	volumeIDData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_ID,
 		Type:  "String",
 		Value: req.GetVolumeId(),
 	}
 	eventData = append(eventData, volumeIDData)
 
-	actionData := api.CustomEventRequestData{
+	actionData := api.EventRequestData{
 		Name:  common.CUSTOM_EVENT_ACTION,
 		Type:  "String",
 		Value: "Mounted Volume",
 	}
 	eventData = append(eventData, actionData)
 
-	err = helper.CreateCustomEvent(comnserv.Api, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
-	if err != nil {
-		zlog.Err(err)
+	eventErr := helper.CreateEvent(comnserv.Api, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
+	if eventErr != nil {
+		zlog.Err(eventErr)
+		// only log errors since older ibox versions don't support this event code
 	}
 
 	return response, nil
