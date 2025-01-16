@@ -19,6 +19,8 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
+	"net/url"
 	"os/exec"
 
 	"math/rand"
@@ -31,6 +33,8 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/mount-utils"
@@ -60,6 +64,7 @@ type Storageoperations interface {
 // var deviceMu sync.Mutex
 
 type Commonservice struct {
+	IboxApi           iboxapi.Client
 	Api               api.Client
 	storagePoolIdName map[int64]string
 	driverversion     string
@@ -169,12 +174,46 @@ func BuildCommonService(config map[string]string, secretMap map[string]string) (
 			zlog.Error().Msgf("Api client cannot be initialized without proper secrets")
 			return commonserv, errors.New("secrets are missing or not valid")
 		}
+		hostnameURL, err := url.Parse(secretMap["hostname"])
+
+		if err != nil {
+			zlog.Error().Msgf("Error parsing IBox hostname: %s", err.Error())
+			return commonserv, errors.New("secret hostname is missing or not valid")
+		}
+
+		// check for scheme, add if missing.
+		urlScheme := hostnameURL.Scheme
+
+		var apiHost string
+		if urlScheme == "" {
+			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
+			apiHost = "https://" + secretMap["hostname"] + "/"
+		} else {
+			apiHost = hostnameURL.String()
+		}
+
+		// check for URI validity.
+		hostnameURL, err = url.ParseRequestURI(apiHost)
+		if err != nil {
+			zlog.Error().Msgf("IBox hostname %s is invalid URI: %s", hostnameURL.String(), err.Error())
+		} else {
+			zlog.Trace().Msgf("IBox URL: %s", apiHost)
+		}
+		creds := iboxapi.Credentials{
+			Username: secretMap["username"],
+			Password: secretMap["password"],
+			Url:      apiHost,
+		}
+		var iboxApiLog logr.Logger = zerologr.New(&zlog)
+
+		iboxapiClient := iboxapi.NewIboxClient(iboxApiLog, creds)
 		commonserv = Commonservice{
 			Api: &api.ClientService{
 				SecretsMap: secretMap,
 			},
+			IboxApi: iboxapiClient,
 		}
-		err := commonserv.verifyApiClient()
+		err = commonserv.verifyApiClient()
 		if err != nil {
 			zlog.Error().Msgf("API client not initialized, err: %v", err)
 			return commonserv, err

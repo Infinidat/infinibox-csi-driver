@@ -589,17 +589,3 @@ func (m *MockApiService) PutMetadata(objectID int, key string, value string) (*P
 	err, _ := args.Get(1).(error)
 	return &res, err
 }
-
-// CreateCustomEvent
-func (m *MockApiService) CreateCustomEvent(message CustomEventRequest) error {
-	args := m.Called(message)
-	err, _ := args.Get(0).(error)
-	return err
-}
-
-// CreateEvent
-func (m *MockApiService) CreateEvent(message EventRequest) error {
-	args := m.Called(message)
-	err, _ := args.Get(0).(error)
-	return err
-}

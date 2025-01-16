@@ -1,0 +1,563 @@
+package iboxapi
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"infinibox-csi-driver/common"
+	"io"
+	"net/http"
+	"strconv"
+)
+
+const (
+	CHAP_SECURITY_METHOD   = "security_method"
+	CHAP_INBOUND_USERNAME  = "security_chap_inbound_username"
+	CHAP_INBOUND_SECRET    = "security_chap_inbound_secret"
+	CHAP_OUTBOUND_USERNAME = "security_chap_outbound_username"
+	CHAP_OUTBOUND_SECRET   = "security_chap_outbound_secret"
+)
+
+type AddHostSecurityRequest struct {
+	SecurityMethod               string `json:"security_method"`
+	SecurityCHAPInboundUsername  string `json:"security_chap_inbound_username,omitempty"`
+	SecurityCHAPInboundSecret    string `json:"security_chap_inbound_secret,omitempty"`
+	SecurityCHAPOutboundUsername string `json:"security_chap_outbound_username,omitempty"`
+	SecurityCHAPOutboundSecret   string `json:"security_chap_outbound_secret,omitempty"`
+}
+
+type CreateHostPost struct {
+	Name string `json:"name"`
+}
+
+type CreateHostResponse struct {
+	Result   CreateHostResult   `json:"result"`
+	Error    any                `json:"error"`
+	Metadata CreateHostMetadata `json:"metadata"`
+}
+type CreateHostResult struct {
+	ID                            int    `json:"id"`
+	Name                          string `json:"name"`
+	Ports                         []any  `json:"ports"`
+	Luns                          []any  `json:"luns"`
+	CreatedAt                     int64  `json:"created_at"`
+	UpdatedAt                     int64  `json:"updated_at"`
+	HostType                      string `json:"host_type"`
+	SecurityMethod                string `json:"security_method"`
+	SecurityChapInboundUsername   any    `json:"security_chap_inbound_username"`
+	SecurityChapOutboundUsername  any    `json:"security_chap_outbound_username"`
+	Optimized                     bool   `json:"optimized"`
+	SanClientType                 string `json:"san_client_type"`
+	HostClusterID                 int    `json:"host_cluster_id"`
+	SubsystemNqn                  any    `json:"subsystem_nqn"`
+	SecurityChapHasInboundSecret  bool   `json:"security_chap_has_inbound_secret"`
+	SecurityChapHasOutboundSecret bool   `json:"security_chap_has_outbound_secret"`
+	TenantID                      int    `json:"tenant_id"`
+}
+type CreateHostMetadata struct {
+	Ready bool `json:"ready"`
+}
+
+type DeleteHostResponse struct {
+	Result   CreateHostResult   `json:"result"`
+	Error    Error              `json:"error"`
+	Metadata CreateHostMetadata `json:"metadata"`
+}
+
+type HostResponse struct {
+	Result   []Host   `json:"result"`
+	Error    any      `json:"error"`
+	Metadata Metadata `json:"metadata"`
+}
+type Ports struct {
+	Address string `json:"address"`
+	Type    string `json:"type"`
+	HostID  int    `json:"host_id"`
+}
+type Luns struct {
+	ID            int  `json:"id"`
+	Lun           int  `json:"lun"`
+	Clustered     bool `json:"clustered"`
+	VolumeID      int  `json:"volume_id"`
+	Udid          any  `json:"udid"`
+	HostClusterID int  `json:"host_cluster_id"`
+	HostID        int  `json:"host_id"`
+}
+
+type GetAllLunsResponse struct {
+	Result   []Luns   `json:"result"`
+	Error    Error    `json:"error"`
+	Metadata Metadata `json:"metadata"`
+}
+
+type UnMapVolumeFromHostResponse struct {
+	Result   Luns     `json:"result"`
+	Error    Error    `json:"error"`
+	Metadata Metadata `json:"metadata"`
+}
+
+type Host struct {
+	ID                            int     `json:"id"`
+	Name                          string  `json:"name"`
+	Ports                         []Ports `json:"ports"`
+	Luns                          []Luns  `json:"luns"`
+	CreatedAt                     int64   `json:"created_at"`
+	UpdatedAt                     int64   `json:"updated_at"`
+	HostType                      string  `json:"host_type"`
+	SecurityMethod                string  `json:"security_method"`
+	SecurityChapInboundUsername   any     `json:"security_chap_inbound_username"`
+	SecurityChapOutboundUsername  any     `json:"security_chap_outbound_username"`
+	Optimized                     bool    `json:"optimized"`
+	SanClientType                 string  `json:"san_client_type"`
+	HostClusterID                 int     `json:"host_cluster_id"`
+	SubsystemNqn                  any     `json:"subsystem_nqn"`
+	SecurityChapHasInboundSecret  bool    `json:"security_chap_has_inbound_secret"`
+	SecurityChapHasOutboundSecret bool    `json:"security_chap_has_outbound_secret"`
+	TenantID                      int     `json:"tenant_id"`
+}
+
+type AddHostSecurityResponse struct {
+	Result   CreateHostResult   `json:"result"`
+	Error    Error              `json:"error"`
+	Metadata CreateHostMetadata `json:"metadata"`
+}
+
+type AddPortRequest struct {
+	Type    string `json:"type"`
+	Address string `json:"address"`
+}
+
+type HostPort struct {
+	HostID      int    `json:"host_id,omitempty"`
+	PortType    string `json:"type,omitempty"`
+	PortAddress string `json:"address,omitempty"`
+}
+
+type GetHostPortResponse struct {
+	Metadata Metadata   `json:"metadata"`
+	Result   []HostPort `json:"result"`
+	Error    Error      `json:"error"`
+}
+
+type AddPortResponse struct {
+	Metadata Metadata      `json:"metadata"`
+	Result   AddPortResult `json:"result"`
+	Error    Error         `json:"error"`
+}
+type AddPortResult struct {
+	HostID  int    `json:"host_id"`
+	Type    string `json:"type"`
+	Address string `json:"address"`
+}
+
+type MapVolumeToHostRequest struct {
+	VolumeID int `json:"volume_id"`
+}
+type LunInfo struct {
+	HostClusterID int  `json:"host_cluster_id,omitempty"`
+	VolumeID      int  `json:"volume_id,omitempty"`
+	CLustered     bool `json:"clustered,omitempty"`
+	HostID        int  `json:"host_id,omitempty"`
+	ID            int  `json:"id,omitempty"`
+	Lun           int  `json:"lun,omitempty"`
+}
+
+type MapVolumeToHostResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   LunInfo  `json:"result"`
+	Error    Error    `json:"error"`
+}
+
+func (client *IboxClient) GetAllHosts() (host []Host, err error) {
+	url := client.Creds.Url + "api/rest/hosts"
+	client.Log.V(TRACE_LEVEL).Info("GetAllHosts", "URL", url)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return host, fmt.Errorf("error in NewRequest %w", err)
+	}
+	SetAuthHeader(req, client.Creds)
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return host, fmt.Errorf("error with client.Do %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return host, fmt.Errorf("error reading response body %w", err)
+	}
+	var responseObject HostResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return host, fmt.Errorf("error in Unmarshal %w", err)
+	}
+	return responseObject.Result, nil
+}
+
+func (client *IboxClient) GetHostByName(hostName string) (host *Host, err error) {
+	url := client.Creds.Url + "api/rest/hosts"
+	client.Log.V(TRACE_LEVEL).Info("GetHostByName", "URL", url, "host name", hostName)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return host, err
+	}
+	SetAuthHeader(req, client.Creds)
+
+	values := req.URL.Query()
+	values.Add("name", hostName)
+	req.URL.RawQuery = values.Encode()
+
+	resp, err := client.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error in client.Do %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error in ReadAll %w", err)
+	}
+	var responseObject HostResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	if len(responseObject.Result) == 0 {
+		return nil, fmt.Errorf("error finding host %s - %w", hostName, ErrNotFound)
+	}
+	return &responseObject.Result[0], nil
+}
+
+func (client *IboxClient) CreateHost(hostName string) (hostResponse *CreateHostResponse, err error) {
+
+	URL := client.Creds.Url + "api/rest/hosts"
+	client.Log.V(TRACE_LEVEL).Info("CreateHost", "URL", URL, "host name", hostName)
+
+	hp := CreateHostPost{
+		Name: hostName,
+	}
+	jsonBytes, err := json.Marshal(hp)
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, err
+	}
+	SetAuthHeader(request, client.Creds)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := client.HttpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var responseObject CreateHostResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	return &responseObject, nil
+}
+
+func (client *IboxClient) DeleteHost(hostID int) (response *DeleteHostResponse, err error) {
+	url := fmt.Sprintf("%s%s/%d", client.Creds.Url, "api/rest/hosts/", hostID)
+	client.Log.V(TRACE_LEVEL).Info("DeleteHost", "URL", url, "host ID", hostID)
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	SetAuthHeader(req, client.Creds)
+
+	resp, err := client.HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	//client.Log.Info("body response", "body", string(bodyBytes))
+	var responseObject DeleteHostResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	//client.Log.Info("deletehostresponse", "error", responseObject.Error)
+	return &responseObject, nil
+}
+
+func (client *IboxClient) AddHostSecurity(chapCreds map[string]string, hostID int) (host *AddHostSecurityResponse, err error) {
+	//url := fmt.Sprintf("%s%s/%d%s", client.Creds.Url, "api/rest/hosts/", hostID, "?approved=true")
+	url := fmt.Sprintf("%s%s/%d", client.Creds.Url, "api/rest/hosts/", hostID)
+	client.Log.V(TRACE_LEVEL).Info("AddHostSecurity", "URL", url, "host ID", hostID)
+
+	hp := AddHostSecurityRequest{
+		SecurityMethod:               chapCreds[CHAP_SECURITY_METHOD],
+		SecurityCHAPInboundUsername:  chapCreds[CHAP_INBOUND_USERNAME],
+		SecurityCHAPInboundSecret:    chapCreds[CHAP_INBOUND_SECRET],
+		SecurityCHAPOutboundUsername: chapCreds[CHAP_OUTBOUND_USERNAME],
+		SecurityCHAPOutboundSecret:   chapCreds[CHAP_OUTBOUND_SECRET],
+	}
+
+	jsonBytes, err := json.Marshal(hp)
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	values := request.URL.Query()
+	values.Add("approved", "true")
+	request.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(request, client.Creds)
+
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := client.HttpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var responseObject AddHostSecurityResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	return &responseObject, nil
+}
+
+func (client *IboxClient) AddHostPort(portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error) {
+
+	URL := fmt.Sprintf("%s/api/rest/hosts/%d/ports", client.Creds.Url, hostID)
+	client.Log.V(TRACE_LEVEL).Info("AddHostPort", "URL", URL, "port type", portType, "port address", portAddress, "host ID", hostID)
+
+	hp := AddPortRequest{
+		Type:    portType,
+		Address: portAddress,
+	}
+
+	jsonBytes, err := json.Marshal(hp)
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	values := request.URL.Query()
+	values.Add("approved", "true")
+	request.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(request, client.Creds)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := client.HttpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	var responseObject AddPortResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	return &responseObject, nil
+
+}
+
+func (client *IboxClient) GetHostPort(hostID int, portAddress string) (hostPort *HostPort, err error) {
+	URL := fmt.Sprintf("%s/api/rest/hosts/%d/ports", client.Creds.Url, hostID)
+	client.Log.V(TRACE_LEVEL).Info("GetHostPort", "URL", URL, "host ID", hostID, "port address", portAddress)
+
+	req, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error in NewRequest %w", err)
+	}
+	SetAuthHeader(req, client.Creds)
+
+	resp, err := client.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error with client.Do %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body %w", err)
+	}
+	var responseObject GetHostPortResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("error in Unmarshal %w", err)
+	}
+
+	for _, port := range responseObject.Result {
+		if port.PortAddress == portAddress {
+			hostPort = &port
+		}
+	}
+	if hostPort.HostID == 0 && hostPort.PortAddress == "" {
+		return nil, errors.New("HOST_PORT_NOT_FOUND")
+	}
+	return hostPort, nil
+}
+
+func (client *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *LunInfo, err error) {
+
+	URL := fmt.Sprintf("%s/api/rest/hosts/%d/luns", client.Creds.Url, hostID)
+	client.Log.V(TRACE_LEVEL).Info("MapVolumeToHost", "URL", URL, "volume ID", volumeID, "lun", lun, "host ID", hostID)
+
+	hp := MapVolumeToHostRequest{
+		VolumeID: volumeID,
+	}
+
+	jsonBytes, err := json.Marshal(hp)
+	if err != nil {
+		return nil, err
+	}
+	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	values := request.URL.Query()
+	values.Add("approved", "true")
+	request.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(request, client.Creds)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := client.HttpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	var responseObject MapVolumeToHostResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	return &responseObject.Result, nil
+
+}
+
+func (client *IboxClient) GetAllLunByHost(hostID int) (luns []Luns, err error) {
+	url := fmt.Sprintf("%s%s/%d/luns", client.Creds.Url, "api/rest/hosts/", hostID)
+	client.Log.V(TRACE_LEVEL).Info("GetAllLunByHost", "URL", url, "host ID", hostID)
+
+	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	totalPages := 1 // start with 1, update after first query.
+
+	for page := 1; page <= totalPages; page++ {
+		client.Log.V(TRACE_LEVEL).Info("GetAllLunByHost loop", "page", page, "totalPages", totalPages)
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return luns, fmt.Errorf("error in NewRequest %w", err)
+		}
+		values := req.URL.Query()
+		values.Add("page_size", strconv.Itoa(pageSize))
+		values.Add("page", strconv.Itoa(page))
+		req.URL.RawQuery = values.Encode()
+		client.Log.V(TRACE_LEVEL).Info("GetAllLunByHost loop", "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
+
+		SetAuthHeader(req, client.Creds)
+
+		resp, err := client.HttpClient.Do(req)
+		if err != nil {
+			return luns, fmt.Errorf("error with client.Do %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return luns, fmt.Errorf("error reading response body %w", err)
+		}
+		var responseObject GetAllLunsResponse
+		err = json.Unmarshal(bodyBytes, &responseObject)
+		if err != nil {
+			return luns, fmt.Errorf("error in Unmarshal %w", err)
+		}
+
+		luns = append(luns, responseObject.Result...)
+
+		if page == 1 {
+			totalPages = responseObject.Metadata.PagesTotal
+		}
+	}
+
+	return luns, nil
+}
+
+func (client *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *Luns, err error) {
+	client.Log.V(TRACE_LEVEL).Info("GetLunByHostVolume", "host ID", hostID, "volume ID", volumeID)
+	allLuns, err := client.GetAllLunByHost(hostID)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range allLuns {
+		if l.VolumeID == volumeID {
+			lun = &l
+			break
+		}
+	}
+	return lun, nil
+}
+
+func (client *IboxClient) UnMapVolumeFromHost(hostID, volumeID int) (unmapResponse *UnMapVolumeFromHostResponse, err error) {
+	url := fmt.Sprintf("%s%s/%d/luns/volume_id/%d", client.Creds.Url, "api/rest/hosts/", hostID, volumeID)
+	client.Log.V(TRACE_LEVEL).Info("UnMapVolumeFromHost", "URL", url, "host ID", hostID, "volume ID", volumeID)
+
+	request, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	values := request.URL.Query()
+	values.Add("approved", "true")
+	request.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(request, client.Creds)
+
+	resp, err := client.HttpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var responseObject UnMapVolumeFromHostResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	return &responseObject, nil
+}

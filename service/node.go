@@ -15,9 +15,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"infinibox-csi-driver/storage"
 	"os/exec"
 	"strings"
@@ -92,31 +92,31 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	eventData := make([]api.EventRequestData, 0)
-	protocolData := api.EventRequestData{
+	eventData := make([]iboxapi.EventRequestData, 0)
+	protocolData := iboxapi.EventRequestData{
 		Name:  "protocol",
 		Type:  "String",
 		Value: storageProtocol,
 	}
 	eventData = append(eventData, protocolData)
 
-	volumeIDData := api.EventRequestData{
+	volumeIDData := iboxapi.EventRequestData{
 		Name:  common.CUSTOM_EVENT_VOLUME_ID,
 		Type:  "String",
 		Value: req.GetVolumeId(),
 	}
 	eventData = append(eventData, volumeIDData)
 
-	actionData := api.EventRequestData{
+	actionData := iboxapi.EventRequestData{
 		Name:  common.CUSTOM_EVENT_ACTION,
 		Type:  "String",
 		Value: "Mounted Volume",
 	}
 	eventData = append(eventData, actionData)
 
-	eventErr := helper.CreateEvent(comnserv.Api, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
+	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
 	if eventErr != nil {
-		zlog.Err(eventErr)
+		zlog.Error().Msg(eventErr.Error())
 		// only log errors since older ibox versions don't support this event code
 	}
 

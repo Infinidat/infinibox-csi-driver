@@ -18,10 +18,14 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api/client"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 )
 
 // Client interface
@@ -108,14 +112,12 @@ type Client interface {
 	CreateReplica(request CreateReplicaRequest) (Replica, error)
 	GetLink(linkID int) (*Link, error)
 	GetLinks() ([]Link, error)
-
-	CreateCustomEvent(request CustomEventRequest) error
-	CreateEvent(request EventRequest) error
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations
 type ClientService struct {
 	api        client.RestClient
+	iboxapi    *iboxapi.IboxClient
 	SecretsMap map[string]string
 	ConfigMap  map[string]string
 }
@@ -128,6 +130,20 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 		return c, err
 	}
 	c.api = restclient
+
+	// for setting up iboxapi
+	hostconfig, err := c.getAPIConfig()
+	if err != nil {
+		return nil, err
+	}
+	creds := iboxapi.Credentials{
+		Username: hostconfig.UserName,
+		Password: hostconfig.Password,
+		Url:      hostconfig.ApiHost,
+	}
+	var iboxApiLog logr.Logger = zerologr.New(&zlog)
+	c.iboxapi = iboxapi.NewIboxClient(iboxApiLog, creds)
+
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
 }
@@ -954,6 +970,7 @@ func (c *ClientService) CreateCustomEvent(request CustomEventRequest) error {
 	return nil
 }
 
+/**
 func (c *ClientService) CreateEvent(request EventRequest) error {
 
 	path := "/api/rest/events"
@@ -969,3 +986,4 @@ func (c *ClientService) CreateEvent(request EventRequest) error {
 
 	return nil
 }
+*/

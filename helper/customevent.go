@@ -3,6 +3,7 @@ package helper
 import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 	"os"
 	"strconv"
 )
@@ -20,80 +21,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-func CreateCustomEvent(cl api.Client, desc string, eventData []api.CustomEventRequestData) error {
-
-	zlog.Debug().Msgf("CreateCustomEvent: %s", desc)
-
-	//verify creating events is enabled
-	createEvent := true
-	tmp := os.Getenv(common.ENV_VAR_CREATE_EVENTS)
-	if tmp != "" {
-		boolValue, err := strconv.ParseBool(tmp)
-		if err != nil {
-			zlog.Error().Msgf("%s env var is not a valid boolean value, [%s] was entered", common.ENV_VAR_CREATE_EVENTS, tmp)
-			return err
-		}
-		createEvent = boolValue
-	}
-	if !createEvent {
-		return nil
-	}
-
-	version := os.Getenv(common.ENV_VAR_CSI_DRIVER_VERSION)
-	osVersion := os.Getenv(common.ENV_VAR_OS_VERSION)
-	kubeVersion := os.Getenv(common.ENV_VAR_KUBE_VERSION)
-	kubeNodeCount := os.Getenv(common.ENV_VAR_NODE_COUNT)
-	data := make([]api.CustomEventRequestData, 0)
-
-	data = append(data, eventData...)
-
-	versionData := api.CustomEventRequestData{
-		Name:  "csi_driver_version",
-		Type:  "String",
-		Value: version,
-	}
-	data = append(data, versionData)
-
-	osVersionData := api.CustomEventRequestData{
-		Name:  "os_version",
-		Type:  "String",
-		Value: osVersion,
-	}
-	data = append(data, osVersionData)
-
-	kubeVersionData := api.CustomEventRequestData{
-		Name:  "kube_version",
-		Type:  "String",
-		Value: kubeVersion,
-	}
-	data = append(data, kubeVersionData)
-
-	kubeNodeNameData := api.CustomEventRequestData{
-		Name:  "kube_node_name",
-		Type:  "String",
-		Value: os.Getenv("KUBE_NODE_NAME"),
-	}
-	data = append(data, kubeNodeNameData)
-
-	kubeNodeCountData := api.CustomEventRequestData{
-		Name:  "kube_node_count",
-		Type:  "String",
-		Value: kubeNodeCount,
-	}
-	data = append(data, kubeNodeCountData)
-
-	r := api.CustomEventRequest{
-		DescriptionTemplate: desc,
-		Data:                data,
-		Visibility:          "CUSTOMER",
-		Level:               "INFO",
-	}
-
-	err := cl.CreateCustomEvent(r)
-	return err
-}
-
-func CreateEvent(cl api.Client, desc string, eventData []api.EventRequestData) error {
+func CreateEvent(cl api.Client, iboxApi iboxapi.Client, desc string, eventData []iboxapi.EventRequestData) error {
 
 	zlog.Debug().Msgf("CreateEvent: %s", desc)
 
@@ -116,57 +44,69 @@ func CreateEvent(cl api.Client, desc string, eventData []api.EventRequestData) e
 	osVersion := os.Getenv(common.ENV_VAR_OS_VERSION)
 	kubeVersion := os.Getenv(common.ENV_VAR_KUBE_VERSION)
 	kubeNodeCount := os.Getenv(common.ENV_VAR_NODE_COUNT)
-	data := make([]api.EventRequestData, 0)
+	data := make([]iboxapi.EventRequestData, 0)
 
 	data = append(data, eventData...)
 
-	versionData := api.EventRequestData{
+	versionData := iboxapi.EventRequestData{
 		Name:  "csi_driver_version",
 		Type:  "String",
 		Value: version,
 	}
 	data = append(data, versionData)
 
-	osVersionData := api.EventRequestData{
+	osVersionData := iboxapi.EventRequestData{
 		Name:  "os_version",
 		Type:  "String",
 		Value: osVersion,
 	}
 	data = append(data, osVersionData)
 
-	kubeVersionData := api.EventRequestData{
+	kubeVersionData := iboxapi.EventRequestData{
 		Name:  "kube_version",
 		Type:  "String",
 		Value: kubeVersion,
 	}
 	data = append(data, kubeVersionData)
 
-	kubeNodeNameData := api.EventRequestData{
+	kubeNodeNameData := iboxapi.EventRequestData{
 		Name:  "kube_node_name",
 		Type:  "String",
 		Value: os.Getenv("KUBE_NODE_NAME"),
 	}
 	data = append(data, kubeNodeNameData)
 
-	kubeNodeCountData := api.EventRequestData{
+	kubeNodeCountData := iboxapi.EventRequestData{
 		Name:  "kube_node_count",
 		Type:  "String",
 		Value: kubeNodeCount,
 	}
 	data = append(data, kubeNodeCountData)
 
-	descData := api.EventRequestData{
+	descData := iboxapi.EventRequestData{
 		Name:  "event_desc",
 		Type:  "String",
 		Value: desc,
 	}
 	data = append(data, descData)
 
-	r := api.EventRequest{
+	systemDetails, err := iboxApi.GetSystem()
+	if err != nil {
+		zlog.Error().Msg(err.Error())
+	} else {
+		serialNumberData := iboxapi.EventRequestData{
+			Name:  "serial_number",
+			Type:  "String",
+			Value: strconv.Itoa(systemDetails.SerialNumber),
+		}
+		data = append(data, serialNumberData)
+	}
+
+	r := iboxapi.EventRequest{
 		Code: "ECOSYSTEM_TOOLS_HEARTBEAT",
 		Data: data,
 	}
 
-	err := cl.CreateEvent(r)
+	err = iboxApi.CreateEvent(r)
 	return err
 }
