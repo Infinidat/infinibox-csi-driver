@@ -68,14 +68,6 @@ func (m *MockApiClient) GetWithQueryString(ctx context.Context, url string, host
 	return resp, err
 }
 
-// GetStoragePoolIDByName mock
-func (m *MockApiService) GetStoragePoolIDByName(poolName string) (int64, error) {
-	args := m.Called(poolName)
-	resp, _ := args.Get(0).(int64)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
 // GetFileSystemsByPoolID mock
 func (m *MockApiService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix string) (*FSMetadata, error) {
 	args := m.Called(poolID, page, fsPrefix)
@@ -384,8 +376,8 @@ func (m *MockApiService) GetVolumeByName(volumename string) (*Volume, error) {
 }
 
 // CreateVolume
-func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
-	args := m.Called(volume, storagePoolName)
+func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error) {
+	args := m.Called(volume, storagePoolID)
 	var vol Volume
 	if args.Get(0) != nil {
 		vol, _ = args.Get(0).(Volume)

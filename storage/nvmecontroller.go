@@ -93,7 +93,21 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 		ProvisionType: volType,
 	}
 
-	volumeResp, err := nvme.cs.Api.CreateVolume(volumeParam, poolName)
+	volumeParam.SsdEnabled, err = determineSSDValue(params[common.SC_SSD_ENABLED], poolName, nvme.cs.IboxApi)
+	if err != nil {
+		e := status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, e
+	}
+
+	pool, err := nvme.cs.IboxApi.GetPoolByName(poolName)
+	if err != nil {
+		e := fmt.Errorf("error GetPoolByName name: %s error: %v", poolName, err)
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+
+	volumeResp, err := nvme.cs.Api.CreateVolume(volumeParam, pool.ID)
 	if err != nil {
 		e := fmt.Errorf("error creating volume: %s pool %s error: %v", name, poolName, err)
 		zlog.Err(e)
@@ -183,21 +197,21 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	volproto, err := ValidateVolumeID(volumeContentID)
 	if err != nil {
 		e := fmt.Errorf("failed to validate storage type restoreType: %s source id: %s, err: %v", restoreType, volumeContentID, err)
-		zlog.Err(e)
+		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	volumeID, err := strconv.Atoi(volproto.VolumeID)
 	if err != nil {
 		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
+		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	srcVol, err := nvme.cs.Api.GetVolume(volumeID)
 	if err != nil {
 		e := fmt.Errorf("error GetVolume id: %s restoreType: %s error: %v", volproto.VolumeID, restoreType, err)
-		zlog.Err(e)
+		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
@@ -211,14 +225,14 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	params := req.GetParameters()
 
 	// Check the storagePool is the same.
-	storagePoolID, err := nvme.cs.Api.GetStoragePoolIDByName(storagePool)
+	pool, err := nvme.cs.IboxApi.GetPoolByName(storagePool)
 	if err != nil {
-		e := fmt.Errorf("error GetStoragePoolIDByName name: %s error: %v", storagePool, err)
-		zlog.Err(e)
+		e := fmt.Errorf("error GetPoolByName name: %s error: %v", storagePool, err)
+		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	if storagePoolID != srcVol.PoolId {
-		msg = fmt.Sprintf("volume storage pool is different than the requested storage pool %s", storagePool)
+	if int64(pool.ID) != srcVol.PoolId {
+		msg = fmt.Sprintf("volume storage pool is different than the requested storage pool %s %d %d", storagePool, pool.ID, srcVol.PoolId)
 		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
@@ -233,7 +247,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	// Create snapshot
 	snapResponse, err := nvme.cs.Api.CreateSnapshotVolume(0, snapshotParam)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -241,7 +255,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	volID := snapResponse.SnapShotID
 	dstVol, err := nvme.cs.Api.GetVolume(volID)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.Internal, msg)
 	}
 
@@ -255,7 +269,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	_, err = nvme.cs.Api.AttachMetadataToObject(int64(dstVol.ID), metadata)
 	if err != nil {
 		e := fmt.Errorf("error attach metadata for volume : %s, err: %v", dstVol.Name, err)
-		zlog.Err(e)
+		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 

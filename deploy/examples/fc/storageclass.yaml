@@ -28,7 +28,7 @@ parameters:
   # optional parameters
   #round_up_requested_size: "true"
   #provision_type: "THIN"
-  #ssd_enabled: "false"
+  #ssd_enabled: "true"
   #max_vols_per_host: "20"
   uid: "3000"                 # optional: override default UID for filesystem mount
   gid: "3000"                 # optional: override default GID for filesystem mount

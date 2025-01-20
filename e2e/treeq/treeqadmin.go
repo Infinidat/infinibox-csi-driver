@@ -57,13 +57,13 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 
 	networkSpaceIPAddress := networkSpaceResponse.Portals[0].IpAdress
 
-	poolID, err := config.ClientService.GetStoragePoolIDByName(poolName)
+	pool, err := config.ClientService.Iboxapi.GetPoolByName(poolName)
 	if err != nil {
 		return 0, err
 	}
 
 	mapRequest := map[string]interface{}{
-		"pool_id":  poolID,
+		"pool_id":  pool.ID,
 		"name":     fileSystemName,
 		"size":     8589934592, // 8Gb
 		"provtype": common.SC_THIN_PROVISION_TYPE,

@@ -16,7 +16,8 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	if poolToUse == "" {
 		return fmt.Errorf("_E2E_POOL env var is not set and is required")
 	}
-	_, err = testConfig.ClientService.GetStoragePoolIDByName(poolToUse)
+
+	_, err = testConfig.ClientService.Iboxapi.GetPoolByName(poolToUse)
 	if err != nil {
 		return err
 	}

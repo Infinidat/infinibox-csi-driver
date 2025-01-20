@@ -99,13 +99,22 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		VolumeSize:    fc.capacity,
 		ProvisionType: volType,
 	}
-	ssdEnabledString, provided := params[common.SC_SSD_ENABLED]
-	if provided {
-		volumeParam.SsdEnabledSpecified = true
-		volumeParam.SsdEnabled, _ = strconv.ParseBool(ssdEnabledString)
+
+	volumeParam.SsdEnabled, err = determineSSDValue(params[common.SC_SSD_ENABLED], poolName, fc.cs.IboxApi)
+	if err != nil {
+		e := status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, e
 	}
 
-	volumeResp, err := fc.cs.Api.CreateVolume(volumeParam, poolName)
+	pool, err := fc.cs.IboxApi.GetPoolByName(poolName)
+	if err != nil {
+		e := status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, e
+	}
+
+	volumeResp, err := fc.cs.Api.CreateVolume(volumeParam, pool.ID)
 	if err != nil {
 		zlog.Error().Msgf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
@@ -217,13 +226,13 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 
 	// Validate the storagePool is the same.
-	storagePoolID, err := fc.cs.Api.GetStoragePoolIDByName(storagePool)
+	pool, err := fc.cs.IboxApi.GetPoolByName(storagePool)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Errorf(codes.Internal,
 			"error while getting storagepoolid with name %s ", storagePool)
 	}
-	if storagePoolID != srcVol.PoolId {
+	if int64(pool.ID) != srcVol.PoolId {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"volume storage pool is different than the requested storage pool %s", storagePool)
 	}
@@ -507,10 +516,20 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		return nil, status.Error(codes.AlreadyExists, "snapshot with already existing name and different source volume ID")
 	}
 
+	// look up the parent volume so we can get the ssd_enabled value and use that for
+	// the snapshot being created next
+	parentVolume, err := fc.cs.Api.GetVolume(volumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to get parent volume when creating snapshot - volume id %d, err: %v", volumeID, err)
+		zlog.Err(e)
+		return nil, status.Error(codes.NotFound, e.Error())
+	}
+
 	snapshotParam := &api.VolumeSnapshot{
 		ParentID:       volumeID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
+		SsdEnabled:     parentVolume.SsdEnabled,
 	}
 
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]

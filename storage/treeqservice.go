@@ -89,18 +89,18 @@ func (ts *TreeqService) checkTreeqName(FileSystems []api.FileSystem, pVName stri
 func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName, fsPrefix string) (treeqVolumeContext map[string]string, err error) {
 	zlog.Debug().Msgf("IsTreeqAlreadyExist called pool %s netspace %s pVName %s fsPrefix %s", poolName, networkSpace, pVName, fsPrefix)
 	treeqVolumeContext = make(map[string]string)
-	poolID, err := ts.cs.Api.GetStoragePoolIDByName(poolName)
+	pool, err := ts.cs.IboxApi.GetPoolByName(poolName)
 	if err != nil {
 		zlog.Error().Msgf("failed to get poolID from poolName %s", poolName)
 		return
 	}
-	ts.poolID = poolID
+	ts.poolID = int64(pool.ID)
 	page := 1
 	for {
 		zlog.Debug().Msgf("IsTreeqAlreadyExist looking for file systems page %d", page)
-		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(poolID, page, fsPrefix)
+		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(ts.poolID, page, fsPrefix)
 		if poolErr != nil {
-			zlog.Error().Msgf("failed to get filesystems from poolID %d and page no %d error %v", poolID, page, err)
+			zlog.Error().Msgf("failed to get filesystems from poolID %d and page no %d error %v", ts.poolID, page, err)
 			err = errors.New("failed to get filesystems from poolName " + poolName)
 			return
 		}
@@ -231,13 +231,12 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 	}
 	ts.nfsstorage.ipAddress = ipAddress
 
-	var poolID int64
-	poolID, err = ts.cs.Api.GetStoragePoolIDByName(ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
+	pool, err := ts.cs.IboxApi.GetPoolByName(ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
 	if err != nil {
 		zlog.Error().Msgf("failed to get poolID from poolName %s", ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
 		return
 	}
-	ts.poolID = poolID
+	ts.poolID = int64(pool.ID)
 
 	var maxFileSystemSize int64
 	scMaxFileSystemSize := storageClassParameters[common.SC_MAX_FILESYSTEM_SIZE]

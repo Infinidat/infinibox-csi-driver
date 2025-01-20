@@ -50,6 +50,9 @@ type Error struct {
 
 // Client interface
 type Client interface {
+	// pools
+	GetPoolByName(name string) (*PoolResult, error)
+
 	/**
 	NewClient() (*ClientService, error)
 	CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error)

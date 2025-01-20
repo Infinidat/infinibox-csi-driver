@@ -20,6 +20,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"infinibox-csi-driver/log"
 	"io"
 	"io/fs"
@@ -873,4 +874,29 @@ func debugWalkDir(walkPath string) (err error) {
 		return err
 	}
 	return nil
+}
+
+func determineSSDValue(ssdStorageClassParameter string, poolName string, a iboxapi.Client) (ssdValue bool, err error) {
+	var valueProvidedInStorageClass bool
+	if ssdStorageClassParameter != "" {
+		valueProvidedInStorageClass = true
+	}
+
+	if valueProvidedInStorageClass {
+		ssdValue, err = strconv.ParseBool(ssdStorageClassParameter)
+		if err != nil {
+			return ssdValue, err
+		}
+		zlog.Debug().Msgf("setting ssd value %t from storage class parameter", ssdValue)
+		return ssdValue, nil
+	}
+
+	// get the ssd value from the pool
+	pool, err := a.GetPoolByName(poolName)
+	if err != nil {
+		zlog.Error().Msgf("determineSSDValue error %s", err.Error())
+		return ssdValue, err
+	}
+	zlog.Debug().Msgf("setting ssd value %t from pool", pool.SsdEnabled)
+	return pool.SsdEnabled, nil
 }

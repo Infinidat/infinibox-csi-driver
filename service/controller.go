@@ -1007,7 +1007,7 @@ func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 
 func validateCommonStorageClassParameters(comnserv storage.Commonservice, scParameters map[string]string) error {
 	poolName := scParameters[common.SC_POOL_NAME]
-	_, err := comnserv.Api.GetStoragePoolIDByName(poolName)
+	_, err := comnserv.IboxApi.GetPoolByName(poolName)
 	if err != nil {
 		return err
 	}

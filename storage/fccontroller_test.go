@@ -8,6 +8,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"infinibox-csi-driver/test_helper"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
@@ -20,14 +21,16 @@ import (
 
 func (suite *FCControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
+	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi}
 
 }
 
 type FCControllerSuite struct {
 	suite.Suite
 	api        *api.MockApiService
+	iboxapi    *iboxapi.MockApiService
 	accessMock *helper.MockAccessModesHelper
 	cs         *Commonservice
 }
@@ -65,6 +68,8 @@ func (suite *FCControllerSuite) Test_CreateVolume_fail() {
 	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
+	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -80,6 +85,8 @@ func (suite *FCControllerSuite) Test_CreateVolume_success() {
 	parameterMap := getFCCreateVolumeParameter()
 	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 
+	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -98,6 +105,8 @@ func (suite *FCControllerSuite) Test_CreateVolume_metadataError() {
 	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 	expectedErr := errors.New("some Error")
 
+	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -184,11 +193,11 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
 	service := fcstorage{capacity: common.BytesInOneGibibyte, cs: *suite.cs}
 	parameterMap := getFCCreateVolumeParameter()
 	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$fc")
+	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	var poolID int64 = 10
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
@@ -334,6 +343,7 @@ func (suite *FCControllerSuite) Test_CreateSnapshot_GetVolumeByNameErr() {
 	expectedErr := errors.New("some Error")
 	//	var parameterMap map[string]string
 	unpublishVolReq := getISCSICreateSnapshotRequest()
+	suite.api.On("GetVolume", mock.Anything).Return(getVolume().ID, nil)
 	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 

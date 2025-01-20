@@ -34,7 +34,7 @@ parameters:
     # optional parameters
     #round_up_requested_size: "true"
     #provision_type: THIN
-    #ssd_enabled: "true"
+    ssd_enabled: "true"
     #snapdir_visible: "true"   # optional: specify whether .snapshot directory is visible
     # NOTE:  uid, guid, unix_permissions parameters require no_root_squash to be true!
     uid: "3000"               # optional: override default UID for filesystem mount 

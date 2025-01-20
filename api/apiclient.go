@@ -31,8 +31,7 @@ import (
 // Client interface
 type Client interface {
 	NewClient() (*ClientService, error)
-	CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error)
-	GetStoragePoolIDByName(name string) (id int64, err error)
+	CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error)
 	FindStoragePool(id int64, name string) (StoragePool, error)
 	GetNtpStatus() ([]NtpStatus, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
@@ -117,7 +116,7 @@ type Client interface {
 // ClientService : struct having reference of rest client and will host methods which need rest operations
 type ClientService struct {
 	api        client.RestClient
-	iboxapi    *iboxapi.IboxClient
+	Iboxapi    *iboxapi.IboxClient
 	SecretsMap map[string]string
 	ConfigMap  map[string]string
 }
@@ -142,7 +141,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 		Url:      hostconfig.ApiHost,
 	}
 	var iboxApiLog logr.Logger = zerologr.New(&zlog)
-	c.iboxapi = iboxapi.NewIboxClient(iboxApiLog, creds)
+	c.Iboxapi = iboxapi.NewIboxClient(iboxApiLog, creds)
 
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
@@ -217,22 +216,17 @@ func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (h
 }
 
 // CreateVolume : create volume with volume details provided in storage pool provided
-func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error) {
+func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error) {
 	path := "/api/rest/volumes"
-	poolID, err := c.GetStoragePoolIDByName(storagePoolName)
-	zlog.Trace().Msgf("Creating volume in storage pool named %s (pool ID %d) of size %d bytes", storagePoolName, poolID, volume.VolumeSize)
-	if err != nil {
-		return nil, err
-	}
-	volume.PoolId = poolID
+	zlog.Trace().Msgf("Creating volume in storage pool ID %d of size %d bytes", storagePoolID, volume.VolumeSize)
+
+	volume.PoolId = int64(storagePoolID)
 	volumeParameter := make(map[string]interface{})
-	volumeParameter["pool_id"] = poolID
+	volumeParameter["pool_id"] = volume.PoolId
 	volumeParameter["size"] = volume.VolumeSize
 	volumeParameter["name"] = volume.Name
 	volumeParameter["provtype"] = volume.ProvisionType
-	if volume.SsdEnabledSpecified {
-		volumeParameter[common.SC_SSD_ENABLED] = volume.SsdEnabled
-	}
+	volumeParameter[common.SC_SSD_ENABLED] = volume.SsdEnabled
 	vol := Volume{}
 	resp, err := c.getJSONResponse(http.MethodPost, path, volumeParameter, &vol)
 	if err != nil {
@@ -296,34 +290,6 @@ func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]
 		storagePools = append(storagePools, storagePool)
 	}
 	return storagePools, nil
-}
-
-// GetStoragePoolIDByName : Returns poolID of provided pool name
-func (c *ClientService) GetStoragePoolIDByName(name string) (id int64, err error) {
-	zlog.Trace().Msgf("GetStoragePoolIDByName: %s", name)
-	storagePools := []StoragePool{}
-	// To get the pool_id for corresponding poolname
-	var poolID int64 = -1
-	urlpool := "api/rest/pools"
-	queryParam := make(map[string]interface{})
-	queryParam["name"] = name
-	resp, err := c.getResponseWithQueryString(urlpool, queryParam, &storagePools)
-	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return -1, fmt.Errorf("failed to get pool ID from pool Name: %s", name)
-	}
-	if len(storagePools) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		storagePools, _ = apiresp.Result.([]StoragePool)
-	}
-	if len(storagePools) > 0 {
-		return storagePools[0].ID, nil
-	}
-	if poolID == -1 {
-		return poolID, errors.New("no such pool: " + name)
-	}
-	zlog.Trace().Msgf("got ID of a storage pool: %d", poolID)
-	return poolID, nil
 }
 
 // GetVolumeByName : find volume with given name

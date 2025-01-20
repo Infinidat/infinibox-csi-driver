@@ -115,7 +115,6 @@ func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error
 	}
 
 	return config, nil
-
 }
 
 var zlog = log.Get() // grab the logger for package use

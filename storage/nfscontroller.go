@@ -247,12 +247,12 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	}
 
 	// Check that the requested storagePool matches the source
-	storagePoolID, err := nfs.cs.Api.GetStoragePoolIDByName(storagePool)
+	pool, err := nfs.cs.IboxApi.GetPoolByName(storagePool)
 	if err != nil {
 		zlog.Err(err)
-		return nil, status.Errorf(codes.InvalidArgument, "error GetStoragePoolIDByName: %s", storagePool)
+		return nil, status.Errorf(codes.InvalidArgument, "error GetPoolByName: %s", storagePool)
 	}
-	if storagePoolID != srcfsys.PoolID {
+	if int64(pool.ID) != srcfsys.PoolID {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"source storagepool id differs from requested: %s", storagePool)
 	}
@@ -366,10 +366,10 @@ func (nfs *nfsstorage) createExportPath() (err error) {
 }
 
 func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
-	namepool := nfs.storageClassParameters[common.SC_POOL_NAME]
-	poolID, err := nfs.cs.Api.GetStoragePoolIDByName(namepool)
+	poolName := nfs.storageClassParameters[common.SC_POOL_NAME]
+	pool, err := nfs.cs.IboxApi.GetPoolByName(poolName)
 	if err != nil {
-		zlog.Error().Msgf("failed to get GetPoolID by pool_name %s %v", namepool, err)
+		zlog.Error().Msgf("failed to get GetPoolID by pool_name %s %v", poolName, err)
 		return err
 	}
 	provtype := strings.ToUpper(nfs.storageClassParameters[common.SC_PROVISION_TYPE])
@@ -387,22 +387,17 @@ func (nfs *nfsstorage) createFileSystem(fileSystemName string) (err error) {
 		provtype = common.SC_THIN_PROVISION_TYPE
 	}
 	mapRequest := map[string]interface{}{
-		"pool_id":  poolID,
+		"pool_id":  pool.ID,
 		"name":     fileSystemName,
 		"size":     nfs.capacity,
 		"provtype": provtype,
 	}
 
-	ssdEnabled := nfs.storageClassParameters[common.SC_SSD_ENABLED]
-	if ssdEnabled != "" {
-		ssd, err := strconv.ParseBool(ssdEnabled)
-		if err != nil {
-			errStr := fmt.Sprintf("%s invalid format, needs to be true or false, %s was specified", common.SC_SSD_ENABLED, ssdEnabled)
-			zlog.Error().Msg(errStr)
-			return fmt.Errorf("%s", errStr)
-			//return err
-		}
-		mapRequest[common.SC_SSD_ENABLED] = ssd
+	mapRequest[common.SC_SSD_ENABLED], err = determineSSDValue(nfs.storageClassParameters[common.SC_SSD_ENABLED], poolName, nfs.cs.IboxApi)
+	if err != nil {
+		e := status.Errorf(codes.Internal, "error when creating filesystem %s storagepool %s, err: %s", fileSystemName, poolName, err.Error())
+		zlog.Error().Msg(e.Error())
+		return e
 	}
 
 	fileSystem, err := nfs.cs.Api.CreateFilesystem(mapRequest)
@@ -652,10 +647,17 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		return nil, status.Error(codes.AlreadyExists, "snapshot with already existing name and different source volume ID")
 	}
 
+	parentFilesystem, err := nfs.cs.Api.GetFileSystemByID(sourceFilesystemID)
+	if err != nil {
+		zlog.Error().Msgf("error getting parent volume for snapshot - volume id %d - %s", sourceFilesystemID, err)
+		return
+	}
+
 	fileSystemSnapshot := &api.FileSystemSnapshot{
 		ParentID:       sourceFilesystemID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
+		SsdEnabled:     parentFilesystem.SsdEnabled,
 	}
 
 	var lockExpiresAt int64

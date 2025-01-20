@@ -60,12 +60,11 @@ type Volume struct {
 }
 
 type VolumeParam struct {
-	PoolId              int64  `json:"pool_id,omitempty"`
-	VolumeSize          int64  `json:"size,omitempty"`
-	Name                string `json:"name,omitempty"`
-	ProvisionType       string `json:"provtype,omitempty"`
-	SsdEnabled          bool   `json:"ssd_enabled,omitempty"`
-	SsdEnabledSpecified bool
+	PoolId        int64  `json:"pool_id,omitempty"`
+	VolumeSize    int64  `json:"size,omitempty"`
+	Name          string `json:"name,omitempty"`
+	ProvisionType string `json:"provtype,omitempty"`
+	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
 }
 
 type VolumeResp struct {
@@ -300,6 +299,7 @@ type FileSystemSnapshot struct {
 	ParentID       int64  `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
+	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
 }
 type FileSystemSnapshotLocked struct {
 	ParentID       int64  `json:"parent_id"`

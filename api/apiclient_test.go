@@ -17,6 +17,7 @@ package api
 import (
 	"errors"
 	"infinibox-csi-driver/api/client"
+	"infinibox-csi-driver/iboxapi"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,12 +27,14 @@ import (
 
 func (suite *ApiTestSuite) SetupTest() {
 	suite.clientMock = new(MockApiClient)
+	suite.iboxapi = new(iboxapi.MockApiClient)
 	suite.serviceMock = new(MockApiService)
 }
 
 type ApiTestSuite struct {
 	suite.Suite
 	clientMock  *MockApiClient
+	iboxapi     *iboxapi.MockApiClient
 	serviceMock *MockApiService
 }
 
@@ -39,26 +42,12 @@ func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ApiTestSuite))
 }
 
-func (suite *ApiTestSuite) Test_CreateVolumeGetStoragePoolIDByName_Fail() {
-	// Configure
-	expectedError := errors.New("failed to get pool ID from pool Name: test_storage_pool")
-
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	// Act
-	volume := VolumeParam{Name: "test_volume"}
-	_, err := service.CreateVolume(&volume, "test_storage_pool")
-
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
 	storagePool := []StoragePool{}
 	sp := StoragePool{}
 	storagePool = append(storagePool, sp)
 	expectedResponse := client.ApiResponse{Result: storagePool}
+
 	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
 	expectedError := errors.New("No such pool: test_storage_pool")
 	suite.clientMock.On("Post").Return(nil, expectedError)
@@ -70,7 +59,7 @@ func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
 		PoolId:     1000,
 		VolumeSize: 1000000000,
 	}
-	_, err := service.CreateVolume(&volume, "test_storage_pool")
+	_, err := service.CreateVolume(&volume, 100)
 
 	// Assert
 	assert.NotNil(suite.T(), err, "Error should not be nil")
@@ -89,7 +78,7 @@ func (suite *ApiTestSuite) Test_CreateVolume_Success() {
 
 	// Act
 	volumeparam := VolumeParam{Name: "test_volume", PoolId: 5307, VolumeSize: 1000000000, ProvisionType: "THIN"}
-	response, _ := service.CreateVolume(&volumeparam, "test_name")
+	response, _ := service.CreateVolume(&volumeparam, 100)
 
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
@@ -123,34 +112,6 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 	// Assert
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Fail() {
-	expectedError := errors.New("failed to get pool ID from pool Name: test_storage_pool")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	// Act
-	_, err := service.GetStoragePoolIDByName("test_storage_pool")
-
-	// Assert
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetStoragePoolIDByName_Success() {
-	//var poolID int64
-	//suite.clientMock.On("GetWithQueryString").Return(poolID, nil)
-	resp := client.ApiResponse{}
-	suite.clientMock.On("GetWithQueryString").Return(resp, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	// Act
-	response, _ := service.GetStoragePoolIDByName("test_storage_pool")
-
-	// Assert
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	//assert.Equal(suite.T(), poolID, response, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetVolumeByName_Fail() {
