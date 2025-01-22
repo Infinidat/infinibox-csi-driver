@@ -298,7 +298,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
-	hostName, err := determineHostName(req.GetNodeId())
+	hostName, err := DetermineHostName(req.GetNodeId())
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	lunList, err := fc.cs.Api.GetAllLunByHost(host.ID)
+	lunList, err := fc.cs.IboxApi.GetAllLunByHost(host.ID)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
@@ -392,68 +392,23 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 }
 
 func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	zlog.Debug().Msgf("ControllerUnpublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
-	volproto, err := ValidateVolumeID(req.GetVolumeId())
-	if err != nil {
-		zlog.Error().Msgf("failed to validate storage type %v", err)
-		return nil, errors.New("error getting volume id")
-	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
+	zlog.Debug().Msgf("ControllerUnpublishVolume volProto %+v nodeID %s and volumeId %s", fc.cs.VolProto, req.GetNodeId(), req.GetVolumeId())
 
-	hostName, err := determineHostName(req.GetNodeId())
-	if err != nil {
-		return nil, err
-	}
-
-	host, err := fc.cs.Api.GetHostByName(hostName)
-	if err != nil {
-		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			return &csi.ControllerUnpublishVolumeResponse{}, nil
-		}
-		zlog.Error().Msgf("failed to get host details with error %v", err)
-		return nil, err
-	}
+	host := fc.cs.VolProto.Host
 	if len(host.Luns) > 0 {
-		zlog.Debug().Msgf("unmap volume %d from host %d", volumeID, host.ID)
-		err = fc.cs.unmapVolumeFromHost(host.ID, volumeID)
+		zlog.Debug().Msgf("unmap volume %d from host %d", fc.cs.VolProto.VolumeIDInt, host.ID)
+		err = fc.cs.unmapVolumeFromHost(host.ID, int(fc.cs.VolProto.VolumeIDInt))
 		if err != nil {
-			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", volumeID, host.ID, err)
+			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", fc.cs.VolProto.VolumeIDInt, host.ID, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if len(host.Luns) < 2 {
-		luns, err := fc.cs.Api.GetAllLunByHost(host.ID)
+		err = hostCleanup(fc.cs.IboxApi, host.ID, host.Name)
 		if err != nil {
-			zlog.Error().Msgf("failed to retrive luns for host %d with error %v", host.ID, err)
-		}
-		if len(luns) == 0 {
-			meta, err := fc.cs.Api.GetMetadata(host.ID)
-			if err != nil {
-				e := fmt.Errorf("failed to get metadata for host ID %d. Error: %v", host.ID, err)
-				zlog.Err(e)
-				return nil, status.Error(codes.Internal, e.Error())
-			}
-			var createdByCSI bool
-			for i := 0; i < len(meta); i++ {
-				if meta[i].Key == common.CSI_CREATED_HOST {
-					createdByCSI = true
-				}
-			}
-
-			if createdByCSI {
-				err = fc.cs.Api.DeleteHost(host.ID)
-				if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-					zlog.Error().Msgf("failed to delete host with error %v", err)
-					return nil, status.Error(codes.Internal, err.Error())
-				}
-			} else {
-				zlog.Debug().Msgf("ControllerUnpublishVolume not deleting host because it was not created by CSI host %d", host.ID)
-			}
+			e := fmt.Errorf("ControllerUnpublishVolume: failed to perform hostCleanup for host ID %d. Error: %s", host.ID, err.Error())
+			zlog.Err(e)
+			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
@@ -483,26 +438,14 @@ func (fc *fcstorage) ControllerGetCapabilities(ctx context.Context, req *csi.Con
 func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	var snapshotID string
 	snapshotName := req.GetName()
-	zlog.Debug().Msgf("Create Snapshot of name %s", snapshotName)
-	zlog.Debug().Msgf("Create Snapshot called with volume Id %s", req.GetSourceVolumeId())
-	volproto, err := ValidateVolumeID(req.GetSourceVolumeId())
-	if err != nil {
-		zlog.Error().Msgf("failed to validate storage type %v", err)
-		return
-	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
+	zlog.Debug().Msgf("Create Snapshot of name %s source volume ID %s", snapshotName, req.GetSourceVolumeId())
 
 	volumeSnapshot, err := fc.cs.Api.GetVolumeByName(snapshotName)
 	if err != nil {
 		zlog.Err(err)
 		zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
-	} else if volumeSnapshot.ParentId == volumeID {
-		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
+	} else if volumeSnapshot.ParentId == int(fc.cs.VolProto.VolumeIDInt) {
+		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + fc.cs.VolProto.StorageType
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
 				SizeBytes:      volumeSnapshot.Size,
@@ -518,15 +461,15 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 
 	// look up the parent volume so we can get the ssd_enabled value and use that for
 	// the snapshot being created next
-	parentVolume, err := fc.cs.Api.GetVolume(volumeID)
+	parentVolume, err := fc.cs.Api.GetVolume(int(fc.cs.VolProto.VolumeIDInt))
 	if err != nil {
-		e := fmt.Errorf("failed to get parent volume when creating snapshot - volume id %d, err: %v", volumeID, err)
+		e := fmt.Errorf("failed to get parent volume when creating snapshot - volume id %d, err: %v", fc.cs.VolProto.VolumeIDInt, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       volumeID,
+		ParentID:       int(fc.cs.VolProto.VolumeIDInt),
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
 		SsdEnabled:     parentVolume.SsdEnabled,
@@ -554,7 +497,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		return
 	}
 
-	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + volproto.StorageType
+	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + fc.cs.VolProto.StorageType
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: req.GetSourceVolumeId(),

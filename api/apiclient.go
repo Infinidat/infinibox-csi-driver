@@ -51,9 +51,7 @@ type Client interface {
 	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
 	AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
-	DeleteHost(hostID int) (err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
-	GetAllLunByHost(hostID int) (luninfo []LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
 	GetFCPorts() (fcNodes []FCNode, err error)
 	GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error)
@@ -105,7 +103,6 @@ type Client interface {
 	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 
 	PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error)
-	GetMetadata(objectID int) ([]MetadataResult, error)
 
 	// replication
 	CreateReplica(request CreateReplicaRequest) (Replica, error)
@@ -381,21 +378,6 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	return nspace, nil
 }
 
-// DeleteHost - delete host by given host ID
-func (c *ClientService) DeleteHost(hostID int) (err error) {
-	zlog.Trace().Msgf("delete host with host ID %d", hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID)
-	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
-	if err != nil {
-		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			zlog.Error().Msgf("failed to delete host with id %d with error %v", hostID, err)
-		}
-		return err
-	}
-	zlog.Trace().Msgf("delete host with id %d", hostID)
-	return nil
-}
-
 // CreateHost - create host  with given details
 func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	zlog.Trace().Msgf("create host with name %s", hostName)
@@ -550,41 +532,6 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 		luninfo = luns[0]
 	}
 	zlog.Trace().Msgf("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
-	return luninfo, nil
-}
-
-// GetAllLunByHost - Get all luns for host id provided, handles paging for large results.
-func (c *ClientService) GetAllLunByHost(hostID int) (luninfo []LunInfo, err error) {
-
-	page := 1
-	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
-	total_pages := 1 // start with 1, update after first query.
-
-	zlog.Trace().Msgf("Get all lun for host %d", hostID)
-
-	for ok := true; ok; ok = page <= total_pages {
-		uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns" + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
-
-		resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
-
-		if err != nil {
-			zlog.Error().Msgf("failed to get luns for host %d with error %v", hostID, err)
-			return luninfo, err
-		}
-
-		apiresp := resp.(client.ApiResponse)
-		currentResults, _ := apiresp.Result.([]LunInfo)
-		luninfo = append(luninfo, currentResults...)
-		responseSize := apiresp.MetaData.NoOfObject
-		zlog.Trace().Msgf("added %d items to results", responseSize)
-		if page == 1 {
-			total_pages = apiresp.MetaData.TotalPages
-		}
-		page++
-	}
-	// loop ends here
-
-	zlog.Trace().Msgf("got %d Luns for host %d", len(luninfo), hostID)
 	return luninfo, nil
 }
 

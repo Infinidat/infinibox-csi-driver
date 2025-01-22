@@ -421,20 +421,20 @@ func (m *MockApiService) GetHostByName(hostName string) (Host, error) {
 	return host, err
 }
 
+func (m *MockApiService) CreateHost(hostName string) (Host, error) {
+	args := m.Called(hostName)
+	hosts, _ := args.Get(0).(Host)
+	err, _ := args.Get(1).(error)
+	return hosts, err
+
+}
+
 // GetAllHosts
 func (m *MockApiService) GetAllHosts() ([]Host, error) {
 	args := m.Called()
 	hosts, _ := args.Get(0).([]Host)
 	err, _ := args.Get(1).(error)
 	return hosts, err
-}
-
-// GetAllLunByHost
-func (m *MockApiService) GetAllLunByHost(hostID int) ([]LunInfo, error) {
-	args := m.Called(hostID)
-	lunInfo, _ := args.Get(0).([]LunInfo)
-	err, _ := args.Get(1).(error)
-	return lunInfo, err
 }
 
 // MapVolumeToHost
@@ -456,13 +456,6 @@ func (m *MockApiService) GetLunByHostVolume(hostID, volumeID int) (LunInfo, erro
 // UnMapVolumeFromHost
 func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) error {
 	args := m.Called(hostID, volumeID)
-	err, _ := args.Get(0).(error)
-	return err
-}
-
-// DeleteHost
-func (m *MockApiService) DeleteHost(hostID int) error {
-	args := m.Called(hostID)
 	err, _ := args.Get(0).(error)
 	return err
 }
@@ -566,13 +559,6 @@ func (m *MockApiService) GetMembersByCGID(cgID int) ([]MemberInfo, error) {
 	memberInfo, _ := args.Get(0).([]MemberInfo)
 	err, _ := args.Get(1).(error)
 	return memberInfo, err
-}
-
-func (m *MockApiService) GetMetadata(objectID int) ([]MetadataResult, error) {
-	args := m.Called(objectID)
-	res, _ := args.Get(0).([]MetadataResult)
-	err, _ := args.Get(1).(error)
-	return res, err
 }
 
 func (m *MockApiService) PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error) {

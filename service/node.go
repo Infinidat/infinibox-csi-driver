@@ -73,7 +73,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	config := make(map[string]string)
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), nil)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -233,7 +233,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	config := make(map[string]string)
 
 	zlog.Debug().Msgf("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), nil)
 	if err != nil {
 		zlog.Error().Msgf("NodeStageVolume failed with volume ID %s: %s", volumeId, err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -326,7 +326,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	config := make(map[string]string)
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), nil)
 	if err != nil {
 		zlog.Error().Msgf("NodeExpandVolume failed to build common service with volume ID %s: %s", volumeId, err)
 		return nil, err

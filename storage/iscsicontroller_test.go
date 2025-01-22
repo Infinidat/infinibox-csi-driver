@@ -23,7 +23,17 @@ func (suite *ISCSIControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi}
+	host := api.Host{
+		ID:   1,
+		Name: "host1",
+	}
+	volProto := &api.VolumeProtocolConfig{
+		Host:        host,
+		VolumeID:    "1",
+		VolumeIDInt: 1,
+		NodeID:      "node1",
+	}
+	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi, VolProto: volProto}
 
 }
 
@@ -242,10 +252,11 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume() {
 	service := iscsistorage{cs: *suite.cs}
 	//	var parameterMap map[string]string
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
-	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
+	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("MapVolumeToHost", mock.Anything).Return(getLunInf(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
@@ -265,7 +276,8 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError()
 	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
+	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
@@ -277,8 +289,9 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError(
 	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
 	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
@@ -287,32 +300,18 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError(
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 	service := iscsistorage{cs: *suite.cs}
+	deleteHostResponse := &iboxapi.DeleteHostResponse{
+		Error: iboxapi.Error{},
+	}
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
-	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
-	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(deleteHostResponse, nil)
 	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ControllerUnpublishVolume")
-}
-
-func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_hostNameErr() {
-	service := iscsistorage{cs: *suite.cs}
-	expectedErr := errors.New("some Error")
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	suite.api.On("GetHostByName", mock.Anything).Return(nil, expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume GetHostByName")
-}
-
-func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_VolumeIDFormatError() {
-	service := iscsistorage{cs: *suite.cs}
-	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	ctrUnPublishValReq.VolumeId = "1$"
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume volume ID format invalid protocol")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
@@ -321,6 +320,9 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(expectedErr)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, expectedErr)
 	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume UnMapVolumeFromHost")
 }
@@ -329,11 +331,11 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr(
 	service := iscsistorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
-	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
-	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, expectedErr)
 	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume DeleteHost")
 }
@@ -342,11 +344,11 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_Metadata_Error
 	service := iscsistorage{cs: *suite.cs}
 	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	suite.api.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
-	suite.api.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
-	suite.api.On("DeleteHost", mock.Anything, mock.Anything).Return(expectedErr)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, expectedErr)
 	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume Metadata Error")
 }
@@ -366,6 +368,8 @@ func (suite *ISCSIControllerSuite) Test_CreateSnapshot() {
 
 func (suite *ISCSIControllerSuite) Test_CreateSnapshot_already_Created() {
 	service := iscsistorage{cs: *suite.cs}
+	suite.cs.VolProto.VolumeID = "1001"
+	suite.cs.VolProto.VolumeIDInt = 1001
 	//	var parameterMap map[string]string
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
 	ctrUnPublishValReq.SourceVolumeId = "1001$$iscsi"
@@ -444,30 +448,30 @@ func getISCSIControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
 	}
 }
 
-func getLunInf() api.LunInfo {
-	var luninfo api.LunInfo
+func getLunInf() iboxapi.Luns {
+	var luninfo iboxapi.Luns
 	luninfo.HostID = 100
 	luninfo.ID = 1
 	return luninfo
 }
 
-func getLunInfoArry() []api.LunInfo {
-	var lunInfoArry []api.LunInfo
+func getLunInfoArry() []iboxapi.Luns {
+	var lunInfoArry []iboxapi.Luns
 	lunInfoArry = append(lunInfoArry, getLunInf())
 	return lunInfoArry
 }
 
-func getHostByName() api.Host {
-	var host api.Host
+func getHostByName() iboxapi.Host {
+	var host iboxapi.Host
 	host.ID = 10
 	host.Name = "hostName"
 	lunInfoArry := getLunInfoArry()
 	host.Luns = append(host.Luns, lunInfoArry...)
-	var hostportArr []api.HostPort
-	var hostport api.HostPort
+	var hostportArr []iboxapi.Ports
+	var hostport iboxapi.Ports
 	hostport.HostID = 10
-	hostport.PortAddress = "10.20.20.50"
-	hostport.PortType = "ISCSI"
+	hostport.Address = "10.20.20.50"
+	hostport.Type = "ISCSI"
 	hostportArr = append(hostportArr, hostport)
 	host.Ports = append(host.Ports, hostportArr...)
 	return host

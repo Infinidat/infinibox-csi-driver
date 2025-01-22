@@ -21,7 +21,12 @@ func (suite *NFSControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi}
+	volproto := &api.VolumeProtocolConfig{
+		VolumeID:    "1",
+		VolumeIDInt: 1,
+		StorageType: "",
+	}
+	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi, VolProto: volproto}
 
 }
 
@@ -494,6 +499,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
 	fileSystem := api.FileSystem{}
 	expectedErr := errors.New("SourceVolumeID is must")
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSystem, nil)
+	suite.api.On("GetFileSystemByID", mock.Anything).Return(fileSystem, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, expectedErr)
 	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))

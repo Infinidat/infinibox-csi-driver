@@ -121,10 +121,9 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	params := req.GetParameters()
 	pvName := req.GetName()
 
-	zlog.Debug().Msgf(" csi request %v", req)
-	zlog.Debug().Msgf(" csi request parameters %v", params)
-	zlog.Debug().Msgf(" csi volume caps %+v", req.VolumeCapabilities)
-	zlog.Debug().Msgf(" csi request name %s", req.Name)
+	zlog.Debug().Msgf("csi request name %s", req.Name)
+	zlog.Debug().Msgf("csi request parameters %v", params)
+	zlog.Debug().Msgf("csi volume caps %+v", req.VolumeCapabilities)
 
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
@@ -228,10 +227,6 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 	sourceVolumeID := int64(volumeID)
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.InvalidArgument, "invalid source volume volume id (non-numeric): %d", volumeID)
-	}
 
 	// Look up the source volume
 	srcfsys, err := nfs.cs.Api.GetFileSystemByID(sourceVolumeID)
@@ -564,17 +559,12 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 }
 
 func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	zlog.Debug().Msgf("ControllerUnpublishVolume")
-	kubeNodeID := req.GetNodeId()
-	if kubeNodeID == "" {
-		return nil, status.Error(codes.InvalidArgument, "node ID is required")
-	}
-	voltype := req.GetVolumeId()
-	volproto := strings.Split(voltype, "$$")
-	fileID, _ := strconv.ParseInt(volproto[0], 10, 64)
-	err := nfs.cs.Api.DeleteExportRule(fileID, kubeNodeID)
+
+	zlog.Debug().Msgf("ControllerUnpublishVolume volproto %+v", nfs.cs.VolProto)
+
+	err := nfs.cs.Api.DeleteExportRule(nfs.cs.VolProto.VolumeIDInt, nfs.cs.VolProto.NodeID)
 	if err != nil {
-		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", fileID, err)
+		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", nfs.cs.VolProto.VolumeIDInt, err)
 		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
@@ -602,33 +592,21 @@ func (nfs *nfsstorage) ControllerGetCapabilities(ctx context.Context, req *csi.C
 }
 
 func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshot *csi.CreateSnapshotResponse, err error) {
-	zlog.Debug().Msgf("CreateSnapshot parameters %+v\n", req.Parameters)
+	zlog.Debug().Msgf("CreateSnapshot parameters %+v snapshotName %s source volume ID %s", req.Parameters, req.GetName(), req.GetSourceVolumeId())
 	var snapshotID string
 	snapshotName := req.GetName()
 	srcVolumeId := req.GetSourceVolumeId()
-	zlog.Debug().Msgf("called CreateSnapshot source volume Id '%s' snapshot name %s", srcVolumeId, snapshotName)
-	volproto, err := ValidateVolumeID(srcVolumeId)
-	if err != nil {
-		zlog.Error().Msgf("failed to validate storage type for volume %s, %v", srcVolumeId, err)
-		return
-	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
 
-	sourceFilesystemID := int64(volumeID)
+	sourceFilesystemID := int64(nfs.cs.VolProto.VolumeIDInt)
 	snapshotArray, err := nfs.cs.Api.GetSnapshotByName(snapshotName)
 	if err != nil {
-		zlog.Error().Msgf("error GetSnapshotByName %d, %v", volumeID, err)
+		zlog.Error().Msgf("error GetSnapshotByName %d, %v", nfs.cs.VolProto.VolumeIDInt, err)
 		return
 	}
 	if len(*snapshotArray) > 0 {
 		for _, snap := range *snapshotArray {
 			if snap.ParentId == sourceFilesystemID {
-				snapshotID = strconv.FormatInt(snap.SnapshotID, 10) + "$$" + volproto.StorageType
+				snapshotID = strconv.FormatInt(snap.SnapshotID, 10) + "$$" + nfs.cs.VolProto.StorageType
 				zlog.Debug().Msgf("snapshot: %s src fs id: %d exists, snapshot id: %d", snapshotName, snap.ParentId, snap.SnapshotID)
 				return &csi.CreateSnapshotResponse{
 					Snapshot: &csi.Snapshot{
@@ -681,7 +659,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		return
 	}
 
-	snapshotID = strconv.FormatInt(resp.SnapshotID, 10) + "$$" + volproto.StorageType
+	snapshotID = strconv.FormatInt(resp.SnapshotID, 10) + "$$" + nfs.cs.VolProto.StorageType
 	snapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: srcVolumeId,

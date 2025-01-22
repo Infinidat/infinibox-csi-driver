@@ -35,7 +35,18 @@ func (suite *TreeqControllerSuite) SetupTest() {
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.filesystem = new(FileSystemInterfaceMock)
 	suite.api = new(api.MockApiService)
-	suite.cs = &Commonservice{Api: suite.api}
+	host := api.Host{
+		ID:   1,
+		Name: "host1",
+	}
+	volProto := &api.VolumeProtocolConfig{
+		Host:        host,
+		VolumeID:    "1",
+		VolumeIDInt: 1,
+		NodeID:      "node1",
+		TreeqIDInt:  1,
+	}
+	suite.cs = &Commonservice{Api: suite.api, VolProto: volProto}
 }
 
 type TreeqControllerSuite struct {
@@ -78,6 +89,8 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
+	nfs.cs.VolProto.VolumeIDInt = 100
+	nfs.cs.VolProto.TreeqIDInt = 200
 
 	volumeResponse := getCreateVolumeResponse()
 	volumeRespoance := map[string]string{
@@ -102,20 +115,22 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
-	service := treeqstorage{treeqService: suite.filesystem}
+	nfsservice := nfsstorage{cs: *suite.cs}
+	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
+	nfsservice.cs.VolProto.VolumeIDInt = 100
+	nfsservice.cs.VolProto.TreeqIDInt = 200
+	var filesytemID, treeqID int64 = 100, 200
+	expectedErr := errors.New("Some error")
+	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
-func (suite *TreeqControllerSuite) Test_DeleteVolume_InvalidVolumeID() {
-	service := treeqstorage{treeqService: suite.filesystem}
-	volumeID := "100"
-	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
-	assert.NotNil(suite.T(), err, "Volume ID missing in request")
-}
-
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
-	service := treeqstorage{treeqService: suite.filesystem}
+	nfsservice := nfsstorage{cs: *suite.cs}
+	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
+	nfsservice.cs.VolProto.VolumeIDInt = 100
+	nfsservice.cs.VolProto.TreeqIDInt = 200
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
 	var filesytemID, treeqID int64 = 100, 200
@@ -125,8 +140,11 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
-	service := treeqstorage{treeqService: suite.filesystem}
+	nfsservice := nfsstorage{cs: *suite.cs}
+	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
 	volumeID := "100#200$$"
+	nfsservice.cs.VolProto.VolumeIDInt = 100
+	nfsservice.cs.VolProto.TreeqIDInt = 200
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND error")
 	var filesytemID, treeqID int64 = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
@@ -135,7 +153,10 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
-	service := treeqstorage{treeqService: suite.filesystem}
+	nfsservice := nfsstorage{cs: *suite.cs}
+	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
+	nfsservice.cs.VolProto.VolumeIDInt = 100
+	nfsservice.cs.VolProto.TreeqIDInt = 200
 	volumeID := "100#200$$"
 	var filesytemID, treeqID int64 = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(nil)

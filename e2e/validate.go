@@ -19,7 +19,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 
 	_, err = testConfig.ClientService.Iboxapi.GetPoolByName(poolToUse)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting pool by name %s %w", poolToUse, err)
 	}
 
 	// validate network space on the ibox
@@ -39,7 +39,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 		}
 		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpaceToUse)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting network space by name %s %w", networkSpaceToUse, err)
 		}
 	}
 
@@ -48,7 +48,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	if networkSpace2ToUse != "" {
 		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpace2ToUse)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting network space by name 2 %s %w", networkSpace2ToUse, err)
 		}
 	}
 
@@ -57,7 +57,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	if namespaceToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Namespaces().Get(context.TODO(), namespaceToUse, metav1.GetOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting namespace %s %w", namespaceToUse, err)
 		}
 	}
 
@@ -66,7 +66,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	if iboxCredentialToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(context.TODO(), iboxCredentialToUse, metav1.GetOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting secrets %s %w", namespaceToUse, err)
 		}
 	} else {
 		return fmt.Errorf("_E2E_IBOX_SECRET not specified and is required")
@@ -77,7 +77,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	if iboxCredential2ToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(context.TODO(), iboxCredential2ToUse, metav1.GetOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting secrets 2 %s %w", namespaceToUse, err)
 		}
 	}
 	return nil

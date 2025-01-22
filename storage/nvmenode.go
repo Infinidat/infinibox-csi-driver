@@ -240,7 +240,7 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 
 	// run resize2fs /dev/nvme0n2
 	command := fmt.Sprintf("resize2fs %s", multipathDevice)
-	out, err := execScsi.Command(command, "")
+	out, err := execCommand.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("%s - error %s \n", command, err.Error())
 		return nil, err
@@ -252,8 +252,8 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 
 func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mntPath string, err error) {
 
-	zlog.Debug().Msgf("AttachDisk, disk: %v fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s",
-		b.nvmeDisk, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
+	zlog.Debug().Msgf("AttachDisk, volName: %s mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", b.nvmeDisk.VolName, b.nvmeDisk.MpathDevice,
+		b.nvmeDisk.lun, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
 
 	if len(targets) == 0 {
 		return "", fmt.Errorf("error no targets")
@@ -368,7 +368,7 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mn
 			zlog.Debug().Msgf("mount point does not exist. creating mount point.")
 			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
 			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execScsi.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
+			_, err := execCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
 			if err != nil {
 				zlog.Error().Msgf("failed to mkdir '%s': %v", mountPoint, err)
 				return "", err
@@ -585,7 +585,7 @@ func getHostNQN() (string, error) {
 
 func getNVMENamespaces() (devices NVMEDevices, err error) {
 	cmd := "nvme list -o json"
-	rawOutput, err := execScsi.Command(cmd, "")
+	rawOutput, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("%s failed, err: %v, %s", cmd, err, rawOutput)
 		return devices, err
@@ -603,7 +603,7 @@ func getNVMENamespaces() (devices NVMEDevices, err error) {
 // nvme connect-all -t tcp -a 172.20.51.170
 func nvmeConnectAll(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme connect-all -t tcp -a %s", ipAddress)
-	rawOutput, err := execScsi.Command(cmd, "")
+	rawOutput, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("%s failed, ip: %s err: %v, %s", cmd, ipAddress, err, rawOutput)
 		return err
@@ -616,7 +616,7 @@ func nvmeConnectAll(ipAddress string) (err error) {
 // nvme discover -t tcp -a 172.20.51.170 -s 8009
 func nvmeDiscover(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVME_DISCOVERY_PORT)
-	rawOutput, err := execScsi.Command(cmd, "")
+	rawOutput, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("%s failed, err: %v, %s", cmd, err, rawOutput)
 		return err
@@ -628,7 +628,7 @@ func nvmeDiscover(ipAddress string) (err error) {
 
 func disconnectNVMEConnections() error {
 	cmd := "nvme disconnect-all"
-	rawOutput, err := execScsi.Command(cmd, "")
+	rawOutput, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("%s failed, err: %v, %s", cmd, err, rawOutput)
 		return err

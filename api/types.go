@@ -320,8 +320,12 @@ type FileSystemSnapshotResponce struct {
 
 type VolumeProtocolConfig struct {
 	VolumeID      string
+	VolumeIDInt   int64
 	StorageType   string
 	ChildVolumeID string
+	Host          Host
+	NodeID        string
+	TreeqIDInt    int64
 }
 
 // VolumeSnapshot volume snapshot request parameter

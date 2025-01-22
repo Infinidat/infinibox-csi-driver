@@ -282,36 +282,6 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_GetAllLunByHost_SinglePage() {
-
-	expectedResponse := client.ApiResponse{Result: buildLunQueryResults(100), MetaData: getLunMetaData100()}
-
-	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResponse, nil)
-
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	testResults, _ := service.GetAllLunByHost(1)
-
-	assert.Equal(suite.T(), 100, len(testResults), "Size of results should be 100")
-
-}
-
-func (suite *ApiTestSuite) Test_GetAllLunByHost_TwoPage() {
-
-	expectedResponsePg1 := client.ApiResponse{Result: buildLunQueryResults(1000), MetaData: getLunMetaData1010Pg1()}
-	expectedResponsePg2 := client.ApiResponse{Result: buildLunQueryResults(10), MetaData: getLunMetaData1010Pg2()}
-
-	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResponsePg1, nil).Once()
-	suite.clientMock.On("GetWithQueryString", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResponsePg2, nil).Once()
-
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	testResults, _ := service.GetAllLunByHost(1)
-
-	assert.Equal(suite.T(), 1010, len(testResults), "Size of results should be 1010")
-
-}
-
 func (suite *ApiTestSuite) Test_UpdateFilesystem_Fail() {
 	// Test volume snapshot will not be created
 	expectedError := errors.New("Missing parameters")

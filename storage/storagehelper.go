@@ -336,11 +336,13 @@ func copyRequestParameters(parameters, out map[string]string) {
 	}
 }
 
-func ValidateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err error) {
-	if str == "" {
+func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolConfig, err error) {
+	zlog.Debug().Msgf("ValidateVolumeID volumeIDString %s", volumeIDString)
+
+	if volumeIDString == "" {
 		return volprotoconf, errors.New("volume Id string is empty")
 	}
-	volproto := strings.Split(str, "$$")
+	volproto := strings.Split(volumeIDString, "$$")
 	if len(volproto) != 2 {
 		return volprotoconf, errors.New("volume Id and other details not found")
 	}
@@ -348,12 +350,39 @@ func ValidateVolumeID(str string) (volprotoconf api.VolumeProtocolConfig, err er
 	if volproto[0] == "" {
 		return volprotoconf, errors.New("volume Id in volproto is empty")
 	}
+
 	volprotoconf.VolumeID = volproto[0]
 
 	if volproto[1] == "" {
 		return volprotoconf, errors.New("volume storagetype in volproto is empty")
 	}
 	volprotoconf.StorageType = volproto[1]
+
+	if volprotoconf.StorageType == common.PROTOCOL_TREEQ {
+		// example: volproto[0] == 2942184#20000
+		tmp := strings.Split(volproto[0], "#")
+		if len(tmp) != 2 {
+			return volprotoconf, fmt.Errorf("treeq volume not correctly formatted %s", volproto[0])
+		}
+		volprotoconf.VolumeID = tmp[0]
+		zlog.Debug().Msgf("ValidateVolumeID treeq VolumeID %s treeqID %s", volprotoconf.VolumeID, tmp[1])
+
+		tmpInt64, err := strconv.ParseInt(tmp[1], 10, 64)
+		if err != nil {
+			return volprotoconf, fmt.Errorf("volume treeq id parse error %s on %s", err.Error(), tmp[1])
+		}
+
+		volprotoconf.TreeqIDInt = tmpInt64
+	}
+
+	var tmpInt int
+	tmpInt, err = strconv.Atoi(volprotoconf.VolumeID)
+	if err != nil {
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volprotoconf.VolumeID, err)
+		zlog.Err(e)
+		return volprotoconf, errors.New("volume id in volproto is not an integer")
+	}
+	volprotoconf.VolumeIDInt = int64(tmpInt)
 	return volprotoconf, nil
 }
 
@@ -697,7 +726,7 @@ func (n Service) ValidateNFSPortalIPAddress(ip string) (err error) {
 	return nil
 }
 
-func determineHostName(nodeID string) (hostName string, err error) {
+func DetermineHostName(nodeID string) (hostName string, err error) {
 	if nodeID == "" {
 		return "", status.Error(codes.InvalidArgument, "node ID empty")
 	}
@@ -756,7 +785,7 @@ func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 	for _, host := range hosts {
 		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
 		zlog.Debug().Msgf("Rescanning host path at '%s' for disk ID '%s' and lun '%s'", scsiHostPath, diskid, lun)
-		_, err := execScsi.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
+		_, err := execCommand.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
 			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, diskid, lun, err)
 			return "", err
@@ -899,4 +928,35 @@ func determineSSDValue(ssdStorageClassParameter string, poolName string, a iboxa
 	}
 	zlog.Debug().Msgf("setting ssd value %t from pool", pool.SsdEnabled)
 	return pool.SsdEnabled, nil
+}
+
+func hostCleanup(iboxClient iboxapi.Client, hostID int, hostName string) error {
+	meta, err := iboxClient.GetMetadata(hostID)
+	if err != nil {
+		e := fmt.Errorf("hostCleanup: failed to get metadata for host ID %d. Error: %v", hostID, err)
+		zlog.Err(e)
+		return status.Error(codes.Internal, e.Error())
+	}
+	var createdByCSI bool
+	for i := 0; i < len(meta); i++ {
+		if meta[i].Key == common.CSI_CREATED_HOST {
+			createdByCSI = true
+		}
+	}
+
+	if createdByCSI {
+		response, err := iboxClient.DeleteHost(hostID)
+		if err != nil {
+			zlog.Error().Msgf("hostCleanup: failed to delete host with error %v", err)
+			return status.Error(codes.Internal, err.Error())
+		}
+		if strings.Contains(response.Error.Code, "HOST_NOT_FOUND") {
+			zlog.Debug().Msgf("hostCleanup: will not delete, host not found %d %+v", hostID, response.Error)
+		} else {
+			zlog.Debug().Msgf("hostCleanup: deleted host on ibox because it was created by CSI host %d %s", hostID, hostName)
+		}
+	} else {
+		zlog.Debug().Msgf("hostCleanup: not deleting host because it was not created by CSI host %d", hostID)
+	}
+	return nil
 }

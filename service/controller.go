@@ -145,7 +145,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	comnserv, err := storage.BuildCommonService(configparams, secretsToUse)
+	comnserv, err := storage.BuildCommonService(configparams, secretsToUse, nil)
 	if err != nil {
 		zlog.Error().Msgf("CreateVolume error: %v", err)
 		err = status.Errorf(codes.Internal, "error getting api,  volume '%s' - %s", volName, err.Error())
@@ -308,7 +308,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		"nodeid": s.Driver.nodeID,
 	}
 
-	comnserv, err := storage.BuildCommonService(config, secretsToUse)
+	comnserv, err := storage.BuildCommonService(config, secretsToUse, &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %s: %v", volumeId, err)
 		return
@@ -379,7 +379,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	config := make(map[string]string)
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %v", err)
 		return
@@ -403,8 +403,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 // ControllerUnpublishVolume method
 func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
-	zlog.Info().Msgf("ControllerUnpublishVolume Start - ID: %s", req.GetVolumeId())
-	zlog.Debug().Msgf("ControllerUnPublishVolume ID: %s, nodeID: %s", req.GetVolumeId(), req.GetNodeId())
+	zlog.Info().Msgf("ControllerUnpublishVolume Start - ID: %s, nodeID: %s", req.GetVolumeId(), req.GetNodeId())
 
 	if req.GetVolumeId() == "" {
 		err = fmt.Errorf("ControllerUnpublishVolume request volumeId parameter was empty")
@@ -430,10 +429,29 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	config := make(map[string]string)
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %v", err)
 		return
+	}
+
+	hostName, err := storage.DetermineHostName(req.GetNodeId())
+	if err != nil {
+		zlog.Error().Msgf("failed to get hostname %v", err)
+		return nil, err
+	}
+
+	volproto.NodeID = req.GetNodeId()
+
+	if volproto.StorageType != common.PROTOCOL_NFS && volproto.StorageType != common.PROTOCOL_TREEQ {
+		volproto.Host, err = comnserv.Api.GetHostByName(hostName)
+		if err != nil {
+			if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+				return &csi.ControllerUnpublishVolumeResponse{}, nil
+			}
+			zlog.Error().Msgf("failed to get host details with error %v", err)
+			return nil, err
+		}
 	}
 
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
@@ -441,6 +459,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 		err = errors.New("ControllerUnpublishVolume failed to initialise storage controller: " + volproto.StorageType)
 		return
 	}
+
 	unpublishVolResp, err = storageController.ControllerUnpublishVolume(ctx, req)
 	if err != nil {
 		zlog.Error().Msgf("ControllerUnpublishVolume %v", err)
@@ -530,7 +549,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	}
 
 	config := make(map[string]string)
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %v", err)
 		return
@@ -818,7 +837,7 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		"nodeid": s.Driver.nodeID,
 	}
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %v", err)
 		return
@@ -906,7 +925,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %v", err)
 		return
@@ -947,16 +966,10 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	if err != nil {
 		return
 	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 
-	comnserv, err := storage.BuildCommonService(configparams, req.GetSecrets())
+	comnserv, err := storage.BuildCommonService(configparams, req.GetSecrets(), &volproto)
 	if err != nil {
 		zlog.Error().Msgf("failed to get ibox api %v", err)
 		return
@@ -967,7 +980,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		return
 	}
 	if storageController != nil {
-		req.VolumeId = strconv.Itoa(volumeID)
+		req.VolumeId = volproto.VolumeID
 		expandVolResp, err = storageController.ControllerExpandVolume(ctx, req)
 		return expandVolResp, err
 	}

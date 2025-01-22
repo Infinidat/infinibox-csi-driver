@@ -28,7 +28,7 @@ const (
 	follower string = "unlock:"
 )
 
-type ExecScsi struct {
+type Exec struct {
 	mu sync.Mutex
 }
 
@@ -39,7 +39,7 @@ type ExecScsi struct {
 //	cmd - Command to run with pipefail set.
 //	args - arguments for the command, can be an empty string
 //	isToLogOutput - Optional boolean array. Defaults to allow logging of output. Set to false to suppress logging. Output is always returned.
-func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out string, err error) {
+func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (out string, err error) {
 	s.mu.Lock()
 	defer func() {
 		out = strings.TrimSpace(out)
@@ -81,12 +81,12 @@ func (s *ExecScsi) Command(cmd string, args string, isToLogOutput ...bool) (out 
 				}
 				err = status.Error(errCode, fmt.Sprintf("iscsiadm error: %d, %s", exitCode, cmdErr))
 			} else {
-				err = status.Error(codes.Unknown, fmt.Sprintf("error: %s", cmdErr))
+				err = status.Error(codes.Unknown, fmt.Sprintf("error: %s result: %s", cmdErr, string(result)))
 			}
 		} else {
-			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s", cmd, cmdErr))
+			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s, result: %s", cmd, cmdErr, string(result)))
 		}
-		zlog.Error().Msgf("'%s' failed: %s", pipefailCmd, err)
+		zlog.Error().Msgf("'%s' failed: %s result: %s", pipefailCmd, err, string(result))
 		return "", err
 	}
 

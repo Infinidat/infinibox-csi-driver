@@ -30,8 +30,30 @@ type MockApiClient struct {
 
 // GetAllPools mock
 func (m *MockApiService) GetPoolByName(name string) (*PoolResult, error) {
-	args := m.Called()
+	args := m.Called(name)
 	resp, _ := args.Get(0).(*PoolResult)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+// DeleteHost mock
+func (m *MockApiService) DeleteHost(hostID int) (*DeleteHostResponse, error) {
+	args := m.Called(hostID)
+	resp, _ := args.Get(0).(*DeleteHostResponse)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetMetadata(objectID int) ([]GetMetadataResult, error) {
+	args := m.Called(objectID)
+	resp, _ := args.Get(0).([]GetMetadataResult)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetAllLunByHost(hostID int) ([]Luns, error) {
+	args := m.Called(hostID)
+	resp, _ := args.Get(0).([]Luns)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }

@@ -69,6 +69,7 @@ type Commonservice struct {
 	storagePoolIdName map[int64]string
 	driverversion     string
 	AccessModesHelper helper.AccessModesHelper
+	VolProto          *api.VolumeProtocolConfig
 }
 
 type nfsstorage struct {
@@ -167,7 +168,7 @@ func NewStorageNode(comnserv Commonservice, storageProtocol string, configparams
 	}
 }
 
-func BuildCommonService(config map[string]string, secretMap map[string]string) (Commonservice, error) {
+func BuildCommonService(config map[string]string, secretMap map[string]string, volProto *api.VolumeProtocolConfig) (Commonservice, error) {
 	commonserv := Commonservice{}
 	if config != nil {
 		if secretMap == nil || len(secretMap) < 3 {
@@ -211,7 +212,8 @@ func BuildCommonService(config map[string]string, secretMap map[string]string) (
 			Api: &api.ClientService{
 				SecretsMap: secretMap,
 			},
-			IboxApi: iboxapiClient,
+			IboxApi:  iboxapiClient,
+			VolProto: volProto,
 		}
 		err = commonserv.verifyApiClient()
 		if err != nil {
@@ -478,7 +480,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	for i := 1; i <= 5; i++ {
 		// Get state of device
 		zlog.Debug().Msgf("Checking device state of %s", statePath)
-		output, err = execScsi.Command("cat", statePath)
+		output, err = execCommand.Command("cat", statePath)
 		if err != nil {
 			zlog.Error().Msgf("Failed: Cannot check state of %s", statePath)
 			return
@@ -498,7 +500,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	}
 
 	// Echo 1 to delete device
-	output, err = execScsi.Command("echo", fmt.Sprintf("1 > %s", deletePath))
+	output, err = execCommand.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if err != nil {
 		zlog.Error().Msgf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
 		return
@@ -618,14 +620,14 @@ func waitForOneDeviceState(hostId string, channel string, target string, lun str
 	zlog.Debug().Msgf("Checking device state within %s", hostPath)
 	for i := 1; i <= 5; i++ {
 		// Get state of device
-		hostOutput, err := execScsi.Command("cat", hostPath)
+		hostOutput, err := execCommand.Command("cat", hostPath)
 		if err != nil {
 			zlog.Warn().Msgf("Failed (%d): Cannot check state of device file %s: %s", i, hostPath, err)
 		}
 		deviceState := strings.TrimSpace(string(hostOutput))
 
 		// Get wwid of device
-		wwidOutput, err := execScsi.Command("cat", wwidPath)
+		wwidOutput, err := execCommand.Command("cat", wwidPath)
 		if err != nil {
 			zlog.Warn().Msgf("Failed (%d): Cannot get wwid of wwid file %s: %s", i, wwidPath, err)
 		} else {
@@ -708,7 +710,7 @@ func findHosts(protocol string) ([]string, error) {
 	// TODO - Must use portals if supporting more than one target IQN.
 	// Find hosts
 	if protocol == common.PROTOCOL_ISCSI {
-		hostIds, err := execScsi.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
+		hostIds, err := execCommand.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
 		hosts := strings.Fields(hostIds)
 		if err != nil {
 			zlog.Error().Msgf("Finding hosts failed: %s", err)

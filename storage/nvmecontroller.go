@@ -314,7 +314,7 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	hostName, err := determineHostName(req.GetNodeId())
+	hostName, err := DetermineHostName(req.GetNodeId())
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +338,7 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		ports = ports[1:]
 	}
 
-	lunList, err := nvme.cs.Api.GetAllLunByHost(host.ID)
+	lunList, err := nvme.cs.IboxApi.GetAllLunByHost(host.ID)
 	if err != nil {
 		e := fmt.Errorf("failed to GetAllLunByHost() for host: %s, error: %v", hostName, err)
 		zlog.Err(e)
@@ -404,41 +404,14 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 }
 
 func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	var msg string
-	zlog.Debug().Msgf("ControllerUnpublishVolume node ID: %s volume ID: %s", req.GetNodeId(), req.GetVolumeId())
-	volproto, err := ValidateVolumeID(req.GetVolumeId())
-	if err != nil {
-		msg = fmt.Sprintf("failed to validate volume with ID %s: %v", req.GetVolumeId(), err)
-		zlog.Error().Msg(msg)
-		return nil, status.Error(codes.Internal, msg)
-	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-
-	hostName, err := determineHostName(req.GetNodeId())
-	if err != nil {
-		return nil, err
-	}
-
-	host, err := nvme.cs.Api.GetHostByName(hostName)
-	if err != nil {
-		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			return &csi.ControllerUnpublishVolumeResponse{}, nil
-		}
-		msg = fmt.Sprintf("failed to get host: %s, err: %v", hostName, err)
-		zlog.Error().Msg(msg)
-		return nil, status.Error(codes.NotFound, msg)
-	}
+	zlog.Debug().Msgf("ControllerUnpublishVolume volproto %+v node ID: %s volume ID: %s", nvme.cs.VolProto, req.GetNodeId(), req.GetVolumeId())
+	host := nvme.cs.VolProto.Host
 	zlog.Debug().Msgf("unmapping host's luns: host id: %d, name: %s lun count %d", host.ID, host.Name, len(host.Luns))
 	if len(host.Luns) > 0 {
-		zlog.Debug().Msgf("unmap volume %d from host %d", volumeID, host.ID)
-		err = nvme.cs.unmapVolumeFromHost(host.ID, volumeID)
+		zlog.Debug().Msgf("unmap volume %d from host %d", nvme.cs.VolProto.VolumeIDInt, host.ID)
+		err = nvme.cs.unmapVolumeFromHost(host.ID, int(nvme.cs.VolProto.VolumeIDInt))
 		if err != nil {
-			e := fmt.Errorf("failed to unmap volume with ID %d from host with ID %d. Error: %v", volumeID, host.ID, err)
+			e := fmt.Errorf("failed to unmap volume with ID %d from host with ID %d. Error: %v", nvme.cs.VolProto.VolumeIDInt, host.ID, err)
 			zlog.Err(e)
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -449,34 +422,16 @@ func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 		time.Sleep(2 * time.Second)
 	}
 
-	luns, err := nvme.cs.Api.GetAllLunByHost(host.ID)
+	luns, err := nvme.cs.IboxApi.GetAllLunByHost(host.ID)
 	if err != nil {
 		zlog.Error().Msgf("failed to get LUNs for host with ID %d. Error: %v", host.ID, err)
 	}
 	if len(luns) == 0 {
-		meta, err := nvme.cs.Api.GetMetadata(host.ID)
+		err = hostCleanup(nvme.cs.IboxApi, host.ID, host.Name)
 		if err != nil {
-			e := fmt.Errorf("failed to get metadata for host ID %d. Error: %v", host.ID, err)
+			e := fmt.Errorf("ControllerUnpublishVolume: failed to perform hostCleanup for host ID %d. Error: %s", host.ID, err.Error())
 			zlog.Err(e)
 			return nil, status.Error(codes.Internal, e.Error())
-		}
-		var createdByCSI bool
-		for i := 0; i < len(meta); i++ {
-			if meta[i].Key == common.CSI_CREATED_HOST {
-				createdByCSI = true
-			}
-		}
-
-		if createdByCSI {
-			err = nvme.cs.Api.DeleteHost(host.ID)
-			if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-				e := fmt.Errorf("failed to delete host with ID %d. Error: %v", host.ID, err)
-				zlog.Err(e)
-				return nil, status.Error(codes.Internal, e.Error())
-			}
-			zlog.Debug().Msgf("ControllerUnpublishVolume deleted host on ibox because it was created by CSI host %d %s", host.ID, host.Name)
-		} else {
-			zlog.Debug().Msgf("ControllerUnpublishVolume not deleting host because it was not created by CSI host %d", host.ID)
 		}
 	}
 
@@ -509,24 +464,12 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 	var snapshotID string
 	snapshotName := req.GetName()
 	zlog.Debug().Msgf("CreateSnapshot called to create snapshot named %s from source volume ID %s", snapshotName, req.GetSourceVolumeId())
-	volproto, err := ValidateVolumeID(req.GetSourceVolumeId())
-	if err != nil {
-		zlog.Error().Msgf("Failed to validate storage type %v", err)
-		return nil, err
-	}
-
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
 
 	volumeSnapshot, err := nvme.cs.Api.GetVolumeByName(snapshotName)
 	if err != nil {
 		zlog.Debug().Msgf("Snapshot with name %s not found", snapshotName)
-	} else if volumeSnapshot.ParentId == volumeID {
-		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + volproto.StorageType
+	} else if volumeSnapshot.ParentId == int(nvme.cs.VolProto.VolumeIDInt) {
+		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + nvme.cs.VolProto.StorageType
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
 				SizeBytes:      volumeSnapshot.Size,
@@ -538,13 +481,13 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		}, nil
 	} else {
 		e := fmt.Errorf("snapshot named %s with ID %d exists. Different source volume with ID %d requested",
-			snapshotName, volumeSnapshot.ParentId, volumeID)
+			snapshotName, volumeSnapshot.ParentId, nvme.cs.VolProto.VolumeIDInt)
 		zlog.Err(e)
 		return nil, status.Error(codes.AlreadyExists, e.Error())
 	}
 
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       volumeID,
+		ParentID:       int(nvme.cs.VolProto.VolumeIDInt),
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
 	}
@@ -571,7 +514,7 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		return nil, err
 	}
 
-	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + volproto.StorageType
+	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + nvme.cs.VolProto.StorageType
 	csiSnapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: req.GetSourceVolumeId(),

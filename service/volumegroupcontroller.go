@@ -38,7 +38,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 
 	zlog.Debug().Msgf("parameters are %v", req.GetParameters())
 
-	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets)
+	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
@@ -189,7 +189,7 @@ func (s *VolumeGroupServer) DeleteVolumeGroupSnapshot(ctx context.Context, req *
 		zlog.Debug().Msgf("Snap Group %s has snapshot ID %s", req.GroupSnapshotId, s)
 	}
 
-	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets)
+	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
@@ -218,7 +218,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 	zlog.Debug().Msgf("req.SnapshotIds=%v", req.SnapshotIds)
 	//zlog.Debug().Msgf("req.Secrets=%v", req.Secrets)
 
-	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets)
+	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}

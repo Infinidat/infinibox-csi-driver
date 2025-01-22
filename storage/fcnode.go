@@ -59,7 +59,7 @@ type FCMounter struct {
 }
 
 // Global resouce contains a sync.Mutex. Used to serialize FC resource accesses.
-var execFc helper.ExecScsi
+var execFc helper.Exec
 
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
@@ -274,7 +274,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	commandWildcards := "%m_%d_"
 	command := fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("command is [%s]", command)
-	out, err := execScsi.Command(command, "")
+	out, err := execCommand.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
 		return nil, err
@@ -303,7 +303,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 			zlog.Debug().Msgf("device is [%s]\n", blockDevice)
 			rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
-			out, err := execScsi.Command(command, "")
+			out, err := execCommand.Command(command, "")
 			if err != nil {
 				zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
 				return nil, err
@@ -321,7 +321,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, fmt.Errorf("error getting mpathPart from %+v", mpathPart)
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
-	out, err = execScsi.Command(command, "")
+	out, err = execCommand.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("error multipathd resize map multipath devices %s \n", err.Error())
 		return nil, err
@@ -331,7 +331,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
 	time.Sleep(time.Second * 5)
 	command = fmt.Sprintf("resize2fs %s", multipathDevice)
-	out, err = execScsi.Command(command, "")
+	out, err = execCommand.Command(command, "")
 	if err != nil {
 		zlog.Error().Msgf("error resize2fs %s \n", err.Error())
 		return nil, err

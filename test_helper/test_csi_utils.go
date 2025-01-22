@@ -1,8 +1,8 @@
 package test_helper
 
 import (
-	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )
@@ -15,8 +15,8 @@ func GetSecret() map[string]string {
 	}
 }
 
-func GetHostMetadata() (results []api.MetadataResult) {
-	metadata := api.MetadataResult{
+func GetHostMetadata() (results []iboxapi.GetMetadataResult) {
+	metadata := iboxapi.GetMetadataResult{
 		Key:   common.CSI_CREATED_HOST,
 		Value: "true",
 	}
