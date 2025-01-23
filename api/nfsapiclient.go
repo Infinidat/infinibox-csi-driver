@@ -25,9 +25,9 @@ import (
 )
 
 // DeleteExportPath :
-func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error) {
+func (c *ClientService) DeleteExportPath(exportID int) (*ExportResponse, error) {
 	zlog.Trace().Msgf("Deleting export path with ID %d", exportID)
-	uri := "api/rest/exports/" + strconv.FormatInt(exportID, 10) + "?approved=true"
+	uri := "api/rest/exports/" + strconv.Itoa(exportID) + "?approved=true"
 	eResp := ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &eResp)
 	if err != nil {
@@ -44,9 +44,9 @@ func (c *ClientService) DeleteExportPath(exportID int64) (*ExportResponse, error
 }
 
 // DeleteFileSystem :
-func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error) {
+func (c *ClientService) DeleteFileSystem(fileSystemID int) (*FileSystem, error) {
 	zlog.Trace().Msgf("Delete filesystem with ID %d", fileSystemID)
-	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "?approved=true"
+	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "?approved=true"
 	fileSystem := FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &fileSystem)
 	if err != nil {
@@ -62,9 +62,9 @@ func (c *ClientService) DeleteFileSystem(fileSystemID int64) (*FileSystem, error
 }
 
 // AttachMetadataToObject :
-func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error) {
+func (c *ClientService) AttachMetadataToObject(objectID int, body map[string]interface{}) (*[]Metadata, error) {
 	zlog.Trace().Msgf("Attach metadata: %v to object id: %d", body, objectID)
-	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10)
+	uri := "api/rest/metadata/" + strconv.Itoa(objectID)
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &metadata)
 	if err != nil {
@@ -80,9 +80,9 @@ func (c *ClientService) AttachMetadataToObject(objectID int64, body map[string]i
 }
 
 // DetachMetadataFromObject :
-func (c *ClientService) DetachMetadataFromObject(objectID int64) (*[]Metadata, error) {
+func (c *ClientService) DetachMetadataFromObject(objectID int) (*[]Metadata, error) {
 	zlog.Trace().Msgf("Detach metadata from object with ID %d", objectID)
-	uri := "api/rest/metadata/" + strconv.FormatInt(objectID, 10) + "?approved=true"
+	uri := "api/rest/metadata/" + strconv.Itoa(objectID) + "?approved=true"
 	metadata := []Metadata{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &metadata)
 	if err != nil {
@@ -133,9 +133,9 @@ func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse,
 }
 
 // GetExportByFileSystem :
-func (c *ClientService) GetExportByFileSystem(fileSystemID int64) (*[]ExportResponse, error) {
+func (c *ClientService) GetExportByFileSystem(fileSystemID int) (*[]ExportResponse, error) {
 	zlog.Trace().Msgf("Get export paths of filesystem with ID %d", fileSystemID)
-	uri := "api/rest/exports?filesystem_id=" + strconv.FormatInt(fileSystemID, 10)
+	uri := "api/rest/exports?filesystem_id=" + strconv.Itoa(fileSystemID)
 	eResp := []ExportResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
@@ -249,7 +249,7 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 }
 
 // DeleteExportRule method
-func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) error {
+func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) error {
 	zlog.Trace().Msgf("Delete export rule from filesystem with file system ID %d", fileSystemID)
 	exportArray, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
@@ -257,7 +257,7 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 		return err
 	}
 	for _, export := range *exportArray {
-		uri := "api/rest/exports/" + strconv.FormatInt(export.ID, 10)
+		uri := "api/rest/exports/" + strconv.Itoa(export.ID)
 		eResp := ExportResponse{}
 		_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 		if err != nil {
@@ -280,12 +280,12 @@ func (c *ClientService) DeleteExportRule(fileSystemID int64, ipAddress string) e
 }
 
 // DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
-func (c *ClientService) DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
+func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
 	zlog.Trace().Msgf("Delete node from export with export ID %d", exportID)
 	flag := false
 	var index int
 	exportPathRef := ExportPathRef{}
-	uri := "api/rest/exports/" + strconv.FormatInt(exportID, 10)
+	uri := "api/rest/exports/" + strconv.Itoa(exportID)
 	eResp := ExportResponse{}
 	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
@@ -363,7 +363,7 @@ func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotPa
 }
 
 // FileSystemHasChild method return true is the filesystemID has child else false
-func (c *ClientService) FileSystemHasChild(fileSystemID int64) bool {
+func (c *ClientService) FileSystemHasChild(fileSystemID int) bool {
 	hasChild := false
 	voluri := "/api/rest/filesystems/"
 	filesystem := []FileSystem{}
@@ -390,9 +390,9 @@ const (
 )
 
 // GetMetadataStatus :
-func (c *ClientService) GetMetadataStatus(fileSystemID int64) bool {
+func (c *ClientService) GetMetadataStatus(fileSystemID int) bool {
 	zlog.Trace().Msgf("Get metadata status of IBox object with ID %d", fileSystemID)
-	path := "/api/rest/metadata/" + strconv.FormatInt(fileSystemID, 10) + "/" + TOBEDELETED
+	path := "/api/rest/metadata/" + strconv.Itoa(fileSystemID) + "/" + TOBEDELETED
 	metadata := Metadata{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
 	if err != nil {
@@ -442,9 +442,9 @@ func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem,
 }
 
 // GetFileSystemByID :
-func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, error) {
+func (c *ClientService) GetFileSystemByID(fileSystemID int) (*FileSystem, error) {
 	zlog.Trace().Msgf("Get filesystem with ID %d", fileSystemID)
-	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
+	uri := "/api/rest/filesystems/" + strconv.Itoa(fileSystemID)
 	eResp := FileSystem{}
 	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
@@ -456,7 +456,7 @@ func (c *ClientService) GetFileSystemByID(fileSystemID int64) (*FileSystem, erro
 }
 
 // GetParentID method return the
-func (c *ClientService) GetParentID(fileSystemID int64) int64 {
+func (c *ClientService) GetParentID(fileSystemID int) int {
 	zlog.Trace().Msgf("Get parent of file system with ID %d", fileSystemID)
 	fileSystem, err := c.GetFileSystemByID(fileSystemID)
 	if err != nil {
@@ -468,7 +468,7 @@ func (c *ClientService) GetParentID(fileSystemID int64) int64 {
 }
 
 // DeleteParentFileSystem method delete the ascenders of fileystem
-func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) { // delete fileystem's parent ID
+func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { // delete fileystem's parent ID
 	// first check .. hasChild ...
 	hasChild := c.FileSystemHasChild(fileSystemID)
 	if !hasChild && c.GetMetadataStatus(fileSystemID) { // If No child and to_be_delete_status =true in metadata then
@@ -490,7 +490,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int64) (err error) {
 }
 
 // DeleteFileSystemComplete method delete the fileystem
-func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error) {
+func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	// 1. Delete export path
 	exportResp, err := c.GetExportByFileSystem(fileSystemID)
 	if err != nil {
@@ -539,9 +539,9 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int64) (err error)
 }
 
 // UpdateFilesystem : update file system
-func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error) {
+func (c *ClientService) UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error) {
 	zlog.Trace().Msgf("Update filesystem with ID %d", fileSystemID)
-	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10)
+	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID)
 	fileSystemResp := FileSystem{}
 
 	resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
@@ -559,9 +559,9 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int64, fileSystem FileSyst
 }
 
 // RestoreFileSystemFromSnapShot :
-func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error) {
+func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int) (bool, error) {
 	zlog.Trace().Msgf("Restore filesystem from snapshot with snapshot ID %d", srcSnapShotID)
-	uri := "api/rest/filesystems/" + strconv.FormatInt(parentID, 10) + "/restore?approved=true"
+	uri := "api/rest/filesystems/" + strconv.Itoa(parentID) + "/restore?approved=true"
 	var result bool
 	body := map[string]interface{}{"source_id": srcSnapShotID}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &result)
@@ -601,9 +601,9 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 }
 
 // GetFileSystemCountByPoolID :
-func (c *ClientService) GetFileSystemCountByPoolID(poolID int64) (fileSysCnt int, err error) {
+func (c *ClientService) GetFileSystemCountByPoolID(poolID int) (fileSysCnt int, err error) {
 	zlog.Trace().Msgf("Get FileSystem Count")
-	uri := "api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10)
+	uri := "api/rest/filesystems?pool_id=" + strconv.Itoa(poolID)
 	filesystems := []FileSystem{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
 	if err != nil {

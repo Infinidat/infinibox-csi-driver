@@ -48,8 +48,8 @@ type infinidatVolume struct {
 	IpAddress     string     `json:"ipAddress"`
 	VolAccessType accessType `json:"volAccessType"`
 	Ephemeral     bool       `json:"ephemeral"`
-	ExportID      int64      `json:"exportID"`
-	FileSystemID  int64      `json:"fileSystemID"`
+	ExportID      int        `json:"exportID"`
+	FileSystemID  int        `json:"fileSystemID"`
 	ExportBlock   string     `json:"exportBlock"`
 }
 
@@ -220,13 +220,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 		zlog.Error().Msgf("failed to validate volume id: %s, err: %v", srcVolumeID, err)
 		return nil, status.Errorf(codes.NotFound, "invalid source volume id format: %s", srcVolumeID)
 	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-	sourceVolumeID := int64(volumeID)
+	sourceVolumeID := volproto.VolumeID
 
 	// Look up the source volume
 	srcfsys, err := nfs.cs.Api.GetFileSystemByID(sourceVolumeID)
@@ -247,7 +241,7 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 		zlog.Err(err)
 		return nil, status.Errorf(codes.InvalidArgument, "error GetPoolByName: %s", storagePool)
 	}
-	if int64(pool.ID) != srcfsys.PoolID {
+	if pool.ID != srcfsys.PoolID {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"source storagepool id differs from requested: %s", storagePool)
 	}
@@ -427,14 +421,9 @@ func (nfs *nfsstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.Crea
 }
 
 func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	volumeID := req.GetVolumeId()
-	volID, err := strconv.ParseInt(volumeID, 10, 64)
-	if err != nil {
-		zlog.Error().Msgf("invalid Volume ID %v", err)
-		return nil, err
-	}
+	volproto := nfs.cs.VolProto
 
-	nfs.uniqueID = volID
+	nfs.uniqueID = volproto.VolumeID
 	nfsDeleteErr := nfs.DeleteNFSVolume()
 	if nfsDeleteErr != nil {
 		zlog.Err(nfsDeleteErr)
@@ -442,10 +431,10 @@ func (nfs *nfsstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 			zlog.Error().Msgf("file system already delete from infinibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		zlog.Error().Msgf("failed to delete NFS Volume ID %s, %v", volumeID, nfsDeleteErr)
+		zlog.Error().Msgf("failed to delete NFS Volume ID %s, %v", req.GetVolumeId(), nfsDeleteErr)
 		return nil, nfsDeleteErr
 	}
-	zlog.Debug().Msgf("volume %s successfully deleted", volumeID)
+	zlog.Debug().Msgf("volume %s successfully deleted", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -562,9 +551,9 @@ func (nfs *nfsstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.C
 
 	zlog.Debug().Msgf("ControllerUnpublishVolume volproto %+v", nfs.cs.VolProto)
 
-	err := nfs.cs.Api.DeleteExportRule(nfs.cs.VolProto.VolumeIDInt, nfs.cs.VolProto.NodeID)
+	err := nfs.cs.Api.DeleteExportRule(nfs.cs.VolProto.VolumeID, nfs.cs.VolProto.NodeID)
 	if err != nil {
-		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", nfs.cs.VolProto.VolumeIDInt, err)
+		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", nfs.cs.VolProto.VolumeID, err)
 		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
@@ -597,16 +586,16 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	snapshotName := req.GetName()
 	srcVolumeId := req.GetSourceVolumeId()
 
-	sourceFilesystemID := int64(nfs.cs.VolProto.VolumeIDInt)
+	sourceFilesystemID := nfs.cs.VolProto.VolumeID
 	snapshotArray, err := nfs.cs.Api.GetSnapshotByName(snapshotName)
 	if err != nil {
-		zlog.Error().Msgf("error GetSnapshotByName %d, %v", nfs.cs.VolProto.VolumeIDInt, err)
+		zlog.Error().Msgf("error GetSnapshotByName %d, %v", nfs.cs.VolProto.VolumeID, err)
 		return
 	}
 	if len(*snapshotArray) > 0 {
 		for _, snap := range *snapshotArray {
 			if snap.ParentId == sourceFilesystemID {
-				snapshotID = strconv.FormatInt(snap.SnapshotID, 10) + "$$" + nfs.cs.VolProto.StorageType
+				snapshotID = strconv.Itoa(snap.SnapshotID) + "$$" + nfs.cs.VolProto.StorageType
 				zlog.Debug().Msgf("snapshot: %s src fs id: %d exists, snapshot id: %d", snapshotName, snap.ParentId, snap.SnapshotID)
 				return &csi.CreateSnapshotResponse{
 					Snapshot: &csi.Snapshot{
@@ -659,7 +648,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		return
 	}
 
-	snapshotID = strconv.FormatInt(resp.SnapshotID, 10) + "$$" + nfs.cs.VolProto.StorageType
+	snapshotID = strconv.Itoa(resp.SnapshotID) + "$$" + nfs.cs.VolProto.StorageType
 	snapshot := &csi.Snapshot{
 		SnapshotId:     snapshotID,
 		SourceVolumeId: srcVolumeId,
@@ -675,7 +664,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshot *csi.DeleteSnapshotResponse, err error) {
 	zlog.Debug().Msgf("DeleteSnapshot snapshotID %s", req.GetSnapshotId())
 
-	snapshotID, err := strconv.ParseInt(req.GetSnapshotId(), 10, 64)
+	snapshotID, err := strconv.Atoi(req.GetSnapshotId())
 	if err != nil {
 		zlog.Error().Msgf("failed to parse int from snapshotID, %s, error %s", req.GetSnapshotId(), err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
@@ -701,7 +690,7 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
 	zlog.Debug().Msgf("ControllerExpandVolume")
 
-	ID, err := strconv.ParseInt(req.GetVolumeId(), 10, 64)
+	ID, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("invalid Volume ID %v", err)
 		return

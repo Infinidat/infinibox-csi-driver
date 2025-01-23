@@ -158,7 +158,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		"host.k8s.pvname": volumeResp.Name,
 	}
 	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = fc.cs.Api.AttachMetadataToObject(int64(volumeResp.ID), metadata)
+	_, err = fc.cs.Api.AttachMetadataToObject(volumeResp.ID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", name, err)
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
@@ -170,13 +170,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
 	zlog.Debug().Msgf("DeleteVolume")
-	id, err := strconv.Atoi(req.GetVolumeId())
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal,
-			"error parsing volume id : %s", err.Error())
-	}
-	err = fc.ValidateDeleteVolume(id)
+	volproto := fc.cs.VolProto
+	err = fc.ValidateDeleteVolume(volproto.VolumeID)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Errorf(codes.Internal,
@@ -205,14 +200,8 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		zlog.Error().Msgf("failed to validate storage type for source id: %s, err: %v", volumeContentID, err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
 
-	srcVol, err := fc.cs.Api.GetVolume(volumeID)
+	srcVol, err := fc.cs.Api.GetVolume(volproto.VolumeID)
 	if err != nil {
 		zlog.Err(err)
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", volproto.VolumeID)
@@ -232,7 +221,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		return nil, status.Errorf(codes.Internal,
 			"error while getting storagepoolid with name %s ", storagePool)
 	}
-	if int64(pool.ID) != srcVol.PoolId {
+	if pool.ID != srcVol.PoolId {
 		return nil, status.Errorf(codes.InvalidArgument,
 			"volume storage pool is different than the requested storage pool %s", storagePool)
 	}
@@ -242,7 +231,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 	ssdEnabled, _ := strconv.ParseBool(ssd)
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       volumeID,
+		ParentID:       volproto.VolumeID,
 		SnapshotName:   name,
 		WriteProtected: false,
 		SsdEnabled:     ssdEnabled,
@@ -270,7 +259,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		"host.k8s.pvname": dstVol.Name,
 	}
 	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = fc.cs.Api.AttachMetadataToObject(int64(dstVol.ID), metadata)
+	_, err = fc.cs.Api.AttachMetadataToObject(dstVol.ID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
@@ -291,12 +280,6 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		zlog.Error().Msgf("failed to validate storage type %v", err)
 		return nil, errors.New("error getting volume id")
 	}
-	volumeID, err := strconv.Atoi(volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto.VolumeID, err)
-		zlog.Err(e)
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
 
 	hostName, err := DetermineHostName(req.GetNodeId())
 	if err != nil {
@@ -309,7 +292,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	v, err := fc.cs.Api.GetVolume(volumeID)
+	v, err := fc.cs.Api.GetVolume(volproto.VolumeID)
 	if err != nil {
 		zlog.Error().Msgf("failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
 		return nil, errors.New("error getting volume by id")
@@ -340,7 +323,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	}
 	zlog.Debug().Msgf("ports=[%v]", ports)
 	for _, lun := range lunList {
-		if lun.VolumeID == volumeID {
+		if lun.VolumeID == volproto.VolumeID {
 			volCtx := map[string]string{
 				LUN_PUBLISH_CONTEXT:        strconv.Itoa(lun.Lun),
 				HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
@@ -374,8 +357,8 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		}
 	}
 	// map volume to host
-	zlog.Debug().Msgf("mapping volume %d to host %s", volumeID, host.Name)
-	luninfo, err := fc.cs.mapVolumeTohost(volumeID, host.ID)
+	zlog.Debug().Msgf("mapping volume %d to host %s", volproto.VolumeID, host.Name)
+	luninfo, err := fc.cs.mapVolumeTohost(volproto.VolumeID, host.ID)
 	if err != nil {
 		zlog.Error().Msgf("failed to map volume to host with error %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -396,10 +379,10 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 
 	host := fc.cs.VolProto.Host
 	if len(host.Luns) > 0 {
-		zlog.Debug().Msgf("unmap volume %d from host %d", fc.cs.VolProto.VolumeIDInt, host.ID)
-		err = fc.cs.unmapVolumeFromHost(host.ID, int(fc.cs.VolProto.VolumeIDInt))
+		zlog.Debug().Msgf("unmap volume %d from host %d", fc.cs.VolProto.VolumeID, host.ID)
+		err = fc.cs.unmapVolumeFromHost(host.ID, int(fc.cs.VolProto.VolumeID))
 		if err != nil {
-			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", fc.cs.VolProto.VolumeIDInt, host.ID, err)
+			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", fc.cs.VolProto.VolumeID, host.ID, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -444,7 +427,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	if err != nil {
 		zlog.Err(err)
 		zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
-	} else if volumeSnapshot.ParentId == int(fc.cs.VolProto.VolumeIDInt) {
+	} else if volumeSnapshot.ParentId == fc.cs.VolProto.VolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + fc.cs.VolProto.StorageType
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
@@ -461,15 +444,15 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 
 	// look up the parent volume so we can get the ssd_enabled value and use that for
 	// the snapshot being created next
-	parentVolume, err := fc.cs.Api.GetVolume(int(fc.cs.VolProto.VolumeIDInt))
+	parentVolume, err := fc.cs.Api.GetVolume(fc.cs.VolProto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("failed to get parent volume when creating snapshot - volume id %d, err: %v", fc.cs.VolProto.VolumeIDInt, err)
+		e := fmt.Errorf("failed to get parent volume when creating snapshot - volume id %d, err: %v", fc.cs.VolProto.VolumeID, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	snapshotParam := &api.VolumeSnapshot{
-		ParentID:       int(fc.cs.VolProto.VolumeIDInt),
+		ParentID:       fc.cs.VolProto.VolumeID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
 		SsdEnabled:     parentVolume.SsdEnabled,
@@ -551,7 +534,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
-		_, err = fc.cs.Api.AttachMetadataToObject(int64(vol.ID), metadata)
+		_, err = fc.cs.Api.AttachMetadataToObject(vol.ID, metadata)
 		if err != nil {
 			zlog.Error().Msgf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
@@ -567,7 +550,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	}
 	if vol.ParentId != 0 {
 		zlog.Debug().Msgf("checkingif parent volume can be name: %s id: %d", vol.Name, vol.ID)
-		tobedel := fc.cs.Api.GetMetadataStatus(int64(vol.ParentId))
+		tobedel := fc.cs.Api.GetMetadataStatus(vol.ParentId)
 		if tobedel {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
 			if err != nil {

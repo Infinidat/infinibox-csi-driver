@@ -32,9 +32,9 @@ import (
 type Client interface {
 	NewClient() (*ClientService, error)
 	CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error)
-	FindStoragePool(id int64, name string) (StoragePool, error)
+	FindStoragePool(id int, name string) (StoragePool, error)
 	GetNtpStatus() ([]NtpStatus, error)
-	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
+	GetStoragePool(poolID int, storagepool string) ([]StoragePool, error)
 	GetVolumeByName(volumename string) (*Volume, error)
 	GetVolume(volumeid int) (*Volume, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
@@ -68,39 +68,39 @@ type Client interface {
 
 	// for nfs
 	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
-	DeleteExportPath(exportID int64) (*ExportResponse, error)
-	DeleteFileSystem(fileSystemID int64) (*FileSystem, error)
-	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
-	DetachMetadataFromObject(objectID int64) (*[]Metadata, error)
+	DeleteExportPath(exportID int) (*ExportResponse, error)
+	DeleteFileSystem(fileSystemID int) (*FileSystem, error)
+	AttachMetadataToObject(objectID int, body map[string]interface{}) (*[]Metadata, error)
+	DetachMetadataFromObject(objectID int) (*[]Metadata, error)
 	CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error)
-	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
+	GetExportByFileSystem(filesystemID int) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
+	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error)
-	DeleteFileSystemComplete(fileSystemID int64) (err error)
-	DeleteParentFileSystem(fileSystemID int64) (err error)
-	GetParentID(fileSystemID int64) int64
-	GetFileSystemByID(fileSystemID int64) (*FileSystem, error)
+	DeleteFileSystemComplete(fileSystemID int) (err error)
+	DeleteParentFileSystem(fileSystemID int) (err error)
+	GetParentID(fileSystemID int) int
+	GetFileSystemByID(fileSystemID int) (*FileSystem, error)
 	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
-	GetMetadataStatus(fileSystemID int64) bool
-	FileSystemHasChild(fileSystemID int64) bool
-	DeleteExport(exportID int64) (err error)
-	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
-	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
+	GetMetadataStatus(fileSystemID int) bool
+	FileSystemHasChild(fileSystemID int) bool
+	DeleteExport(exportID int) (err error)
+	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
+	UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
-	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
+	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int) (bool, error)
 
-	GetFileSystemsByPoolID(poolID int64, page int, fsPrefix string) (*FSMetadata, error)
-	GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt int, err error)
-	CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error)
-	DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
-	GetTreeq(fileSystemID, treeqID int64) (*Treeq, error)
-	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
-	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
-	GetFileSystemCountByPoolID(poolID int64) (int, error)
+	GetFileSystemsByPoolID(poolID int, page int, fsPrefix string) (*FSMetadata, error)
+	GetFilesystemTreeqCount(fileSystemID int) (treeqCnt int, err error)
+	CreateTreeq(filesystemID int, treeqParameter map[string]interface{}) (*Treeq, error)
+	DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error)
+	GetTreeq(fileSystemID, treeqID int) (*Treeq, error)
+	UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error)
+	GetTreeqSizeByFileSystemID(filesystemID int) (int64, error)
+	GetFileSystemCountByPoolID(poolID int) (int, error)
 	GetMaxTreeqPerFs() (int, error)
 	GetMaxFileSystems() (int, error)
-	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
+	GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error)
 
 	PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error)
 
@@ -145,7 +145,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 }
 
 // DeleteExport : Delete export by export id
-func (c *ClientService) DeleteExport(exportID int64) (err error) {
+func (c *ClientService) DeleteExport(exportID int) (err error) {
 	zlog.Trace().Msgf("Delete Export with ID %d", exportID)
 
 	path := "/api/rest/exports/" + strconv.Itoa(int(exportID)) + "?approved=true"
@@ -160,7 +160,7 @@ func (c *ClientService) DeleteExport(exportID int64) (err error) {
 // DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	zlog.Trace().Msgf("Delete Volume with ID %d", volumeID)
-	_, err = c.DetachMetadataFromObject(int64(volumeID))
+	_, err = c.DetachMetadataFromObject(volumeID)
 	if err != nil {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
@@ -217,7 +217,7 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolID int) (*V
 	path := "/api/rest/volumes"
 	zlog.Trace().Msgf("Creating volume in storage pool ID %d of size %d bytes", storagePoolID, volume.VolumeSize)
 
-	volume.PoolId = int64(storagePoolID)
+	volume.PoolId = storagePoolID
 	volumeParameter := make(map[string]interface{})
 	volumeParameter["pool_id"] = volume.PoolId
 	volumeParameter["size"] = volume.VolumeSize
@@ -238,7 +238,7 @@ func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolID int) (*V
 }
 
 // FindStoragePool : Find storage pool either by id or name
-func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, error) {
+func (c *ClientService) FindStoragePool(id int, name string) (StoragePool, error) {
 	zlog.Trace().Msgf("FindStoragePool called with either id %d or name %s", id, name)
 	storagePools, err := c.GetStoragePool(id, name)
 	if err != nil {
@@ -255,7 +255,7 @@ func (c *ClientService) FindStoragePool(id int64, name string) (StoragePool, err
 }
 
 // GetStoragePool : Get storage pool(s) either by id or name
-func (c *ClientService) GetStoragePool(poolID int64, storagepoolname string) ([]StoragePool, error) {
+func (c *ClientService) GetStoragePool(poolID int, storagepoolname string) ([]StoragePool, error) {
 	zlog.Trace().Msgf("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
 	storagePool := StoragePool{}
 	storagePools := []StoragePool{}

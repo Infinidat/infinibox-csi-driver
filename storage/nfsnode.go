@@ -46,7 +46,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	zlog.Debug().Msgf("NodePublishVolume targetPath=%s", hostTargetPath)
 
 	tmp := strings.Split(req.GetVolumeId(), "$$")[0]
-	fileSystemId, err := strconv.ParseInt(tmp, 10, 64)
+	fileSystemId, err := strconv.Atoi(tmp)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
@@ -179,7 +179,7 @@ func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 	return &response, nil
 }
 
-func (nfs *nfsstorage) updateExport(filesystemId int64, exportPerms string) (err error) {
+func (nfs *nfsstorage) updateExport(filesystemId int, exportPerms string) (err error) {
 	//lookup file system information
 	fs, err := nfs.cs.Api.GetFileSystemByID(filesystemId)
 	if err != nil {

@@ -48,7 +48,7 @@ type Volume struct {
 	CapacitySavings       int    `json:"capacity_savings,omitempty"`
 	Name                  string `json:"name,omitempty"`
 	CreatedAt             int64  `json:"created_at,omitempty"`
-	PoolId                int64  `json:"pool_id,omitempty"`
+	PoolId                int    `json:"pool_id,omitempty"`
 	PoolName              string `json:"pool_name,omitempty"`
 	CompressionEnabled    bool   `json:"compression_enabled,omitempty"`
 	FamilyId              int    `json:"family_id,omitempty"`
@@ -60,7 +60,7 @@ type Volume struct {
 }
 
 type VolumeParam struct {
-	PoolId        int64  `json:"pool_id,omitempty"`
+	PoolId        int    `json:"pool_id,omitempty"`
 	VolumeSize    int64  `json:"size,omitempty"`
 	Name          string `json:"name,omitempty"`
 	ProvisionType string `json:"provtype,omitempty"`
@@ -80,7 +80,7 @@ type VolumeQeryBySelectedIdsParam struct {
 }
 
 type StoragePool struct {
-	ID                       int64    `json:"id"`
+	ID                       int      `json:"id"`
 	Name                     string   `json:"name"`
 	CreatedAt                int      `json:"created_at"`
 	UpdatedAt                int      `json:"updated_at"`
@@ -197,7 +197,7 @@ type LunInfo struct {
 }
 
 type ExportFileSys struct {
-	FilesystemID        int64                    `json:"filesystem_id,omitempty"`
+	FilesystemID        int                      `json:"filesystem_id,omitempty"`
 	Name                string                   `json:"name,omitempty"`
 	Transport_protocols string                   `json:"transport_protocols,omitempty"`
 	Privileged_port     bool                     `json:"privileged_port"`
@@ -226,7 +226,7 @@ type ExportResponse struct {
 	FilesystemId          int           `json:"filesystem_id,omitempty"`
 	MaxWrite              int           `json:"max_write,omitempty"`
 	PrivilegedPort        bool          `json:"privileged_port,omitempty"`
-	ID                    int64         `json:"id,omitempty"`
+	ID                    int           `json:"id,omitempty"`
 	ExportPath            string        `json:"export_path,omitempty"`
 }
 
@@ -245,13 +245,13 @@ type FilesystemRef struct {
 }
 
 type FileSystem struct {
-	ID            int64  `json:"id,omitempty"`
-	PoolID        int64  `json:"pool_id,omitempty"`
+	ID            int    `json:"id,omitempty"`
+	PoolID        int    `json:"pool_id,omitempty"`
 	Name          string `json:"name,omitempty"`
 	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
 	Provtype      string `json:"provtype,omitempty"`
 	Size          int64  `json:"size,omitempty"`
-	ParentID      int64  `json:"parent_id,omitempty"`
+	ParentID      int    `json:"parent_id,omitempty"`
 	PoolName      string `json:"pool_name,omitempty"`
 	CreatedAt     int    `json:"created_at,omitempty"`
 	LockExpiresAt int64  `json:"lock_expires_at,omitempty"`
@@ -296,13 +296,13 @@ type Metadata struct {
 
 // FileSystemSnapshot file system snapshot request parameter
 type FileSystemSnapshot struct {
-	ParentID       int64  `json:"parent_id"`
+	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
 	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
 }
 type FileSystemSnapshotLocked struct {
-	ParentID       int64  `json:"parent_id"`
+	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
 	LockExpiresAt  int64  `json:"lock_expires_at"`
@@ -310,22 +310,21 @@ type FileSystemSnapshotLocked struct {
 
 // FileSystemSnapshotResponce file system snapshot Response
 type FileSystemSnapshotResponce struct {
-	SnapshotID  int64  `json:"id"`
+	SnapshotID  int    `json:"id"`
 	Name        string `json:"name,omitempty"`
 	DatasetType string `json:"dataset_type,omitempty"`
-	ParentId    int64  `json:"parent_id,omitempty"`
+	ParentId    int    `json:"parent_id,omitempty"`
 	Size        int64  `json:"size,omitempty"`
 	CreatedAt   int64  `json:"created_at,omitempty"`
 }
 
 type VolumeProtocolConfig struct {
-	VolumeID      string
-	VolumeIDInt   int64
+	VolumeID      int
 	StorageType   string
 	ChildVolumeID string
 	Host          Host
 	NodeID        string
-	TreeqIDInt    int64
+	TreeqID       int
 }
 
 // VolumeSnapshot volume snapshot request parameter

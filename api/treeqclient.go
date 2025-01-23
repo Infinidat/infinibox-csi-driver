@@ -32,8 +32,8 @@ type FSMetadata struct {
 
 // Treeq struct
 type Treeq struct {
-	ID           int64  `json:"id,omitempty"`
-	FilesystemID int64  `json:"filesystem_id,omitempty"`
+	ID           int    `json:"id,omitempty"`
+	FilesystemID int    `json:"filesystem_id,omitempty"`
 	Name         string `json:"name,omitempty"`
 	Path         string `json:"path,omitempty"`
 	HardCapacity int64  `json:"hard_capacity,omitempty"`
@@ -41,9 +41,9 @@ type Treeq struct {
 }
 
 // GetFileSystemsByPoolID get filesystem by poolID
-func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix string) (fsmetadata *FSMetadata, err error) {
+func (c *ClientService) GetFileSystemsByPoolID(poolID int, page int, fsPrefix string) (fsmetadata *FSMetadata, err error) {
 	zlog.Trace().Msgf("GetFileSystemsByPoolID poolID %d page %d fsPrefix %s", poolID, page, fsPrefix)
-	uri := "/api/rest/filesystems?pool_id=" + strconv.FormatInt(poolID, 10) +
+	uri := "/api/rest/filesystems?pool_id=" + strconv.Itoa(poolID) +
 		"&name=like:" + fsPrefix +
 		"&sort=size&page=" + strconv.Itoa(page) + "&page_size=1000&fields=id,size,name"
 	filesystems := []FileSystem{}
@@ -72,8 +72,8 @@ func (c *ClientService) GetFileSystemsByPoolID(poolID int64, page int, fsPrefix 
 }
 
 // GetFilesytemTreeqCount method return the treeq count
-func (c *ClientService) GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt int, err error) {
-	path := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
+func (c *ClientService) GetFilesystemTreeqCount(fileSystemID int) (treeqCnt int, err error) {
+	path := "/api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs"
 	treeqArry := []Treeq{}
 	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &treeqArry)
 	if err != nil {
@@ -93,9 +93,9 @@ func (c *ClientService) GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt in
 }
 
 // CreateTreeq method create treeq
-func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error) {
+func (c *ClientService) CreateTreeq(filesystemID int, treeqParameter map[string]interface{}) (*Treeq, error) {
 	zlog.Trace().Msgf("Create filesystem")
-	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
+	uri := "api/rest/filesystems/" + strconv.Itoa(filesystemID) + "/treeqs"
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodPost, uri, treeqParameter, &treeq)
 	if err != nil {
@@ -112,9 +112,9 @@ func (c *ClientService) CreateTreeq(filesystemID int64, treeqParameter map[strin
 }
 
 // getTreeqSizeByFileSystemID method return the sum of size
-func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error) {
+func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int) (int64, error) {
 	var size int64
-	uri := "api/rest/filesystems/" + strconv.FormatInt(filesystemID, 10) + "/treeqs"
+	uri := "api/rest/filesystems/" + strconv.Itoa(filesystemID) + "/treeqs"
 	treeqArray := []Treeq{}
 	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &treeqArray)
 	if err != nil {
@@ -128,8 +128,8 @@ func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int64) (int64, e
 }
 
 // DeleteTreeq :
-func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
-	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
+func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error) {
+	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs/" + strconv.Itoa(treeqID)
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &treeq)
 	if err != nil {
@@ -145,8 +145,8 @@ func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
 }
 
 // GetTreeq
-func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
-	uri := "/api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
+func (c *ClientService) GetTreeq(fileSystemID, treeqID int) (*Treeq, error) {
+	uri := "/api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs/" + strconv.Itoa(treeqID)
 	eResp := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
 	if err != nil {
@@ -160,8 +160,8 @@ func (c *ClientService) GetTreeq(fileSystemID, treeqID int64) (*Treeq, error) {
 }
 
 // UpdateTreeq :
-func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error) {
-	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs/" + strconv.FormatInt(treeqID, 10)
+func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error) {
+	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs/" + strconv.Itoa(treeqID)
 	treeq := Treeq{}
 	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &treeq)
 	if err != nil {
@@ -177,8 +177,8 @@ func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int64, body map[string
 }
 
 // GetFileSystemByName :
-func (c *ClientService) GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error) {
-	uri := "api/rest/filesystems/" + strconv.FormatInt(fileSystemID, 10) + "/treeqs"
+func (c *ClientService) GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error) {
+	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs"
 	treeq := []Treeq{}
 	queryParam := make(map[string]interface{})
 	queryParam["name"] = treeqName

@@ -40,11 +40,10 @@ func (suite *TreeqControllerSuite) SetupTest() {
 		Name: "host1",
 	}
 	volProto := &api.VolumeProtocolConfig{
-		Host:        host,
-		VolumeID:    "1",
-		VolumeIDInt: 1,
-		NodeID:      "node1",
-		TreeqIDInt:  1,
+		Host:     host,
+		VolumeID: 1,
+		NodeID:   "node1",
+		TreeqID:  1,
 	}
 	suite.cs = &Commonservice{Api: suite.api, VolProto: volProto}
 }
@@ -89,8 +88,8 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
-	nfs.cs.VolProto.VolumeIDInt = 100
-	nfs.cs.VolProto.TreeqIDInt = 200
+	nfs.cs.VolProto.VolumeID = 100
+	nfs.cs.VolProto.TreeqID = 200
 
 	volumeResponse := getCreateVolumeResponse()
 	volumeRespoance := map[string]string{
@@ -117,9 +116,9 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
 	nfsservice := nfsstorage{cs: *suite.cs}
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
-	nfsservice.cs.VolProto.VolumeIDInt = 100
-	nfsservice.cs.VolProto.TreeqIDInt = 200
-	var filesytemID, treeqID int64 = 100, 200
+	nfsservice.cs.VolProto.VolumeID = 100
+	nfsservice.cs.VolProto.TreeqID = 200
+	var filesytemID, treeqID int = 100, 200
 	expectedErr := errors.New("Some error")
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(""))
@@ -129,11 +128,11 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
 	nfsservice := nfsstorage{cs: *suite.cs}
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
-	nfsservice.cs.VolProto.VolumeIDInt = 100
-	nfsservice.cs.VolProto.TreeqIDInt = 200
+	nfsservice.cs.VolProto.VolumeID = 100
+	nfsservice.cs.VolProto.TreeqID = 200
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
-	var filesytemID, treeqID int64 = 100, 200
+	var filesytemID, treeqID int = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "error expected")
@@ -143,10 +142,10 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 	nfsservice := nfsstorage{cs: *suite.cs}
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
 	volumeID := "100#200$$"
-	nfsservice.cs.VolProto.VolumeIDInt = 100
-	nfsservice.cs.VolProto.TreeqIDInt = 200
+	nfsservice.cs.VolProto.VolumeID = 100
+	nfsservice.cs.VolProto.TreeqID = 200
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND error")
-	var filesytemID, treeqID int64 = 100, 200
+	var filesytemID, treeqID int = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
 	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
@@ -155,10 +154,10 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
 	nfsservice := nfsstorage{cs: *suite.cs}
 	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
-	nfsservice.cs.VolProto.VolumeIDInt = 100
-	nfsservice.cs.VolProto.TreeqIDInt = 200
+	nfsservice.cs.VolProto.VolumeID = 100
+	nfsservice.cs.VolProto.TreeqID = 200
 	volumeID := "100#200$$"
-	var filesytemID, treeqID int64 = 100, 200
+	var filesytemID, treeqID int = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(nil)
 	resp, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
@@ -182,7 +181,8 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200"
 	expectedErr := errors.New("Some error")
-	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
+	var filesytemID, treeqID int = 100, 200
+	var capacity int64 = common.BytesInOneGibibyte
 	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(expectedErr)
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
@@ -192,7 +192,8 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfound() {
 	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
-	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
+	var filesytemID, treeqID int = 100, 200
+	var capacity int64 = common.BytesInOneGibibyte
 	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
 	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
@@ -202,7 +203,8 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfoun
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
 	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
-	var filesytemID, treeqID, capacity int64 = 100, 200, common.BytesInOneGibibyte
+	var filesytemID, treeqID int = 100, 200
+	var capacity int64 = common.BytesInOneGibibyte
 	maxSize := ""
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
 	resp, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
@@ -248,13 +250,13 @@ func (m *FileSystemInterfaceMock) CreateTreeqVolume(config map[string]string, ca
 	return st, err
 }
 
-func (m *FileSystemInterfaceMock) DeleteTreeqVolume(filesystemID, treeqID int64) error {
+func (m *FileSystemInterfaceMock) DeleteTreeqVolume(filesystemID, treeqID int) error {
 	status := m.Called(filesystemID, treeqID)
 	st, _ := status.Get(0).(error)
 	return st
 }
 
-func (m *FileSystemInterfaceMock) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxSize string) error {
+func (m *FileSystemInterfaceMock) UpdateTreeqVolume(filesystemID, treeqID int, capacity int64, maxSize string) error {
 	status := m.Called(filesystemID, treeqID, capacity, maxSize)
 	err, _ := status.Get(0).(error)
 	return err

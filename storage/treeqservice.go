@@ -47,14 +47,14 @@ const (
 type TreeqService struct {
 	nfsstorage nfsstorage
 	cs         Commonservice
-	poolID     int64
+	poolID     int
 	treeqCnt   int
 }
 
 type TreeqInterface interface {
 	CreateTreeqVolume(storageClassParameters map[string]string, capacity int64, pVName string) (map[string]string, error)
-	DeleteTreeqVolume(filesystemID, treeqID int64) error
-	UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxFileSystemSize string) error
+	DeleteTreeqVolume(filesystemID, treeqID int) error
+	UpdateTreeqVolume(filesystemID, treeqID int, capacity int64, maxFileSystemSize string) error
 	IsTreeqAlreadyExist(poolName, networkSpace, pVName, fsPrefix string) (treeqVolume map[string]string, err error)
 }
 
@@ -94,7 +94,7 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName, fsPr
 		zlog.Error().Msgf("failed to get poolID from poolName %s", poolName)
 		return
 	}
-	ts.poolID = int64(pool.ID)
+	ts.poolID = pool.ID
 	page := 1
 	for {
 		zlog.Debug().Msgf("IsTreeqAlreadyExist looking for file systems page %d", page)
@@ -124,8 +124,8 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName, fsPr
 				return
 			}
 			ts.nfsstorage.ipAddress = ipAddress
-			treeqVolumeContext["ID"] = strconv.FormatInt(treeqData.FilesystemID, 10)
-			treeqVolumeContext["TREEQID"] = strconv.FormatInt(treeqData.ID, 10)
+			treeqVolumeContext["ID"] = strconv.Itoa(treeqData.FilesystemID)
+			treeqVolumeContext["TREEQID"] = strconv.Itoa(treeqData.ID)
 			treeqVolumeContext["ipAddress"] = ts.nfsstorage.ipAddress
 			treeqVolumeContext["volumePath"] = path.Join(ts.nfsstorage.exportPath, treeqData.Path)
 			zlog.Debug().Msgf("IsTreeqAlreadyExist copied treeqVolume %v", treeqVolumeContext)
@@ -189,7 +189,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 				treeqCnt, treeqCnterr := ts.cs.Api.GetFilesystemTreeqCount(fs.ID)
 				if treeqCnterr != nil {
 					zlog.Error().Msgf("failed to get treeq count of filesystemID %d error %v", fs.ID, err)
-					err = errors.New("failed to get treeq count of filesystemID " + strconv.FormatInt(fs.ID, 10))
+					err = errors.New("failed to get treeq count of filesystemID " + strconv.Itoa(fs.ID))
 					return
 				}
 				if treeqCnt < maxTreeqPerFS {
@@ -236,7 +236,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		zlog.Error().Msgf("failed to get poolID from poolName %s", ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
 		return
 	}
-	ts.poolID = int64(pool.ID)
+	ts.poolID = pool.ID
 
 	var maxFileSystemSize int64
 	scMaxFileSystemSize := storageClassParameters[common.SC_MAX_FILESYSTEM_SIZE]
@@ -259,7 +259,7 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		zlog.Error().Msgf("failed to getExpectedFileSystemID  %v", err)
 		return
 	}
-	var filesystemID int64
+	var filesystemID int
 	if filesys == nil { // if pool is empty or no file system found to createTreeq
 		pvSplit := strings.Split(ts.nfsstorage.pVName, "-")
 		if len(pvSplit) < 2 {
@@ -308,8 +308,8 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		return
 	}
 
-	treeqVolumeContext["ID"] = strconv.FormatInt(filesystemID, 10)
-	treeqVolumeContext["TREEQID"] = strconv.FormatInt(treeqResponse.ID, 10)
+	treeqVolumeContext["ID"] = strconv.Itoa(filesystemID)
+	treeqVolumeContext["TREEQID"] = strconv.Itoa(treeqResponse.ID)
 	treeqVolumeContext["ipAddress"] = ts.nfsstorage.ipAddress
 	treeqVolumeContext["volumePath"] = path.Join(ts.nfsstorage.exportPath, treeqResponse.Path)
 
@@ -372,7 +372,7 @@ func convertToByte(size string) (bytes int64, err error) {
 	return
 }
 
-func (ts *TreeqService) getExportPath(filesystemID int64) error {
+func (ts *TreeqService) getExportPath(filesystemID int) error {
 	exportResponse, exportErr := ts.cs.Api.GetExportByFileSystem(filesystemID)
 	if exportErr != nil {
 		zlog.Error().Msgf("failed to create export path of filesystem %d", filesystemID)
@@ -388,7 +388,7 @@ func (ts *TreeqService) getExportPath(filesystemID int64) error {
 var deleteMutex sync.Mutex
 
 // DeleteTreeqVolume delete volume method
-func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err error) {
+func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int) (err error) {
 	// 1. treeq exist or not checked
 	var treeq *api.Treeq
 	treeq, err = ts.cs.Api.GetTreeq(filesystemID, treeqID)
@@ -441,7 +441,7 @@ func (ts *TreeqService) DeleteTreeqVolume(filesystemID, treeqID int64) (err erro
 }
 
 // UpdateTreeqCnt method
-func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqCnt int) (treeqCount int, err error) {
+func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int, action ACTION, treeqCnt int) (treeqCount int, err error) {
 	if treeqCnt == 0 {
 		treeqCnt, err = ts.cs.Api.GetFilesystemTreeqCount(fileSystemID)
 		if err != nil {
@@ -471,7 +471,7 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int64, action ACTION, treeqC
 }
 
 // UpdateTreeqVolume Update volume size method
-func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID, capacity int64, maxFileSystemSize string) (err error) {
+func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID int, capacity int64, maxFileSystemSize string) (err error) {
 
 	// Get Filesystem
 	fileSystemResponse, err := svc.cs.Api.GetFileSystemByID(filesystemID)

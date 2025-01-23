@@ -32,7 +32,7 @@ func VerifyAdminTreeqs(config *e2e.TestConfig) (err error) {
 	return nil
 }
 
-func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
+func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 
 	poolName := os.Getenv("_E2E_POOL")
 	if poolName == "" {
@@ -75,7 +75,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 	}
 	config.Testt.Logf("✓ Filesystem %s %d is created\n", fileSystemName, fs.ID)
 
-	treeqIDs := make([]int64, len(TREEQ_USERS))
+	treeqIDs := make([]int, len(TREEQ_USERS))
 
 	for i := 0; i < len(TREEQ_USERS); i++ {
 		treeqParameters := map[string]interface{}{
@@ -108,7 +108,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int64, err error) {
 	return fs.ID, nil
 }
 
-func CreatePersistentVolumesForTreeqs(fs *api.FileSystem, treeqIDs []int64, networkSpaceIPAddress string, config *e2e.TestConfig) (err error) {
+func CreatePersistentVolumesForTreeqs(fs *api.FileSystem, treeqIDs []int, networkSpaceIPAddress string, config *e2e.TestConfig) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -138,7 +138,7 @@ func CreatePersistentVolumesForTreeqs(fs *api.FileSystem, treeqIDs []int64, netw
 	persistentVolumeSource.CSI = csiSource
 	for i := 0; i < len(TREEQ_USERS); i++ {
 		csiSource.VolumeAttributes["volumePath"] = "/" + fs.Name + "/" + TREEQ_USERS[i]
-		csiSource.VolumeHandle = strconv.FormatInt(fs.ID, 10) + "#" + strconv.FormatInt(treeqIDs[i], 10) + "$$" + common.PROTOCOL_TREEQ
+		csiSource.VolumeHandle = strconv.Itoa(fs.ID) + "#" + strconv.Itoa(treeqIDs[i]) + "$$" + common.PROTOCOL_TREEQ
 		pv := &v1.PersistentVolume{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix,
@@ -179,7 +179,7 @@ func CreatePersistentVolumeClaimsForTreeqs(config *e2e.TestConfig) (err error) {
 	return nil
 }
 
-func CleanupAdminTreeqs(fileSystemID int64, config *e2e.TestConfig) (err error) {
+func CleanupAdminTreeqs(fileSystemID int, config *e2e.TestConfig) (err error) {
 	// put these in testResourceNames
 	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
 	if hostname == "" {

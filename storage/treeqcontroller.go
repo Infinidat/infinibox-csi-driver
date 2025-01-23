@@ -97,13 +97,14 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}, nil
 }
 
-func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, err error) {
+// TODO duplicated code needs to be removed
+func getVolumeIDs(volumeID string) (filesystemID, treeqID int, err error) {
 	volproto := strings.Split(volumeID, "#")
 	if len(volproto) != 2 {
 		err = fmt.Errorf("volume Id %s and other details not found", volumeID)
 		return 0, 0, err
 	}
-	if filesystemID, err = strconv.ParseInt(volproto[0], 10, 64); err != nil {
+	if filesystemID, err = strconv.Atoi(volproto[0]); err != nil {
 		zlog.Err(err)
 		return 0, 0, err
 	}
@@ -111,7 +112,7 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, err error) {
 	// volumeID example := "94148131#20000$$nfs_treeq"
 	treeqdetails := strings.Split(volproto[1], "$")
 
-	if treeqID, err = strconv.ParseInt(treeqdetails[0], 10, 64); err != nil {
+	if treeqID, err = strconv.Atoi(treeqdetails[0]); err != nil {
 		zlog.Err(err)
 		return 0, 0, err
 	}
@@ -122,8 +123,8 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int64, err error) {
 func (treeq *treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	zlog.Debug().Msgf("DeleteVolume volume ID %s", req.GetVolumeId())
 
-	filesystemID := treeq.nfsstorage.cs.VolProto.VolumeIDInt
-	treeqID := treeq.nfsstorage.cs.VolProto.TreeqIDInt
+	filesystemID := treeq.nfsstorage.cs.VolProto.VolumeID
+	treeqID := treeq.nfsstorage.cs.VolProto.TreeqID
 	nfsDeleteErr := treeq.treeqService.DeleteTreeqVolume(filesystemID, treeqID)
 	if nfsDeleteErr != nil {
 		zlog.Err(nfsDeleteErr)
@@ -143,10 +144,10 @@ func (treeq *treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 func (treeq *treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	volproto := treeq.nfsstorage.cs.VolProto
-	zlog.Debug().Msgf("ControllerUnpublishVolume volproto %+v fileId %d nodeId %s", volproto, volproto.VolumeIDInt, volproto.NodeID)
-	err := treeq.nfsstorage.cs.Api.DeleteExportRule(volproto.VolumeIDInt, volproto.NodeID)
+	zlog.Debug().Msgf("ControllerUnpublishVolume volproto %+v fileId %d nodeId %s", volproto, volproto.VolumeID, volproto.NodeID)
+	err := treeq.nfsstorage.cs.Api.DeleteExportRule(volproto.VolumeID, volproto.NodeID)
 	if err != nil {
-		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", volproto.VolumeIDInt, err)
+		zlog.Error().Msgf("failed to delete Export Rule fileystemID %d error %v", volproto.VolumeID, err)
 		return nil, status.Errorf(codes.Internal, "failed to delete Export Rule  %v", err)
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil

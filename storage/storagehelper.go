@@ -351,8 +351,6 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 		return volprotoconf, errors.New("volume Id in volproto is empty")
 	}
 
-	volprotoconf.VolumeID = volproto[0]
-
 	if volproto[1] == "" {
 		return volprotoconf, errors.New("volume storagetype in volproto is empty")
 	}
@@ -364,25 +362,26 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 		if len(tmp) != 2 {
 			return volprotoconf, fmt.Errorf("treeq volume not correctly formatted %s", volproto[0])
 		}
-		volprotoconf.VolumeID = tmp[0]
-		zlog.Debug().Msgf("ValidateVolumeID treeq VolumeID %s treeqID %s", volprotoconf.VolumeID, tmp[1])
+		volprotoconf.VolumeID, err = strconv.Atoi(tmp[0])
+		if err != nil {
+			return volprotoconf, err
+		}
+		zlog.Debug().Msgf("ValidateVolumeID treeq VolumeID %d treeqID %s", volprotoconf.VolumeID, tmp[1])
 
-		tmpInt64, err := strconv.ParseInt(tmp[1], 10, 64)
+		volprotoconf.TreeqID, err = strconv.Atoi(tmp[1])
 		if err != nil {
 			return volprotoconf, fmt.Errorf("volume treeq id parse error %s on %s", err.Error(), tmp[1])
 		}
 
-		volprotoconf.TreeqIDInt = tmpInt64
 	}
 
-	var tmpInt int
-	tmpInt, err = strconv.Atoi(volprotoconf.VolumeID)
+	volprotoconf.VolumeID, err = strconv.Atoi(volproto[0])
 	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volprotoconf.VolumeID, err)
+		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto[0], err)
 		zlog.Err(e)
 		return volprotoconf, errors.New("volume id in volproto is not an integer")
 	}
-	volprotoconf.VolumeIDInt = int64(tmpInt)
+
 	return volprotoconf, nil
 }
 

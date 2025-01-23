@@ -66,22 +66,22 @@ type Storageoperations interface {
 type Commonservice struct {
 	IboxApi           iboxapi.Client
 	Api               api.Client
-	storagePoolIdName map[int64]string
+	storagePoolIdName map[int]string
 	driverversion     string
 	AccessModesHelper helper.AccessModesHelper
 	VolProto          *api.VolumeProtocolConfig
 }
 
 type nfsstorage struct {
-	uniqueID               int64
+	uniqueID               int
 	storageClassParameters map[string]string
 	pVName                 string
 	capacity               int64
-	fileSystemID           int64
+	fileSystemID           int
 	exportPath             string
 	usePrivilegedPorts     bool
 	snapdirVisible         bool
-	exportID               int64
+	exportID               int
 	exportBlock            string
 	ipAddress              string
 	cs                     Commonservice
@@ -324,7 +324,7 @@ func (cs *Commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 	attributes := map[string]string{
 		"ID":              strconv.Itoa(vol.ID),
 		"Name":            vol.Name,
-		"StoragePoolID":   strconv.FormatInt(vol.PoolId, 10),
+		"StoragePoolID":   strconv.Itoa(vol.PoolId),
 		"StoragePoolName": storagePoolName,
 		"CreationTime":    time.Unix(int64(vol.CreatedAt), 0).String(),
 		"targetWWNs":      req.GetParameters()["targetWWNs"],
@@ -338,7 +338,7 @@ func (cs *Commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRe
 	return vi
 }
 
-func (cs *Commonservice) getStoragePoolNameFromID(id int64) string {
+func (cs *Commonservice) getStoragePoolNameFromID(id int) string {
 	zlog.Debug().Msgf("getStoragePoolNameFromID called with storagepoolid %d", id)
 	storagePoolName := cs.storagePoolIdName[id]
 	if storagePoolName == "" {

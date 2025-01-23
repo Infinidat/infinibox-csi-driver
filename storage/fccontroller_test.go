@@ -28,10 +28,9 @@ func (suite *FCControllerSuite) SetupTest() {
 		Name: "host1",
 	}
 	volProto := &api.VolumeProtocolConfig{
-		Host:        host,
-		VolumeID:    "1",
-		VolumeIDInt: 1,
-		NodeID:      "node1",
+		Host:     host,
+		VolumeID: 1,
+		NodeID:   "node1",
 	}
 	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi, VolProto: volProto}
 
@@ -127,22 +126,6 @@ func (suite *FCControllerSuite) Test_CreateVolume_metadataError() {
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume attach metadata")
-}
-
-func (suite *FCControllerSuite) Test_DeleteVolume_InvalidVolumeID() {
-	service := fcstorage{cs: *suite.cs}
-	createVolReq := getISCSIDeleteRequest()
-	createVolReq.VolumeId = ""
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume empty volume ID")
-}
-
-func (suite *FCControllerSuite) Test_DeleteVolume_casting_Error() {
-	service := fcstorage{cs: *suite.cs}
-	createVolReq := getISCSIDeleteRequest()
-	createVolReq.VolumeId = "1bc"
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume invalid volume ID due to bad casting")
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_GetVolume_Error() {
@@ -370,8 +353,7 @@ func (suite *FCControllerSuite) Test_CreateSnapshot_GetVolumeByNameErr() {
 
 func (suite *FCControllerSuite) Test_CreateSnapshot_already_Created() {
 	service := fcstorage{cs: *suite.cs}
-	suite.cs.VolProto.VolumeID = "1001"
-	suite.cs.VolProto.VolumeIDInt = 1001
+	suite.cs.VolProto.VolumeID = 1001
 	//	var parameterMap map[string]string
 	unpublishVolReq := getISCSICreateSnapshotRequest()
 	unpublishVolReq.SourceVolumeId = "1001$$iscsi"
