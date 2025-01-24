@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 
 	"strconv"
 	"strings"
@@ -155,8 +156,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	metadata := map[string]interface{}{
 		"host.k8s.pvname": vol.Name,
 	}
-	// metadata["host.filesystem_type"] = params["fstype"] // TODO: set this correctly according to what iscsinode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = iscsi.cs.Api.AttachMetadataToObject(vol.ID, metadata)
+	_, err = iscsi.cs.IboxApi.PutMetadata(vol.ID, metadata)
 	if err != nil {
 		e := fmt.Errorf("failed to attach metadata for volume : %s, err: %v", name, err)
 		zlog.Error().Msg(e.Error())
@@ -187,7 +187,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	var msg string
 
 	volumecontent := req.GetVolumeContentSource()
-	volumeContentID := ""
+	var volumeContentID string
 	var restoreType string
 	if volumecontent.GetSnapshot() != nil {
 		restoreType = "Snapshot"
@@ -273,8 +273,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	metadata := map[string]interface{}{
 		"host.k8s.pvname": dstVol.Name,
 	}
-	// metadata["host.filesystem_type"] = params["fstype"] // TODO: set this correctly according to what iscsinode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = iscsi.cs.Api.AttachMetadataToObject(dstVol.ID, metadata)
+	_, err = iscsi.cs.IboxApi.PutMetadata(dstVol.ID, metadata)
 	if err != nil {
 		e := fmt.Errorf("error attach metadata for volume : %s, err: %v", dstVol.Name, err)
 		zlog.Error().Msg(e.Error())
@@ -328,7 +327,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 	zlog.Debug().Msgf("found host name: %s id: %d ports: %v LUNs: %v", host.Name, host.ID, host.Ports, host.Luns)
 
-	ports := ""
+	var ports string
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
 			if port.PortType == "ISCSI" {
@@ -584,7 +583,7 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
-		_, err = iscsi.cs.Api.AttachMetadataToObject(vol.ID, metadata)
+		_, err = iscsi.cs.IboxApi.PutMetadata(vol.ID, metadata)
 		if err != nil {
 			e := fmt.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			zlog.Err(e)
@@ -594,6 +593,13 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return
 	}
 	zlog.Debug().Msgf("deleting volume named %s with ID %d", vol.Name, vol.ID)
+	_, err = iscsi.cs.IboxApi.DeleteMetadata(vol.ID)
+	if err != nil {
+		msg := fmt.Sprintf("Error deleting metadata for volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
+		zlog.Error().Msg(msg)
+		return status.Error(codes.Internal, msg)
+	}
+
 	if err = iscsi.cs.Api.DeleteVolume(vol.ID); err != nil {
 		msg := fmt.Sprintf("Error deleting volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
 		zlog.Error().Msg(msg)
@@ -603,8 +609,19 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 	if vol.ParentId != 0 {
 		zlog.Debug().Msgf("checking if parent volume with ID %d of volume named %s, with ID %d, can be deleted", vol.ParentId, vol.Name, vol.ID)
-		tobedel := iscsi.cs.Api.GetMetadataStatus(vol.ParentId)
-		if tobedel {
+		var metadata []iboxapi.GetMetadataResult
+		metadata, err = iscsi.cs.IboxApi.GetMetadata(vol.ParentId)
+		if err != nil {
+			zlog.Err(err)
+			return err
+		}
+		var toBeDeleted bool
+		for _, m := range metadata {
+			if m.Key == api.TOBEDELETED {
+				toBeDeleted = true
+			}
+		}
+		if toBeDeleted {
 			zlog.Debug().Msgf("ValidateDeleteVolume recursively called for parent. Volume ID: %d. Parent volume ID: %d", vol.ID, vol.ParentId)
 			// Recursion
 			err = iscsi.ValidateDeleteVolume(vol.ParentId)

@@ -318,7 +318,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 		"host.created_by": nfs.cs.GetCreatedBy(),
 	}
 
-	_, err = nfs.cs.Api.AttachMetadataToObject(nfs.fileSystemID, metadata)
+	_, err = nfs.cs.IboxApi.PutMetadata(nfs.fileSystemID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to attach metadata for file system %s, %v", nfs.pVName, err)
 		return
@@ -457,7 +457,7 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
-		_, err = nfs.cs.Api.AttachMetadataToObject(nfs.uniqueID, metadata)
+		_, err = nfs.cs.IboxApi.PutMetadata(nfs.uniqueID, metadata)
 		if err != nil {
 			zlog.Error().Msgf("failed to update host.k8s.to_be_deleted for filesystem %s error: %v", nfs.pVName, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
@@ -526,7 +526,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	}
 	zlog.Debug().Msgf("nfs export permissions for volume ID %s and export ID %s: %v", volumeID, exportID, exportPermissionMapArray)
 
-	access := ""
+	var access string
 	if len(exportPermissionMapArray) > 0 {
 		access = exportPermissionMapArray[0]["access"].(string)
 	}

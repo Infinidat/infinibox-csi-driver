@@ -82,7 +82,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	suite.api.On("ExportFileSystem", mock.Anything).Return(nil, nil)
 	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
 	suite.api.On("DeleteExportPath", mock.Anything).Return(nil)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: get filesystem by name")
@@ -103,22 +103,6 @@ func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportError() {
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: get export by filesystem")
 }
-
-/*
-func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_exportArryEmpty() {
-	service := nfsstorage{cs: *suite.cs}
-	parameterMap := getCreateVolumeParameter()
-	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
-	exportResp := &[]api.ExportResponse{}
-
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
-	suite.api.On("GetFileSystemByName", mock.Anything).Return(getFileSystem(), nil)
-	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
-
-	_, err := service.CreateVolume(context.Background(), createVolReq)
-	assert.NotNil(suite.T(), err, "expected to fail: fetching export details")
-}
-*/
 
 func (suite *NFSControllerSuite) Test_CreateVolume_FileNameExist_sucess() {
 	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
@@ -207,14 +191,12 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("CreateFilesystem", mock.Anything).Return(getFileSystem(), nil)
 
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
 	resp, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected succeed: CreateVolume create the file system")
 	assert.Equal(suite.T(), resp.GetVolume().GetVolumeId(), "1", "expected to get volume ID")
 }
-
-//=================================================Create Volume END=================================//
 
 func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Invalid_volumeID() {
 	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
@@ -347,7 +329,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponce(1), nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, filesystemErr)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, filesystemErr)
 	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
 	suite.api.On("DeleteExportPath", mock.Anything).Return(nil, nil)
 
@@ -370,7 +352,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&poolResult, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponce(1), nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot")
@@ -391,7 +373,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_Success() {
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&poolResult, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponce(1), nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected clone success")
@@ -415,13 +397,12 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
 	suite.api.On("DeleteExportPath", mock.Anything).Return(nil, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponce(1), nil)
 	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, filesystemErr)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, filesystemErr)
 
 	_, err := service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err.Error(), "failed to clone the volume")
 }
 
-// ===========================================================================
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_VolumeID_empty() {
 	service := nfsstorage{capacity: 100 * gib, cs: *suite.cs}
 	_, err := service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(""))
@@ -506,13 +487,13 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_Success() {
-	var fileSysSnapshotResp api.FileSystemSnapshotResponce
-	fileSysSnapshotResp.SnapshotID = 1
-	fileSysSnapshotResp.Name = "snapshot"
-	fileSysSnapshotResp.ParentId = 1
-
-	var fileSysSnapshotRespArry []api.FileSystemSnapshotResponce
-	fileSysSnapshotRespArry = append(fileSysSnapshotRespArry, fileSysSnapshotResp)
+	fileSysSnapshotRespArry := []api.FileSystemSnapshotResponce{
+		{
+			SnapshotID: 1,
+			Name:       "snapshot",
+			ParentId:   1,
+		},
+	}
 
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
 
@@ -535,10 +516,11 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_Error(
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_success() {
 	var fileSysSnapshotRespArry []api.FileSystemSnapshotResponce
-	var filesystem api.FileSystemSnapshot
-	filesystem.ParentID = 10
-	filesystem.SnapshotName = "snapshot"
-	filesystem.WriteProtected = false
+	filesystem := api.FileSystemSnapshot{
+		ParentID:       10,
+		SnapshotName:   "snapshot",
+		WriteProtected: false,
+	}
 
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(filesystem, nil)
 	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
@@ -559,7 +541,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_SourceVolumeID_empty() {
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_InvalidSourceVolumeID() {
 	service := nfsstorage{cs: *suite.cs}
-	var snapshotID int = 1000000000000000000
+	snapshotID := 1000000000000000000
 	expectedErr := errors.New("Invalid Source ID")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest("1000000000000000000"))
@@ -568,7 +550,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_InvalidSourceVolumeID() 
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_Error() {
 	service := nfsstorage{cs: *suite.cs, uniqueID: 100}
-	var snapshotID int = 100
+	snapshotID := 100
 	expectedErr := errors.New("some error")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest("100"))
@@ -577,7 +559,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_Error() {
 
 func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_file_not_found() {
 	service := nfsstorage{cs: *suite.cs, uniqueID: 100}
-	var snapshotID int = 100
+	snapshotID := 100
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	_, err := service.DeleteSnapshot(context.Background(), getNfsDeleteSnapshotRequest("100"))
@@ -586,7 +568,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteSnapshot_file_not_found() {
 
 func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_error() {
 	service := nfsstorage{cs: *suite.cs, uniqueID: 100}
-	var snapshotID int = 100
+	snapshotID := 100
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	err := service.DeleteNFSVolume()
@@ -596,9 +578,7 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_error
 
 func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_InvalidID() {
 	service := nfsstorage{cs: *suite.cs, uniqueID: 100}
-	//var snapshotID int
-	//snapshotID = 100999999999999
-	var snapshotID int = 100
+	snapshotID := 100
 	expectedErr := errors.New("Invalid_ID")
 	suite.api.On("GetFileSystemByID", snapshotID).Return(nil, expectedErr)
 	err := service.DeleteNFSVolume()
@@ -607,14 +587,14 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_Inval
 
 func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_Success() {
 	service := nfsstorage{cs: *suite.cs, uniqueID: 100}
-	var snapshotID, parentID int = 100, 200
+	var snapshotID, parentID = 100, 200
 	fileSystem := api.FileSystem{}
 	metadata := map[string]interface{}{
 		"host.k8s.to_be_deleted": true,
 	}
 	suite.api.On("GetFileSystemByID", snapshotID).Return(fileSystem, nil)
 	suite.api.On("FileSystemHasChild", snapshotID).Return(true)
-	suite.api.On("AttachMetadataToObject", snapshotID, metadata).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", snapshotID, metadata).Return(nil, nil)
 	suite.api.On("GetParentID", snapshotID).Return(parentID)
 	suite.api.On("DeleteFileSystemComplete", snapshotID).Return(nil)
 	suite.api.On("DeleteParentFileSystem", parentID).Return(nil)
@@ -648,7 +628,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Metadata_failed() {
 	// var filsystemID int = 1
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.api.On("FileSystemHasChild", mock.Anything).Return(true)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
 	_, err := service.DeleteVolume(context.Background(), delValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: DeleteVolume delete metadata")
@@ -659,10 +639,10 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_delete_Error() {
 	delValReq := getNFSDeletRequest()
 	expectedErr := errors.New("some Error")
 
-	var parentID int = 0
+	parentID := 0
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.api.On("FileSystemHasChild", mock.Anything).Return(false)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetParentID", mock.Anything).Return(parentID)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(expectedErr)
 
@@ -675,10 +655,10 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Err2() {
 	delValReq := getNFSDeletRequest()
 	expectedErr := errors.New("some Error")
 
-	var parentID int = 11
+	parentID := 11
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.api.On("FileSystemHasChild", mock.Anything).Return(false)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetParentID", mock.Anything).Return(parentID)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(nil)
 	suite.api.On("DeleteParentFileSystem", mock.Anything).Return(expectedErr)
@@ -694,7 +674,7 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_success() {
 	var parentID int = 11
 	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.api.On("FileSystemHasChild", mock.Anything).Return(false)
-	suite.api.On("AttachMetadataToObject", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetParentID", mock.Anything).Return(parentID)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(nil)
 	suite.api.On("DeleteParentFileSystem", mock.Anything).Return(nil)
@@ -755,8 +735,6 @@ func (suite *NFSControllerSuite) Test_ControllerUnpublishVolume_DeleteExportRule
 	assert.Nil(suite.T(), err, "expected to succeed: ControllerUnpublishVolume when DeleteExportRule succeeds")
 }
 
-//============================================================
-
 func getNFSControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
 	return &csi.ControllerUnpublishVolumeRequest{
 		VolumeId: "1$$nfs",
@@ -785,10 +763,10 @@ func getExportResponseValue() api.ExportResponse {
 }
 
 func getExportPath() *[]api.ExportResponse {
-	exportRepo := []api.ExportResponse{}
-	responce := api.ExportResponse{ID: 1, ExportPath: "/exportPath/"}
+	exportRepo := []api.ExportResponse{
+		{ID: 1, ExportPath: "/exportPath/"},
+	}
 
-	exportRepo = append(exportRepo, responce)
 	return &exportRepo
 }
 
@@ -797,7 +775,15 @@ func GetFileSystemSnapshotResponce(snapshotID int) api.FileSystemSnapshotResponc
 }
 
 func getFileSystem() api.FileSystem {
-	return api.FileSystem{ID: 1, PoolID: 100, Name: "PVName", SsdEnabled: true, Provtype: "thin", Size: 100 * gib, PoolName: "pool_name1"}
+	return api.FileSystem{
+		ID:         1,
+		PoolID:     100,
+		Name:       "PVName",
+		SsdEnabled: true,
+		Provtype:   "thin",
+		Size:       100 * gib,
+		PoolName:   "pool_name1",
+	}
 }
 
 func getNetworkSpace() api.NetworkSpace {
@@ -825,11 +811,9 @@ func getNfsExpandVolumeRequest(vID string) *csi.ControllerExpandVolumeRequest {
 
 func getNFSCreateVolumeRequest(name string, parameterMap map[string]string) *csi.CreateVolumeRequest {
 	return &csi.CreateVolumeRequest{
-		Name:          name,
-		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * gib},
-		// VolumeCapabilities []*VolumeCapability
-		Parameters: parameterMap,
-		// Secrets map[string]string
+		Name:                name,
+		CapacityRange:       &csi.CapacityRange{RequiredBytes: 100 * gib},
+		Parameters:          parameterMap,
 		VolumeContentSource: nil,
 	}
 }

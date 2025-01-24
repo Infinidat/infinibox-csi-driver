@@ -92,14 +92,6 @@ func (m *MockApiService) CreateTreeq(filesystemID int, treeqParameter map[string
 	return &resp, err
 }
 
-// AttachMetadataToObject mock
-func (m *MockApiService) AttachMetadataToObject(objectID int, body map[string]interface{}) (*[]Metadata, error) {
-	args := m.Called(objectID, body)
-	resp, _ := args.Get(0).([]Metadata)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // UpdateFilesystem
 func (m *MockApiService) UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error) {
 	args := m.Called(fileSystemID, fileSystem)
@@ -559,11 +551,4 @@ func (m *MockApiService) GetMembersByCGID(cgID int) ([]MemberInfo, error) {
 	memberInfo, _ := args.Get(0).([]MemberInfo)
 	err, _ := args.Get(1).(error)
 	return memberInfo, err
-}
-
-func (m *MockApiService) PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error) {
-	args := m.Called(objectID, key, value)
-	res, _ := args.Get(0).(PutMetadataResponse)
-	err, _ := args.Get(1).(error)
-	return &res, err
 }

@@ -140,7 +140,7 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 					MetricIboxBBUChargeLevelGauge.With(l).Set(v.(float64))
 				}
 				MetricIboxBBUProtectedNodesGauge.With(labels).Set(float64(results.HealthState.BbuProtectedNodes))
-				boolValue := 0
+				var boolValue int
 				if results.HealthState.EnclosureFailureSafeDistribution {
 					boolValue = 1
 				}
@@ -162,7 +162,7 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 						METRIC_IBOX_IP:        ibox.IboxIpAddress,
 						METRIC_IBOX_HOSTNAME:  ibox.IboxHostname,
 						METRIC_IBOX_NODE_NAME: k}
-					protectedValue := 0
+					var protectedValue int
 					if v == "protected" {
 						protectedValue = 1
 					}

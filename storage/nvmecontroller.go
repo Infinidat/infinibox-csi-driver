@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 
 	"strconv"
 	"strings"
@@ -147,7 +148,7 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	metadata := map[string]interface{}{
 		"host.k8s.pvname": vol.Name,
 	}
-	_, err = nvme.cs.Api.AttachMetadataToObject(vol.ID, metadata)
+	_, err = nvme.cs.IboxApi.PutMetadata(vol.ID, metadata)
 	if err != nil {
 		e := fmt.Errorf("failed to attach metadata for volume : %s, err: %v", name, err)
 		zlog.Err(e)
@@ -178,7 +179,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	var msg string
 
 	volumecontent := req.GetVolumeContentSource()
-	volumeContentID := ""
+	var volumeContentID string
 	var restoreType string
 	if volumecontent.GetSnapshot() != nil {
 		restoreType = "Snapshot"
@@ -256,7 +257,7 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	metadata := map[string]interface{}{
 		"host.k8s.pvname": dstVol.Name,
 	}
-	_, err = nvme.cs.Api.AttachMetadataToObject(dstVol.ID, metadata)
+	_, err = nvme.cs.IboxApi.PutMetadata(dstVol.ID, metadata)
 	if err != nil {
 		e := fmt.Errorf("error attach metadata for volume : %s, err: %v", dstVol.Name, err)
 		zlog.Error().Msg(e.Error())
@@ -309,7 +310,7 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	}
 	zlog.Debug().Msgf("found host name: %s id: %d ports: %v LUNs: %v", host.Name, host.ID, host.Ports, host.Luns)
 
-	ports := ""
+	var ports string
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
 			if port.PortType == "NVME" {
@@ -565,7 +566,7 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
-		_, err = nvme.cs.Api.AttachMetadataToObject(vol.ID, metadata)
+		_, err = nvme.cs.IboxApi.PutMetadata(vol.ID, metadata)
 		if err != nil {
 			e := fmt.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			zlog.Err(e)
@@ -575,6 +576,12 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return
 	}
 	zlog.Debug().Msgf("deleting volume named %s with ID %d", vol.Name, vol.ID)
+	_, err = nvme.cs.IboxApi.DeleteMetadata(vol.ID)
+	if err != nil {
+		msg := fmt.Sprintf("Error deleting metadata for volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
+		zlog.Error().Msg(msg)
+		return status.Error(codes.Internal, msg)
+	}
 	if err = nvme.cs.Api.DeleteVolume(vol.ID); err != nil {
 		msg := fmt.Sprintf("Error deleting volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
 		zlog.Error().Msg(msg)
@@ -584,8 +591,19 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 	if vol.ParentId != 0 {
 		zlog.Debug().Msgf("checking if parent volume with ID %d of volume named %s, with ID %d, can be deleted", vol.ParentId, vol.Name, vol.ID)
-		tobedel := nvme.cs.Api.GetMetadataStatus(vol.ParentId)
-		if tobedel {
+		var metadata []iboxapi.GetMetadataResult
+		metadata, err = nvme.cs.IboxApi.GetMetadata(vol.ParentId)
+		if err != nil {
+			zlog.Err(err)
+			return err
+		}
+		var toBeDeleted bool
+		for _, m := range metadata {
+			if m.Key == api.TOBEDELETED {
+				toBeDeleted = true
+			}
+		}
+		if toBeDeleted {
 			zlog.Debug().Msgf("ValidateDeleteVolume recursively called for parent. Volume ID: %d. Parent volume ID: %d", vol.ID, vol.ParentId)
 			// Recursion
 			err = nvme.ValidateDeleteVolume(vol.ParentId)

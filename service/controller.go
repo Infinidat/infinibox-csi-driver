@@ -478,7 +478,7 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (summary string,
 		return "", errors.New("no volume capabilities specified")
 	}
 
-	modes := ""
+	var modes string
 	for _, capability := range capabilities {
 		// validate accessMode
 		accessMode := capability.GetAccessMode()

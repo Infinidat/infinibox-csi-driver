@@ -33,17 +33,13 @@ func TestStorageHelperSuite(t *testing.T) {
 	suite.Run(t, new(StorageHelperSuite))
 }
 
-////////////////////////// validateProtocolToNetworkSpace tests ///////////////////
-
 // test NFS and TREEQ protocal validate with network space.
 func (suite *StorageHelperSuite) Test_Network_Protocol_Match_NFS_TREEQ_Success() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	networkSpace := api.NetworkSpace{Service: common.NS_NFS_SVC}
 	var scProtocol = common.PROTOCOL_NFS
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
-	//networkSpaceErr := errors.New("Some error")
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
 	// validate NFS
@@ -59,7 +55,6 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_Match_NFS_TREEQ_Success()
 
 // validate iscsi protocol network space match
 func (suite *StorageHelperSuite) Test_Network_Protocol_Match_ISCSI_Success() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
@@ -73,7 +68,6 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_Match_ISCSI_Success() {
 
 // validate iscsi protocol with NFS service fails
 func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_ISCSI_Failure() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
@@ -87,7 +81,6 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_ISCSI_Failure() 
 
 // validate NFS protocol with iSCSI service fails
 func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_NFS_Failure() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
@@ -101,7 +94,6 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_NFS_Failure() {
 
 // validate FC protocol with iSCSI service fails
 func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_FC_ISCSI_Failure() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
@@ -114,7 +106,6 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_FC_ISCSI_Failure
 
 // validate FC protocol with NFS service fails
 func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_FC_NFS_Failure() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
@@ -127,7 +118,6 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_FC_NFS_Failure()
 
 // validate iscsi protocol with iSCSI and NFS service fails
 func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_NAMESPACES_Failure() {
-	//service := StorageHelperSuite{cs: *suite.cs}
 
 	scNetSpace := []string{"someiscsiSpace", "someNfsSpace"}
 

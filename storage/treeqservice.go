@@ -456,10 +456,10 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int, action ACTION, treeqCnt
 	case DecrementTreeqCount:
 		treeqCnt--
 	}
-	metadataParamter := map[string]interface{}{
+	metadata := map[string]interface{}{
 		TREEQCOUNT: treeqCnt,
 	}
-	_, err = ts.cs.Api.AttachMetadataToObject(fileSystemID, metadataParamter)
+	_, err = ts.cs.IboxApi.PutMetadata(fileSystemID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to update treeq count for filesystemID : %d error %v", fileSystemID, err)
 		return

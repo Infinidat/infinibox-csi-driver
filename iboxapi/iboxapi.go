@@ -141,8 +141,9 @@ type Client interface {
 	*/
 
 	// metadata
-	PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error)
+	PutMetadata(objectID int, metadata map[string]interface{}) (*PutMetadataResponse, error)
 	GetMetadata(objectID int) ([]GetMetadataResult, error)
+	DeleteMetadata(objectID int) (*DeleteMetadataResponse, error)
 
 	// links
 	GetLink(linkID int) (*Link, error)

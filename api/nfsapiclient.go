@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
+	"infinibox-csi-driver/iboxapi"
 	"net"
 	"net/http"
 	"reflect"
@@ -389,33 +390,6 @@ const (
 	TOBEDELETED = "host.k8s.to_be_deleted"
 )
 
-// GetMetadataStatus :
-func (c *ClientService) GetMetadataStatus(fileSystemID int) bool {
-	zlog.Trace().Msgf("Get metadata status of IBox object with ID %d", fileSystemID)
-	path := "/api/rest/metadata/" + strconv.Itoa(fileSystemID) + "/" + TOBEDELETED
-	metadata := Metadata{}
-	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &metadata)
-	if err != nil {
-		zlog.Trace().Msgf("Getting metadata did not return a value: %s", err)
-		return false
-	}
-
-	zlog.Trace().Msgf("GetMetadataStatus for IBox object with ID %d: %v", fileSystemID, resp)
-
-	if metadata == (Metadata{}) {
-		apiresp := resp.(client.ApiResponse)
-		metadata, _ = apiresp.Result.(Metadata)
-	}
-	status, statusErr := strconv.ParseBool(metadata.Value)
-	if statusErr != nil {
-		zlog.Trace().Msgf("Error occured while converting metadata key : %sTOBEDELETED ,value: %s", TOBEDELETED, err)
-		status = false
-	}
-	zlog.Trace().Msgf("Got metadata status of IBox object with ID %d", fileSystemID)
-	zlog.Trace().Msgf("Got metadata status of IBox object with ID %d: %t", fileSystemID, status)
-	return status
-}
-
 // GetFileSystemByName :
 func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
 	zlog.Trace().Msgf("Get filesystem %s", fileSystemName)
@@ -469,9 +443,23 @@ func (c *ClientService) GetParentID(fileSystemID int) int {
 
 // DeleteParentFileSystem method delete the ascenders of fileystem
 func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { // delete fileystem's parent ID
+
+	var metadata []iboxapi.GetMetadataResult
+	metadata, err = c.Iboxapi.GetMetadata(fileSystemID)
+	if err != nil {
+		zlog.Error().Msgf("Failed to delete filesystem with ID %d, error getting metadata: %v", fileSystemID, err)
+		return err
+	}
+	var toBeDeleted bool
+	for _, m := range metadata {
+		if m.Key == TOBEDELETED {
+			toBeDeleted = true
+		}
+	}
+
 	// first check .. hasChild ...
 	hasChild := c.FileSystemHasChild(fileSystemID)
-	if !hasChild && c.GetMetadataStatus(fileSystemID) { // If No child and to_be_delete_status =true in metadata then
+	if !hasChild && toBeDeleted { // If No child and to_be_delete_status =true in metadata then
 		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
 		err = c.DeleteFileSystemComplete(fileSystemID) // delete the filesystem
 		if err != nil {
@@ -518,7 +506,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	zlog.Trace().Msgf("Export path deleted successfully")
 
 	// 2.delete metadata
-	_, err = c.DetachMetadataFromObject(fileSystemID)
+	_, err = c.Iboxapi.DeleteMetadata(fileSystemID)
 	if err != nil {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 	"strconv"
 	"strings"
 	"time"
@@ -157,8 +158,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	metadata := map[string]interface{}{
 		"host.k8s.pvname": volumeResp.Name,
 	}
-	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = fc.cs.Api.AttachMetadataToObject(volumeResp.ID, metadata)
+	_, err = fc.cs.IboxApi.PutMetadata(volumeResp.ID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", name, err)
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
@@ -184,7 +184,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	var err error
 
 	volumecontent := req.GetVolumeContentSource()
-	volumeContentID := ""
+	var volumeContentID string
 	var restoreType string
 	if volumecontent.GetSnapshot() != nil {
 		restoreType = "Snapshot"
@@ -258,8 +258,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	metadata := map[string]interface{}{
 		"host.k8s.pvname": dstVol.Name,
 	}
-	// metadata["host.filesystem_type"] = req.GetParameters()["fstype"] // TODO: set this correctly according to what fcnode.go does, not the fstype parameter originally captured in this function ... which is likely overwritten by the VolumeCapability
-	_, err = fc.cs.Api.AttachMetadataToObject(dstVol.ID, metadata)
+	_, err = fc.cs.IboxApi.PutMetadata(dstVol.ID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
@@ -310,7 +309,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 		zlog.Err(err)
 		return nil, err
 	}
-	ports := ""
+	var ports string
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
 			if port.PortType == "FC" {
@@ -534,7 +533,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
-		_, err = fc.cs.Api.AttachMetadataToObject(vol.ID, metadata)
+		_, err = fc.cs.IboxApi.PutMetadata(vol.ID, metadata)
 		if err != nil {
 			zlog.Error().Msgf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
@@ -542,6 +541,12 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return
 	}
 	zlog.Debug().Msgf("Deleting volume name: %s id: %d", vol.Name, vol.ID)
+	_, err = fc.cs.IboxApi.DeleteMetadata(vol.ID)
+	if err != nil {
+		zlog.Err(err)
+		return status.Errorf(codes.Internal,
+			"error removing metadata for volume: %s", err.Error())
+	}
 	err = fc.cs.Api.DeleteVolume(vol.ID)
 	if err != nil {
 		zlog.Err(err)
@@ -549,9 +554,20 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 			"error removing volume: %s", err.Error())
 	}
 	if vol.ParentId != 0 {
-		zlog.Debug().Msgf("checkingif parent volume can be name: %s id: %d", vol.Name, vol.ID)
-		tobedel := fc.cs.Api.GetMetadataStatus(vol.ParentId)
-		if tobedel {
+		zlog.Debug().Msgf("checking if parent volume can be name: %s id: %d", vol.Name, vol.ID)
+		var metadata []iboxapi.GetMetadataResult
+		metadata, err = fc.cs.IboxApi.GetMetadata(vol.ParentId)
+		if err != nil {
+			zlog.Err(err)
+			return err
+		}
+		var toBeDeleted bool
+		for _, m := range metadata {
+			if m.Key == api.TOBEDELETED {
+				toBeDeleted = true
+			}
+		}
+		if toBeDeleted {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
 			if err != nil {
 				zlog.Err(err)

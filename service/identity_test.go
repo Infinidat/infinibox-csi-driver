@@ -59,8 +59,6 @@ func (suite *IdentitySuite) TestGetPluginCapabilities() {
 	resp, err := fakeIdentityServer.GetPluginCapabilities(context.Background(), &req)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), resp)
-	//assert.Equal(suite.T(), resp.XXX_sizecache, int32(0))
-
 	assert.Equal(suite.T(), resp.Capabilities, expectedCap)
 
 }
@@ -74,7 +72,6 @@ func (suite *IdentitySuite) TestProbe() {
 	resp, err := fakeIdentityServer.Probe(context.Background(), &req)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), resp)
-	//assert.Equal(suite.T(), resp.XXX_sizecache, int32(0))
 	assert.Equal(suite.T(), resp.Ready.Value, true)
 }
 
@@ -109,7 +106,6 @@ func (suite *IdentitySuite) TestGetPluginInfo() {
 			Driver: test.driver,
 		}
 		_, err := fakeIdentityServer.GetPluginInfo(context.Background(), &req)
-		//if !reflect.DeepEqual(err, test.expectedErr) {
 		if err == nil && test.expectedErr != nil {
 			suite.T().Errorf("Unexpected error: %v\nExpected: %v", err, test.expectedErr)
 		}

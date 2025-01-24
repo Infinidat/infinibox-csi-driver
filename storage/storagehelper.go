@@ -527,8 +527,8 @@ func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err er
 	//fsGroupIsSet := (fsGroup != "")
 	//zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
 
-	var uid_int = -1
-	var gid_int = -1
+	uid_int := -1
+	gid_int := -1
 
 	tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
 	if tmp != "" {

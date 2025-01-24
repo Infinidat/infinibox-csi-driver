@@ -104,7 +104,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 		return false, err.Error(), err
 	}
 
-	charCount := 0 // default to read no characters
+	var charCount int // default to read no characters
 
 	if len(nodeName) > 0 {
 		charCount = len(strings.Fields(nodeName)[0])

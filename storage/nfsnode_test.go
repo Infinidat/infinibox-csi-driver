@@ -345,7 +345,7 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_mustNotAddVers() {
 }
 
 func countValsInSlice(slice []string, val string) int {
-	count := 0
+	var count int
 	for _, item := range slice {
 		if item == val {
 			count += 1

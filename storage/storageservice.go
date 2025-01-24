@@ -310,6 +310,15 @@ func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 			zlog.Error().Msgf("failed to create host with error %v", err)
 			return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
 		}
+
+		metadata := map[string]interface{}{
+			common.CSI_CREATED_HOST: true,
+		}
+		_, err = cs.IboxApi.PutMetadata(host.ID, metadata)
+		if err != nil {
+			zlog.Error().Msgf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
+			return nil, err
+		}
 	}
 	return &host, nil
 }
@@ -368,7 +377,7 @@ func (cs *Commonservice) getNetworkSpaceIP(networkSpace string) (string, error) 
 
 func getRandomIndex(max int) int {
 	// rand.Seed(time.Now().UnixNano()) - not needed as of go1.20, automatically seeded by golang
-	min := 0
+	var min int
 	index := rand.Intn(max-min) + min
 	return index
 }

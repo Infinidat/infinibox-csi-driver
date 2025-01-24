@@ -70,8 +70,6 @@ type Client interface {
 	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
 	DeleteExportPath(exportID int) (*ExportResponse, error)
 	DeleteFileSystem(fileSystemID int) (*FileSystem, error)
-	AttachMetadataToObject(objectID int, body map[string]interface{}) (*[]Metadata, error)
-	DetachMetadataFromObject(objectID int) (*[]Metadata, error)
 	CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error)
 	GetExportByFileSystem(filesystemID int) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
@@ -82,7 +80,6 @@ type Client interface {
 	GetParentID(fileSystemID int) int
 	GetFileSystemByID(fileSystemID int) (*FileSystem, error)
 	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
-	GetMetadataStatus(fileSystemID int) bool
 	FileSystemHasChild(fileSystemID int) bool
 	DeleteExport(exportID int) (err error)
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
@@ -101,8 +98,6 @@ type Client interface {
 	GetMaxTreeqPerFs() (int, error)
 	GetMaxFileSystems() (int, error)
 	GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error)
-
-	PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error)
 
 	// replication
 	CreateReplica(request CreateReplicaRequest) (Replica, error)
@@ -160,15 +155,6 @@ func (c *ClientService) DeleteExport(exportID int) (err error) {
 // DeleteVolume : Delete volume by volume id
 func (c *ClientService) DeleteVolume(volumeID int) (err error) {
 	zlog.Trace().Msgf("Delete Volume with ID %d", volumeID)
-	_, err = c.DetachMetadataFromObject(volumeID)
-	if err != nil {
-		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
-			err = nil
-		} else {
-			zlog.Error().Msgf("failed to delete metadata %v", err)
-			return
-		}
-	}
 
 	path := "/api/rest/volumes/" + strconv.Itoa(volumeID) + "?approved=true"
 	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
@@ -386,12 +372,6 @@ func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
 	_, err = c.getJSONResponse(http.MethodPost, uri, body, &host)
 	if err != nil {
 		zlog.Error().Msgf("error creating host : %s error : %v", hostName, err)
-		return host, err
-	}
-
-	_, err = c.PutMetadata(host.ID, common.CSI_CREATED_HOST, "true")
-	if err != nil {
-		zlog.Error().Msgf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
 		return host, err
 	}
 
@@ -788,66 +768,6 @@ func (c *ClientService) GetNtpStatus() ([]NtpStatus, error) {
 	}
 
 	return allNtpStatus, err
-}
-
-// Put Metadata : add a single key-value pair metadata for an object
-func (c *ClientService) PutMetadata(objectID int, key string, value string) (*PutMetadataResponse, error) {
-	zlog.Trace().Msgf("Put metadata %s/%s to object %d", key, value, objectID)
-
-	mymap := map[string]string{
-		key: value,
-	}
-	uri := "api/rest/metadata/" + strconv.Itoa(objectID)
-	putResponse := PutMetadataResponse{}
-	var putResponseResults []MetadataResult
-
-	resp, err := c.getJSONResponse(http.MethodPut, uri, mymap, &putResponseResults)
-	if err != nil {
-		zlog.Error().Msgf("error occured while updating volume : %s", err)
-		return nil, err
-	}
-
-	apiresp := resp.(client.ApiResponse)
-	putResponse, _ = apiresp.Result.(PutMetadataResponse)
-
-	putResponse.Results = putResponseResults
-
-	zlog.Trace().Msgf("Added metadata to object: %d object_type: %v", objectID, putResponse)
-	return &putResponse, nil
-}
-
-// GetMetadataForObject - Get all metadata for an object ID
-func (c *ClientService) GetMetadata(objectID int) (results []MetadataResult, err error) {
-
-	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
-	total_pages := 1 // start with 1, update after first query.
-
-	zlog.Trace().Msgf("Get all metadata for object %d", objectID)
-
-	for page := 1; page <= total_pages; page++ {
-		uri := "api/rest/metadata/" + strconv.Itoa(objectID) + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
-		zlog.Trace().Msgf("calling %s", uri)
-
-		resp, err := c.getResponseWithQueryString(uri, nil, &results)
-
-		if err != nil {
-			zlog.Error().Msgf("failed to get metadata for object %d with error %v", objectID, err)
-			return results, err
-		}
-
-		apiresp := resp.(client.ApiResponse)
-		currentResults, _ := apiresp.Result.([]MetadataResult)
-		results = append(results, currentResults...)
-		responseSize := apiresp.MetaData.NoOfObject
-		zlog.Trace().Msgf("added %d items to results", responseSize)
-		if page == 1 {
-			total_pages = apiresp.MetaData.TotalPages
-		}
-		page++
-	}
-
-	zlog.Trace().Msgf("got %d metadata for object %d", len(results), objectID)
-	return results, nil
 }
 
 // GetAllHosts - get all host details

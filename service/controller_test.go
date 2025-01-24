@@ -362,8 +362,6 @@ func (suite *ControllerTestSuite) Test_GetCapacity_unimplemented() {
 	assert.NotNil(suite.T(), err, "expected to fail: Controller GetCapacity unimplemented")
 }
 
-//=============================
-
 func getControllerGetCapabilitiesRequest() *csi.ControllerGetCapabilitiesRequest {
 	return &csi.ControllerGetCapabilitiesRequest{}
 }

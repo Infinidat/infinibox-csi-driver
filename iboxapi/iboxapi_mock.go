@@ -57,3 +57,17 @@ func (m *MockApiService) GetAllLunByHost(hostID int) ([]Luns, error) {
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+
+func (m *MockApiService) PutMetadata(objectID int, metadata map[string]interface{}) (*PutMetadataResponse, error) {
+	args := m.Called(objectID, metadata)
+	res, _ := args.Get(0).(PutMetadataResponse)
+	err, _ := args.Get(1).(error)
+	return &res, err
+}
+
+func (m *MockApiService) DeleteMetadata(objectID int) (*DeleteMetadataResponse, error) {
+	args := m.Called(objectID)
+	res, _ := args.Get(0).(DeleteMetadataResponse)
+	err, _ := args.Get(1).(error)
+	return &res, err
+}

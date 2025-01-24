@@ -18,6 +18,12 @@ type MetadataResult struct {
 	ObjectType string `json:"object_type"`
 }
 
+type DeleteMetadataResponse struct {
+	Results  []MetadataResult `json:"results"`
+	Error    Error            `json:"error"`
+	Metadata Metadata         `json:"metadata"`
+}
+
 type PutMetadataResponse struct {
 	Results  []MetadataResult `json:"results"`
 	Error    Error            `json:"error"`
@@ -37,15 +43,11 @@ type GetMetadataResult struct {
 	ObjectID   int    `json:"object_id"`
 }
 
-func (client *IboxClient) PutMetadata(objectID int, key string, value string) (r *PutMetadataResponse, err error) {
+func (client *IboxClient) PutMetadata(objectID int, metadata map[string]interface{}) (r *PutMetadataResponse, err error) {
 	url := fmt.Sprintf("%s%s/%d", client.Creds.Url, "api/rest/metadata/", objectID)
-	client.Log.V(TRACE_LEVEL).Info("PutMetadata", "URL", url, "object ID", objectID, "key", key, "value", value)
+	client.Log.V(TRACE_LEVEL).Info("PutMetadata", "URL", url, "object ID", objectID, "map", metadata)
 
-	hp := map[string]string{
-		key: value,
-	}
-
-	jsonBytes, err := json.Marshal(hp)
+	jsonBytes, err := json.Marshal(metadata)
 	if err != nil {
 		return nil, err
 	}
@@ -121,4 +123,36 @@ func (client *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult
 	}
 
 	return results, nil
+}
+
+func (client *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
+	url := fmt.Sprintf("%sapi/rest/metadata/%d", client.Creds.Url, objectID)
+	client.Log.V(DEBUG_LEVEL).Info("DeleteMetadata", "URL", url, "object ID", objectID)
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	values := req.URL.Query()
+	values.Add("approved", "true")
+	req.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(req, client.Creds)
+
+	resp, err := client.HttpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var responseObject DeleteMetadataResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, err
+	}
+	return &responseObject, nil
 }
