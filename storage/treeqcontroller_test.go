@@ -46,6 +46,9 @@ func (suite *TreeqControllerSuite) SetupTest() {
 		TreeqID:  1,
 	}
 	suite.cs = &Commonservice{Api: suite.api, VolProto: volProto}
+	suite.someError = errors.New("some error")
+	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
+	suite.service = treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
 }
 
 type TreeqControllerSuite struct {
@@ -56,56 +59,41 @@ type TreeqControllerSuite struct {
 	cs                *Commonservice
 	storageHelperMock *MockStorageHelper
 	nfsMountMock      *MockNfsMounter
+	someError         error
+	service           treeqstorage
 }
 
-// func (suite *TreeqControllerSuite) Test_CreateVolume_validation() {
-// 	mapParameter := make(map[string]string)
-// 	mapParameter["pool_name"] = "invalid poolName"
-// 	service := treeqstorage{filesysService: suite.filesystem}
-// 	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
-// 	assert.NotNil(suite.T(), err, "empty error")
-// }
-
 func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
-	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
-
-	//mapParameter := make(map[string]string)
 	volumeResponse := make(map[string]string)
-	expectedErr := errors.New("some error")
-
-	//networkSpaceErr := errors.New("Some error")
 	networkSpace := getTreeQTestNetworkSpace()
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
-	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, expectedErr)
-	_, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
+	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, suite.someError)
+	_, err := suite.service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.NotNil(suite.T(), err, "empty error")
 }
 
 func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
-	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
-	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
-	nfs.cs.VolProto.VolumeID = 100
-	nfs.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.VolumeID = 100
+	suite.service.nfsstorage.cs.VolProto.TreeqID = 200
 
 	volumeResponse := getCreateVolumeResponse()
-	volumeRespoance := map[string]string{
+	volumeResponseMap := map[string]string{
 		"ID":      "100",
 		"TREEQID": "200",
 	}
 	networkSpace := getTreeQTestNetworkSpace()
 
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeRespoance, nil)
+	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponseMap, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
-	result, err := service.CreateVolume(context.Background(), getCreateVolumeRequest())
+	result, err := suite.service.CreateVolume(context.Background(), getCreateVolumeRequest())
 	assert.Nil(suite.T(), err, "empty error")
-	correctVolId := fmt.Sprintf("%s#%s", volumeRespoance["ID"], volumeRespoance["TREEQID"])
+	correctVolId := fmt.Sprintf("%s#%s", volumeResponseMap["ID"], volumeResponseMap["TREEQID"])
 	val := result.GetVolume()
 	assert.Equal(suite.T(),
 		correctVolId,
@@ -114,100 +102,84 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
-	nfsservice := nfsstorage{cs: *suite.cs}
-	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
-	nfsservice.cs.VolProto.VolumeID = 100
-	nfsservice.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.VolumeID = 100
 	var filesytemID, treeqID = 100, 200
-	expectedErr := errors.New("Some error")
-	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
-	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(""))
+	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(suite.someError)
+	_, err := suite.service.DeleteVolume(context.Background(), getDeleteVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
-	nfsservice := nfsstorage{cs: *suite.cs}
-	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
-	nfsservice.cs.VolProto.VolumeID = 100
-	nfsservice.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.VolumeID = 100
 	volumeID := "100#200"
-	expectedErr := errors.New("Some error")
 	var filesytemID, treeqID = 100, 200
-	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
-	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
+	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(suite.someError)
+	_, err := suite.service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "error expected")
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
-	nfsservice := nfsstorage{cs: *suite.cs}
-	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
 	volumeID := "100#200$$"
-	nfsservice.cs.VolProto.VolumeID = 100
-	nfsservice.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.VolumeID = 100
 	expectedErr := errors.New("FILESYSTEM_NOT_FOUND error")
 	var filesytemID, treeqID = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(expectedErr)
-	_, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
+	_, err := suite.service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
-	nfsservice := nfsstorage{cs: *suite.cs}
-	service := treeqstorage{treeqService: suite.filesystem, nfsstorage: nfsservice}
-	nfsservice.cs.VolProto.VolumeID = 100
-	nfsservice.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.TreeqID = 200
+	suite.service.nfsstorage.cs.VolProto.VolumeID = 100
 	volumeID := "100#200$$"
 	var filesytemID, treeqID = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", filesytemID, treeqID).Return(nil)
-	resp, err := service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
+	resp, err := suite.service.DeleteVolume(context.Background(), getDeleteVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
 	assert.NotNil(suite.T(), resp, "response should not be nil")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_VolumeID_empty() {
-	service := treeqstorage{treeqService: suite.filesystem}
-	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(""))
+	_, err := suite.service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_InvalidVolumeID() {
-	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100"
-	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
+	_, err := suite.service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
-	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200"
-	expectedErr := errors.New("Some error")
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string
-	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(expectedErr)
-	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
+	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(suite.someError)
+	_, err := suite.service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "error expected")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfound() {
-	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
-	_, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
+	_, err := suite.service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
-	service := treeqstorage{treeqService: suite.filesystem}
 	volumeID := "100#200$$"
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string
 	suite.filesystem.On("UpdateTreeqVolume", filesytemID, treeqID, capacity, maxSize).Return(nil)
-	resp, err := service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
+	resp, err := suite.service.ControllerExpandVolume(context.Background(), getExpandVolumeRequest(volumeID))
 	assert.Nil(suite.T(), err, "error Not expected")
 	assert.NotNil(suite.T(), resp, "response should not be nil")
 }
@@ -215,8 +187,6 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
 func TestTreeqControllerSuite(t *testing.T) {
 	suite.Run(t, new(TreeqControllerSuite))
 }
-
-// test data
 
 func getExpandVolumeRequest(vID string) *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{

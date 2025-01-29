@@ -14,8 +14,8 @@ package helper
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -24,14 +24,14 @@ import (
 
 // AccessModesHelper interface
 type AccessModesHelper interface {
-	IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
+	IsValidAccessMode(volume *iboxapi.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
 	IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error)
 }
 
 // AcessMode service struct
 type AccessMode struct{}
 
-func (a AccessMode) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
+func (a AccessMode) IsValidAccessMode(volume *iboxapi.Volume, req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
 	// Compare the volume's write protected state on IBox to the requested access mode. Return an error if incompatible.
 	isIboxVolWriteProtected := volume.WriteProtected
 	volName := volume.Name
@@ -97,7 +97,7 @@ type MockAccessModesHelper struct {
 	AccessModesHelper
 }
 
-func (m *MockAccessModesHelper) IsValidAccessMode(volume *api.Volume, req *csi.ControllerPublishVolumeRequest) (bool, error) {
+func (m *MockAccessModesHelper) IsValidAccessMode(volume *iboxapi.Volume, req *csi.ControllerPublishVolumeRequest) (bool, error) {
 	status := m.Called(volume, req)
 	isValid, _ := status.Get(0).(bool)
 	err, _ := status.Get(1).(error)

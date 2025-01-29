@@ -53,19 +53,20 @@ type Client interface {
 	// pools
 	GetPoolByName(name string) (*PoolResult, error)
 
+	// volumes
+	DeleteVolume(volumeID int) (*DeleteVolumeResponse, error)
+	GetVolumeByName(volumeName string) (*Volume, error)
+	GetVolume(volumeID int) (*Volume, error)
+	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
+
 	/**
 	NewClient() (*ClientService, error)
-	CreateVolume(volume *VolumeParam, storagePoolName string) (*Volume, error)
 	GetStoragePoolIDByName(name string) (id int64, err error)
 	FindStoragePool(id int64, name string) (StoragePool, error)
 	GetNtpStatus() ([]NtpStatus, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
-	GetVolumeByName(volumename string) (*Volume, error)
-	GetVolume(volumeid int) (*Volume, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
-	DeleteVolume(volumeID int) (err error)
-	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 	GetAllSnapshots() ([]Volume, error)
 	GetAllVolumes() ([]Volume, error)
@@ -74,8 +75,8 @@ type Client interface {
 	// hosts
 	GetAllHosts() (host []Host, err error)
 	GetHostByName(hostName string) (host *Host, err error)
-	CreateHost(hostName string) (host *CreateHostResponse, err error)
-	DeleteHost(hostID int) (resp *DeleteHostResponse, err error)
+	CreateHost(hostName string) (host *Host, err error)
+	DeleteHost(hostID int) (resp *Host, err error)
 	AddHostSecurity(chapCreds map[string]string, hostID int) (host *AddHostSecurityResponse, err error)
 	AddHostPort(portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error)
 	GetHostPort(hostID int, portAddress string) (hostPort *HostPort, err error)
@@ -86,6 +87,7 @@ type Client interface {
 
 	// volumes
 	GetLunsByVolume(volumeID int) (resp []Luns, err error)
+	CreateVolume(request CreateVolumeRequest) (*Volume, error)
 
 	/**
 	GetFCPorts() (fcNodes []FCNode, err error)
@@ -109,7 +111,7 @@ type Client interface {
 	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error)
+	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
 	DeleteFileSystemComplete(fileSystemID int64) (err error)
 	DeleteParentFileSystem(fileSystemID int64) (err error)
 	GetParentID(fileSystemID int64) int64
@@ -120,7 +122,7 @@ type Client interface {
 	DeleteExport(exportID int64) (err error)
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
-	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
+	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
 
 	*/

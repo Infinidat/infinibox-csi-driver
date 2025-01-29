@@ -245,9 +245,9 @@ func (m *MockApiService) ExportFileSystem(export ExportFileSys) (*ExportResponse
 }
 
 // CreateFileSystemSnapshot
-func (m *MockApiService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+func (m *MockApiService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
 	args := m.Called(snapshotParam)
-	resp, _ := args.Get(0).(FileSystemSnapshotResponce)
+	resp, _ := args.Get(0).(FileSystemSnapshotResponse)
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }
@@ -280,27 +280,12 @@ func (m *MockApiService) DeleteParentFileSystem(fileSystemID int) (err error) {
 	return err
 }
 
-// GetVolume
-func (m *MockApiService) GetVolume(volumeid int) (*Volume, error) {
-	args := m.Called(volumeid)
-	resp, _ := args.Get(0).(Volume)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // GetVolumeSnapshotByParentID
 func (m *MockApiService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
 	args := m.Called(volumeID)
 	resp, _ := args.Get(0).([]Volume)
 	err, _ := args.Get(1).(error)
 	return &resp, err
-}
-
-// DeleteVolume
-func (m *MockApiService) DeleteVolume(volumeID int) (err error) {
-	args := m.Called(volumeID)
-	err, _ = args.Get(0).(error)
-	return err
 }
 
 // GetMetadataStatus
@@ -311,9 +296,9 @@ func (m *MockApiService) GetMetadataStatus(fileSystemID int) bool {
 }
 
 // GetSnapshotByName
-func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error) {
 	args := m.Called(snapshotName)
-	resp, _ := args.Get(0).([]FileSystemSnapshotResponce)
+	resp, _ := args.Get(0).([]FileSystemSnapshotResponse)
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }
@@ -354,17 +339,6 @@ func (m *MockApiService) GetTreeqByName(fileSystemID int, treeqName string) (*Tr
 	trq, _ := args.Get(0).(Treeq)
 	err, _ := args.Get(1).(error)
 	return &trq, err
-}
-
-// GetVolumeByName
-func (m *MockApiService) GetVolumeByName(volumename string) (*Volume, error) {
-	args := m.Called(volumename)
-	vol, _ := args.Get(0).(Volume)
-	if args.Get(0) == nil {
-		return nil, nil
-	}
-	err, _ := args.Get(1).(error)
-	return &vol, err
 }
 
 // CreateVolume
@@ -450,14 +424,6 @@ func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) error {
 	args := m.Called(hostID, volumeID)
 	err, _ := args.Get(0).(error)
 	return err
-}
-
-// UpdateVolume
-func (m *MockApiService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
-	args := m.Called(volumeID, volume)
-	vol, _ := args.Get(0).(Volume)
-	err, _ := args.Get(1).(error)
-	return &vol, err
 }
 
 // GetMaxTreeqPerFs

@@ -68,7 +68,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -117,7 +117,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -133,13 +133,13 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, err
 	}
 
 	err = fc.MountFCDisk(*diskMounter, devicePath)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -169,7 +169,7 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	err = unmountAndCleanUp(targetPath)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, err
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -220,10 +220,9 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	}
 
 	// remove multipath device
-	protocol := "fc"
-	err := detachMpathDevice(mpathDevice, protocol)
+	err := detachMpathDevice(mpathDevice, common.PROTOCOL_FC)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		zlog.Warn().Msgf("NodeUnstageVolume cannot detach volume with ID %s: %+v", req.GetVolumeId(), err)
 	}
 
@@ -289,7 +288,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	output := strings.TrimSpace(out)
 	zlog.Debug().Msgf("output is [%s]\n", output)
 	outputParts := strings.Split(output, "\n")
-	zlog.Debug().Msgf("lines %d\n", len(outputParts))
+	zlog.Trace().Msgf("lines %d\n", len(outputParts))
 
 	// 3 - echo 1 > /sys/block/path_device/device/rescan  .... run those commands on each device from the previous step
 	for i := 0; i < len(outputParts); i++ {
@@ -348,7 +347,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	var mounted bool
 	mntPoints, err := fm.Mounter.List()
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return status.Errorf(codes.Internal, "fm.Mounter.List error: %s", err.Error())
 	}
 
@@ -370,7 +369,6 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		// option A: raw block volume access
 		zlog.Debug().Msgf("mounting raw block volume at given path %s", fm.TargetPath)
 		if fm.ReadOnly {
-			// TODO: actually implement this - CSIC-343
 			return status.Error(codes.Internal, "Read only is not supported for Block Volume")
 		}
 
@@ -393,7 +391,6 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		}
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
-		// TODO: validate this further, see CSIC-341
 		options := []string{"bind"}
 		options = append(options, "rw") // TODO: address in CSIC-343
 		if err := fm.Mounter.Mount(devicePath, fm.TargetPath, "", options); err != nil {
@@ -409,7 +406,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		mountPoint := chrootPath
 		_, err := os.Stat(mountPoint)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("error %s", err.Error())
 		}
 		if os.IsNotExist(err) {
 			zlog.Debug().Msgf("Mount point does not exist. Creating mount point.")
@@ -429,9 +426,8 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			zlog.Debug().Msgf("mkdir of mountPoint not required. '%s' already exists", mountPoint)
 		}
 
-		// TODO: validate this further, see CSIC-341
 		options := []string{}
-		if fm.ReadOnly { // TODO: address in CSIC-343
+		if fm.ReadOnly {
 			options = append(options, "ro")
 		} else {
 			options = append(options, "rw")
@@ -500,7 +496,7 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	targetList := []string{}
 	fcNodes, err := fc.cs.Api.GetFCPorts()
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, fmt.Errorf("error getting fiber channel details")
 	}
 	for _, fcnode := range fcNodes {
@@ -520,14 +516,13 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 		WWIDs:      wwidList,
 		Lun:        lun,
 	}
-	// Only pass the connector
+
 	return &fcDevice{
 		connector: fcConnector,
 	}, nil
 }
 
 func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) (*FCMounter, error) {
-	// standard place to define block/file etc
 	reqVolCapability := req.GetVolumeCapability()
 
 	// check accessMode - where we will eventually police R/W etc (CSIC-343)
@@ -601,14 +596,14 @@ type OSioHandler struct{}
 func (handler *OSioHandler) ReadDir(dirname string) (infos []os.FileInfo, err error) {
 	entries, err := os.ReadDir(dirname)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return infos, err
 	}
 	infos = make([]fs.FileInfo, 0, len(entries))
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("error %s", err.Error())
 			return infos, err
 
 		}
@@ -647,7 +642,7 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 
 	fcHosts, err := findHosts("fc")
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return "", err
 	}
 
@@ -663,14 +658,13 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	}
 	zlog.Debug().Msgf("searchDisk rescan scsi host wwid is [%s]", wwid)
 
-	zlog.Debug().Msgf("searchDisk sleeping 3 seconds to allow devmapper time to work")
+	tries := 10 //currently this means a max of 10 seconds which is ample
+	zlog.Debug().Msgf("searchDisk sleeping up to %d seconds to allow devmapper time to work", tries)
 	// during testing, I found that devmapper would not create the dm-X device quick enough
 	// after the rescan above for the code below to work, instead of seeing a dm-X device
 	// the path would be /dev/sdaX whic is not what we want, sleeping a bit gives devmapper
 	// time to construct the dm-X device path
 	// ideally this sleep time would be configurable
-
-	tries := 10 //currently this means a max of 10 seconds which is ample
 
 	for i := 0; i < tries; i++ {
 		for _, diskID := range diskIds {
@@ -706,10 +700,10 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
 	zlog.Debug().Msgf("createFcConfigFile called with diskInfo %v and mnt %s", conf, mnt)
 	file := path.Join("/host", mnt, conf.VolName+".json")
-	zlog.Debug().Msgf("createFcConfigFile about to create %s", file)
+
 	fp, err := os.Create(file)
 	if err != nil {
-		zlog.Error().Msgf("fc: failed creating persist file with error %v", err)
+		zlog.Error().Msgf("fc: failed creating persist file with error %v file %s", err, file)
 		return fmt.Errorf("fc: create %s err %s", file, err)
 	}
 	defer fp.Close()
@@ -734,13 +728,13 @@ func (fc *fcstorage) loadFcDiskInfoFromFile(conf *diskInfo, mnt string) error {
 
 	fp, err := os.Open(file)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return fmt.Errorf("fc: open %s err %s", file, err)
 	}
 	defer fp.Close()
 	decoder := json.NewDecoder(fp)
 	if err = decoder.Decode(conf); err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return fmt.Errorf("fc: decode err: %v ", err)
 	}
 	return nil

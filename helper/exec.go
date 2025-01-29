@@ -44,7 +44,7 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (out stri
 	defer func() {
 		out = strings.TrimSpace(out)
 		s.mu.Unlock()
-		zlog.Debug().Msgf("%s", follower)
+		zlog.Trace().Msgf("%s", follower)
 	}()
 
 	var result []byte

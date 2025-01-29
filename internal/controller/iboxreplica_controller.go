@@ -178,7 +178,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		localEntityID = cg.ID
 	case common.REPLICA_ENTITY_VOLUME:
 		// look up the volume ID
-		vol, err := clientsvc.GetVolumeByName(replica.Spec.LocalEntityName)
+		vol, err := clientsvc.Iboxapi.GetVolumeByName(replica.Spec.LocalEntityName)
 		if err != nil {
 			thislog.Error(err, "error getting Volume", "localEntityName", replica.Spec.LocalEntityName)
 			return err

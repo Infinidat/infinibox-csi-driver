@@ -505,7 +505,6 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 		return nil, status.Error(codes.InvalidArgument, "node ID is required")
 	}
 
-	// TODO: revisit this as part of CSIC-343
 	_, err = nfs.cs.AccessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
 		zlog.Err(err)
@@ -688,13 +687,8 @@ func (nfs *nfsstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 }
 
 func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
-	zlog.Debug().Msgf("ControllerExpandVolume")
-
-	ID, err := strconv.Atoi(req.GetVolumeId())
-	if err != nil {
-		zlog.Error().Msgf("invalid Volume ID %v", err)
-		return
-	}
+	ID := nfs.cs.VolProto.VolumeID
+	zlog.Debug().Msgf("ControllerExpandVolume fs ID %d", ID)
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {

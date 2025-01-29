@@ -113,43 +113,42 @@ type GetFileSystemsByPoolResponse struct {
 	Error    Error        `json:"error"`
 }
 
-func (client *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
-	URL := fmt.Sprintf("%sapi/rest/filesystems", client.Creds.Url)
-	client.Log.V(TRACE_LEVEL).Info("GetFileSystemsByPool", "URL", URL, "pool ID", poolID, "fsprefix", fsPrefix)
+func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
+	URL := fmt.Sprintf("%sapi/rest/filesystems", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemsByPool", "URL", URL, "pool ID", poolID, "fsprefix", fsPrefix)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		client.Log.V(TRACE_LEVEL).Info("GetFileSystemsByPool loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemsByPool loop", "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest("GET", URL, nil)
 		if err != nil {
-			return results, fmt.Errorf("error in NewRequest %w", err)
+			return results, fmt.Errorf("GetFileSystemsByPool - NewRequest - error %w", err)
 		}
 
 		values := req.URL.Query()
 		values.Add("pool_id", strconv.Itoa(poolID))
 		values.Add("name", "like:"+fsPrefix)
-		//values.Add("fields", "id,size,name")
 		values.Add("page_size", strconv.Itoa(pageSize))
 		values.Add("page", strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, client.Creds)
+		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := client.HttpClient.Do(req)
+		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("error with client.Do %w", err)
+			return results, fmt.Errorf("GetFileSystemsByPool - Do - error %w", err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("error reading response body %w", err)
+			return results, fmt.Errorf("GetFileSystemsByPool - ReadAll - error %w", err)
 		}
 		var responseObject GetFileSystemsByPoolResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("error in Unmarshal %w", err)
+			return results, fmt.Errorf("GetFileSystemsByPool - Unmarshal - error %w", err)
 		}
 		results = append(results, responseObject.Result...)
 

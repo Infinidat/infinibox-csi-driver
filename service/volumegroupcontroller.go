@@ -75,7 +75,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 			}
 			zlog.Debug().Msgf("volume ID : %d", volumeID)
 			// look up the volume
-			vol, err := cs.Api.GetVolume(int(volumeID))
+			vol, err := cs.IboxApi.GetVolume(int(volumeID))
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to get Volume with ID %d error %v", volumeID, err)
 			}
@@ -133,7 +133,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 	for _, m := range members {
 		snapshotName := m.CGName + m.Name // prefix + volume name
 		zlog.Debug().Msgf("member is snapshot name [%s] member info %+v", snapshotName, m)
-		v, err := cl.GetVolume(m.ID)
+		v, err := cl.Iboxapi.GetVolume(m.ID)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to get snapshot volume  error %v", err)
 		}
@@ -253,7 +253,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 	for _, m := range members {
 		snapshotName := m.CGName + m.Name // prefix + volume name
 		zlog.Debug().Msgf("member is snapshot name [%s] member info %+v", snapshotName, m)
-		v, err := cl.GetVolume(m.ID)
+		v, err := cl.Iboxapi.GetVolume(m.ID)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "failed to get snapshot volume  error %v", err)
 		}

@@ -55,13 +55,13 @@ type PoolResult struct {
 	ThickCapacitySavings             any     `json:"thick_capacity_savings"`
 }
 
-func (client *IboxClient) GetPoolByName(name string) (pool *PoolResult, err error) {
-	url := fmt.Sprintf("%s/api/rest/pools", client.Creds.Url)
-	client.Log.V(DEBUG_LEVEL).Info("GetPoolByName", "URL", url, "name", name)
+func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err error) {
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/pools")
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetPoolByName", "URL", url, "name", name)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error in NewRequest %w", err)
+		return nil, fmt.Errorf("GetPoolByName - NewRequest - error %w", err)
 	}
 	values := req.URL.Query()
 	values.Add("page_size", strconv.Itoa(common.IBOX_DEFAULT_QUERY_PAGE_SIZE))
@@ -69,21 +69,25 @@ func (client *IboxClient) GetPoolByName(name string) (pool *PoolResult, err erro
 	values.Add("name", name)
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, client.Creds)
+	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := client.HttpClient.Do(req)
+	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error with client.Do %w", err)
+		return nil, fmt.Errorf("GetPoolByName - Do - error %w", err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response body %w", err)
+		return nil, fmt.Errorf("GetPoolByName - ReadAll - error %w", err)
 	}
 	var responseObject GetPoolByNameResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("error in Unmarshal %w", err)
+		return nil, fmt.Errorf("GetPoolByName - Unmarshal - error %w", err)
+	}
+
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("GetPoolByName - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	if len(responseObject.Result) > 0 {

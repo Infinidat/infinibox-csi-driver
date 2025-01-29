@@ -356,6 +356,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 	}
 	volprotoconf.StorageType = volproto[1]
 
+	// treeq is a special formatting case
 	if volprotoconf.StorageType == common.PROTOCOL_TREEQ {
 		// example: volproto[0] == 2942184#20000
 		tmp := strings.Split(volproto[0], "#")
@@ -372,9 +373,11 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 		if err != nil {
 			return volprotoconf, fmt.Errorf("volume treeq id parse error %s on %s", err.Error(), tmp[1])
 		}
+		return volprotoconf, nil
 
 	}
 
+	// for any other protocol than treeq
 	volprotoconf.VolumeID, err = strconv.Atoi(volproto[0])
 	if err != nil {
 		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto[0], err)
@@ -946,14 +949,14 @@ func hostCleanup(iboxClient iboxapi.Client, hostID int, hostName string) error {
 	if createdByCSI {
 		response, err := iboxClient.DeleteHost(hostID)
 		if err != nil {
-			zlog.Error().Msgf("hostCleanup: failed to delete host with error %v", err)
-			return status.Error(codes.Internal, err.Error())
+			if err == iboxapi.ErrNotFound {
+				zlog.Debug().Msgf("hostCleanup: will not delete, host not found %d %+v", hostID, response)
+			} else {
+				zlog.Error().Msgf("hostCleanup: failed to delete host with error %v", err)
+				return status.Error(codes.Internal, err.Error())
+			}
 		}
-		if strings.Contains(response.Error.Code, "HOST_NOT_FOUND") {
-			zlog.Debug().Msgf("hostCleanup: will not delete, host not found %d %+v", hostID, response.Error)
-		} else {
-			zlog.Debug().Msgf("hostCleanup: deleted host on ibox because it was created by CSI host %d %s", hostID, hostName)
-		}
+		zlog.Debug().Msgf("hostCleanup: deleted host on ibox because it was created by CSI host %d %s", hostID, hostName)
 	} else {
 		zlog.Debug().Msgf("hostCleanup: not deleting host because it was not created by CSI host %d", hostID)
 	}

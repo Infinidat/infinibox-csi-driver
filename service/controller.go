@@ -562,8 +562,8 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		}
 		zlog.Debug().Msgf("filesystem volID: %d volume: %v", volproto.VolumeID, fs)
 	} else {
-		var vol *api.Volume
-		vol, err = comnserv.Api.GetVolume(volproto.VolumeID)
+		var vol *iboxapi.Volume
+		vol, err = comnserv.IboxApi.GetVolume(volproto.VolumeID)
 		if err != nil {
 			e := fmt.Errorf("failed to find volume with ID %d. Error: %v", volproto.VolumeID, err)
 			zlog.Err(e)
@@ -730,7 +730,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			zlog.Debug().Msgf("snapshot datasettype %s", snapshots[i].DatasetType)
 			switch snapshots[i].DatasetType {
 			case "VOLUME":
-				_, err := clientsvc.GetVolume(snapshots[i].ParentId)
+				_, err := clientsvc.Iboxapi.GetVolume(snapshots[i].ParentId)
 				if err != nil {
 					zlog.Error().Msgf("snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
 					parentName = "unknown"

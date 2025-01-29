@@ -33,7 +33,8 @@ func (suite *ISCSIControllerSuite) SetupTest() {
 		NodeID:   "node1",
 	}
 	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock, IboxApi: suite.iboxapi, VolProto: volProto}
-
+	suite.someError = errors.New("some Error")
+	suite.service = iscsistorage{cs: *suite.cs}
 }
 
 type ISCSIControllerSuite struct {
@@ -42,6 +43,8 @@ type ISCSIControllerSuite struct {
 	iboxapi    *iboxapi.MockApiService
 	accessMock *helper.MockAccessModesHelper
 	cs         *Commonservice
+	someError  error
+	service    iscsistorage
 }
 
 func TestISCSIControllerSuite(t *testing.T) {
@@ -49,196 +52,180 @@ func TestISCSIControllerSuite(t *testing.T) {
 }
 
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Fail() {
-	service := iscsistorage{cs: *suite.cs}
 	var parameterMap map[string]string
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	err := service.ValidateStorageClass(parameterMap)
+	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
 }
 
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Fail2() {
-	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_USE_CHAP)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	err := service.ValidateStorageClass(parameterMap)
+	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_GetName_fail() {
-	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
-	expectedErr := errors.New("some Error")
 
-	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), suite.someError)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume GetVolumeByName")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_fail() {
-	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
-	expectedErr := errors.New("some Error")
 
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_success() {
-	service := iscsistorage{cs: *suite.cs}
+	suite.service.capacity = common.BytesInOneGibibyte
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(getVolume(), nil)
 	// suite.api.On("FindStoragePool", mock.Anything,mock.Anything).Return(getStoragePool(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: CreateVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_metadataError() {
-	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
-	expectedErr := errors.New("some Error")
 
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(getVolume(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume attach metadata")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolume_Error() {
-	service := iscsistorage{cs: *suite.cs}
 	createVolReq := getISCSIDeleteRequest()
-	expectedErr := errors.New("some Error")
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
-	suite.api.On("GetVolume", mock.Anything).Return(nil, expectedErr)
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume getVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
-	service := iscsistorage{cs: *suite.cs}
 	createVolReq := getISCSIDeleteRequest()
-	expectedErr := errors.New("some Error")
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
+	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
+	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
+	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, suite.someError)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return(getVolumeArray(), nil)
-	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
+	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume GetVolumeSnapshot attach metadata")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_Error() {
-	service := iscsistorage{cs: *suite.cs}
 	createVolReq := getISCSIDeleteRequest()
-	expectedErr := errors.New("some Error")
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
-	suite.api.On("DeleteVolume", mock.Anything).Return(expectedErr)
+	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
+	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, suite.someError)
 
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
+	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume delete volume")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_success() {
-	service := iscsistorage{cs: *suite.cs}
 	createVolReq := getISCSIDeleteRequest()
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
-	suite.api.On("DeleteVolume", mock.Anything).Return(nil)
+	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
+	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, nil)
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
+	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi DeleteVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_AlreadyDelete() {
-	service := iscsistorage{cs: *suite.cs}
 	createVolReq := getISCSIDeleteRequest()
-	expectedErr := errors.New("VOLUME_NOT_FOUND")
-	suite.api.On("GetVolume", mock.Anything).Return(nil, expectedErr)
-
-	_, err := service.DeleteVolume(context.Background(), createVolReq)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, iboxapi.ErrNotFound)
+	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi DeleteVolume when already deleted")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
-	service := iscsistorage{capacity: common.BytesInOneGibibyte, cs: *suite.cs}
+	suite.service.capacity = common.BytesInOneGibibyte
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$iscsi")
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateVolume success")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_content_AttachMetadataToObject_err() {
-	service := iscsistorage{cs: *suite.cs}
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$iscsi")
-	expectedErr := errors.New("some Error")
-	suite.api.On("GetVolumeByName", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	var poolID int64 = 10
 	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, expectedErr)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	_, err := service.CreateVolume(context.Background(), createVolReq)
+	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume attach metadata")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume() {
-	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
@@ -247,49 +234,45 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume() {
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("MapVolumeToHost", mock.Anything).Return(getLunInf(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ControllerPublishVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatError() {
-	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	ctrPublishValReq.VolumeId = "1$"
-	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
+	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume volume ID format invalid protocol")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
-	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
-	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
+	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume invalid max_vols_per_host value")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
-	service := iscsistorage{cs: *suite.cs}
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
-	_, err := service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
+	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume max_vols_per_host exceeded")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
-	service := iscsistorage{cs: *suite.cs}
 	deleteHostResponse := &iboxapi.DeleteHostResponse{
 		Error: iboxapi.Error{},
 	}
@@ -299,112 +282,99 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(deleteHostResponse, nil)
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ControllerUnpublishVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
-	service := iscsistorage{cs: *suite.cs}
-	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(expectedErr)
+	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(suite.someError)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
-	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume UnMapVolumeFromHost")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
-	service := iscsistorage{cs: *suite.cs}
-	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
-	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume DeleteHost")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_Metadata_Error() {
-	service := iscsistorage{cs: *suite.cs}
-	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
 	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
-	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, expectedErr)
-	_, err := service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerUnpublishVolume Metadata Error")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateSnapshot() {
-	service := iscsistorage{cs: *suite.cs}
-	expectedErr := errors.New("some Error")
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume().ID, nil)
-	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), expectedErr)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), suite.someError)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
-	_, err := service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
-	assert.Nil(suite.T(), err, "expected to fail: iscsi CreateSnapshot GetVolumeByName")
+	_, err := suite.service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateSnapshot GetVolumeByName")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateSnapshot_already_Created() {
-	service := iscsistorage{cs: *suite.cs}
 	suite.cs.VolProto.VolumeID = 1001
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
 	ctrUnPublishValReq.SourceVolumeId = "1001$$iscsi"
-	suite.api.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
-	_, err := service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
+	_, err := suite.service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateSnapshot")
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteSnapshot() {
-	service := iscsistorage{cs: *suite.cs}
 	ctrdeleteSnapValReq := getISCSIDeleteSnapshotRequest()
-	suite.api.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
-	suite.api.On("DeleteVolume", mock.Anything).Return(nil)
+	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
+	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, nil)
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)
 
-	_, err := service.DeleteSnapshot(context.Background(), ctrdeleteSnapValReq)
+	_, err := suite.service.DeleteSnapshot(context.Background(), ctrdeleteSnapValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi DeleteSnapshot")
 }
 
 func (suite *ISCSIControllerSuite) Test_ControllerExpandVolume() {
-	service := iscsistorage{cs: *suite.cs}
 	ctrExpandValReq := getISCSIExpandVolumeRequest()
-	suite.api.On("UpdateVolume", mock.Anything, mock.Anything).Return(nil, nil)
-	_, err := service.ControllerExpandVolume(context.Background(), ctrExpandValReq)
+	suite.iboxapi.On("UpdateVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	_, err := suite.service.ControllerExpandVolume(context.Background(), ctrExpandValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ControllerExpandVolume")
 }
 
 func (suite *ISCSIControllerSuite) Test_ListVolumes() {
-	service := iscsistorage{cs: *suite.cs}
-	_, err := service.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
+	_, err := suite.service.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ListVolumes")
 }
 
 func (suite *ISCSIControllerSuite) Test_ListSnapshots() {
-	service := iscsistorage{cs: *suite.cs}
-	_, err := service.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
+	_, err := suite.service.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ListSnapshots")
 }
 
 func (suite *ISCSIControllerSuite) Test_GetCapacity() {
-	service := iscsistorage{cs: *suite.cs}
-	_, err := service.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
+	_, err := suite.service.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi GetCapacity")
 }
 
@@ -480,10 +450,10 @@ func getSnapshotResp() api.SnapshotVolumesResp {
 	return snap
 }
 
-func getVolumeArray() []api.Volume {
-	var volArry []api.Volume
+func getVolumeArray() []iboxapi.Volume {
+	var volArry []iboxapi.Volume
 	vol := getVolume()
-	volArry = append(volArry, vol)
+	volArry = append(volArry, *vol)
 	return volArry
 }
 
@@ -493,8 +463,8 @@ func getISCSIDeleteRequest() *csi.DeleteVolumeRequest {
 	}
 }
 
-func getVolume() api.Volume {
-	vol := api.Volume{
+func getVolume() *iboxapi.Volume {
+	vol := iboxapi.Volume{
 		ID:       100,
 		PoolId:   10,
 		ParentId: 1001,
@@ -502,7 +472,18 @@ func getVolume() api.Volume {
 		PoolName: "poolName",
 		Size:     common.BytesInOneGibibyte,
 	}
-	return vol
+	return &vol
+}
+func getIboxapiCreateVolumeResponse() *iboxapi.Volume {
+	vol := iboxapi.Volume{
+		ID:       100,
+		PoolId:   10,
+		ParentId: 1001,
+		Name:     "volName",
+		PoolName: "poolName",
+		Size:     common.BytesInOneGibibyte,
+	}
+	return &vol
 }
 
 func getNetworkspace() api.NetworkSpace {

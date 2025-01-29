@@ -37,9 +37,9 @@ func (m *MockApiService) GetPoolByName(name string) (*PoolResult, error) {
 }
 
 // DeleteHost mock
-func (m *MockApiService) DeleteHost(hostID int) (*DeleteHostResponse, error) {
+func (m *MockApiService) DeleteHost(hostID int) (*Host, error) {
 	args := m.Called(hostID)
-	resp, _ := args.Get(0).(*DeleteHostResponse)
+	resp, _ := args.Get(0).(*Host)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
@@ -70,4 +70,39 @@ func (m *MockApiService) DeleteMetadata(objectID int) (*DeleteMetadataResponse, 
 	res, _ := args.Get(0).(DeleteMetadataResponse)
 	err, _ := args.Get(1).(error)
 	return &res, err
+}
+
+func (m *MockApiService) CreateVolume(request CreateVolumeRequest) (*Volume, error) {
+	args := m.Called(request)
+	res, _ := args.Get(0).(*Volume)
+	err, _ := args.Get(1).(error)
+	return res, err
+}
+
+func (m *MockApiService) DeleteVolume(objectID int) (*DeleteVolumeResponse, error) {
+	args := m.Called(objectID)
+	res, _ := args.Get(0).(DeleteVolumeResponse)
+	err, _ := args.Get(1).(error)
+	return &res, err
+}
+
+func (m *MockApiService) GetVolumeByName(volumeName string) (*Volume, error) {
+	args := m.Called(volumeName)
+	resp, _ := args.Get(0).(*Volume)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+	args := m.Called(volumeID, volume)
+	res, _ := args.Get(0).(Volume)
+	err, _ := args.Get(1).(error)
+	return &res, err
+}
+
+func (m *MockApiService) GetVolume(volumeID int) (*Volume, error) {
+	args := m.Called(volumeID)
+	resp, _ := args.Get(0).(*Volume)
+	err, _ := args.Get(1).(error)
+	return resp, err
 }

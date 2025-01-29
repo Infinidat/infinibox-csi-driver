@@ -35,12 +35,8 @@ type Client interface {
 	FindStoragePool(id int, name string) (StoragePool, error)
 	GetNtpStatus() ([]NtpStatus, error)
 	GetStoragePool(poolID int, storagepool string) ([]StoragePool, error)
-	GetVolumeByName(volumename string) (*Volume, error)
-	GetVolume(volumeid int) (*Volume, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
-	DeleteVolume(volumeID int) (err error)
-	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 	GetAllSnapshots() ([]Volume, error)
 	GetAllVolumes() ([]Volume, error)
@@ -74,7 +70,7 @@ type Client interface {
 	GetExportByFileSystem(filesystemID int) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error)
+	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
 	DeleteFileSystemComplete(fileSystemID int) (err error)
 	DeleteParentFileSystem(fileSystemID int) (err error)
 	GetParentID(fileSystemID int) int
@@ -84,7 +80,7 @@ type Client interface {
 	DeleteExport(exportID int) (err error)
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
-	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error)
+	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int) (bool, error)
 
 	GetFileSystemsByPoolID(poolID int, page int, fsPrefix string) (*FSMetadata, error)
@@ -149,19 +145,6 @@ func (c *ClientService) DeleteExport(exportID int) (err error) {
 		return err
 	}
 	zlog.Trace().Msgf("Deleted export : %d", exportID)
-	return
-}
-
-// DeleteVolume : Delete volume by volume id
-func (c *ClientService) DeleteVolume(volumeID int) (err error) {
-	zlog.Trace().Msgf("Delete Volume with ID %d", volumeID)
-
-	path := "/api/rest/volumes/" + strconv.Itoa(volumeID) + "?approved=true"
-	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
-	if err != nil {
-		return err
-	}
-	zlog.Trace().Msgf("Deleted Volume : %d", volumeID)
 	return
 }
 
@@ -273,47 +256,6 @@ func (c *ClientService) GetStoragePool(poolID int, storagepoolname string) ([]St
 		storagePools = append(storagePools, storagePool)
 	}
 	return storagePools, nil
-}
-
-// GetVolumeByName : find volume with given name
-func (c *ClientService) GetVolumeByName(volumename string) (*Volume, error) {
-	zlog.Trace().Msgf("Get a Volume by Name: %s", volumename)
-	voluri := "/api/rest/volumes"
-	volumes := []Volume{}
-	queryParam := make(map[string]interface{})
-	queryParam["name"] = volumename
-	resp, err := c.getResponseWithQueryString(voluri,
-		queryParam, &volumes)
-	if err != nil {
-		return nil, err
-	}
-	if len(volumes) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		volumes, _ = apiresp.Result.([]Volume)
-	}
-	for _, vol := range volumes {
-		if vol.Name == volumename {
-			zlog.Trace().Msgf("Got a Volume of Name: %s", volumename)
-			return &vol, nil
-		}
-	}
-
-	return nil, errors.New("volume with given name not found")
-}
-
-// GetVolume : get volume by id
-func (c *ClientService) GetVolume(volumeid int) (*Volume, error) {
-	volume := Volume{}
-	path := "/api/rest/volumes/" + strconv.Itoa(volumeid)
-	resp, err := c.getJSONResponse(http.MethodGet, path, nil, &volume)
-	if err != nil {
-		return nil, err
-	}
-	if volume == (Volume{}) {
-		apiresp := resp.(client.ApiResponse)
-		volume, _ = apiresp.Result.(Volume)
-	}
-	return &volume, nil
 }
 
 // CreateSnapshotVolume : Create volume from snapshot
@@ -558,26 +500,6 @@ func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, er
 		volumes, _ = apiresp.Result.([]Volume)
 	}
 	return &volumes, err
-}
-
-// UpdateVolume : update volume
-func (c *ClientService) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
-	zlog.Trace().Msgf("Update volume %d", volumeID)
-	uri := "api/rest/volumes/" + strconv.Itoa(volumeID)
-	volumeResp := Volume{}
-
-	resp, err := c.getJSONResponse(http.MethodPut, uri, volume, &volumeResp)
-	if err != nil {
-		zlog.Error().Msgf("error occured while updating volume : %s", err)
-		return nil, err
-	}
-
-	if volumeResp == (Volume{}) {
-		apiresp := resp.(client.ApiResponse)
-		volumeResp, _ = apiresp.Result.(Volume)
-	}
-	zlog.Trace().Msgf("Updated volume: %d", volumeID)
-	return &volumeResp, nil
 }
 
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {

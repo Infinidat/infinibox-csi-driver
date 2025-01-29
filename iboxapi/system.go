@@ -178,29 +178,32 @@ type GetSystemResponse struct {
 	Error    Error         `json:"error"`
 }
 
-func (client *IboxClient) GetSystem() (system *SystemDetails, err error) {
-	url := fmt.Sprintf("%sapi/rest/system", client.Creds.Url)
-	client.Log.V(TRACE_LEVEL).Info("GetSystem", "URL", url)
+func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
+	url := fmt.Sprintf("%sapi/rest/system", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetSystem", "URL", url)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSystem - NewRequest - error %w", err)
 	}
-	SetAuthHeader(req, client.Creds)
+	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := client.HttpClient.Do(req)
+	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error in client.Do %w", err)
+		return nil, fmt.Errorf("GetSystem - Do - error %w", err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error in ReadAll %w", err)
+		return nil, fmt.Errorf("GetSystem - ReadAll - error %w", err)
 	}
 	var responseObject GetSystemResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetSystem - Unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("GetSystem - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }

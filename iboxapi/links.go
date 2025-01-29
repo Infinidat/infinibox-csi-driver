@@ -73,18 +73,18 @@ type Link struct {
 	LinkReplicationType            []string `json:"link_replication_type"`
 }
 
-func (client *IboxClient) GetLinks() (results []Link, err error) {
-	URL := fmt.Sprintf("%sapi/rest/links", client.Creds.Url)
-	client.Log.V(TRACE_LEVEL).Info("GetLinks", "URL", URL)
+func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
+	URL := fmt.Sprintf("%sapi/rest/links", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetLinks", "URL", URL)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		client.Log.V(TRACE_LEVEL).Info("GetLinks loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetLinks loop", "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest("GET", URL, nil)
 		if err != nil {
-			return results, fmt.Errorf("error in NewRequest %w", err)
+			return results, fmt.Errorf("GetLinks - NewRequest - error %w", err)
 		}
 
 		values := req.URL.Query()
@@ -92,21 +92,21 @@ func (client *IboxClient) GetLinks() (results []Link, err error) {
 		values.Add("page", strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, client.Creds)
+		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := client.HttpClient.Do(req)
+		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("error with client.Do %w", err)
+			return results, fmt.Errorf("GetLinks - Do - error %w", err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("error reading response body %w", err)
+			return results, fmt.Errorf("GetLinks - ReadAll - error %w", err)
 		}
 		var responseObject GetLinksResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("error in Unmarshal %w", err)
+			return results, fmt.Errorf("GetLinks - Unmarshal - error %w", err)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -118,29 +118,32 @@ func (client *IboxClient) GetLinks() (results []Link, err error) {
 	return results, nil
 }
 
-func (client *IboxClient) GetLink(linkID int) (link *Link, err error) {
-	url := fmt.Sprintf("%sapi/rest/links/%d", client.Creds.Url, linkID)
-	client.Log.V(TRACE_LEVEL).Info("GetLink", "URL", url, "link ID", linkID)
+func (iboxClient *IboxClient) GetLink(linkID int) (link *Link, err error) {
+	url := fmt.Sprintf("%sapi/rest/links/%d", iboxClient.Creds.Url, linkID)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetLink", "URL", url, "link ID", linkID)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetLink - NewRequest - error %w", err)
 	}
-	SetAuthHeader(req, client.Creds)
+	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := client.HttpClient.Do(req)
+	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error in client.Do %w", err)
+		return nil, fmt.Errorf("GetLink - Do - error %w", err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error in ReadAll %w", err)
+		return nil, fmt.Errorf("GetLink - ReadAll - error %w", err)
 	}
 	var responseObject GetLinkResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetLink - Unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("GetLink - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }

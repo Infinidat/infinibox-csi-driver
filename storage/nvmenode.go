@@ -83,7 +83,7 @@ func (nvme *nvmestorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -96,7 +96,7 @@ func (nvme *nvmestorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		zlog.Debug().Msgf("host nqn is not created, creating one")
 		err = nvme.cs.AddPortForHost(hostID, "NVME", hostNQN)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("%s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -110,14 +110,14 @@ func (nvme *nvmestorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 	targets, err := nvme.getNVMETargets(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Debug().Msgf("NodePublishVolume nvme %d targets  %v", len(targets), targets)
 
 	nvmeDisk, err := nvme.getNVMEDisk(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	nvmeDisk.Targets = targets
@@ -125,13 +125,13 @@ func (nvme *nvmestorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 	diskMounter, err := nvme.getNVMEDiskMounter(nvmeDisk, req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, err
 	}
 
 	_, err = nvme.AttachDisk(*diskMounter, targets)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Debug().Msgf("nvme attachDisk succeeded")
@@ -141,7 +141,7 @@ func (nvme *nvmestorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 	} else {
 		err = nvme.storageHelper.SetVolumePermissions(req)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("%s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -250,7 +250,7 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	return response, nil
 }
 
-func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mntPath string, err error) {
+func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nvmeDevicePath string, err error) {
 
 	zlog.Debug().Msgf("AttachDisk, volName: %s mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", b.nvmeDisk.VolName, b.nvmeDisk.MpathDevice,
 		b.nvmeDisk.lun, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
@@ -281,7 +281,6 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mn
 	}
 
 	// find the device path based on the lun/nsid
-	var nvmeDevicePath string
 
 	for i := 0; i < len(devices.Devices); i++ {
 		dev := devices.Devices[i]
@@ -307,7 +306,7 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mn
 			return "", nil
 		}
 	} else if !os.IsNotExist(err) {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return "", status.Errorf(codes.Internal, "%s exists but IsLikelyNotMountPoint failed: %v", b.targetPath, err)
 	}
 
@@ -338,7 +337,7 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mn
 		_, err = os.Create("/host/" + b.targetPath)
 		if err != nil {
 			e := fmt.Errorf("failed to create target file %q: %v", b.targetPath, err)
-			zlog.Err(e)
+			zlog.Error().Msgf("%s", e.Error())
 			return "", e
 		}
 
@@ -409,7 +408,7 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (mn
 			}
 		}
 	}
-	zlog.Debug().Msgf("mounted volume with device path %s successfully at '%s'", nvmeDevicePath, mntPath)
+	zlog.Debug().Msgf("mounted volume with device path %s", nvmeDevicePath)
 	return nvmeDevicePath, nil
 }
 
@@ -507,13 +506,13 @@ func (nvme *nvmestorage) createNVMEConfigFile(conf nvmeDisk, mnt string) error {
 	zlog.Debug().Msgf("creating nvme config file at path %s", file)
 	fp, err := os.Create(file)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return err
 	}
 	defer fp.Close()
 	encoder := json.NewEncoder(fp)
 	if err = encoder.Encode(conf); err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -537,7 +536,7 @@ func (nvme *nvmestorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 		nspace, err := nvme.cs.Api.GetNetworkSpaceByName(networkSpaces[i])
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)
-			zlog.Err(e)
+			zlog.Error().Msgf("%s", e.Error())
 			return targets, status.Error(codes.InvalidArgument, e.Error())
 		}
 		zlog.Debug().Msgf("got nspace by name: %s", nspace.Name)

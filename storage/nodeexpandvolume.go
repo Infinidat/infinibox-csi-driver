@@ -124,7 +124,7 @@ func blockExpandVolume(volumePath string) error {
 			return fmt.Errorf("error in multipathd command output %v", multipathdLine)
 		}
 		devicePart := strings.TrimSpace(multipathdLine[1])
-		zlog.Debug().Msgf("multipathd line read [%s] deviceParth [%s]", line, devicePart)
+		zlog.Debug().Msgf("multipathd line read [%s] devicePath [%s]", line, devicePart)
 		devices = append(devices, devicePart)
 	}
 	zlog.Debug().Msgf("multipathd devices [%v] ", devices)

@@ -328,10 +328,10 @@ func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRoot
 }
 
 // CreateFileSystemSnapshot method create the filesystem snapshot
-func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponce, error) {
+func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
 	zlog.Trace().Msgf("Create a snapshot of filesystem params %+v", snapshotParam)
 	path := "/api/rest/filesystems"
-	snapShotResponse := FileSystemSnapshotResponce{}
+	snapShotResponse := FileSystemSnapshotResponse{}
 	if lockExpiresAt > 0 {
 		path = path + "?approved=true"
 		tmp := &FileSystemSnapshotLocked{}
@@ -344,9 +344,9 @@ func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotPa
 			zlog.Error().Msgf("failed to create %v", err)
 			return nil, err
 		}
-		if (FileSystemSnapshotResponce{}) == snapShotResponse {
+		if (FileSystemSnapshotResponse{}) == snapShotResponse {
 			apiresp := resp.(client.ApiResponse)
-			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
+			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponse)
 		}
 	} else {
 		resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
@@ -354,9 +354,9 @@ func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotPa
 			zlog.Error().Msgf("failed to create %v", err)
 			return nil, err
 		}
-		if (FileSystemSnapshotResponce{}) == snapShotResponse {
+		if (FileSystemSnapshotResponse{}) == snapShotResponse {
 			apiresp := resp.(client.ApiResponse)
-			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponce)
+			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponse)
 		}
 	}
 	zlog.Trace().Msgf("Created snapshot: %s", snapShotResponse.Name)
@@ -571,10 +571,10 @@ func removeIndex(s []Permissions, index int) []Permissions {
 }
 
 // GetSnapshotByName :
-func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponce, error) {
+func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error) {
 	zlog.Trace().Msgf("Get snapshot %s", snapshotName)
 	uri := "api/rest/filesystems?name=" + snapshotName
-	snapshot := []FileSystemSnapshotResponce{}
+	snapshot := []FileSystemSnapshotResponse{}
 	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
 	if err != nil {
 		zlog.Error().Msgf("Error occured while getting snapshot : %s ", err)
@@ -582,7 +582,7 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 	}
 	if len(snapshot) == 0 {
 		zlog.Trace().Msgf("no snapshot found for name %s", snapshotName)
-		snapshot, _ = resp.([]FileSystemSnapshotResponce)
+		snapshot, _ = resp.([]FileSystemSnapshotResponse)
 	}
 	zlog.Trace().Msgf("Got snapshot %s", snapshotName)
 	return &snapshot, nil

@@ -128,7 +128,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -139,14 +139,14 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	initiatorName := getInitiatorName()
 	if initiatorName == "" {
 		e := fmt.Errorf("iscsi initiator name not found")
-		zlog.Err(e)
+		zlog.Error().Msgf("%s", e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	if !strings.Contains(ports, initiatorName) {
 		zlog.Debug().Msgf("host port is not created, creating one")
 		err = iscsi.cs.AddPortForHost(hostID, "ISCSI", initiatorName)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("%s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -162,7 +162,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 					chapCreds["security_method"] = "CHAP"
 				} else {
 					e := fmt.Errorf("iscsi mutual chap credentials not provided")
-					zlog.Err(e)
+					zlog.Error().Msgf("%s", e.Error())
 					return nil, status.Error(codes.Internal, e.Error())
 				}
 			}
@@ -173,7 +173,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 					chapCreds["security_method"] = "MUTUAL_CHAP"
 				} else {
 					e := fmt.Errorf("iscsi mutual chap credentials not provided")
-					zlog.Err(e)
+					zlog.Error().Msgf("%s", e.Error())
 					return nil, status.Error(codes.Internal, e.Error())
 				}
 			}
@@ -181,7 +181,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				zlog.Debug().Msgf("create chap authentication for host %d", hostID)
 				err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 				if err != nil {
-					zlog.Err(err)
+					zlog.Error().Msgf("%s", err.Error())
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
@@ -190,7 +190,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 			chapCreds["security_method"] = "NONE"
 			err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 			if err != nil {
-				zlog.Err(err)
+				zlog.Error().Msgf("%s", err.Error())
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
@@ -205,14 +205,14 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	targets, err := iscsi.getISCSITargets(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Debug().Msgf("NodePublishVolume iscsi %d targets  %v", len(targets), targets)
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	iscsiDisk.Targets = targets
@@ -220,13 +220,13 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, err
 	}
 
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Debug().Msgf("iscsi attachDisk succeeded")
@@ -237,7 +237,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		// Chown
 		err = iscsi.storageHelper.SetVolumePermissions(req)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("%s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -279,7 +279,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		zlog.Debug().Msgf("check if config file exists")
 		pathExist, pathErr := iscsi.cs.pathExists(confFile)
 		if pathErr != nil {
-			zlog.Err(pathErr)
+			zlog.Error().Msgf("%s", pathErr)
 		}
 		if pathErr == nil {
 			if !pathExist {
@@ -290,7 +290,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 				// TODO - Review code
 				if err := os.RemoveAll(stagePath); err != nil {
-					zlog.Err(err)
+					zlog.Error().Msgf("%s", err.Error())
 					zlog.Warn().Msgf("failed to RemoveAll stage path '%s': %v", stagePath, err)
 				}
 				zlog.Debug().Msgf("removed stage path '%s'", stagePath)
@@ -315,7 +315,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	isADir, isADirError := IsDirectory(removePath)
 	if isADirError != nil {
 		err := fmt.Errorf("failed to check if removePath '%s' is a directory: %v", removePath, isADirError)
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, err
 	}
 
@@ -490,7 +490,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface), isToLogOutput)
 	if err != nil {
 		e := fmt.Errorf("cannot read interface: %s output: %s error: %v", b.Iface, string(out), err)
-		zlog.Err(e)
+		zlog.Error().Msgf("%s", e.Error())
 		return "", e
 	}
 	zlog.Debug().Msgf("provided interface '%s': ", b.Iface) //, out)
@@ -499,7 +499,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	zlog.Debug().Msgf("iscsiTransport: %s", iscsiTransport)
 	if iscsiTransport == "" {
 		e := fmt.Errorf("could not find transport name in iface %s", b.Iface) // TODO - b.Iface here realy should be newIface...or does it matter?
-		zlog.Err(e)
+		zlog.Error().Msgf("%s", e.Error())
 		return "", e
 	}
 
@@ -540,7 +540,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			_, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", targets[i].Portals[p]))
 			if err != nil {
 				e := fmt.Errorf("failed to discover targets at portal '%s': %v ", out, err)
-				zlog.Err(e)
+				zlog.Error().Msgf("%s", e.Error())
 				return "", e
 			}
 		}
@@ -556,9 +556,9 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				zlog.Debug().Msgf("target iface: %s iqn: %s - use CHAP at portal: %s", b.Iface, targets[i].Iqn, targets[i].Portals[p])
 				err = iscsi.updateISCSINode(b, targets[i].Iqn, targets[i].Portals[p])
 				if err != nil {
-					zlog.Err(err)
+					zlog.Error().Msgf("%s", err.Error())
 					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
-					zlog.Err(fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", targets[i].Portals[p], err))
+					zlog.Error().Msgf("%s", fmt.Errorf("iscsi: Failed to update iscsi node for portal: %s error: %v", targets[i].Portals[p], err.Error()))
 					continue
 				}
 			}
@@ -583,7 +583,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 				zlog.Debug().Msgf("login to iscsi target iqn %s at all portals using interface %s", targets[i].Iqn, targets[i].Portals[p])
 				_, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[i].Iqn, targets[i].Portals[p]))
 				if err != nil {
-					zlog.Err(err)
+					zlog.Error().Msgf("%s", err.Error())
 					if status.Code(err) != codes.AlreadyExists {
 						msg := fmt.Sprintf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[i].Iqn, targets[i].Portals[p], err.Error())
 						zlog.Error().Msg(msg)
@@ -668,7 +668,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			return "", nil
 		}
 	} else if !os.IsNotExist(err) {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return "", status.Errorf(codes.Internal, "%s exists but IsLikelyNotMountPoint failed: %v", mntPath, err)
 	}
 
@@ -701,7 +701,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		_, err = os.Create("/host/" + mntPath)
 		if err != nil {
 			e := fmt.Errorf("failed to create target file %q: %v", mntPath, err)
-			zlog.Err(e)
+			zlog.Error().Msgf("%s", e.Error())
 			return "", e
 		}
 
@@ -845,7 +845,7 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	if chapSession {
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("%s", err.Error())
 			return nil, err
 		}
 	}
@@ -990,13 +990,13 @@ func (iscsi *iscsistorage) createISCSIConfigFile(conf iscsiDisk, mnt string) err
 	zlog.Debug().Msgf("creating iscsi config file at path %s", file)
 	fp, err := os.Create(file)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return err
 	}
 	defer fp.Close()
 	encoder := json.NewEncoder(fp)
 	if err = encoder.Encode(conf); err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return err
 	}
 	return nil
@@ -1006,13 +1006,13 @@ func (iscsi *iscsistorage) loadDiskInfoFromFile(conf *iscsiDisk, mnt string) err
 	file := path.Join("/host", mnt, conf.VolName+".json")
 	fp, err := os.Open(file)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return fmt.Errorf("iscsi: Open %s err %s", file, err)
 	}
 	defer fp.Close()
 	decoder := json.NewDecoder(fp)
 	if err = decoder.Decode(conf); err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		return fmt.Errorf("iscsi: Decode err: %v ", err)
 	}
 	return nil
@@ -1042,7 +1042,7 @@ func (iscsi *iscsistorage) parseIscsiadmShow(output string) (map[string]string, 
 		iface := strings.Fields(line)
 		if len(iface) != 3 || iface[1] != "=" {
 			e := fmt.Errorf("iscsi invalid iface setting %v", iface)
-			zlog.Err(e)
+			zlog.Error().Msgf("%s", e.Error())
 			return nil, e
 		}
 		// iscsi_ifacename is immutable once the iface is created
@@ -1059,7 +1059,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	zlog.Debug().Msgf("find pre-configured iface records")
 	out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface))
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		lastErr = fmt.Errorf("iscsi: failed to show iface records: %s (%v)", string(out), err)
 		return lastErr
 	}
@@ -1068,7 +1068,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	// parse obtained records
 	params, err := iscsi.parseIscsiadmShow(string(out))
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("%s", err.Error())
 		lastErr = fmt.Errorf("iscsi: Failed to parse iface records: %s (%v)", string(out), err)
 		return lastErr
 	}
@@ -1087,7 +1087,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 		zlog.Debug().Msgf("update records of interface '%s'", newIface)
 		_, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op update --name %q --value %q", newIface, key, val))
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("%s", err.Error())
 			_, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op delete", newIface))
 			if err != nil {
 				lastErr = fmt.Errorf("failed to delete iface '%s': %s ", newIface, err)
@@ -1129,13 +1129,13 @@ func findMpathFromDevice(device string) (mpath string, err error) {
 	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 	if err != nil {
 		e := fmt.Errorf("cannot findMpathFromDevice: %s, Error: %s: %v", device, mpath, err)
-		zlog.Err(e)
+		zlog.Error().Msgf("%s", e.Error())
 		return mpath, e
 	}
 	outParts := strings.Split(string(out), "_")
 	if len(outParts) < 1 {
 		e := fmt.Errorf("cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
-		zlog.Err(e)
+		zlog.Error().Msgf("%s", e.Error())
 		return mpath, e
 	}
 	if len(outParts) > 0 {
@@ -1164,7 +1164,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 		nspace, err := iscsi.cs.Api.GetNetworkSpaceByName(networkSpaces[i])
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)
-			zlog.Err(e)
+			zlog.Error().Msgf("%s", e.Error())
 			return targets, status.Error(codes.InvalidArgument, e.Error())
 		}
 		zlog.Debug().Msgf("got nspace by name: %s", nspace.Name)

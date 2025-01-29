@@ -105,35 +105,6 @@ func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_GetVolumeByName_Fail() {
-	expectedError := errors.New("Unable to get given volume by name")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.GetVolumeByName("test_storage_pool")
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetVolumeByName_Success() {
-	volume := Volume{
-		Name: "test1",
-	}
-	volumes := []Volume{
-		volume,
-	}
-
-	expectedResponse := client.ApiResponse{Result: volumes}
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	response, _ := service.GetVolumeByName("test1")
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), volume, *response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 	expectedError := errors.New("Missing parameters")
 	suite.clientMock.On("Post").Return(nil, expectedError)
@@ -154,28 +125,6 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 
 	snapshotParams := VolumeSnapshot{ParentID: 1001, SnapshotName: "test_volume_resp"}
 	response, _ := service.CreateSnapshotVolume(0, &snapshotParams)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetVolume_Fail() {
-	expectedError := errors.New("Unable to get given volume")
-	suite.clientMock.On("Get").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.GetVolume(101)
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetVolume_Success() {
-	expectedResponse := client.ApiResponse{Result: &Volume{}}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	response, _ := service.GetVolume(101)
 
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
@@ -293,7 +242,7 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
-	expectedResponse := client.ApiResponse{Result: &FileSystemSnapshotResponce{SnapshotID: 0, Name: "", DatasetType: "", ParentId: 0, Size: 0, CreatedAt: 0}}
+	expectedResponse := client.ApiResponse{Result: &FileSystemSnapshotResponse{SnapshotID: 0, Name: "", DatasetType: "", ParentId: 0, Size: 0, CreatedAt: 0}}
 
 	suite.clientMock.On("Post").Return(expectedResponse, nil)
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
@@ -446,7 +395,7 @@ func (suite *ApiTestSuite) Test_GetSnapshotByName_Fail() {
 }
 
 func (suite *ApiTestSuite) Test_GetSnapshotByName_Success() {
-	var snapResponse []FileSystemSnapshotResponce
+	var snapResponse []FileSystemSnapshotResponse
 	expectedResponse := client.ApiResponse{Result: &snapResponse}
 
 	suite.clientMock.On("Get").Return(expectedResponse, nil)
@@ -506,32 +455,6 @@ func (suite *ApiTestSuite) Test_RestoreFileSystemFromSnapShot_Success() {
 	assert.Equal(suite.T(), false, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_UpdateVolume_Fail() {
-	// Test volume snapshot will not be created
-	expectedError := errors.New("Missing parameters")
-	suite.clientMock.On("Put").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	volume := Volume{}
-	_, err := service.UpdateVolume(1001, volume)
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_UpdateVolume_Success() {
-	// Test volume snapshot will be created
-	expectedResponse := client.ApiResponse{Result: &Volume{}}
-
-	suite.clientMock.On("Put").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	volume := Volume{Size: 100}
-	response, _ := service.UpdateVolume(1001, volume)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_GetVolumeSnapshotByParentID_Fail() {
 	// Test volume snapshot will not be created
 	expectedError := errors.New("Missing parameters")
@@ -555,30 +478,6 @@ func (suite *ApiTestSuite) Test_GetVolumeSnapshotByParentID_Success() {
 
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_DeleteVolume_Fail() {
-	var metadatas []Metadata
-	expectedResponse := client.ApiResponse{Result: &metadatas}
-	suite.clientMock.On("Delete").Return(expectedResponse, nil)
-	expectedError := errors.New("Given volume ID doesnt exist")
-	suite.clientMock.On("Delete").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	err := service.DeleteVolume(1001)
-
-	assert.Equal(suite.T(), nil, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_DeleteVolume_Success() {
-	var metadatas []Metadata
-	expectedResponse := client.ApiResponse{Result: &metadatas}
-	suite.clientMock.On("Delete").Return(expectedResponse, nil)
-	suite.clientMock.On("Delete").Return(nil, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	err := service.DeleteVolume(1001)
-
-	assert.Equal(suite.T(), nil, err, "Response not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_GetTreeq_Success() {

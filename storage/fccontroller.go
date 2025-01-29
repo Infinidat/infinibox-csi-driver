@@ -20,7 +20,6 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/iboxapi"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -40,7 +39,7 @@ func (fc *fcstorage) ValidateStorageClass(params map[string]string) error {
 	// validate required parameters
 	err := ValidateRequiredOptionalSCParameters(requiredFCParams, optionalFCParams, params)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
@@ -63,13 +62,16 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	poolName := params[common.SC_POOL_NAME]
 
-	targetVol, err := fc.cs.Api.GetVolumeByName(name)
+	targetVol, err := fc.cs.IboxApi.GetVolumeByName(name)
 	if err != nil {
-		zlog.Err(err)
-		if !strings.Contains(err.Error(), "volume with given name not found") {
-			return nil, status.Errorf(codes.NotFound, "error CreateVolume: %v", err)
+		if err == iboxapi.ErrNotFound {
+			zlog.Debug().Msgf("volume with name %s not found, proceeding to create", name)
+		} else {
+			zlog.Error().Msgf("error: get volume by name %s error %s", name, err.Error())
+			return nil, status.Errorf(codes.Internal, "%s", fmt.Sprintf("CreateVolume failed: %v", err))
 		}
 	}
+
 	if targetVol != nil {
 		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, fc.capacity)
 		if targetVol.Size == fc.capacity {
@@ -103,49 +105,60 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	volumeParam.SsdEnabled, err = determineSSDValue(params[common.SC_SSD_ENABLED], poolName, fc.cs.IboxApi)
 	if err != nil {
-		e := status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
-		zlog.Error().Msg(e.Error())
-		return nil, e
+		zlog.Error().Msg(err.Error())
+		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
 	}
 
 	pool, err := fc.cs.IboxApi.GetPoolByName(poolName)
 	if err != nil {
-		e := status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
-		zlog.Error().Msg(e.Error())
-		return nil, e
+		zlog.Error().Msg(err.Error())
+		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
 	}
 
-	volumeResp, err := fc.cs.Api.CreateVolume(volumeParam, pool.ID)
+	createVolumeRequest := iboxapi.CreateVolumeRequest{
+		Name:          volumeParam.Name,
+		SsdEnabled:    volumeParam.SsdEnabled,
+		ProvisionType: volumeParam.ProvisionType,
+		PoolId:        pool.ID,
+		VolumeSize:    volumeParam.VolumeSize,
+	}
+
+	volumeResp, err := fc.cs.IboxApi.CreateVolume(createVolumeRequest)
 	if err != nil {
 		zlog.Error().Msgf("error creating volume: %s pool %s error: %s", name, poolName, err.Error())
 		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
 	}
-	vi := fc.cs.getCSIResponse(volumeResp, req)
 
-	// check volume id format
-	volID, err := strconv.Atoi(vi.VolumeId)
-	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, "error getting volume id")
+	attributes := map[string]string{
+		"ID":              strconv.Itoa(volumeResp.ID),
+		"Name":            volumeResp.Name,
+		"StoragePoolID":   strconv.Itoa(volumeResp.PoolId),
+		"StoragePoolName": volumeResp.PoolName,
+		"CreationTime":    time.Unix(int64(volumeResp.CreatedAt), 0).String(),
+		"targetWWNs":      req.GetParameters()["targetWWNs"],
+	}
+	vi := &csi.Volume{
+		VolumeId:      strconv.Itoa(volumeResp.ID),
+		CapacityBytes: volumeResp.Size,
+		VolumeContext: attributes,
+		ContentSource: req.GetVolumeContentSource(),
 	}
 
 	// confirm volume creation
-	var vol *api.Volume
-	var counter int
-	vol, err = fc.cs.Api.GetVolume(volID)
+	var vol *iboxapi.Volume
+	vol, err = fc.cs.IboxApi.GetVolume(volumeResp.ID)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 	}
-	for vol == nil && counter < 100 {
-		time.Sleep(3 * time.Millisecond)
-		vol, err = fc.cs.Api.GetVolume(volID)
-		if err != nil {
-			zlog.Err(err)
-		}
-		counter = counter + 1
-	}
+
+	// a single test just in case there is a race condition on createVolume (doubtful)
 	if vol == nil {
-		return nil, status.Errorf(codes.Internal, "failed to create volume name: %s volume not retrieved for id: %d", name, volID)
+		time.Sleep(3 * time.Second)
+		_, err = fc.cs.IboxApi.GetVolume(volumeResp.ID)
+		if err != nil {
+			zlog.Error().Msgf("error %s", err.Error())
+			return nil, status.Errorf(codes.Internal, "failed to create volume name: %s volume not retrieved for id: %d", name, volumeResp.ID)
+		}
 	}
 
 	// Prepare response struct
@@ -164,18 +177,16 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
 	}
 
-	zlog.Debug().Msgf("created volume: %s id: %d", name, volID)
+	zlog.Debug().Msgf("created volume: %s id: %d", name, volumeResp.ID)
 	return csiResp, err
 }
 
 func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
 	zlog.Debug().Msgf("DeleteVolume")
-	volproto := fc.cs.VolProto
-	err = fc.ValidateDeleteVolume(volproto.VolumeID)
+	err = fc.ValidateDeleteVolume(fc.cs.VolProto.VolumeID)
 	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal,
-			"error deleting volume : %s", err.Error())
+		zlog.Error().Msgf("error %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "error deleting volume : %s", err.Error())
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
@@ -201,9 +212,9 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
 	}
 
-	srcVol, err := fc.cs.Api.GetVolume(volproto.VolumeID)
+	srcVol, err := fc.cs.IboxApi.GetVolume(volproto.VolumeID)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", volproto.VolumeID)
 	}
 
@@ -217,13 +228,12 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	// Validate the storagePool is the same.
 	pool, err := fc.cs.IboxApi.GetPoolByName(storagePool)
 	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal,
-			"error while getting storagepoolid with name %s ", storagePool)
+		zlog.Error().Msgf("error %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "error getting pool [%s]", storagePool)
 	}
 	if pool.ID != srcVol.PoolId {
 		return nil, status.Errorf(codes.InvalidArgument,
-			"volume storage pool is different than the requested storage pool %s", storagePool)
+			"volume storage pool is different than requested storage pool %s", storagePool)
 	}
 	ssd := req.GetParameters()[common.SC_SSD_ENABLED]
 	if ssd == "" {
@@ -239,16 +249,16 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	// Create snapshot
 	snapResponse, err := fc.cs.Api.CreateSnapshotVolume(0, snapshotParam)
 	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, "failed to create snapshot: %s", err.Error())
+		zlog.Error().Msgf("error %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "error create snapshot: %s", err.Error())
 	}
 
 	// Retrieve created destination volume
 	volID := snapResponse.SnapShotID
-	dstVol, err := fc.cs.Api.GetVolume(volID)
+	dstVol, err := fc.cs.IboxApi.GetVolume(volID)
 	if err != nil {
-		zlog.Err(err)
-		return nil, status.Errorf(codes.Internal, "could not retrieve created volume: %d", volID)
+		zlog.Error().Msgf("error %s", err.Error())
+		return nil, status.Errorf(codes.Internal, "error get volume: %d", volID)
 	}
 
 	// Create a volume response and return it
@@ -261,7 +271,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	_, err = fc.cs.IboxApi.PutMetadata(dstVol.ID, metadata)
 	if err != nil {
 		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
-		return nil, status.Errorf(codes.Internal, "failed to attach metadata to volume: %s, err: %v", dstVol.Name, err)
+		return nil, status.Errorf(codes.Internal, "error attaching metadata to volume: %s, err: %v", dstVol.Name, err)
 	}
 	zlog.Error().Msgf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
@@ -277,7 +287,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	volproto, err := ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("failed to validate storage type %v", err)
-		return nil, errors.New("error getting volume id")
+		return nil, errors.New("error getting volume ID")
 	}
 
 	hostName, err := DetermineHostName(req.GetNodeId())
@@ -287,26 +297,25 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 
 	host, err := fc.cs.validateHost(hostName)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	v, err := fc.cs.Api.GetVolume(volproto.VolumeID)
+	v, err := fc.cs.IboxApi.GetVolume(volproto.VolumeID)
 	if err != nil {
 		zlog.Error().Msgf("failed to find volume by volume ID '%s': %v", req.GetVolumeId(), err)
 		return nil, errors.New("error getting volume by id")
 	}
 
-	// TODO: revisit this as part of CSIC-343
 	_, err = fc.cs.AccessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	lunList, err := fc.cs.IboxApi.GetAllLunByHost(host.ID)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return nil, err
 	}
 	var ports string
@@ -340,12 +349,12 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	if maxAllowedVolString != "" {
 		maxAllowedVol, err := strconv.Atoi(maxAllowedVolString)
 		if err != nil {
-			zlog.Error().Msgf("invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
+			zlog.Error().Msgf("error invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
 			return nil, err
 		}
 		if maxAllowedVol < 1 {
 			e := fmt.Errorf("invalid parameter %s error:  required to be greater than 0", common.SC_MAX_VOLS_PER_HOST)
-			zlog.Err(e)
+			zlog.Error().Msgf("error %s", e.Error())
 			return nil, e
 		}
 		zlog.Debug().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
@@ -359,7 +368,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	zlog.Debug().Msgf("mapping volume %d to host %s", volproto.VolumeID, host.Name)
 	luninfo, err := fc.cs.mapVolumeTohost(volproto.VolumeID, host.ID)
 	if err != nil {
-		zlog.Error().Msgf("failed to map volume to host with error %v", err)
+		zlog.Error().Msgf("error mapping volume to host %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -381,15 +390,15 @@ func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 		zlog.Debug().Msgf("unmap volume %d from host %d", fc.cs.VolProto.VolumeID, host.ID)
 		err = fc.cs.unmapVolumeFromHost(host.ID, int(fc.cs.VolProto.VolumeID))
 		if err != nil {
-			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", fc.cs.VolProto.VolumeID, host.ID, err)
+			zlog.Error().Msgf("error unmapping volume %d from host %d error %v", fc.cs.VolProto.VolumeID, host.ID, err)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 	if len(host.Luns) < 2 {
 		err = hostCleanup(fc.cs.IboxApi, host.ID, host.Name)
 		if err != nil {
-			e := fmt.Errorf("ControllerUnpublishVolume: failed to perform hostCleanup for host ID %d. Error: %s", host.ID, err.Error())
-			zlog.Err(e)
+			e := fmt.Errorf("ControllerUnpublishVolume: error performing hostCleanup for host ID %d. Error: %s", host.ID, err.Error())
+			zlog.Error().Msgf("error %s", e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
@@ -420,12 +429,16 @@ func (fc *fcstorage) ControllerGetCapabilities(ctx context.Context, req *csi.Con
 func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	var snapshotID string
 	snapshotName := req.GetName()
-	zlog.Debug().Msgf("Create Snapshot of name %s source volume ID %s", snapshotName, req.GetSourceVolumeId())
+	zlog.Debug().Msgf("CreateSnapshot name %s source volume ID %s volproto %+v", snapshotName, req.GetSourceVolumeId(), fc.cs.VolProto)
 
-	volumeSnapshot, err := fc.cs.Api.GetVolumeByName(snapshotName)
+	volumeSnapshot, err := fc.cs.IboxApi.GetVolumeByName(snapshotName)
 	if err != nil {
-		zlog.Err(err)
-		zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
+		if err == iboxapi.ErrNotFound {
+			zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
+		} else {
+			zlog.Error().Msgf("error getting volume by name %s", err.Error())
+			return nil, status.Error(codes.Internal, fmt.Sprintf("error getting volume by name %s", snapshotName))
+		}
 	} else if volumeSnapshot.ParentId == fc.cs.VolProto.VolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + fc.cs.VolProto.StorageType
 		return &csi.CreateSnapshotResponse{
@@ -443,10 +456,10 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 
 	// look up the parent volume so we can get the ssd_enabled value and use that for
 	// the snapshot being created next
-	parentVolume, err := fc.cs.Api.GetVolume(fc.cs.VolProto.VolumeID)
+	parentVolume, err := fc.cs.IboxApi.GetVolume(fc.cs.VolProto.VolumeID)
 	if err != nil {
 		e := fmt.Errorf("failed to get parent volume when creating snapshot - volume id %d, err: %v", fc.cs.VolProto.VolumeID, err)
-		zlog.Err(e)
+		zlog.Error().Msgf("error %s", e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
@@ -498,10 +511,6 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 
 	err = fc.ValidateDeleteVolume(snapshotID)
 	if err != nil {
-		if status.Code(err) == codes.Aborted {
-			return nil, err
-		}
-
 		zlog.Error().Msgf("failed to delete snapshot %v", err)
 		return nil, err
 	}
@@ -509,13 +518,13 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 }
 
 func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
-	vol, err := fc.cs.Api.GetVolume(volumeID)
+	vol, err := fc.cs.IboxApi.GetVolume(volumeID)
 	if err != nil {
-		zlog.Err(err)
-		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
+		if err == iboxapi.ErrNotFound {
 			zlog.Debug().Msgf("volume is already deleted %d", volumeID)
 			return nil
 		}
+		zlog.Error().Msgf("error %s", err.Error())
 		return status.Errorf(codes.Internal,
 			"error while validating volume status : %s",
 			err.Error())
@@ -527,7 +536,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 	childVolumes, err := fc.cs.Api.GetVolumeSnapshotByParentID(vol.ID)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 	}
 	if len(*childVolumes) > 0 {
 		metadata := map[string]interface{}{
@@ -543,22 +552,21 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	zlog.Debug().Msgf("Deleting volume name: %s id: %d", vol.Name, vol.ID)
 	_, err = fc.cs.IboxApi.DeleteMetadata(vol.ID)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("error %s", err.Error())
 		return status.Errorf(codes.Internal,
 			"error removing metadata for volume: %s", err.Error())
 	}
-	err = fc.cs.Api.DeleteVolume(vol.ID)
+	_, err = fc.cs.IboxApi.DeleteVolume(vol.ID)
 	if err != nil {
-		zlog.Err(err)
-		return status.Errorf(codes.Internal,
-			"error removing volume: %s", err.Error())
+		zlog.Error().Msgf("error %s", err.Error())
+		return status.Errorf(codes.Internal, "error removing volume: %s", err.Error())
 	}
 	if vol.ParentId != 0 {
 		zlog.Debug().Msgf("checking if parent volume can be name: %s id: %d", vol.Name, vol.ID)
 		var metadata []iboxapi.GetMetadataResult
 		metadata, err = fc.cs.IboxApi.GetMetadata(vol.ParentId)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("error %s", err.Error())
 			return err
 		}
 		var toBeDeleted bool
@@ -570,7 +578,7 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		if toBeDeleted {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
 			if err != nil {
-				zlog.Err(err)
+				zlog.Error().Msgf("error %s", err.Error())
 				return
 			}
 		}
@@ -580,12 +588,16 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
 
-	zlog.Debug().Msg("ControllerExpandVolume")
+	volumeID := fc.cs.VolProto.VolumeID
+	zlog.Debug().Msgf("ControllerExpandVolume volume ID %d", volumeID)
+
+	/**
 	volumeID, err := strconv.Atoi(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("Invalid Volume ID %v", err)
 		return
 	}
+	*/
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
@@ -594,9 +606,10 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	}
 
 	// Expand volume size
-	var volume api.Volume
-	volume.Size = capacity
-	_, err = fc.cs.Api.UpdateVolume(volumeID, volume)
+	volume := iboxapi.Volume{
+		Size: capacity,
+	}
+	_, err = fc.cs.IboxApi.UpdateVolume(volumeID, volume)
 	if err != nil {
 		zlog.Error().Msgf("Failed to update file system %v", err)
 		return
@@ -608,7 +621,7 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	}, nil
 }
 
-func (st *fcstorage) ControllerGetVolume(
+func (fc *fcstorage) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
 	// Infinidat does not support ControllerGetVolume

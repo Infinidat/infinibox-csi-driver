@@ -323,7 +323,7 @@ func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 	return &host, nil
 }
 
-func (cs *Commonservice) getCSIResponse(vol *api.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
+func (cs *Commonservice) getCSIResponse(vol *iboxapi.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
 	zlog.Debug().Msgf("getCSIResponse called with volume %+v", vol)
 	storagePoolName := vol.PoolName
 	if storagePoolName == "" {

@@ -3,6 +3,7 @@ package iboxapi
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -48,38 +49,41 @@ type CreateEventResult struct {
 	ID                  int    `json:"id"`
 }
 
-func (client *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
+func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
 
-	URL := client.Creds.Url + "api/rest/events"
-	client.Log.V(TRACE_LEVEL).Info("CreateEvent", "URL", URL, "event", eventRequest)
+	URL := iboxClient.Creds.Url + "api/rest/events"
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateEvent", "URL", URL, "event", eventRequest)
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
-		return err
+		return fmt.Errorf("CreateEvent - Marshal - error %w", err)
 	}
 	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return err
+		return fmt.Errorf("CreateEvent - NewRequest - error %w", err)
 	}
-	SetAuthHeader(request, client.Creds)
+	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
-	response, err := client.HttpClient.Do(request)
+	response, err := iboxClient.HttpClient.Do(request)
 	if err != nil {
-		return err
+		return fmt.Errorf("CreateEvent - Do - error %w", err)
 	}
 	defer response.Body.Close()
 
-	body, _ := io.ReadAll(response.Body)
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return fmt.Errorf("CreateEvent - ReadAll - error %w", err)
+	}
 
 	var responseObject CreateEventResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return err
+		return fmt.Errorf("CreateEvent - Unmarshal - error %w", err)
 	}
-	client.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
+	iboxClient.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
 	if responseObject.Error.Code != "" {
-		client.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Response", responseObject)
+		return fmt.Errorf("CreateEvent - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return nil
 }

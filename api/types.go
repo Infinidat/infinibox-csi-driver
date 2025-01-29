@@ -308,8 +308,8 @@ type FileSystemSnapshotLocked struct {
 	LockExpiresAt  int64  `json:"lock_expires_at"`
 }
 
-// FileSystemSnapshotResponce file system snapshot Response
-type FileSystemSnapshotResponce struct {
+// FileSystemSnapshotResponse file system snapshot Response
+type FileSystemSnapshotResponse struct {
 	SnapshotID  int    `json:"id"`
 	Name        string `json:"name,omitempty"`
 	DatasetType string `json:"dataset_type,omitempty"`
