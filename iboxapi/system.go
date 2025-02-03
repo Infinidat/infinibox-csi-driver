@@ -203,6 +203,7 @@ func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 		return nil, fmt.Errorf("GetSystem - Unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
+		//TODO check for NOT FOUND ?  return ErrNotFound for callers?
 		return nil, fmt.Errorf("GetSystem - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil

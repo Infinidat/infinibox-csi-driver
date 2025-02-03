@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/log"
 
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -143,9 +144,9 @@ func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 	for i := 0; i < len(secrets); i++ {
 		sMap := secrets[i]
 		ibox := IboxCredentials{
-			IboxHostname: sMap["hostname"],
-			IboxPassword: sMap["password"],
-			IboxUsername: sMap["username"],
+			IboxHostname: sMap[common.CRED_HOSTNAME],
+			IboxPassword: sMap[common.CRED_PASSWORD],
+			IboxUsername: sMap[common.CRED_USERNAME],
 		}
 		ips, err := net.LookupIP(ibox.IboxHostname)
 		if err != nil {

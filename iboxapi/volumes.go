@@ -211,6 +211,7 @@ func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolume
 		return nil, fmt.Errorf("DeleteVolume - Unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
+		//TODO check for NOT FOUND?  have callers check for ErrNotFound?
 		return nil, fmt.Errorf("DeleteVolume - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
@@ -253,6 +254,7 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 			return nil, fmt.Errorf("GetVolumeByName - Unmarshal - error %w", err)
 		}
 		if responseObject.Error.Code != "" {
+			//TODO check for NOT FOUND?  return ErrNotFound for callers?
 			return nil, fmt.Errorf("GetVolumeByName - ibox API - error code %s message %s", responseObject.Error.Code, responseObject.Error.Message)
 		}
 		if len(responseObject.Result) > 0 {
@@ -337,6 +339,7 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 		return nil, fmt.Errorf("UpdateVolume - Unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
+		//TODO check for NOT FOUND?  return ErrNotFound for callers?
 		return nil, fmt.Errorf("UpdateVolume - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil

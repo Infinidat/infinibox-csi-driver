@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"io"
 	"log"
 	"net/http"
@@ -51,11 +52,11 @@ func RecordPoolMetrics(config *MetricsConfig) {
 				for i := 0; i < len(poolInfo); i++ {
 					pi := poolInfo[i]
 					labels := prometheus.Labels{
-						METRIC_POOL_NAME:             pi.storageClass.Parameters["pool_name"],
-						METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters["provision_type"],
-						METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters["ssd_enabled"],
-						METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters["network_space"],
-						METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters["storage_protocol"],
+						METRIC_POOL_NAME:             pi.storageClass.Parameters[common.SC_POOL_NAME],
+						METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters[common.SC_PROVISION_TYPE],
+						METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters[common.SC_SSD_ENABLED],
+						METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters[common.SC_NETWORK_SPACE],
+						METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters[common.SC_STORAGE_PROTOCOL],
 					}
 					MetricPoolAvailableCapGauge.With(labels).Set(float64(pi.pool.PhysicalCapacity))  // pool - physical_capacity
 					MetricPoolUsedCapGauge.With(labels).Set(float64(pi.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
@@ -87,7 +88,7 @@ func getPoolInfo(ibox IboxCredentials) ([]PoolInfo, error) {
 	}
 	for i := 0; i < len(*storageClasses); i++ {
 		sc := (*storageClasses)[i]
-		p, err := lookupPool(allPools, sc.Parameters["pool_name"])
+		p, err := lookupPool(allPools, sc.Parameters[common.SC_POOL_NAME])
 		if err != nil {
 			zlog.Error().Msgf("pool_name not found from storage classes %s", sc.Parameters["pool_name"])
 		} else {
@@ -127,11 +128,11 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 		if s.Provisioner == "infinibox-csi-driver" {
 			// this is a storageclass used by our driver
 			zlog.Debug().Msgf("storageclass name %s\n", s.Name)
-			zlog.Debug().Msgf("storage_protocol %s\n", s.Parameters["storage_protocol"])
-			zlog.Debug().Msgf("network_space %s\n", s.Parameters["network_space"])
-			zlog.Debug().Msgf("pool_name %s\n", s.Parameters["pool_name"])
-			zlog.Debug().Msgf("provision_type %s\n", s.Parameters["provision_type"])
-			zlog.Debug().Msgf("ssd_enabled %s\n", s.Parameters["ssd_enabled"])
+			zlog.Debug().Msgf("storage_protocol %s\n", s.Parameters[common.SC_STORAGE_PROTOCOL])
+			zlog.Debug().Msgf("network_space %s\n", s.Parameters[common.SC_NETWORK_SPACE])
+			zlog.Debug().Msgf("pool_name %s\n", s.Parameters[common.SC_POOL_NAME])
+			zlog.Debug().Msgf("provision_type %s\n", s.Parameters[common.SC_PROVISION_TYPE])
+			zlog.Debug().Msgf("ssd_enabled %s\n", s.Parameters[common.SC_SSD_ENABLED])
 			zlog.Debug().Msgf("--------------------------------------")
 			ourStorageClasses = append(ourStorageClasses, s)
 		}

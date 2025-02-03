@@ -2,6 +2,7 @@ package metric
 
 import (
 	"context"
+	"infinibox-csi-driver/common"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,10 +39,10 @@ func RecordPVMetrics(config *MetricsConfig) {
 				labels := prometheus.Labels{
 					METRIC_PV_NAME:             p.PVol.Name,
 					METRIC_PV_STORAGE_CLASS:    p.SClass.Name,
-					METRIC_PV_PROVISION_TYPE:   p.SClass.Parameters["provision_type"],
-					METRIC_PV_SSD_ENABLED:      p.SClass.Parameters["ssd_enabled"],
-					METRIC_PV_NETWORK_SPACE:    p.SClass.Parameters["network_space"],
-					METRIC_PV_STORAGE_PROTOCOL: p.SClass.Parameters["storage_protocol"],
+					METRIC_PV_PROVISION_TYPE:   p.SClass.Parameters[common.SC_PROVISION_TYPE],
+					METRIC_PV_SSD_ENABLED:      p.SClass.Parameters[common.SC_SSD_ENABLED],
+					METRIC_PV_NETWORK_SPACE:    p.SClass.Parameters[common.SC_NETWORK_SPACE],
+					METRIC_PV_STORAGE_PROTOCOL: p.SClass.Parameters[common.SC_STORAGE_PROTOCOL],
 				}
 				MetricPVTotalSizeGauge.With(labels).Set(float64(p.PVol.Spec.Capacity.Storage().Value()))
 			}

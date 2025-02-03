@@ -112,3 +112,9 @@ const (
 	CUSTOM_EVENT_VOLUME_NAME = "volume_name"
 	CUSTOM_EVENT_ACTION      = "csi_action"
 )
+
+const (
+	CRED_HOSTNAME = "hostname"
+	CRED_USERNAME = "username"
+	CRED_PASSWORD = "password"
+)

@@ -41,20 +41,20 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	zlog.Info().Msgf("NodePublishVolume Started - ID: '%s'", req.GetVolumeId())
 
 	if req.GetVolumeId() == "" {
-		err := fmt.Errorf("NodePublishVolume error volumeId parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodePublishVolume - error volumeId parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if req.GetStagingTargetPath() == "" {
-		err := fmt.Errorf("NodeUnstageVolume error stagingTargetPath parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeUnstageVolume - error stagingTargetPath parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	if req.VolumeCapability == nil {
-		err := fmt.Errorf("NodeUnstageVolume error volumeCapability parameter was nil")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeUnstageVolume - error volumeCapability parameter was nil")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	defer func() {
@@ -73,14 +73,20 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	config := make(map[string]string)
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), nil)
+	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+		zlog.Error().Msgf("NodePublishVolume - ValidateVolumeID volume ID: %s error: %s", req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	storageNode, err := storage.NewStorageNode(comnserv, storageProtocol, config, req.GetSecrets())
+
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+		zlog.Error().Msgf("NodePublishVolume - BuildCommonService volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodePublishVolume - NewStorageNode - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -88,7 +94,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	req.VolumeContext["nodeID"] = s.Driver.nodeID
 	response, err := storageNode.NodePublishVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ID: %s NewStorageNode error: %s", req.GetVolumeId(), err)
+		zlog.Error().Msgf("NodePublishVolume - sn.NodePublishVolume - volume ID: %s error: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -116,7 +122,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
 	if eventErr != nil {
-		zlog.Error().Msg(eventErr.Error())
+		zlog.Error().Msgf("NodePublishVolume - CreateEvent - error %s", eventErr.Error())
 		// only log errors since older ibox versions don't support this event code
 	}
 
@@ -128,13 +134,13 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	zlog.Info().Msgf("NodeUnpublishVolume Started - ID: %s", req.GetVolumeId())
 
 	if req.GetTargetPath() == "" {
-		err := fmt.Errorf("NodeUnpublishVolume error targetPath parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeUnpublishVolume - error targetPath parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.GetVolumeId() == "" {
-		err := fmt.Errorf("NodeUnpublishVolume error volumeId parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeUnpublishVolume - error volumeId parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -148,21 +154,21 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	zlog.Debug().Msgf("NodeUnpublishVolume called with volume ID %s", req.GetVolumeId())
 	zlog.Trace().Msgf("NodeUnpublishVolume called with req %+v", req)
-	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
+	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
+		zlog.Error().Msgf("NodeUnpublishVolume - ValidateVolumeID volume ID %s - error: %s", req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{}, volproto.StorageType, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnpublishVolume failed with volume ID %s: %s", req.GetVolumeId(), err)
+		zlog.Error().Msgf("NodeUnpublishVolume - NewStorageNode volume ID %s - error: %s", req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	resp, err := protocolOperation.NodeUnpublishVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnpublishVolume failed - volume ID %s: %s", req.GetVolumeId(), err)
+		zlog.Error().Msgf("NodeUnpublishVolume NodeUnpublishVolume volume ID %s - error: %s", req.GetVolumeId(), err.Error())
 		return nil, err
 	}
 
@@ -202,18 +208,18 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	zlog.Info().Msgf("NodeStageVolume Started - ID: '%s'", volumeId)
 
 	if volumeId == "" {
-		err := fmt.Errorf("NodeStageVolume error volumeId parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeStageVolume -  error volumeId parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.VolumeCapability == nil {
-		err := fmt.Errorf("NodeStageVolume error volumeCapability parameter was nil")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeStageVolume - error volumeCapability parameter was nil")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.StagingTargetPath == "" {
-		err := fmt.Errorf("NodeStageVolume error stagingTargetPath parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeStageVolume  - error stagingTargetPath parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -232,21 +238,28 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	zlog.Debug().Msgf("VolumeMountGroup: %s", fsGroup)
 	config := make(map[string]string)
 
-	zlog.Debug().Msgf("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), nil)
+	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("NodeStageVolume failed with volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeStageVolume - ValidateVolumeID -  volume ID %s - error: %s", req.GetVolumeId(), err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	storageNode, err := storage.NewStorageNode(comnserv, storageProtocol, config, req.GetSecrets())
-	if storageNode != nil {
-		zlog.Info().Msgf("NodeStageVolume Finished - ID: '%s'", volumeId)
-		return storageNode.NodeStageVolume(ctx, req)
+	zlog.Debug().Msgf("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
+	if err != nil {
+		zlog.Error().Msgf("NodeStageVolume - BuildCommonService volume ID %s - error: %s", volumeId, err)
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	zlog.Error().Msgf("NodeStageVolume failed with volume ID %s: %s", volumeId, err)
-	return nil, status.Error(codes.Internal, err.Error())
+	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
+	if err != nil {
+		zlog.Error().Msgf("NodeStageVolume - NewStorageNode volume ID %s - error: %s", volumeId, err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	zlog.Info().Msgf("NodeStageVolume Finished - ID: '%s'", volumeId)
+	return storageNode.NodeStageVolume(ctx, req)
+
 }
 
 func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
@@ -255,13 +268,13 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	zlog.Info().Msgf("NodeUnstageVolume Started - ID: %s", volumeId)
 
 	if volumeId == "" {
-		err := fmt.Errorf("NodeUnstageVolume error volumeId parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeUnstageVolume - error volumeId parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.StagingTargetPath == "" {
-		err := fmt.Errorf("NodeUnstageVolume error stagingTargetPath parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeUnstageVolume - error stagingTargetPath parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -273,19 +286,19 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
 
-	volproto, err := storage.ValidateVolumeID(volumeId)
+	volProto, err := storage.ValidateVolumeID(volumeId)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnstageVolume failed - volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeUnstageVolume - ValidateVolumeID volume ID %s - error: %s", volumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{}, volproto.StorageType, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnstageVolume failed - volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeUnstageVolume - NewStorageNode volume ID %s - error: %s", volumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	resp, err := protocolOperation.NodeUnstageVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnstageVolume failed - volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeUnstageVolume - po.NodeUnstageVolume volume ID %s - error: %s", volumeId, err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Info().Msgf("NodeUnstageVolume Finished - ID: '%s'", volumeId)
@@ -302,8 +315,8 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	zlog.Info().Msgf("NodeExpandVolume Started - ID: '%s'", volumeId)
 
 	if volumeId == "" {
-		err := fmt.Errorf("NodeExpandVolume error volumeId parameter was empty")
-		zlog.Err(err)
+		err := fmt.Errorf("NodeExpandVolume - error volumeId parameter was empty")
+		zlog.Error().Msgf("%s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -319,28 +332,33 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	volproto := strings.Split(req.GetVolumeId(), "$$")
 	if len(volproto) != 2 {
+		zlog.Error().Msgf("NodeExpandVolume - erro volume ID error %v", volproto)
 		return nil, status.Error(codes.NotFound, "volume Id does not follow '<id>$$<proto>' pattern")
 	}
 
-	protocol := volproto[1]
-
 	config := make(map[string]string)
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), nil)
+	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("NodeExpandVolume failed to build common service with volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeExpandVolume  - ValidateVolumeID -  volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
+	if err != nil {
+		zlog.Error().Msgf("NodeExpandVolume  - BuildCommonService volume ID %s - error: %s", volumeId, err.Error())
 		return nil, err
 	}
 
-	storageNode, err := storage.NewStorageNode(comnserv, protocol, config, req.GetSecrets())
+	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
 	if err != nil {
-		zlog.Error().Msgf("NodeExpandVolume failed to build new storage node with volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeExpandVolume - NewStorageNode volume ID %s - error: %s", volumeId, err.Error())
 		return nil, err
 	}
 
 	resp, err := storageNode.NodeExpandVolume(context.Background(), req)
 	if err != nil {
-		zlog.Error().Msgf("NodeExpandVolume failed with volume ID %s: %s", volumeId, err)
+		zlog.Error().Msgf("NodeExpandVolume - sn.NodeExpandVolume volume ID %s - error: %s", volumeId, err.Error())
 		return nil, err
 	}
 

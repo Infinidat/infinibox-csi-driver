@@ -41,7 +41,9 @@ import (
 )
 
 const (
-	Name = "infinibox-csi-driver"
+	Name                  = "infinibox-csi-driver"
+	RESTORE_TYPE_VOLUME   = "Volume"
+	RESTORE_TYPE_SNAPSHOT = "Snapshot"
 )
 
 const (
@@ -147,8 +149,10 @@ func NewStorageController(comnserv Commonservice, capacity int64, storageProtoco
 }
 
 // NewStorageNode : To return specific implementation of storage
-func NewStorageNode(comnserv Commonservice, storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
-	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
+func NewStorageNode(comnserv Commonservice, configparams ...map[string]string) (Storageoperations, error) {
+	volProto := comnserv.VolProto
+
+	storageProtocol := volProto.StorageType
 	switch storageProtocol {
 	case common.PROTOCOL_FC:
 		return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
@@ -188,7 +192,7 @@ func BuildCommonService(config map[string]string, secretMap map[string]string, v
 		var apiHost string
 		if urlScheme == "" {
 			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
-			apiHost = "https://" + secretMap["hostname"] + "/"
+			apiHost = "https://" + secretMap[common.CRED_HOSTNAME] + "/"
 		} else {
 			apiHost = hostnameURL.String()
 		}
@@ -201,8 +205,8 @@ func BuildCommonService(config map[string]string, secretMap map[string]string, v
 			zlog.Trace().Msgf("IBox URL: %s", apiHost)
 		}
 		creds := iboxapi.Credentials{
-			Username: secretMap["username"],
-			Password: secretMap["password"],
+			Username: secretMap[common.CRED_USERNAME],
+			Password: secretMap[common.CRED_PASSWORD],
 			Url:      apiHost,
 		}
 		var iboxApiLog logr.Logger = zerologr.New(&zlog)

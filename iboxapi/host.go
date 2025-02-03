@@ -235,6 +235,7 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 		return nil, fmt.Errorf("GetHostByName - Unmarshal - error %w", err)
 	}
 	if len(responseObject.Result) == 0 {
+		//TODO return just ErrNotFound and have callers check that
 		return nil, fmt.Errorf("GetHostByName - Not Found - error finding host %s - %w", hostName, ErrNotFound)
 	}
 	if responseObject.Error.Code != "" {
@@ -451,6 +452,7 @@ func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostP
 		}
 	}
 	if hostPort.HostID == 0 && hostPort.PortAddress == "" {
+		//TODO return ErrNotFound here and have code check that
 		return nil, errors.New("HOST_PORT_NOT_FOUND")
 	}
 	if responseObject.Error.Code != "" {

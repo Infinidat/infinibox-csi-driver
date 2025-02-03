@@ -48,7 +48,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	tmp := strings.Split(req.GetVolumeId(), "$$")[0]
 	fileSystemId, err := strconv.Atoi(tmp)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("NodePublishVolume - volume format error - error: %s", err.Error())
 		return nil, err
 	}
 
@@ -59,7 +59,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if snapDir != "" {
 		nfs.snapdirVisible, err = strconv.ParseBool(snapDir)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("NodePublishVolume - snapsdir visible format error - error: %s", err.Error())
 			return nil, err
 		}
 	}
@@ -67,7 +67,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if privPorts != "" {
 		nfs.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("NodePublishVolume - priv ports format error - error: %s", err.Error())
 			return nil, err
 		}
 	}
@@ -81,7 +81,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
 		err = nfs.updateExport(fileSystemId, exportPerms)
 		if err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("NodePublishVolume - updateExport - error: %s", err.Error())
 			return nil, err
 		}
 	} else {
@@ -92,7 +92,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if os.IsNotExist(err) {
 		zlog.Debug().Msgf("targetPath %s does not exist, will create", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-			zlog.Err(err)
+			zlog.Error().Msgf("NodePublishVolume - MkdirAll - error: %s", err.Error())
 			return nil, err
 		}
 	} else {
@@ -103,7 +103,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	mountOptions, err := nfs.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("NodePublishVolume - GetNFSMountOptions - error: %s", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
 
@@ -118,7 +118,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	err = nfs.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -127,7 +127,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	zlog.Debug().Msgf("Mount sourcePath %v, targetPath %v", source, targetPath)
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		e := fmt.Errorf("failed to mount source '%s ' target %s: %v", source, targetPath, err)
+		e := fmt.Errorf("NodePublishVolume - Mount - failed to mount source '%s ' target %s: %v", source, targetPath, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -140,7 +140,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	err = nfs.storageHelper.SetVolumePermissions(req)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("NodePublishVolume - SetVolumePermissions - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -152,7 +152,7 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	zlog.Debug().Msgf("NodeUnpublishVolume targetPath %s", targetPath)
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
-		zlog.Err(err)
+		zlog.Error().Msgf("NodeUnpublishVolume - unmountAndCleanup - error: %s", err.Error())
 		return nil, err
 	}
 

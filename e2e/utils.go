@@ -226,17 +226,17 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 		return err
 	}
 
-	poolToUse := os.Getenv("_E2E_POOL")
+	poolToUse := os.Getenv(ENV_POOL)
 	if poolToUse == "" {
-		return fmt.Errorf("_E2E_POOL env var is not set and is required")
+		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
-	networkSpaceToUse := os.Getenv("_E2E_NETWORK_SPACE")
-	if poolToUse == "" {
-		return fmt.Errorf("_E2E_NETWORK_SPACE env var is not set and is required")
+	networkSpaceToUse := os.Getenv(ENV_NETWORK_SPACE)
+	if networkSpaceToUse == "" {
+		return fmt.Errorf("%s env var is not set and is required", ENV_NETWORK_SPACE)
 	}
-	secretToUse := os.Getenv("_E2E_IBOX_SECRET")
+	secretToUse := os.Getenv(ENV_IBOX_SECRET)
 	if secretToUse == "" {
-		return fmt.Errorf("_E2E_IBOX_SECRET env var is not set and is required")
+		return fmt.Errorf("%s env var is not set and is required", ENV_IBOX_SECRET)
 	}
 	sc.Name = testConfig.TestNames.SCName
 	sc.Parameters[common.SC_POOL_NAME] = poolToUse
@@ -432,18 +432,18 @@ func GetFlags(t *testing.T) {
 	}
 	t.Logf("%s was found\n", VolumeSnapshotClassPath)
 
-	x := os.Getenv("_E2E_NAMESPACE")
+	x := os.Getenv(ENV_NAMESPACE)
 	if x == "" {
-		t.Logf("_E2E_NAMESPACE env var not set, using flag value %s", *OperatorNamespace)
+		t.Logf("%s env var not set, using flag value %s", ENV_NAMESPACE, *OperatorNamespace)
 	} else {
-		t.Logf("_E2E_NAMESPACE env var set, using value %s", x)
+		t.Logf("%s  env var set, using value %s", ENV_NAMESPACE, x)
 		*OperatorNamespace = x
 	}
-	y := os.Getenv("CLEANUP")
+	y := os.Getenv(ENV_CLEANUP)
 	if y == "" {
-		t.Logf("CLEANUP env var not set, using flag value %t", *CleanUp)
+		t.Logf("%s env var not set, using flag value %t", ENV_CLEANUP, *CleanUp)
 	} else {
-		t.Logf("CLEANUP env var set, using value %s", y)
+		t.Logf("%s env var set, using value %s", ENV_CLEANUP, y)
 		var err error
 		*CleanUp, err = strconv.ParseBool(y)
 		if err != nil {
@@ -484,13 +484,13 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	allowPrivilegeEscalation := false
 	runAsNonRoot := true
 	image := "infinidat/csitestimage:latest"
-	alternateImage := os.Getenv("_E2E_TEST_IMAGE")
+	alternateImage := os.Getenv(ENV_TEST_IMAGE)
 	if alternateImage != "" {
 		image = alternateImage
 	}
 	if testConfig.UseBlock {
 		image = "infinidat/csitestimageblock:latest"
-		alternateImage := os.Getenv("_E2E_TEST_BLOCK_IMAGE")
+		alternateImage := os.Getenv(ENV_TEST_BLOCK_IMAGE)
 		if alternateImage != "" {
 			image = alternateImage
 		}
@@ -928,19 +928,19 @@ func GetEnvVars() string {
 
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("_E2E_NAMESPACE [%s]\n", os.Getenv("_E2E_NAMESPACE")))
-	sb.WriteString(fmt.Sprintf("_E2E_POOL [%s]\n", os.Getenv("_E2E_POOL")))
-	sb.WriteString(fmt.Sprintf("_E2E_PROTOCOL [%s]\n", os.Getenv("_E2E_PROTOCOL")))
-	sb.WriteString(fmt.Sprintf("_E2E_NETWORK_SPACE [%s]\n", os.Getenv("_E2E_NETWORK_SPACE")))
-	sb.WriteString(fmt.Sprintf("_E2E_NETWORK_SPACE2 [%s]\n", os.Getenv("_E2E_NETWORK_SPACE2")))
-	sb.WriteString(fmt.Sprintf("_E2E_IBOX_SECRET [%s]\n", os.Getenv("_E2E_IBOX_SECRET")))
-	sb.WriteString(fmt.Sprintf("_E2E_K8S_VERSION [%s]\n", os.Getenv("_E2E_K8S_VERSION")))
-	sb.WriteString(fmt.Sprintf("_E2E_OCP_VERSION [%s]\n", os.Getenv("_E2E_OCP_VERSION")))
-	sb.WriteString(fmt.Sprintf("_E2E_IBOX_USERNAME [%s]\n", os.Getenv("_E2E_IBOX_USERNAME")))
-	sb.WriteString(fmt.Sprintf("_E2E_IBOX_PASSWORD [%s]\n", os.Getenv("_E2E_IBOX_PASSWORD")))
-	sb.WriteString(fmt.Sprintf("_E2E_IBOX_HOSTNAME [%s]\n", os.Getenv("_E2E_IBOX_HOSTNAME")))
-	sb.WriteString(fmt.Sprintf("_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME [%s]\n", os.Getenv("_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME")))
-	sb.WriteString(fmt.Sprintf("_E2E_IBOX_REMOTE_POOL_ID [%s]\n", os.Getenv("_E2E_IBOX_REMOTE_POOL_ID")))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NAMESPACE, os.Getenv(ENV_NAMESPACE)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_POOL, os.Getenv(ENV_POOL)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_PROTOCOL, os.Getenv(ENV_PROTOCOL)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE, os.Getenv(ENV_NETWORK_SPACE)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE2, os.Getenv(ENV_NETWORK_SPACE2)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_SECRET, os.Getenv(ENV_IBOX_SECRET)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_K8S_VERSION, os.Getenv(ENV_K8S_VERSION)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_OCP_VERSION, os.Getenv(ENV_OCP_VERSION)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_USERNAME, os.Getenv(ENV_IBOX_USERNAME)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_PASSWORD, os.Getenv(ENV_IBOX_PASSWORD)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_HOSTNAME, os.Getenv(ENV_IBOX_HOSTNAME)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_LINK_REMOTE_SYSTEM_NAME, os.Getenv(ENV_IBOX_LINK_REMOTE_SYSTEM_NAME)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_REMOTE_POOL_ID, os.Getenv(ENV_IBOX_REMOTE_POOL_ID)))
 
 	return sb.String()
 }
@@ -1037,9 +1037,9 @@ func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) 
 	if testConfig.UseSnapshotLock {
 		vsc.Parameters[common.LOCK_EXPIRES_AT_PARAMETER] = "1 Hours"
 	}
-	secretToUse := os.Getenv("_E2E_IBOX_SECRET")
+	secretToUse := os.Getenv(ENV_IBOX_SECRET)
 	if secretToUse == "" {
-		return fmt.Errorf("_E2E_IBOX_SECRET env var is not set and is required")
+		return fmt.Errorf("%s env var is not set and is required", ENV_IBOX_SECRET)
 	}
 	vsc.Parameters[common.VOLUME_SNAPSHOT_CLASS_SECRET_NAME] = secretToUse
 

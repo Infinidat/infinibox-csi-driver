@@ -22,7 +22,24 @@ import (
 )
 
 const (
-	SOCAT_SERVICE_PORT = "30007"
+	SOCAT_SERVICE_PORT               = "30007"
+	ENV_IBOX_HOSTNAME                = "_E2E_IBOX_HOSTNAME"
+	ENV_IBOX_USERNAME                = "_E2E_IBOX_USERNAME"
+	ENV_IBOX_PASSWORD                = "_E2E_IBOX_PASSWORD"
+	ENV_PROTOCOL                     = "_E2E_PROTOCOL"
+	ENV_POOL                         = "_E2E_POOL"
+	ENV_NETWORK_SPACE                = "_E2E_NETWORK_SPACE"
+	ENV_NETWORK_SPACE2               = "_E2E_NETWORK_SPACE2"
+	ENV_IBOX_SECRET                  = "_E2E_IBOX_SECRET"
+	ENV_IBOX_SECRET2                 = "_E2E_IBOX_SECRET2"
+	ENV_NAMESPACE                    = "_E2E_NAMESPACE"
+	ENV_CLEANUP                      = "CLEANUP"
+	ENV_TEST_IMAGE                   = "_E2E_TEST_IMAGE"
+	ENV_TEST_BLOCK_IMAGE             = "_E2E_TEST_BLOCK_IMAGE"
+	ENV_IBOX_LINK_REMOTE_SYSTEM_NAME = "_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME"
+	ENV_IBOX_REMOTE_POOL_ID          = "_E2E_IBOX_REMOTE_POOL_ID"
+	ENV_K8S_VERSION                  = "_E2E_K8S_VERSION"
+	ENV_OCP_VERSION                  = "_E2E_OCP_VERSION"
 )
 
 type TestConfig struct {
@@ -84,17 +101,17 @@ func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error
 	config.Testt = t
 	config.Protocol = protocol
 
-	hostname := os.Getenv("_E2E_IBOX_HOSTNAME")
+	hostname := os.Getenv(ENV_IBOX_HOSTNAME)
 	if hostname == "" {
-		return config, fmt.Errorf("_E2E_IBOX_HOSTNAME env var required")
+		return config, fmt.Errorf("%s env var required", ENV_IBOX_HOSTNAME)
 	}
-	username := os.Getenv("_E2E_IBOX_USERNAME")
+	username := os.Getenv(ENV_IBOX_USERNAME)
 	if username == "" {
-		return config, fmt.Errorf("_E2E_IBOX_USERNAME env var required")
+		return config, fmt.Errorf("%s env var required", ENV_IBOX_USERNAME)
 	}
-	password := os.Getenv("_E2E_IBOX_PASSWORD")
+	password := os.Getenv(ENV_IBOX_PASSWORD)
 	if password == "" {
-		return config, fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
+		return config, fmt.Errorf("%s env var required", ENV_IBOX_PASSWORD)
 	}
 
 	c := make(map[string]string)

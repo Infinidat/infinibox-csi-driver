@@ -12,9 +12,9 @@ import (
 func ValidateEnv(testConfig *TestConfig) (err error) {
 
 	// validate ibox pool
-	poolToUse := os.Getenv("_E2E_POOL")
+	poolToUse := os.Getenv(ENV_POOL)
 	if poolToUse == "" {
-		return fmt.Errorf("_E2E_POOL env var is not set and is required")
+		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
 
 	_, err = testConfig.ClientService.Iboxapi.GetPoolByName(poolToUse)
@@ -23,19 +23,19 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	}
 
 	// validate network space on the ibox
-	protocol := os.Getenv("_E2E_PROTOCOL")
+	protocol := os.Getenv(ENV_PROTOCOL)
 
 	switch protocol {
 	case common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME:
 		fmt.Printf("valid protocol found in env vars [%s]\n", protocol)
 	default:
-		return fmt.Errorf("protocol specified in env var not recognized [%s], must be a valid protocol [%s,%s,%s,%s,%s]", protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME)
+		return fmt.Errorf("%s env var value not recognized [%s], must be a valid protocol [%s,%s,%s,%s,%s]", ENV_PROTOCOL, protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME)
 	}
 
 	if protocol != common.PROTOCOL_FC {
-		networkSpaceToUse := os.Getenv("_E2E_NETWORK_SPACE")
+		networkSpaceToUse := os.Getenv(ENV_NETWORK_SPACE)
 		if networkSpaceToUse == "" {
-			return fmt.Errorf("_E2E_NETWORK_SPACE env var is not set and is required")
+			return fmt.Errorf("%s env var is not set and is required", ENV_NETWORK_SPACE)
 		}
 		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpaceToUse)
 		if err != nil {
@@ -44,7 +44,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	}
 
 	// validate network space 2 on the ibox if set
-	networkSpace2ToUse := os.Getenv("_E2E_NETWORK_SPACE2")
+	networkSpace2ToUse := os.Getenv(ENV_NETWORK_SPACE2)
 	if networkSpace2ToUse != "" {
 		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpace2ToUse)
 		if err != nil {
@@ -53,7 +53,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	}
 
 	// validate namespace on the kube
-	namespaceToUse := os.Getenv("_E2E_NAMESPACE")
+	namespaceToUse := os.Getenv(ENV_NAMESPACE)
 	if namespaceToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Namespaces().Get(context.TODO(), namespaceToUse, metav1.GetOptions{})
 		if err != nil {
@@ -62,18 +62,18 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	}
 
 	// validate ibox secret on the kube
-	iboxCredentialToUse := os.Getenv("_E2E_IBOX_SECRET")
+	iboxCredentialToUse := os.Getenv(ENV_IBOX_SECRET)
 	if iboxCredentialToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(context.TODO(), iboxCredentialToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting secrets %s %w", namespaceToUse, err)
 		}
 	} else {
-		return fmt.Errorf("_E2E_IBOX_SECRET not specified and is required")
+		return fmt.Errorf("%s not specified and is required", ENV_IBOX_SECRET)
 	}
 
 	// validate ibox secret2 on the kube if set
-	iboxCredential2ToUse := os.Getenv("_E2E_IBOX_SECRET2")
+	iboxCredential2ToUse := os.Getenv(ENV_IBOX_SECRET2)
 	if iboxCredential2ToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(context.TODO(), iboxCredential2ToUse, metav1.GetOptions{})
 		if err != nil {

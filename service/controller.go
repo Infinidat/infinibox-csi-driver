@@ -54,6 +54,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	reqParameters := req.GetParameters()
 	if len(reqParameters) == 0 {
+		zlog.Error().Msgf("CreateVolume - GetParameters empty ")
 		return nil, status.Error(codes.InvalidArgument, "no Parameters provided to CreateVolume")
 	}
 
@@ -69,24 +70,30 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// Basic CSI parameter checking across protocols
 
 	if len(storageprotocol) == 0 {
+		zlog.Error().Msgf("CreateVolume - storage protocol empty ")
 		return nil, status.Error(codes.InvalidArgument, "no 'storage_protocol' provided to CreateVolume")
 	}
 	if storageprotocol != common.PROTOCOL_FC && len(networkSpace) == 0 {
+		zlog.Error().Msgf("CreateVolume - network space empty ")
 		return nil, status.Error(codes.InvalidArgument, "no 'network_space' provided to CreateVolume")
 	}
 	if len(volName) == 0 {
+		zlog.Error().Msgf("CreateVolume - volume name empty ")
 		return nil, status.Error(codes.InvalidArgument, "no name provided to CreateVolume")
 	}
 	if len(reqCapabilities) == 0 {
+		zlog.Error().Msgf("CreateVolume - volume capabilitiles empty ")
 		return nil, status.Error(codes.InvalidArgument, "no VolumeCapabilities provided to CreateVolume")
 	}
 
 	var summary string
 	summary, err = validateCapabilities(reqCapabilities)
 	if err != nil {
+		zlog.Error().Msgf("CreateVolume - validateCapabilities - error %s", err.Error())
 		return nil, status.Errorf(codes.InvalidArgument, "VolumeCapabilities invalid: %v", err)
 	}
 	if reqParameters[common.SC_POOL_NAME] == "" {
+		zlog.Error().Msgf("CreateVolume - %s empty", common.SC_POOL_NAME)
 		return nil, status.Errorf(codes.InvalidArgument, "no 'pool_name' provided to CreateVolume, verify pool_name is specified in StorageClass")
 	}
 	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
@@ -99,6 +106,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	kc, err := clientgo.BuildClient()
 	if err != nil {
+		zlog.Error().Msgf("CreateVolume - BuildClient - error %s", err.Error())
 		err = status.Errorf(codes.Internal, "failed to initialize kube client while creating volume '%v'", err)
 		return nil, err
 	}
@@ -109,6 +117,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if extraMetadataPVCName != "" && extraMetadataPVCNamespace != "" {
 		pvcAnnotations, err = kc.GetPVCAnnotations(extraMetadataPVCName, extraMetadataPVCNamespace)
 		if err != nil {
+			zlog.Error().Msgf("CreateVolume - GetPVCAnnotations - error %s", err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", req.GetName(), err)
 		}
 	}
@@ -118,6 +127,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if pvcAnnoSecret != "" {
 		secretsToUse, err = kc.GetSecret(pvcAnnoSecret, os.Getenv("POD_NAMESPACE"))
 		if err != nil {
+			zlog.Error().Msgf("CreateVolume - GetSecret - error %s", err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "PVC Annotation for %s invalid: %v", pvcAnnoSecret, err)
 		}
 	}
@@ -129,7 +139,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if roundUpParameter != "" {
 		roundUp, err = strconv.ParseBool(roundUpParameter)
 		if err != nil {
-			zlog.Error().Msgf("CreateVolume error: %v", err)
+			zlog.Error().Msgf("CreateVolume - parse %s - error %s", common.SC_ROUND_UP, err.Error())
 			err = status.Errorf(codes.Internal, "error converting %s StorageClass parameter volume '%s' - %s", roundUpParameter, volName, err.Error())
 			return nil, err
 		}
@@ -147,21 +157,21 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	comnserv, err := storage.BuildCommonService(configparams, secretsToUse, nil)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume error: %v", err)
+		zlog.Error().Msgf("CreateVolume - BuildCommonService - error %s", err.Error())
 		err = status.Errorf(codes.Internal, "error getting api,  volume '%s' - %s", volName, err.Error())
 		return nil, err
 	}
 
 	storageController, err := storage.NewStorageController(comnserv, capacity, storageprotocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
-		zlog.Error().Msgf("CreateVolume error: %v", err)
+		zlog.Error().Msgf("CreateVolume - NewStorageController - error %s", err.Error())
 		err = status.Errorf(codes.Internal, "error while creating volume '%s' - %s", volName, err.Error())
 		return nil, err
 	}
 
 	err = validateCommonStorageClassParameters(comnserv, req.Parameters)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume error: %v", err)
+		zlog.Error().Msgf("CreateVolume - validateCommonStorageClassParameters - error %s", err.Error())
 		err = status.Errorf(codes.Internal, "error validating StorageClass parameters volume '%s' - %s", volName, err.Error())
 		return nil, err
 	}
@@ -182,27 +192,27 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// perform protocol specific StorageClass validations
 	err = storageController.ValidateStorageClass(req.Parameters)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume error: %v", err)
+		zlog.Error().Msgf("CreateVolume - ValidateStorageClass - error %s", err.Error())
 		err = status.Errorf(codes.Internal, "error validating StorageClass parameters volume '%s' - %s", volName, err.Error())
 		return nil, err
 	}
 
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume error: %v", err)
+		zlog.Error().Msgf("CreateVolume - sc.CreateVolume - error %s", err.Error())
 		// it's important to return the original error, because it matches K8s expectations
 		return nil, err
 	} else if createVolResp == nil {
+		zlog.Error().Msgf("CreateVolume - sc.CreateVolume resp nil")
 		err = status.Errorf(codes.Internal, "failed to create volume '%s', empty response", volName)
-		zlog.Error().Msgf("CreateVolume error: %v", err)
 		return nil, err
 	} else if createVolResp.Volume == nil {
+		zlog.Error().Msgf("CreateVolume - sc.CreateVolume Volume is nil")
 		err = status.Errorf(codes.Internal, "failed to create volume '%s', resp: %v, no volume struct", volName, createVolResp)
-		zlog.Error().Msgf("CreateVolume error: %v", err)
 		return nil, err
 	} else if createVolResp.Volume.VolumeId == "" {
+		zlog.Error().Msgf("CreateVolume - sc.CreateVolume Volume ID is empty")
 		err = status.Errorf(codes.Internal, "failed to create volume '%s', resp: %v, no volumeID", volName, createVolResp)
-		zlog.Error().Msgf("CreateVolume error: %v", err)
 		return nil, err
 	}
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
@@ -253,7 +263,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	eventDesc := fmt.Sprintf("CSI - Create Volume: id %s name %s", createVolResp.Volume.VolumeId, volName)
 	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, eventDesc, eventData)
 	if eventErr != nil {
-		zlog.Error().Msg(eventErr.Error())
+		zlog.Error().Msgf("CreateVolume - CreateEvent - error %s", eventErr.Error())
 		// only log errors if custom event fails
 	}
 
@@ -270,6 +280,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	volproto, err := storage.ValidateVolumeID(volumeId)
 	if err != nil {
+		zlog.Error().Msgf("DeleteVolume - ValidateVolumeID - error %s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -278,12 +289,12 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	// see if the pvc annotation was specified in the original PVC
 	kc, err := clientgo.BuildClient()
 	if err != nil {
+		zlog.Error().Msgf("DeleteVolume - BuildClient - error %s", err.Error())
 		return nil, err
 	}
 	pvList, err := kc.GetAllPersistentVolumes()
 	if err != nil {
-		err := fmt.Errorf("cant fetch PVs %s", err.Error())
-		zlog.Error().Msg(err.Error())
+		zlog.Error().Msgf("DeleteVolume - GetAllPersistentVolumes - error %s", err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 
 	}
@@ -295,8 +306,8 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			annoPVCSecretName := pv.Spec.CSI.ControllerPublishSecretRef.Name
 			annoPVCSecret, err := kc.GetSecret(annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
 			if err != nil {
+				zlog.Error().Msgf("DeleteVolume - GetSecret - error %s", err.Error())
 				err := fmt.Errorf("pvc annotation %s get error %v", annoPVCSecretName, err)
-				zlog.Error().Msg(err.Error())
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 			zlog.Debug().Msgf("DeleteVolume - using secret %s", annoPVCSecretName)
@@ -310,22 +321,22 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	comnserv, err := storage.BuildCommonService(config, secretsToUse, &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %s: %v", volumeId, err)
+		zlog.Error().Msgf("DeleteVolume - BuildCommonService - volume ID %s - error %s", volumeId, err.Error())
 		return
 	}
 
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, secretsToUse)
 	if err != nil || storageController == nil {
+		zlog.Error().Msgf("DeleteVolume - NewStorageController - error %s", err.Error())
 		err = status.Error(codes.Internal, "failed to initialise storage controller while delete volume "+volproto.StorageType)
 		return
 	}
-	//req.VolumeId = volproto.VolumeID
+
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("failed to delete volume with ID %s: %v", volumeId, err)
+		zlog.Error().Msgf("DeleteVolume - sc.DeleteVolume volume ID %s - error %s", volumeId, err.Error())
 		return
 	}
-	//req.VolumeId = volumeId // TODO - why are we setting a value in the request - side effect?? This smells funny
 
 	zlog.Info().Msgf("DeleteVolume Finish - ID: %s", volumeId)
 	return
@@ -345,13 +356,13 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 	zlog.Debug().Msgf("ControllerPublishVolume ID: %s, nodeID: %s", req.GetVolumeId(), req.GetNodeId())
 
 	if req.VolumeCapability == nil {
-		err = fmt.Errorf("ControllerPublishVolume request VolumeCapability was nil")
+		err = fmt.Errorf("ControllerPublishVolume - request VolumeCapability was nil")
 		zlog.Error().Msg(err.Error())
 		err = status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
 	if req.GetVolumeId() == "" {
-		err = fmt.Errorf("ControllerPublishVolume request volumeId was empty")
+		err = fmt.Errorf("ControllerPublishVolume  - request volumeId was empty")
 		zlog.Error().Msg(err.Error())
 		err = status.Error(codes.InvalidArgument, err.Error())
 		return
@@ -359,13 +370,13 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume failed to validate request: %v", err)
+		zlog.Error().Msgf("ControllerPublishVolume - ValidateVolumeID - error : %s", err.Error())
 		err = status.Errorf(codes.NotFound, "ControllerPublishVolume failed: %v", err)
 		return
 	}
 
 	if req.GetNodeId() == "" {
-		err = fmt.Errorf("ControllerPublishVolume request nodeId was empty")
+		err = fmt.Errorf("ControllerPublishVolume - request nodeId was empty")
 		zlog.Error().Msg(err.Error())
 		err = status.Error(codes.InvalidArgument, err.Error())
 		return
@@ -373,7 +384,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	err = validateNodeID(req.GetNodeId())
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume failed to validate request: %v", err)
+		zlog.Error().Msgf("ControllerPublishVolume - validateNodeID - error: %s", err.Error())
 		return nil, err
 	}
 
@@ -381,19 +392,19 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %v", err)
+		zlog.Error().Msgf("ControllerPublishVolume - BuildCommonService - error: %s", err.Error())
 		return
 	}
 
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		zlog.Error().Msgf("failed to create storage controller: %s", volproto.StorageType)
+		zlog.Error().Msgf("ControllerPublishVolume - NewStorageController - error: %s", err.Error())
 		err = status.Errorf(codes.Internal, "ControllerPublishVolume failed to initialise storage controller: %s", volproto.StorageType)
 		return
 	}
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume failed with volume ID %s and node ID %s: %v", req.GetVolumeId(), req.GetNodeId(), err)
+		zlog.Error().Msgf("ControllerPublishVolume - ControllerPublishVolume - failed with volume ID %s and node ID %s: %v", req.GetVolumeId(), req.GetNodeId(), err)
 	}
 
 	zlog.Info().Msgf("ControllerPublishVolume Finish - ID: %s", req.GetVolumeId())
@@ -406,14 +417,14 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	zlog.Info().Msgf("ControllerUnpublishVolume Start - ID: %s, nodeID: %s", req.GetVolumeId(), req.GetNodeId())
 
 	if req.GetVolumeId() == "" {
-		err = fmt.Errorf("ControllerUnpublishVolume request volumeId parameter was empty")
+		err = fmt.Errorf("ControllerUnpublishVolume - request volumeId parameter was empty")
 		zlog.Error().Msg(err.Error())
 		err = status.Error(codes.InvalidArgument, err.Error())
 		return
 	}
 	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("ControllerUnpublishVolume failed to validate request: %v", err)
+		zlog.Error().Msgf("ControllerUnpublishVolume - ValidateVolumeID -  error: %s", err.Error())
 		err = status.Errorf(codes.NotFound, "ControllerUnpublishVolume failed: %v", err)
 		return
 	}
@@ -422,7 +433,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	if nodeID != "" { // NodeId is optional, when empty we should unpublish the volume from any nodes it is published to
 		err = validateNodeID(nodeID)
 		if err != nil {
-			zlog.Error().Msgf("ControllerUnpublishVolume failed to validate request: %v", err)
+			zlog.Error().Msgf("ControllerUnpublishVolume - validateNodeID - error: %s", err.Error())
 			return nil, err
 		}
 	}
@@ -431,13 +442,13 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %v", err)
+		zlog.Error().Msgf("ControllerUnpublishVolume - BuildCommonService - error %s", err.Error())
 		return
 	}
 
 	hostName, err := storage.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		zlog.Error().Msgf("failed to get hostname %v", err)
+		zlog.Error().Msgf("ControllerUnpublishVolume - DetermineHostName - error %s", err.Error())
 		return nil, err
 	}
 
@@ -449,20 +460,20 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 			if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
-			zlog.Error().Msgf("failed to get host details with error %v", err)
+			zlog.Error().Msgf("ControllerUnpublishVolume - GetHostByName - error %s", err.Error())
 			return nil, err
 		}
 	}
 
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		err = errors.New("ControllerUnpublishVolume failed to initialise storage controller: " + volproto.StorageType)
+		err = errors.New("ControllerUnpublishVolume - NewStorageController - error: " + err.Error())
 		return
 	}
 
 	unpublishVolResp, err = storageController.ControllerUnpublishVolume(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("ControllerUnpublishVolume %v", err)
+		zlog.Error().Msgf("ControllerUnpublishVolume - sc.ControllerUnpublishVolume - error: %s", err.Error())
 	}
 
 	zlog.Info().Msgf("ControllerUnPublishVolume Finish - ID: %s", req.GetVolumeId())
@@ -520,24 +531,24 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	zlog.Info().Msgf("ValidateVolumeCapabilities Started - ID: %s", req.GetVolumeId())
 
 	if req.GetVolumeId() == "" {
-		err := fmt.Errorf("ValidateVolumeCapabilities error volumeId parameter was empty")
+		err := fmt.Errorf("ValidateVolumeCapabilities - error volumeId parameter was empty")
 		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.VolumeCapabilities == nil {
-		err := fmt.Errorf("ValidateVolumeCapabilities error volumeCapabilities parameter was nil")
+		err := fmt.Errorf("ValidateVolumeCapabilities - error volumeCapabilities parameter was nil")
 		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if len(req.VolumeCapabilities) == 0 {
-		err := fmt.Errorf("ValidateVolumeCapabilities error volumeCapabilities parameter was empty")
+		err := fmt.Errorf("ValidateVolumeCapabilities - error volumeCapabilities parameter was empty")
 		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("ValidateVolumeCapabilities failed to validate request: %v", err)
+		zlog.Error().Msgf("ValidateVolumeCapabilities - ValidateVolumeID - error: %s", err.Error())
 		err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed: %v", err)
 		return
 	}
@@ -545,7 +556,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	config := make(map[string]string)
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %v", err)
+		zlog.Error().Msgf("ValidateVolumeCapabilities - BuildCommonService - error: %s", err.Error())
 		return
 	}
 
@@ -556,7 +567,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		var fs *api.FileSystem
 		fs, err = comnserv.Api.GetFileSystemByID(volproto.VolumeID)
 		if err != nil {
-			zlog.Error().Msgf("failed to find volume ID: %d, %v", volproto.VolumeID, err)
+			zlog.Error().Msgf("ValidateVolumeCapabilities - GetFileSystemByID volume ID %d - error: %s", volproto.VolumeID, err.Error())
 			err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find filesystem ID: %d, %v", volproto.VolumeID, err)
 			return
 		}
@@ -565,7 +576,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		var vol *iboxapi.Volume
 		vol, err = comnserv.IboxApi.GetVolume(volproto.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("failed to find volume with ID %d. Error: %v", volproto.VolumeID, err)
+			e := fmt.Errorf("ValidateVolumeCapabilities - GetVolume - failed to find volume with ID %d. Error: %v", volproto.VolumeID, err)
 			zlog.Err(e)
 			err = status.Error(codes.NotFound, e.Error())
 			return
@@ -577,18 +588,6 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 			VolumeCapabilities: req.GetVolumeCapabilities(),
 		},
 	}
-
-	/**
-	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
-	if err != nil || storageController == nil {
-		err = errors.New("error ValidateVolumeCapabilities failed to initialize storage controller: " + volproto.StorageType)
-		return
-	}
-	validateVolCapsResponse, err = storageController.ValidateVolumeCapabilities(ctx, req)
-	if err != nil {
-		zlog.Error().Msgf("error ValidateVolumeCapabilities %v", err)
-	}
-	*/
 
 	zlog.Info().Msgf("ValidateVolumeCapabilities Finished - ID: %s", req.GetVolumeId())
 
@@ -604,7 +603,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 
 	if req.StartingToken == "" || req.StartingToken == "next-token" {
 	} else {
-		err := fmt.Errorf("ListVolumes error startingToken parameter was incorrect [%s]", req.StartingToken)
+		err := fmt.Errorf("ListVolumes - error startingToken parameter was incorrect [%s]", req.StartingToken)
 		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.Aborted, err.Error())
 	}
@@ -612,12 +611,14 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 	// Get a k8s go client for in-cluster use
 	cl, err := clientgo.BuildClient()
 	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "cannot list volumes: %v", err)
+		zlog.Error().Msgf("ListVolumes  - BuildClient - error: %s", err.Error())
+		return nil, status.Errorf(codes.Unavailable, "ListVolumes - BuildClient - cannot list volumes: %v", err)
 	}
 
 	// Find PVs managed by this CSI driver
 	pvList, err := cl.GetAllPersistentVolumes()
 	if err != nil {
+		zlog.Error().Msgf("ListVolumes  - GetAllPersistentVolumes - error: %s", err.Error())
 		return nil, status.Errorf(codes.Unavailable, "cannot list volumes: %v", err)
 	}
 	zlog.Info().Msgf("pvList count: %d", len(pvList.Items))
@@ -637,9 +638,9 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 			volume.CapacityBytes = pv.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
 			volume.VolumeId = pv.ObjectMeta.GetName()
 			volume.VolumeContext = map[string]string{
-				"network_space":    pv.Spec.CSI.VolumeAttributes["network_space"],
-				"pool_name":        pv.Spec.CSI.VolumeAttributes["pool_name"],
-				"storage_protocol": pv.Spec.CSI.VolumeAttributes["storage_protocol"],
+				common.SC_NETWORK_SPACE:    pv.Spec.CSI.VolumeAttributes[common.SC_NETWORK_SPACE],
+				common.SC_POOL_NAME:        pv.Spec.CSI.VolumeAttributes[common.SC_POOL_NAME],
+				common.SC_STORAGE_PROTOCOL: pv.Spec.CSI.VolumeAttributes[common.SC_STORAGE_PROTOCOL],
 			}
 			volume.ContentSource = nil
 			volume.AccessibleTopology = nil
@@ -669,23 +670,22 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	// Get a k8s go client for in-cluster use
 	cl, err := clientgo.BuildClient()
 	if err != nil {
+		zlog.Error().Msgf("ListSnapshots  - BuildClient - error: %s", err.Error())
 		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
 	}
 
 	ns := os.Getenv("POD_NAMESPACE")
 	zlog.Debug().Msgf("POD_NAMESPACE=%s", ns)
 	if ns == "" {
-		zlog.Error().Msg("env var POD_NAMESPACE was not set, this is a required env var")
+		zlog.Error().Msg("ListSnapshots - env var POD_NAMESPACE was not set, this is a required env var")
 		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, POD_NAMESPACE required to be set: %v", err)
 	}
 
 	secrets, err := cl.GetSecrets(ns)
 	if err != nil {
+		zlog.Error().Msgf("ListSnapshots - GetSecrets - error: %s", err.Error())
 		return nil, status.Errorf(codes.Unavailable, "cannot list snapshots, error getting secrets: %v", err)
 	}
-
-	//secrets := make([]map[string]string, 1)
-	//secrets[0] = secret
 
 	for i := 0; i < len(secrets); i++ {
 		x := api.ClientService{
@@ -695,13 +695,13 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 
 		clientsvc, err := x.NewClient()
 		if err != nil {
-			zlog.Error().Msgf("error getting client %s", err.Error())
+			zlog.Error().Msgf("ListSnapshots - NewClient - error: %s", err.Error())
 			return nil, status.Errorf(codes.Unavailable, "cannot get api client: %v", err)
 		}
 
 		snapshots, err := clientsvc.GetAllSnapshots()
 		if err != nil {
-			zlog.Error().Msgf("error getting all snapshots %s", err.Error())
+			zlog.Error().Msgf("ListSnapshots - GetAllSnapshots - error: %s", err.Error())
 			return nil, status.Errorf(codes.Unavailable, "cannot list snapshots: %v", err)
 		}
 		zlog.Debug().Msgf("got back %d snapshots", len(snapshots))
@@ -712,7 +712,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		if req.SnapshotId != "" {
 			volProto, err = storage.ValidateVolumeID(req.SnapshotId)
 			if err != nil {
-				zlog.Error().Msgf("error validating snapshot ID %s", err.Error())
+				zlog.Error().Msgf("ListSnapshots - ValidateVolumeID - error: %s", err.Error())
 				return res, nil
 			}
 			iValue = volProto.VolumeID
@@ -722,9 +722,6 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			cdt := snapshots[i].CreatedAt / 1000
 			tt := time.Unix(cdt, 0)
 			t := tspb.New(tt)
-			if err != nil {
-				zlog.Error().Msgf("error converting timestamp %s", err.Error())
-			}
 
 			var parentName string
 			zlog.Debug().Msgf("snapshot datasettype %s", snapshots[i].DatasetType)
@@ -732,22 +729,21 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			case "VOLUME":
 				_, err := clientsvc.Iboxapi.GetVolume(snapshots[i].ParentId)
 				if err != nil {
-					zlog.Error().Msgf("snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
+					zlog.Error().Msgf("ListSnapshots - GetVolume - snapshot %s VOLUME parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
 					parentName = "unknown"
 				} else {
-					//parentName = v.Name
 					parentName = strconv.Itoa(snapshots[i].ParentId)
 				}
 			case "FILESYSTEM":
 				_, err := clientsvc.GetFileSystemByID(snapshots[i].ParentId)
 				if err != nil {
-					zlog.Error().Msgf("snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
+					zlog.Error().Msgf("ListSnapshots - GetFileSystemByID - snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
 					parentName = "unknown"
 				} else {
 					parentName = strconv.Itoa(snapshots[i].ParentId)
 				}
 			default:
-				zlog.Error().Msgf("snapshot %s unknown dataset type %s parentId %d ", snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
+				zlog.Error().Msgf("ListSnapshots - snapshot %s unknown dataset type %s parentId %d ", snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
 				parentName = "unknown"
 			}
 
@@ -768,7 +764,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			if req.SourceVolumeId != "" {
 				volProto, err := storage.ValidateVolumeID(req.SourceVolumeId)
 				if err != nil {
-					zlog.Error().Msgf("error validating sourceVolumeId %s %s", req.SourceVolumeId, err.Error())
+					zlog.Error().Msgf("ListSnapshots - ValidateVolumeID - error validating sourceVolumeId %s %s", req.SourceVolumeId, err.Error())
 				} else {
 					zlog.Debug().Msgf("comparing %d to %s whole thing %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
 					if strconv.Itoa(volProto.VolumeID) == entry.Snapshot.SourceVolumeId {
@@ -808,11 +804,11 @@ func (s *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 
 func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshotResp *csi.CreateSnapshotResponse, err error) {
 
-	zlog.Info().Msgf("ControllerCreateSnapshot Started - ID: %s", req.GetSourceVolumeId())
+	zlog.Info().Msgf("CreateSnapshot Started - ID: %s", req.GetSourceVolumeId())
 
 	volproto, err := storage.ValidateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("failed to validate storage type %v", err)
+		zlog.Error().Msgf("CreateSnapshot - ValidateVolumeID - failed to validate storage type %v", err)
 		return nil, status.Errorf(codes.InvalidArgument, "Failed to validate source Vol Id: %s", err.Error())
 	}
 	config := map[string]string{
@@ -821,17 +817,17 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %v", err)
+		zlog.Error().Msgf("CreateSnapshot - BuildCommonService - failed to get ibox api %v", err)
 		return
 	}
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		zlog.Error().Msgf("Create snapshot failed: %s", err)
+		zlog.Error().Msgf("CreateSnapshot - NewStorageController - error: %s", err.Error())
 		return nil, err
 	}
 	createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("Create snapshot failed: %s", err)
+		zlog.Error().Msgf("CreateSnapshot - sc.CreateSnapshot - error: %s", err)
 		return nil, err
 	}
 
@@ -886,14 +882,14 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
 
 	snapshotID := req.GetSnapshotId()
-	zlog.Info().Msgf("ControllerDeleteSnapshot Start - ID:  %s", snapshotID)
+	zlog.Info().Msgf("DeleteSnapshot Start - ID:  %s", snapshotID)
 	volproto, err := storage.ValidateVolumeID(snapshotID)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			zlog.Error().Msgf("snapshot ID: '%s' not found, err: %v - return success", snapshotID, err)
+			zlog.Error().Msgf("DeleteSnapshot - ValidateVolumeID - snapshot ID: '%s' not found, err: %v - return success", snapshotID, err)
 			return &csi.DeleteSnapshotResponse{}, nil
 		} else {
-			zlog.Error().Msgf("snapshot ID: '%s' invalid, err: %v", snapshotID, err)
+			zlog.Error().Msgf("DeleteSnapshot - ValidateVolumeID - snapshot ID: '%s' invalid, err: %v", snapshotID, err)
 			return nil, err
 		}
 	}
@@ -903,25 +899,25 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	}
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %v", err)
+		zlog.Error().Msgf("DeleteSnapshot - BuildCommonService - error %v", err)
 		return
 	}
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		zlog.Error().Msgf("delete snapshot failed: %s", err)
+		zlog.Error().Msgf("DeleteSnapshot - NewStorageController - error: %s", err)
 		return nil, err
 	}
 	if storageController == nil {
-		return nil, errors.New("failed to create storageController for " + volproto.StorageType)
+		return nil, errors.New("DeleteSnapshot - failed to create storageController for " + volproto.StorageType)
 	}
 
 	req.SnapshotId = strconv.Itoa(volproto.VolumeID)
 
 	deleteSnapshotResp, err = storageController.DeleteSnapshot(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("delete snapshot failed: %s", err.Error())
+		zlog.Error().Msgf("DeleteSnapshot - sc.DeleteSnapshot - error: %s", err.Error())
 	}
-	zlog.Info().Msgf("ControllerDeleteSnapshot Finished - ID:  %s", snapshotID)
+	zlog.Info().Msgf("DeleteSnapshot Finished - ID:  %s", snapshotID)
 	return deleteSnapshotResp, err
 
 }
@@ -932,6 +928,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	err = validateExpandVolumeRequest(req)
 	if err != nil {
+		zlog.Error().Msgf("ControllerExpandVolume - validate - error:  %s", err.Error())
 		return
 	}
 
@@ -940,6 +937,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 	volproto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
+		zlog.Error().Msgf("ControllerExpandVolume - ValidateVolumeID volume ID %s - error:  %s", req.GetVolumeId(), err.Error())
 		return
 	}
 
@@ -947,12 +945,12 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	comnserv, err := storage.BuildCommonService(configparams, req.GetSecrets(), &volproto)
 	if err != nil {
-		zlog.Error().Msgf("failed to get ibox api %v", err)
+		zlog.Error().Msgf("ControllerExpandVolume - BuildCommonService - error %v", err)
 		return
 	}
 	storageController, err := storage.NewStorageController(comnserv, capacity, volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
-		zlog.Error().Msgf("expand volume failed: %s", err)
+		zlog.Error().Msgf("ControllerExpandVolume - NewStorageController - error: %s", err)
 		return
 	}
 	if storageController != nil {

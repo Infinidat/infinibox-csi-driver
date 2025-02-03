@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"strconv"
 
 	"os"
 	"os/exec"
@@ -39,8 +40,16 @@ import (
 )
 
 const (
-	devMapperDir     string = dmsetup.DevMapperDir // ie /dev/mapper/
-	mpathDeviceCount int    = 6
+	devMapperDir                string = dmsetup.DevMapperDir // ie /dev/mapper/
+	mpathDeviceCount            int    = 6
+	CHAP_INBOUND_USERNAME              = "security_chap_inbound_username"
+	CHAP_INBOUND_SECRET                = "security_chap_inbound_secret"
+	CHAP_OUTBOUND_USERNAME             = "security_chap_outbound_username"
+	CHAP_OUTBOUND_SECRET               = "security_chap_outbound_secret"
+	SECURITY_METHOD                    = "security_method"
+	SECURITY_METHOD_NONE               = "NONE"
+	SECURITY_METHOD_CHAP               = "CHAP"
+	SECURITY_METHOD_MUTUAL_CHAP        = "MUTUAL_CHAP"
 )
 
 type iscsiDiskUnmounter struct {
@@ -128,7 +137,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		zlog.Error().Msgf("%s", err.Error())
+		zlog.Error().Msgf("NodeStageVolume - validatePublishContext - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -138,7 +147,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 	initiatorName := getInitiatorName()
 	if initiatorName == "" {
-		e := fmt.Errorf("iscsi initiator name not found")
+		e := fmt.Errorf("NodeStageVolume - iscsi initiator name not found")
 		zlog.Error().Msgf("%s", e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -146,7 +155,7 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		zlog.Debug().Msgf("host port is not created, creating one")
 		err = iscsi.cs.AddPortForHost(hostID, "ISCSI", initiatorName)
 		if err != nil {
-			zlog.Error().Msgf("%s", err.Error())
+			zlog.Error().Msgf("NodeStageVolume - AddPortForHost - error: %s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -157,22 +166,22 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		if useChap != "none" {
 			if useChap == USE_CHAP || useChap == USE_CHAP_MUTUAL {
 				if secrets[CHAP_USERNAME] != "" && secrets[CHAP_PASSWORD] != "" {
-					chapCreds["security_chap_inbound_username"] = secrets[CHAP_USERNAME]
-					chapCreds["security_chap_inbound_secret"] = secrets[CHAP_PASSWORD]
-					chapCreds["security_method"] = "CHAP"
+					chapCreds[CHAP_INBOUND_USERNAME] = secrets[CHAP_USERNAME]
+					chapCreds[CHAP_INBOUND_SECRET] = secrets[CHAP_PASSWORD]
+					chapCreds[SECURITY_METHOD] = SECURITY_METHOD_CHAP
 				} else {
-					e := fmt.Errorf("iscsi mutual chap credentials not provided")
+					e := fmt.Errorf("NodeStageVolume - iscsi mutual chap credentials not provided")
 					zlog.Error().Msgf("%s", e.Error())
 					return nil, status.Error(codes.Internal, e.Error())
 				}
 			}
 			if useChap == USE_CHAP_MUTUAL {
-				if secrets[CHAP_USERNAME_IN] != "" && secrets[CHAP_PASSWORD_IN] != "" && chapCreds["security_method"] == "CHAP" {
-					chapCreds["security_chap_outbound_username"] = secrets[CHAP_USERNAME_IN]
-					chapCreds["security_chap_outbound_secret"] = secrets[CHAP_PASSWORD_IN]
-					chapCreds["security_method"] = "MUTUAL_CHAP"
+				if secrets[CHAP_USERNAME_IN] != "" && secrets[CHAP_PASSWORD_IN] != "" && chapCreds[SECURITY_METHOD] == SECURITY_METHOD_CHAP {
+					chapCreds[CHAP_OUTBOUND_USERNAME] = secrets[CHAP_USERNAME_IN]
+					chapCreds[CHAP_OUTBOUND_SECRET] = secrets[CHAP_PASSWORD_IN]
+					chapCreds[SECURITY_METHOD] = SECURITY_METHOD_MUTUAL_CHAP
 				} else {
-					e := fmt.Errorf("iscsi mutual chap credentials not provided")
+					e := fmt.Errorf("NodeStageVolume - iscsi mutual chap credentials not provided")
 					zlog.Error().Msgf("%s", e.Error())
 					return nil, status.Error(codes.Internal, e.Error())
 				}
@@ -181,16 +190,16 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 				zlog.Debug().Msgf("create chap authentication for host %d", hostID)
 				err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 				if err != nil {
-					zlog.Error().Msgf("%s", err.Error())
+					zlog.Error().Msgf("NodeStageVolume - AddChapSecurityForHost - error: %s", err.Error())
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 			}
-		} else if hostSecurity != "NONE" {
+		} else if hostSecurity != SECURITY_METHOD_NONE {
 			zlog.Debug().Msgf("remove chap authentication for host %d", hostID)
-			chapCreds["security_method"] = "NONE"
+			chapCreds[SECURITY_METHOD] = SECURITY_METHOD_NONE
 			err := iscsi.cs.AddChapSecurityForHost(hostID, chapCreds)
 			if err != nil {
-				zlog.Error().Msgf("%s", err.Error())
+				zlog.Error().Msgf("NodeStageVolume - AddChapSecurityForHost - error: %s", err.Error())
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 		}
@@ -205,14 +214,14 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	targets, err := iscsi.getISCSITargets(req)
 	if err != nil {
-		zlog.Error().Msgf("%s", err.Error())
+		zlog.Error().Msgf("NodePublishVolume - getISCSITargets - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Debug().Msgf("NodePublishVolume iscsi %d targets  %v", len(targets), targets)
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
-		zlog.Error().Msgf("%s", err.Error())
+		zlog.Error().Msgf("NodePublishVolume - getISCSIDisk - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	iscsiDisk.Targets = targets
@@ -220,13 +229,13 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	if err != nil {
-		zlog.Error().Msgf("%s", err.Error())
+		zlog.Error().Msgf("NodePublishVolume - getISCSIDiskMounter - error: %s", err.Error())
 		return nil, err
 	}
 
 	_, err = iscsi.AttachDisk(*diskMounter)
 	if err != nil {
-		zlog.Error().Msgf("%s", err.Error())
+		zlog.Error().Msgf("NodePublishVolume - AttachDisk - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	zlog.Debug().Msgf("iscsi attachDisk succeeded")
@@ -237,7 +246,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		// Chown
 		err = iscsi.storageHelper.SetVolumePermissions(req)
 		if err != nil {
-			zlog.Error().Msgf("%s", err.Error())
+			zlog.Error().Msgf("NodePublishVolume - SetVolumePermissions - error: %s", err.Error())
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -254,6 +263,7 @@ func (iscsi *iscsistorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
+		zlog.Error().Msgf("NodeUnpublishVolume - unmountAndCleanup - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -279,7 +289,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		zlog.Debug().Msgf("check if config file exists")
 		pathExist, pathErr := iscsi.cs.pathExists(confFile)
 		if pathErr != nil {
-			zlog.Error().Msgf("%s", pathErr)
+			zlog.Error().Msgf("NodeUnstageVolume - pathExists - error: %s", pathErr.Error())
 		}
 		if pathErr == nil {
 			if !pathExist {
@@ -314,7 +324,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Check if removePath is a directory or a file
 	isADir, isADirError := IsDirectory(removePath)
 	if isADirError != nil {
-		err := fmt.Errorf("failed to check if removePath '%s' is a directory: %v", removePath, isADirError)
+		err := fmt.Errorf("NodeUnstageVolume - IsDirectory - check if removePath '%s' is a directory: %v", removePath, isADirError)
 		zlog.Error().Msgf("%s", err.Error())
 		return nil, err
 	}
@@ -327,11 +337,10 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		// 93642552.json: {"Portals":["172.31.32.145:3260","172.31.32.146:3260","172.31.32.147:3260","172.31.32.148:3260","172.31.32.149:3260","172.31.32.150:3260"],"Iqn":"iqn.2009-11.com.infinidat:storage:infinibox-sn-1521","Iface":"172.31.32.145:3260","InitiatorName":"iqn.1994-05.com.redhat:462c9b4cda1","VolName":"93642189","MpathDevice":"/dev/dm-8"}
 
 		zlog.Debug().Msgf("removePath '%s' is a directory", removePath)
-		volumeId := strings.Split(req.GetVolumeId(), "$$")[0]
-		jsonPath := fmt.Sprintf("%s/%s.json", removePath, volumeId)
+		jsonPath := fmt.Sprintf("%s/%d.json", removePath, iscsi.cs.VolProto.VolumeID)
 		zlog.Debug().Msgf("removing json file '%s'", jsonPath)
 		if err := os.Remove(jsonPath); err != nil {
-			zlog.Error().Msgf("failed to remove json file '%s': %v", jsonPath, err)
+			zlog.Error().Msgf("NodeUnstageVolume - Remove remove json file %s error: %v", jsonPath, err)
 			return nil, err
 		}
 	} else {
@@ -341,7 +350,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Remove directory or file
 	zlog.Debug().Msgf("removing removePath '%s'", removePath)
 	if err := os.Remove(removePath); err != nil {
-		zlog.Error().Msgf("failed to remove path '%s': %v", removePath, err)
+		zlog.Error().Msgf("NodeUnstageVolume - Remote - failed to remove path '%s': %v", removePath, err)
 		return nil, err
 	}
 
@@ -354,14 +363,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 	deviceCount, err := getMultipathDeviceCount()
 	if err != nil {
-		zlog.Error().Msgf("error getting multipath devices %s", err.Error())
+		zlog.Error().Msgf("NodeUnstageVolume - getMultipathDeviceCount - error: %s", err.Error())
 	} else {
 		zlog.Debug().Msgf("multipath device count %d", deviceCount)
 		if deviceCount == 0 {
 			zlog.Debug().Msg("zero multipath devices - performing iscsi all sessions logout")
 			err = logoutAllSessions()
 			if err != nil {
-				zlog.Error().Msgf("iscsi logoutall error %s", err.Error())
+				zlog.Error().Msgf("NodeUnstageVolume - iscsi logoutall error: %s", err.Error())
 			}
 		}
 	}
@@ -392,7 +401,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	if req.GetVolumeCapability().GetBlock() != nil {
 		err := blockExpandVolume(req.GetVolumePath())
 		if err != nil {
-			zlog.Error().Msgf("error expanding block volume name %s - from %s \n", err.Error(), req.GetVolumePath())
+			zlog.Error().Msgf("NodeExpandVolume - blockExpandVolume block volume name %s - error: %s", req.GetVolumePath(), err.Error())
 			return nil, err
 		}
 		return &response, nil
@@ -401,7 +410,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
 	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		zlog.Error().Msg(err.Error())
+		zlog.Error().Msgf("NodeExpandVolume - findMultipathDevice - error: %s", err.Error())
 		return nil, err
 	}
 
@@ -413,12 +422,12 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 
 	out, err := execCommand.Command(command, "")
 	if err != nil {
-		zlog.Error().Msgf("error getting multipath devices from output %s \n", err.Error())
+		zlog.Error().Msgf("NodeExpandVolume - Command %s - error: %s", command, err.Error())
 		return nil, err
 	}
 
 	if out == "" {
-		err := fmt.Errorf("error getting multipath devices from output %s command output was empty", multipathDevice)
+		err := fmt.Errorf("NodeExpandVolume - error getting multipath devices from output %s command output was empty", multipathDevice)
 		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
@@ -433,7 +442,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 		if outputParts[i] != "" {
 			line := strings.Split(outputParts[i], "_")
 			if len(line) < 2 {
-				zlog.Error().Msgf("error getting multipath blockDevice from output %v", line)
+				zlog.Error().Msgf("NodeExpandVolume - error getting multipath blockDevice from output %v", line)
 				continue
 			}
 			blockDevice := line[1]
@@ -442,7 +451,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
 			out, err := execCommand.Command(command, "")
 			if err != nil {
-				zlog.Error().Msgf("error writing rescan on multipath devices %s \n", err.Error())
+				zlog.Error().Msgf("NodeExpandVolume - Command %s - error writing rescan on multipath devices %s", command, err.Error())
 				return nil, err
 			}
 			zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
@@ -453,16 +462,16 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	// we need to strip off the /dev/mapper/ path prefix
 	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
 	if len(mpathPart) < 2 {
-		return nil, fmt.Errorf("error getting mpathPart from %+v", mpathPart)
+		return nil, fmt.Errorf("NodeExpandVolume - error getting mpathPart from %+v", mpathPart)
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	zlog.Debug().Msgf("command is [%s]", command)
 	out, err = execCommand.Command(command, "")
 	if err != nil {
-		zlog.Error().Msgf("error multipathd resize map multipath devices %s \n", err.Error())
+		zlog.Error().Msgf("NodeExpandVolume - error multipathd resize map multipath devices %s", err.Error())
 		return nil, err
 	}
-	zlog.Debug().Msgf("multipathd resize map output is [%s]\n", strings.TrimSpace(string(out)))
+	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(string(out)))
 
 	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
 	time.Sleep(time.Second * 5)
@@ -470,7 +479,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	out, err = execCommand.Command(command, "")
 	zlog.Debug().Msgf("command is [%s]", command)
 	if err != nil {
-		zlog.Error().Msgf("error resize2fs %s \n", err.Error())
+		zlog.Error().Msgf("NodeExpandVolume - Command %s - error: %s", command, err.Error())
 		return nil, err
 	}
 	zlog.Debug().Msgf("resize2fs output is [%s]\n", strings.TrimSpace(string(out)))
@@ -819,12 +828,10 @@ func getInitiatorName() string {
 func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
 	initiatorName := getInitiatorName()
 
-	volproto := strings.Split(req.GetVolumeId(), "$$")
-	volName := volproto[0]
-
+	volName := strconv.Itoa(iscsi.cs.VolProto.VolumeID)
 	volContext := req.GetVolumeContext()
 	publishContext := req.GetPublishContext()
-	zlog.Debug().Msgf("volume: %s context: %v publish context: %v", volName, volContext, publishContext)
+	zlog.Debug().Msgf("volume: %d context: %v publish context: %v", iscsi.cs.VolProto.VolumeID, volContext, publishContext)
 
 	lun := publishContext["lun"]
 	if lun == "" {
@@ -923,11 +930,9 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 }
 
 func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmounter {
-	volproto := strings.Split(volumeID, "$$")
-	volName := volproto[0]
 	return &iscsiDiskUnmounter{
 		iscsiDisk: &iscsiDisk{
-			VolName: volName,
+			VolName: strconv.Itoa(iscsi.cs.VolProto.VolumeID),
 		},
 		mounter: mount.NewWithoutSystemd(""),
 		exec:    utilexec.New(),
