@@ -181,7 +181,6 @@ func (nvme *nvmestorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 	// Remove directory contents
 	zlog.Debug().Msgf("removePath '%s' is a directory", removePath)
 	jsonPath := fmt.Sprintf("%s/%d.json", removePath, nvme.cs.VolProto.VolumeID)
-	zlog.Debug().Msgf("jeff removing json file '%s'", jsonPath)
 	if err := os.Remove(jsonPath); err != nil {
 		zlog.Error().Msgf("NodeUnstageVolume - Remove - failed to remove json file '%s': %v", jsonPath, err)
 		return nil, err

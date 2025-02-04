@@ -45,7 +45,8 @@ images:
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
   #provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:91c874488fbca39c6787a19b3e686836c29abcf069304064dba6bb9c9befb6e1" # v3.6.1
   #provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:405a14e1aa702f7ea133cea459e8395fe40a6125c088c55569e696d48e1bd385" # v5.0.1
-  provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:7beede062248204a54ed6813b2d2fb84a99db6d56a824eed483ed1d7965ea6a1" # v5.1.0
+  #provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:7beede062248204a54ed6813b2d2fb84a99db6d56a824eed483ed1d7965ea6a1" # v5.1.0
+  provisionersidecar: "registry.k8s.io/sig-storage/csi-provisioner@sha256:67ee5137252811fd471b8571efe9e173145ec8af7b520861eeccf7c078a772f2" # v5.2.0
   provisionersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/node-driver-registrar.html
