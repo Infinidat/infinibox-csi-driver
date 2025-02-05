@@ -18,7 +18,7 @@ logLevel: "info"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "2.18.0"
+csiDriverVersion: "2.19.0"
 
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
@@ -64,7 +64,8 @@ images:
   # https://kubernetes-csi.github.io/docs/external-snapshotter.html
   #snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:65c5ffde8fe6f68a2f19310cfd789befe7bdd16eedda219d9a0024f8fc68b802" # v6.3.1
   #snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:2e04046334baf9be425bb0fa1d04c2d1720d770825eedbdbcdb10d430da4ad8c" # v8.0.1
-  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:81d32545fb1b2c319bfeb36a70db4b4d3aea9c51c0574b209b8f64750b32d2f0" # v8.1.0
+  #snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:81d32545fb1b2c319bfeb36a70db4b4d3aea9c51c0574b209b8f64750b32d2f0" # v8.1.0
+  snapshottersidecar: "registry.k8s.io/sig-storage/csi-snapshotter@sha256:339a83a86e6e1eead14413fe494b43de8bc48243d146c2810b39dd741d26ca6a" # v8.2.0
   snapshottersidecar_pull_policy: "IfNotPresent"
 
   # https://kubernetes-csi.github.io/docs/livenessprobe.html
