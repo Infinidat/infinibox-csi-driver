@@ -68,14 +68,6 @@ func (m *MockApiClient) GetWithQueryString(ctx context.Context, url string, host
 	return resp, err
 }
 
-// GetFileSystemsByPoolID mock
-func (m *MockApiService) GetFileSystemsByPoolID(poolID int, page int, fsPrefix string) (*FSMetadata, error) {
-	args := m.Called(poolID, page, fsPrefix)
-	resp, _ := args.Get(0).(FSMetadata)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // GetFilesystemTreeqCount mock
 func (m *MockApiService) GetFilesystemTreeqCount(filesystemID int) (int, error) {
 	args := m.Called(filesystemID)
@@ -169,34 +161,12 @@ func (m *MockApiService) UpdateTreeq(fileSystemID, treeqID int, body map[string]
 	return &resp, err
 }
 
-// GetFileSystemByID
-func (m *MockApiService) GetFileSystemByID(fileSystemID int) (*FileSystem, error) {
-	args := m.Called(fileSystemID)
-	resp, _ := args.Get(0).(FileSystem)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // GetTreeqSizeByFileSystemID
 func (m *MockApiService) GetTreeqSizeByFileSystemID(fileSystemID int) (int64, error) {
 	args := m.Called(fileSystemID)
 	resp, _ := args.Get(0).(int64)
 	err, _ := args.Get(1).(error)
 	return resp, err
-}
-
-// GetFileSystemByName
-func (m *MockApiService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
-	args := m.Called(fileSystemName)
-	resp, _ := args.Get(0).(FileSystem)
-	if args.Get(0) == nil {
-		return nil, nil
-	}
-	var err error
-	if args.Get(1) != nil {
-		err, _ = args.Get(1).(error)
-	}
-	return &resp, err
 }
 
 // GetFileSystemCount

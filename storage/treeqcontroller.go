@@ -56,7 +56,7 @@ func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("CreateVolume - GetBlock - block access requested for %s PV %s error: %s", params[common.SC_STORAGE_PROTOCOL], req.GetName(), err.Error())
+			e := fmt.Errorf("CreateVolume - GetBlock - block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
 			zlog.Err(e)
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"math/rand"
 	"os"
 	"testing"
@@ -35,7 +36,8 @@ func (suite *TreeqNodeSuite) SetupTest() {
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(MockStorageHelper)
 	suite.api = new(api.MockApiService)
-	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.iboxapi = new(iboxapi.MockApiService)
+	suite.cs = &Commonservice{IboxApi: suite.iboxapi, Api: suite.api, AccessModesHelper: suite.accessMock}
 }
 
 type TreeqNodeSuite struct {
@@ -44,6 +46,7 @@ type TreeqNodeSuite struct {
 	osHelperMock      *helper.MockOsHelper
 	accessMock        *helper.MockAccessModesHelper
 	api               *api.MockApiService
+	iboxapi           *iboxapi.MockApiService
 	cs                *Commonservice
 	storageHelperMock *MockStorageHelper
 }
@@ -66,14 +69,14 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 		assert.Nil(suite.T(), err)
 	}()
 
-	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
-	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	exportResp := getExportResponse()
-	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
-	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(nil, nil)
 
@@ -106,15 +109,16 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{nfsstorage: nfs}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
-	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	fs := &iboxapi.FileSystem{}
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(fs, nil)
+	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	exportResp := getExportResponse()
-	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
-	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
-	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(nil, nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
@@ -137,7 +141,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	nfs := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{nfsstorage: nfs}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))

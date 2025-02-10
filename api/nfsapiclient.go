@@ -25,25 +25,6 @@ import (
 	"strings"
 )
 
-// DeleteExportPath :
-func (c *ClientService) DeleteExportPath(exportID int) (*ExportResponse, error) {
-	zlog.Trace().Msgf("Deleting export path with ID %d", exportID)
-	uri := "api/rest/exports/" + strconv.Itoa(exportID) + "?approved=true"
-	eResp := ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &eResp)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while deleting export path : %s ", err)
-		return nil, err
-	}
-	// this next DeepEqual block actually gets called
-	if reflect.DeepEqual(eResp, (ExportResponse{})) {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(ExportResponse)
-	}
-	zlog.Trace().Msgf("Deleted export path with ID %d", exportID)
-	return &eResp, nil
-}
-
 // DeleteFileSystem :
 func (c *ClientService) DeleteFileSystem(fileSystemID int) (*FileSystem, error) {
 	zlog.Trace().Msgf("Delete filesystem with ID %d", fileSystemID)
@@ -99,56 +80,6 @@ func (c *ClientService) DetachMetadataFromObject(objectID int) (*[]Metadata, err
 	}
 	zlog.Trace().Msgf("Detached metadata from object with ID %d", objectID)
 	return &metadata, nil
-}
-
-// CreateFilesystem :
-func (c *ClientService) CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error) {
-	zlog.Trace().Msgf("Create filesystem")
-	uri := "api/rest/filesystems/"
-	fileSystemResp := FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, fileSysparameter, &fileSystemResp)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while creating filesystem : %s", err)
-		return nil, err
-	}
-	if fileSystemResp == (FileSystem{}) {
-		apiresp := resp.(client.ApiResponse)
-		fileSystemResp, _ = apiresp.Result.(FileSystem)
-	}
-	zlog.Trace().Msgf("Created filesystem: %s", fileSystemResp.Name)
-	return &fileSystemResp, nil
-}
-
-// ExportFileSystem :
-func (c *ClientService) ExportFileSystem(export ExportFileSys) (*ExportResponse, error) {
-	zlog.Trace().Msgf("Export FileSystem with ID %d", export.FilesystemID)
-	urlPost := "api/rest/exports"
-	exportResp := ExportResponse{}
-	_, err := c.getJSONResponse(http.MethodPost, urlPost, export, &exportResp)
-	if err != nil {
-		return nil, err
-	}
-
-	zlog.Trace().Msgf("Exported FileSystem with ID %d", exportResp.FilesystemId)
-	return &exportResp, nil
-}
-
-// GetExportByFileSystem :
-func (c *ClientService) GetExportByFileSystem(fileSystemID int) (*[]ExportResponse, error) {
-	zlog.Trace().Msgf("Get export paths of filesystem with ID %d", fileSystemID)
-	uri := "api/rest/exports?filesystem_id=" + strconv.Itoa(fileSystemID)
-	eResp := []ExportResponse{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while getting export path : %s", err)
-		return nil, err
-	}
-	if len(eResp) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.([]ExportResponse)
-	}
-	zlog.Trace().Msgf("Got export paths of filesystem with ID %d", fileSystemID)
-	return &eResp, nil
 }
 
 func compareClientIP(permissionIP, ip string) bool {
@@ -252,12 +183,12 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 // DeleteExportRule method
 func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) error {
 	zlog.Trace().Msgf("Delete export rule from filesystem with file system ID %d", fileSystemID)
-	exportArray, err := c.GetExportByFileSystem(fileSystemID)
+	exportArray, err := c.Iboxapi.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
 		zlog.Error().Msgf("Error occured while getting export : %v", err)
 		return err
 	}
-	for _, export := range *exportArray {
+	for _, export := range exportArray {
 		uri := "api/rest/exports/" + strconv.Itoa(export.ID)
 		eResp := ExportResponse{}
 		_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
@@ -390,49 +321,10 @@ const (
 	TOBEDELETED = "host.k8s.to_be_deleted"
 )
 
-// GetFileSystemByName :
-func (c *ClientService) GetFileSystemByName(fileSystemName string) (*FileSystem, error) {
-	zlog.Trace().Msgf("Get filesystem %s", fileSystemName)
-	uri := "/api/rest/filesystems"
-	fsystems := []FileSystem{}
-	queryParam := make(map[string]interface{})
-	queryParam["name"] = fileSystemName
-	resp, err := c.getResponseWithQueryString(uri,
-		queryParam, &fsystems)
-	if err != nil {
-		return nil, err
-	}
-	if len(fsystems) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		fsystems, _ = apiresp.Result.([]FileSystem)
-	}
-	for _, fsystem := range fsystems {
-		if fsystem.Name == fileSystemName {
-			zlog.Trace().Msgf("Got filesystem %s", fileSystemName)
-			return &fsystem, nil
-		}
-	}
-	return nil, errors.New("filesystem with given name not found")
-}
-
-// GetFileSystemByID :
-func (c *ClientService) GetFileSystemByID(fileSystemID int) (*FileSystem, error) {
-	zlog.Trace().Msgf("Get filesystem with ID %d", fileSystemID)
-	uri := "/api/rest/filesystems/" + strconv.Itoa(fileSystemID)
-	eResp := FileSystem{}
-	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while getting fileSystem: %s", err)
-		return nil, err
-	}
-	zlog.Trace().Msgf("Got filesystem with ID %d", fileSystemID)
-	return &eResp, nil
-}
-
 // GetParentID method return the
 func (c *ClientService) GetParentID(fileSystemID int) int {
 	zlog.Trace().Msgf("Get parent of file system with ID %d", fileSystemID)
-	fileSystem, err := c.GetFileSystemByID(fileSystemID)
+	fileSystem, err := c.Iboxapi.GetFileSystemByID(fileSystemID)
 	if err != nil {
 		zlog.Error().Msgf("Error occured while getting file system: %s", err)
 		return 0
@@ -480,7 +372,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { /
 // DeleteFileSystemComplete method delete the fileystem
 func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	// 1. Delete export path
-	exportResp, err := c.GetExportByFileSystem(fileSystemID)
+	exportResp, err := c.Iboxapi.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
 		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 			err = nil
@@ -489,16 +381,14 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 			return
 		}
 	}
-	if exportResp != nil {
-		for _, ep := range *exportResp {
-			_, err = c.DeleteExportPath(ep.ID)
-			if err != nil {
-				if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
-					err = nil
-				} else {
-					zlog.Error().Msgf("failed to delete export path %v", err)
-					return
-				}
+	for _, ep := range exportResp {
+		_, err = c.Iboxapi.DeleteExport(ep.ID)
+		if err != nil {
+			if err == iboxapi.ErrNotFound {
+				err = nil
+			} else {
+				zlog.Error().Msgf("failed to delete export path %v", err)
+				return
 			}
 		}
 	}

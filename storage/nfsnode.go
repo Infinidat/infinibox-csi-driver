@@ -15,11 +15,10 @@ package storage
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -43,17 +42,13 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Debug().Msgf("NodePublishVolume targetPath=%s", hostTargetPath)
-
-	tmp := strings.Split(req.GetVolumeId(), "$$")[0]
-	fileSystemId, err := strconv.Atoi(tmp)
-	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - volume format error - error: %s", err.Error())
-		return nil, err
-	}
+	zlog.Debug().Msgf("NodePublishVolume targetPath=%s ", hostTargetPath)
+	zlog.Debug().Msgf("NodePublishVolume fsID=%d ", nfs.cs.VolProto.VolumeID)
+	fileSystemId := nfs.cs.VolProto.VolumeID
 
 	nfs.snapdirVisible = false
 	nfs.usePrivilegedPorts = false
+	var err error
 	// see if user is setting snapDirVisible in the StorageClass
 	snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
 	if snapDir != "" {
@@ -107,7 +102,8 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		return nil, status.Errorf(codes.Internal, "failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
 	}
 
-	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
+	nfsVersion, nfsPort := GetNFSVersionPort(mountOptions)
+	zlog.Debug().Msgf("NodePublishVolume - nfs mount options are [%v], nfs version [%s] port [%s]", mountOptions, nfsVersion, nfsPort)
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	dnsName := req.GetVolumeContext()["dnsname"]
@@ -116,7 +112,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		zlog.Debug().Msgf("storageclass has dnsname specified, using it for mount instead of ipAddress %s", dnsName)
 	}
 
-	err = nfs.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
+	err = nfs.storageHelper.ValidateNFSPortalIPAddress(sourceIP, nfsPort)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -124,17 +120,17 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	zlog.Debug().Msgf("Mount sourcePath %v, targetPath %v", source, targetPath)
+	zlog.Debug().Msgf("NodePublishVolume - Mount sourcePath %v, targetPath %v", source, targetPath)
 	err = nfs.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
 		e := fmt.Errorf("NodePublishVolume - Mount - failed to mount source '%s ' target %s: %v", source, targetPath, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	zlog.Debug().Msgf("successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
+	zlog.Debug().Msgf("NodePublishVolume - successfully mounted nfs volume '%s' to mount point '%s' with options %s", source, targetPath, mountOptions)
 
 	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		zlog.Debug().Msg("this is a readonly volume, skipping setting volume permissions")
+		zlog.Debug().Msg("NodePublishVolume - this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
@@ -181,7 +177,7 @@ func (nfs *nfsstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 
 func (nfs *nfsstorage) updateExport(filesystemId int, exportPerms string) (err error) {
 	//lookup file system information
-	fs, err := nfs.cs.Api.GetFileSystemByID(filesystemId)
+	fs, err := nfs.cs.IboxApi.GetFileSystemByID(filesystemId)
 	if err != nil {
 		e := fmt.Errorf("failed to get filesystem by id %d %v", filesystemId, err)
 		zlog.Err(e)
@@ -190,7 +186,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int, exportPerms string) (err e
 
 	// use the volumeId to get the filesystem information,
 	//example export {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
-	exportFileSystem := api.ExportFileSys{
+	exportFileSystem := iboxapi.CreateExportRequest{
 		FilesystemID:        filesystemId,
 		Transport_protocols: "TCP",
 		Privileged_port:     nfs.usePrivilegedPorts,
@@ -205,21 +201,21 @@ func (nfs *nfsstorage) updateExport(filesystemId int, exportPerms string) (err e
 	}
 
 	// remove an existing export if it exists, this occurs when a pod restarts
-	resp, err := nfs.cs.Api.GetExportByFileSystem(filesystemId)
+	resp, err := nfs.cs.IboxApi.GetExportsByFileSystemID(filesystemId)
 	if err != nil {
 		zlog.Error().Msgf("error from GetExportByFileSystem filesystemId %d %v", filesystemId, err)
 		return err
 	}
 	zlog.Trace().Msgf("GetExportByFileSystem response =%+v", resp)
 	if resp != nil {
-		responses := *resp
+		responses := resp
 		for i := 0; i < len(responses); i++ {
 			r := responses[i]
 			if r.ExportPath == exportFileSystem.Export_path {
 				zlog.Debug().Msgf("export path was found to already exist %s with snapDirVisible %t", r.ExportPath, r.SnapdirVisible)
 				exportFileSystem.SnapdirVisible = r.SnapdirVisible // use an existing export's snapDirVisible value instead of SC value
 				// here is where we would delete the existing export
-				deleteResp, err := nfs.cs.Api.DeleteExportPath(r.ID)
+				deleteResp, err := nfs.cs.IboxApi.DeleteExport(r.ID)
 				if err != nil {
 					zlog.Error().Msgf("error from DeleteExportPath ID %d filesystemId %d %v", r.ID, filesystemId, err)
 					return err
@@ -232,7 +228,7 @@ func (nfs *nfsstorage) updateExport(filesystemId int, exportPerms string) (err e
 	// create the export rule
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	zlog.Debug().Msgf("exportFileSystem =%+v", exportFileSystem)
-	exportResp, err := nfs.cs.Api.ExportFileSystem(exportFileSystem)
+	exportResp, err := nfs.cs.IboxApi.CreateExport(exportFileSystem)
 	if err != nil {
 		zlog.Error().Msgf("failed to create export path of filesystem %s %v", fs.Name, err)
 		return err

@@ -21,10 +21,9 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"math/rand"
+	"infinibox-csi-driver/iboxapi"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
@@ -39,14 +38,18 @@ type MockStorageHelper struct {
 }
 
 func (suite *NodeSuite) SetupTest() {
-	rand.Seed(time.Now().UnixNano())
-
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.api = new(api.MockApiService)
+	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.osmock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(MockStorageHelper)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.cs = &Commonservice{IboxApi: suite.iboxapi, Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.cs.VolProto = &api.VolumeProtocolConfig{
+		VolumeID: 1,
+	}
+	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
+	suite.service = service
 
 }
 
@@ -54,10 +57,12 @@ type NodeSuite struct {
 	suite.Suite
 	nfsMountMock      *MockNfsMounter
 	api               *api.MockApiService
+	iboxapi           *iboxapi.MockApiService
 	osmock            *helper.MockOsHelper
 	accessMock        *helper.MockAccessModesHelper
 	storageHelperMock *MockStorageHelper
 	cs                *Commonservice
+	service           nfsstorage
 }
 
 func TestNodeSuite(t *testing.T) {
@@ -77,16 +82,15 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
-	service := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = getVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
-	_, err = service.NodePublishVolume(context.Background(), req)
+	_, err = suite.service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -107,16 +111,15 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
-	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
-	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
-	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
+	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	exportResp := getExportResponse()
-	suite.api.On("GetExportByFileSystem", mock.Anything).Return(exportResp, nil)
-	suite.api.On("DeleteExportPath", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("DeleteExport", mock.Anything).Return(exportResp, nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = getVolumeContexMap()
@@ -127,7 +130,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	}
 	req.VolumeContext[common.SC_SNAPDIR_VISIBLE] = "true"
 	req.VolumeContext[common.SC_PRIV_PORTS] = "false"
-	_, err = service.NodePublishVolume(context.Background(), req)
+	_, err = suite.service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -149,17 +152,15 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success(
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
-	service := nfsstorage{cs: *suite.cs, mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
-	suite.api.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
-	suite.api.On("ExportFileSystem", mock.Anything).Return(getExportResponseValue(), nil)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
+	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	tmp := getExportResponseWithExports()
-	fmt.Printf("here is the exports [%+v]\n", tmp)
-	suite.api.On("GetExportByFileSystem", mock.Anything).Return(tmp, nil)
-	suite.api.On("DeleteExportPath", mock.Anything).Return(getExportResponse(), nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(tmp, nil)
+	suite.iboxapi.On("DeleteExport", mock.Anything).Return(getExportResponse(), nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = getVolumeContexMap()
@@ -168,7 +169,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success(
 	req.VolumeContext["nodeID"] = "192.168.0.110"
 	req.VolumeContext[common.SC_SNAPDIR_VISIBLE] = "true"
 	req.VolumeContext[common.SC_PRIV_PORTS] = "false"
-	_, err = service.NodePublishVolume(context.Background(), req)
+	_, err = suite.service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -180,20 +181,23 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 	mountErr := errors.New("mount error")
-	service := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osmock}
+	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
+	exportResp := getExportResponse()
+	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
-	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
+	_, err := suite.service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))
 
 	assert.NotNil(suite.T(), err, " error NOT should be nil")
 }
 
 func (suite *NodeSuite) Test_updateNfsMountOptions_badNfsVersion() {
 	head := "nfs version mount option '"
-	tail := "' encountered, but only NFS version 3 is supported"
+	tail := "' encountered, but only NFS versions 3 and 4 are supported"
 	tests := []struct {
 		version string
 		wanterr error
@@ -202,13 +206,13 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_badNfsVersion() {
 		{"vers=1", fmt.Errorf("%svers=1%s", head, tail)},
 		{"vers=2", fmt.Errorf("%svers=2%s", head, tail)},
 		{"vers=3", nil},
-		{"vers=4", fmt.Errorf("%svers=4%s", head, tail)},
+		{"vers=4", nil},
 		{"vers=5", fmt.Errorf("%svers=5%s", head, tail)},
 		{"vers=33", fmt.Errorf("%svers=33%s", head, tail)},
 		{"nfsvers=1", fmt.Errorf("%snfsvers=1%s", head, tail)},
 		{"nfsvers=2", fmt.Errorf("%snfsvers=2%s", head, tail)},
 		{"nfsvers=3", nil},
-		{"nfsvers=4", fmt.Errorf("%snfsvers=4%s", head, tail)},
+		{"nfsvers=4", nil},
 		{"nfsvers=5", fmt.Errorf("%snfsvers=5%s", head, tail)},
 		{"nfsvers=33", fmt.Errorf("%snfsvers=33%s", head, tail)},
 	}
@@ -354,79 +358,6 @@ func countValsInSlice(slice []string, val string) int {
 	return count
 }
 
-// func (suite *NodeSuite) Test_NodeUnpublishVolume_MountPoint_fail() {
-// 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-// 	volumeID := "1234"
-// 	mountErr := errors.New("some error")
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, mountErr)
-// 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-// 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
-// 	suite.osmock.On("IsNotExist", mountErr).Return(false)
-// 	targetPath := "/var/lib/kublet/"
-// 	suite.osmock.On("Remove", targetPath).Return(nil)
-// 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-// 	assert.Equal(suite.T(), err.Error(), mountErr.Error())
-// }
-
-// func (suite *NodeSuite) Test_NodeUnpublishVolume_MountPoint_dir_notexist() {
-// 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-// 	volumeID := "1234"
-// 	mountErr := os.ErrNotExist
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, mountErr)
-// 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-// 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
-// 	suite.osmock.On("IsNotExist", mountErr).Return(true)
-// 	targetPath := "/var/lib/kublet/"
-// 	suite.osmock.On("Remove", targetPath).Return(nil)
-// 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-// 	assert.Nil(suite.T(), err, " error should be nil")
-// }
-
-// func (suite *NodeSuite) Test_NodeUnpublishVolume_unmount_error() {
-// 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-// 	volumeID := "1234"
-// 	mountErr := errors.New("some error")
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
-// 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-// 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(mountErr)
-// 	suite.osmock.On("Remove", mock.Anything).Return(nil)
-// 	targetPath := "/var/lib/kublet/"
-// 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-// 	assert.NotNil(suite.T(), err, " error should not be nil")
-// }
-
-// func (suite *NodeSuite) Test_NodeUnpublishVolume_remove_error() {
-// 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-// 	volumeID := "1234"
-// 	removeErr := errors.New("some error")
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
-// 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
-// 	targetPath := "/var/lib/kublet/"
-// 	suite.osmock.On("Remove", targetPath).Return(removeErr)
-// 	suite.osmock.On("IsNotExist", removeErr).Return(false)
-
-// 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-// 	assert.NotNil(suite.T(), err, " error should not be nil")
-// }
-
-// func (suite *NodeSuite) Test_NodeUnpublishVolume_Success() {
-// 	service := nfsstorage{mounter: suite.nfsMountMock, osHelper: suite.osmock}
-// 	volumeID := "1234"
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
-// 	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(false, nil)
-// 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
-// 	targetPath := "/var/lib/kublet/"
-// 	suite.osmock.On("Remove", targetPath).Return(nil)
-
-// 	_, err := service.NodeUnpublishVolume(context.Background(), getNodeUnPublishVolumeRequest(targetPath, volumeID))
-// 	assert.Nil(suite.T(), err, " error should be nil")
-// }
-
-//**************************
-
 func getNodePublishVolumeRequest(tagetPath string, publishContexMap map[string]string) *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		TargetPath:     tagetPath,
@@ -509,8 +440,8 @@ func (m *MockStorageHelper) SetVolumePermissions(req *csi.NodePublishVolumeReque
 	}
 	return status.Get(0).(error)
 }
-func (m *MockStorageHelper) ValidateNFSPortalIPAddress(ip string) error {
-	status := m.Called(ip)
+func (m *MockStorageHelper) ValidateNFSPortalIPAddress(ip, port string) error {
+	status := m.Called(ip, port)
 	if status.Get(0) == nil {
 		return nil
 	}
@@ -525,10 +456,10 @@ func (m *MockStorageHelper) GetNFSMountOptions(req *csi.NodePublishVolumeRequest
 	return status.Get(0).([]string), status.Get(1).(error)
 }
 
-func getExportResponseWithExports() (exportResp []api.ExportResponse) {
-	exportRespArry := make([]api.ExportResponse, 1)
+func getExportResponseWithExports() (exportResp []iboxapi.Export) {
+	exportRespArry := make([]iboxapi.Export, 1)
 
-	exportRespArry[0] = api.ExportResponse{
+	exportRespArry[0] = iboxapi.Export{
 		ExportPath: "/",
 	}
 

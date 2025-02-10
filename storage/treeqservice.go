@@ -17,6 +17,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"math"
 	"path"
 	"strconv"
@@ -58,7 +59,7 @@ type TreeqInterface interface {
 	IsTreeqAlreadyExist(poolName, networkSpace, pVName, fsPrefix string) (treeqVolume map[string]string, err error)
 }
 
-func (ts *TreeqService) checkTreeqName(FileSystems []api.FileSystem, pVName string) (treeqData *api.Treeq) {
+func (ts *TreeqService) checkTreeqName(FileSystems []iboxapi.FileSystem, pVName string) (treeqData *api.Treeq) {
 	type item struct {
 		treeq *api.Treeq
 		err   error
@@ -68,7 +69,7 @@ func (ts *TreeqService) checkTreeqName(FileSystems []api.FileSystem, pVName stri
 	wg.Add(len(FileSystems))
 
 	for _, f := range FileSystems {
-		go func(f api.FileSystem) {
+		go func(f iboxapi.FileSystem) {
 			var it item
 			defer wg.Done()
 			it.treeq, it.err = ts.cs.Api.GetTreeqByName(f.ID, pVName)
@@ -95,58 +96,49 @@ func (ts *TreeqService) IsTreeqAlreadyExist(poolName, networkSpace, pVName, fsPr
 		return
 	}
 	ts.poolID = pool.ID
-	page := 1
-	for {
-		zlog.Debug().Msgf("IsTreeqAlreadyExist looking for file systems page %d", page)
-		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(ts.poolID, page, fsPrefix)
-		if poolErr != nil {
-			zlog.Error().Msgf("failed to get filesystems from poolID %d and page no %d error %v", ts.poolID, page, err)
-			err = errors.New("failed to get filesystems from poolName " + poolName)
+
+	fsMetaData, poolErr := ts.cs.IboxApi.GetFileSystemsByPool(ts.poolID, fsPrefix)
+	if poolErr != nil {
+		zlog.Error().Msgf("failed to get filesystems from poolID %d and error %v", ts.poolID, err)
+		err = errors.New("failed to get filesystems from poolName " + poolName)
+		return
+	}
+	if fsMetaData != nil && len(fsMetaData) == 0 {
+		zlog.Debug().Msgf("IsTreeqAlreadyExist no file systems for this pool found")
+		return
+	}
+	zlog.Debug().Msgf("IsTreeqAlreadyExist checking pv %s ", pVName)
+	treeqData := ts.checkTreeqName(fsMetaData, pVName)
+	if treeqData != nil {
+		zlog.Debug().Msgf("treeq %s found to already exist", pVName)
+		exportErr := ts.getExportPath(treeqData.FilesystemID) // fetch export path and set to filesystem exportPath
+		if exportErr != nil {
+			zlog.Error().Msgf("error getting export path %v", exportErr)
+			err = exportErr
+		}
+		ipAddress, networkErr := ts.cs.getNetworkSpaceIP(networkSpace)
+		if networkErr != nil {
+			zlog.Error().Msgf("failed to get networkspace ipaddress %v", networkErr)
+			err = exportErr
 			return
 		}
-		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
-			zlog.Debug().Msgf("IsTreeqAlreadyExist no file systems for this pool found")
-			return
-		}
-		zlog.Debug().Msgf("IsTreeqAlreadyExist checking pv %s ", pVName)
-		treeqData := ts.checkTreeqName(fsMetaData.FileSystemArry, pVName)
-		if treeqData != nil {
-			zlog.Debug().Msgf("treeq %s found to already exist", pVName)
-			exportErr := ts.getExportPath(treeqData.FilesystemID) // fetch export path and set to filesystem exportPath
-			if exportErr != nil {
-				zlog.Error().Msgf("error getting export path %v", exportErr)
-				err = exportErr
-			}
-			ipAddress, networkErr := ts.cs.getNetworkSpaceIP(networkSpace)
-			if networkErr != nil {
-				zlog.Error().Msgf("failed to get networkspace ipaddress %v", networkErr)
-				err = exportErr
-				return
-			}
-			ts.nfsstorage.ipAddress = ipAddress
-			treeqVolumeContext["ID"] = strconv.Itoa(treeqData.FilesystemID)
-			treeqVolumeContext["TREEQID"] = strconv.Itoa(treeqData.ID)
-			treeqVolumeContext["ipAddress"] = ts.nfsstorage.ipAddress
-			treeqVolumeContext["volumePath"] = path.Join(ts.nfsstorage.exportPath, treeqData.Path)
-			zlog.Debug().Msgf("IsTreeqAlreadyExist copied treeqVolume %v", treeqVolumeContext)
-			return
-		}
-		// inner for loop closed
-		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
-			zlog.Debug().Msgf("IsTreeqAlreadyExist no more pages")
-			break
-		}
-		page++ // check the file system on next page
-	} // outer for loop closed
+		ts.nfsstorage.ipAddress = ipAddress
+		treeqVolumeContext["ID"] = strconv.Itoa(treeqData.FilesystemID)
+		treeqVolumeContext["TREEQID"] = strconv.Itoa(treeqData.ID)
+		treeqVolumeContext["ipAddress"] = ts.nfsstorage.ipAddress
+		treeqVolumeContext["volumePath"] = path.Join(ts.nfsstorage.exportPath, treeqData.Path)
+		zlog.Debug().Msgf("IsTreeqAlreadyExist copied treeqVolume %v", treeqVolumeContext)
+		return
+	}
 	zlog.Debug().Msgf("IsTreeqAlreadyExist existing treeq not found")
 	return
 }
 
-func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesys *api.FileSystem, err error) {
+func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesys *iboxapi.FileSystem, err error) {
 	if ts.nfsstorage.capacity > maxFileSystemSize {
 		zlog.Error().Msgf("not allowed to create treeq of size %d, max allowed size is %d", ts.nfsstorage.capacity, maxFileSystemSize)
 		err = errors.New("request treeq size is greater than allowed max_filesystem_size")
-		return
+		return nil, err
 	}
 
 	maxTreeqPerFS, err := ts.cs.Api.GetMaxTreeqPerFs()
@@ -172,45 +164,39 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 		fsPrefix = common.SC_FS_PREFIX_DEFAULT
 	}
 
-	page := 1
-	for {
-		fsMetaData, poolErr := ts.cs.Api.GetFileSystemsByPoolID(ts.poolID, page, fsPrefix)
-		if poolErr != nil {
-			zlog.Error().Msgf("failed to get filesystems from poolID %d and page no %d error %v", ts.poolID, page, err)
-			err = errors.New("failed to get filesystems from poolName " + ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
-			return
-		}
-		if fsMetaData != nil && len(fsMetaData.FileSystemArry) == 0 {
-			zlog.Debug().Msgf("NO filesystem found.filesystem array is empty")
-			return
-		}
-		for _, fs := range fsMetaData.FileSystemArry {
-			if fs.Size+ts.nfsstorage.capacity < maxFileSystemSize {
-				treeqCnt, treeqCnterr := ts.cs.Api.GetFilesystemTreeqCount(fs.ID)
-				if treeqCnterr != nil {
-					zlog.Error().Msgf("failed to get treeq count of filesystemID %d error %v", fs.ID, err)
-					err = errors.New("failed to get treeq count of filesystemID " + strconv.Itoa(fs.ID))
-					return
-				}
-				if treeqCnt < maxTreeqPerFS {
-					ts.treeqCnt = treeqCnt
-					zlog.Debug().Msgf("filesystem found to create treeQ,filesystemID %d", fs.ID)
-					exportErr := ts.getExportPath(fs.ID) // fetch export path and set to filesystem exportPath
-					if exportErr != nil {
-						err = exportErr
-					}
-					filesys = &fs
-					return
-				}
+	fsMetaData, poolErr := ts.cs.IboxApi.GetFileSystemsByPool(ts.poolID, fsPrefix)
+	if poolErr != nil {
+		zlog.Error().Msgf("failed to get filesystems from poolID %d and error %v", ts.poolID, err)
+		err = errors.New("failed to get filesystems from poolName " + ts.nfsstorage.storageClassParameters[common.SC_POOL_NAME])
+		return nil, err
+	}
+	if fsMetaData != nil && len(fsMetaData) == 0 {
+		zlog.Debug().Msgf("NO filesystem found.filesystem array is empty")
+		return nil, iboxapi.ErrNotFound
+	}
+
+	for _, fs := range fsMetaData {
+		if fs.Size+ts.nfsstorage.capacity < maxFileSystemSize {
+			treeqCnt, treeqCnterr := ts.cs.Api.GetFilesystemTreeqCount(fs.ID)
+			if treeqCnterr != nil {
+				zlog.Error().Msgf("failed to get treeq count of filesystemID %d error %v", fs.ID, err)
+				err = errors.New("failed to get treeq count of filesystemID " + strconv.Itoa(fs.ID))
+				return nil, err
 			}
-		} // inner for loop closed
-		if fsMetaData.Filemetadata.PagesTotal == fsMetaData.Filemetadata.Page {
-			break
+			if treeqCnt < maxTreeqPerFS {
+				ts.treeqCnt = treeqCnt
+				zlog.Debug().Msgf("filesystem found to create treeQ,filesystemID %d", fs.ID)
+				exportErr := ts.getExportPath(fs.ID) // fetch export path and set to filesystem exportPath
+				if exportErr != nil {
+					return nil, exportErr
+				}
+				filesys = &fs
+				return filesys, nil
+			}
 		}
-		page++ // check the file system on next page
-	} // outer for loop closed
+	}
 	zlog.Debug().Msgf("NO filesystem found to create treeQ")
-	return
+	return nil, iboxapi.ErrNotFound
 }
 
 // CreateTreeqVolume create volume method
@@ -250,14 +236,18 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 		}
 	}
 
-	var filesys *api.FileSystem
+	var filesys *iboxapi.FileSystem
 	helper.GetMutex().Mutex.Lock()
 	defer helper.GetMutex().Mutex.Unlock()
 
 	filesys, err = ts.getExpectedFileSystemID(maxFileSystemSize)
 	if err != nil {
-		zlog.Error().Msgf("failed to getExpectedFileSystemID  %v", err)
-		return
+		if err == iboxapi.ErrNotFound {
+			zlog.Debug().Msgf("CreateTreeqVolume - getExpectedFilesystemID file system not found")
+		} else {
+			zlog.Error().Msgf("CreateTreeqVolume - error in getExpectedFileSystemID  %v", err)
+			return
+		}
 	}
 	var filesystemID int
 	if filesys == nil { // if pool is empty or no file system found to createTreeq
@@ -373,12 +363,12 @@ func convertToByte(size string) (bytes int64, err error) {
 }
 
 func (ts *TreeqService) getExportPath(filesystemID int) error {
-	exportResponse, exportErr := ts.cs.Api.GetExportByFileSystem(filesystemID)
+	exportResponse, exportErr := ts.cs.IboxApi.GetExportsByFileSystemID(filesystemID)
 	if exportErr != nil {
 		zlog.Error().Msgf("failed to create export path of filesystem %d", filesystemID)
 		return exportErr
 	}
-	for _, export := range *exportResponse {
+	for _, export := range exportResponse {
 		ts.nfsstorage.exportPath = export.ExportPath
 		break
 	}
@@ -474,7 +464,7 @@ func (ts *TreeqService) UpdateTreeqCnt(fileSystemID int, action ACTION, treeqCnt
 func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID int, capacity int64, maxFileSystemSize string) (err error) {
 
 	// Get Filesystem
-	fileSystemResponse, err := svc.cs.Api.GetFileSystemByID(filesystemID)
+	fileSystemResponse, err := svc.cs.IboxApi.GetFileSystemByID(filesystemID)
 	if err != nil {
 		zlog.Error().Msgf("failed to get file system %v", err)
 		return

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-pvc-restore-from-snapshot-v4
+  namespace: infinidat-csi
+spec:
+  storageClassName: ibox-nfs-v4
+  dataSource:
+    name: nfs-snapshot-v4
+    kind: VolumeSnapshot
+    apiGroup: "snapshot.storage.k8s.io"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+

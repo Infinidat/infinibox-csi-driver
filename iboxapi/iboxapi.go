@@ -102,20 +102,15 @@ type Client interface {
 	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
 
 	// for nfs
-	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
-	DeleteExportPath(exportID int64) (*ExportResponse, error)
 	DeleteFileSystem(fileSystemID int64) (*FileSystem, error)
 	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
 	DetachMetadataFromObject(objectID int64) (*[]Metadata, error)
-	CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error)
-	GetExportByFileSystem(filesystemID int64) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
 	DeleteFileSystemComplete(fileSystemID int64) (err error)
 	DeleteParentFileSystem(fileSystemID int64) (err error)
 	GetParentID(fileSystemID int64) int64
-	GetFileSystemByID(fileSystemID int64) (*FileSystem, error)
 	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
 	GetMetadataStatus(fileSystemID int64) bool
 	FileSystemHasChild(fileSystemID int64) bool
@@ -127,7 +122,10 @@ type Client interface {
 
 	*/
 
+	GetFileSystemByName(name string) (*FileSystem, error)
 	GetFileSystemsByPool(poolID int, fsPrefix string) ([]FileSystem, error)
+	GetFileSystemByID(fileSystemID int) (*FileSystem, error)
+	CreateFileSystem(request CreateFileSystemRequest) (*FileSystem, error)
 
 	/**
 	GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt int, err error)
@@ -141,6 +139,11 @@ type Client interface {
 	GetMaxFileSystems() (int, error)
 	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 	*/
+
+	// exports
+	GetExportsByFileSystemID(filesystemID int) ([]Export, error)
+	DeleteExport(exportID int) (*Export, error)
+	CreateExport(request CreateExportRequest) (*Export, error)
 
 	// metadata
 	PutMetadata(objectID int, metadata map[string]interface{}) (*PutMetadataResponse, error)

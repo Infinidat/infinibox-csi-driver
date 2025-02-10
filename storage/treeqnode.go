@@ -69,12 +69,12 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 
 	// only update the export if this is the only treeq since treeq's share a single export
-	exports, err := treeq.nfsstorage.cs.Api.GetExportByFileSystem(fileSystemId)
+	exports, err := treeq.nfsstorage.cs.IboxApi.GetExportsByFileSystemID(fileSystemId)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - GetExportByFileSystem - error: %s", err.Error())
 		return nil, err
 	}
-	zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(*exports), fileSystemId)
+	zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(exports), fileSystemId)
 
 	treeqCount, err := treeq.nfsstorage.cs.Api.GetFilesystemTreeqCount(fileSystemId)
 	if err != nil {
@@ -82,7 +82,7 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return nil, err
 	}
 	zlog.Debug().Msgf("treeq count %d on filesystemId %d", treeqCount, fileSystemId)
-	if len(*exports) == 0 {
+	if len(exports) == 0 {
 		exportAccess := "RW"
 		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 			zlog.Debug().Msgf("NodePublishVolume detected read-only, setting export to RO")
@@ -134,7 +134,10 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 
-	err = treeq.nfsstorage.storageHelper.ValidateNFSPortalIPAddress(sourceIP)
+	nfsVersion, nfsPort := GetNFSVersionPort(mountOptions)
+	zlog.Debug().Msgf("NodePublishVolume - GetNFSVersionPort - vers %s port %s", nfsVersion, nfsPort)
+
+	err = treeq.nfsstorage.storageHelper.ValidateNFSPortalIPAddress(sourceIP, nfsPort)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())

@@ -274,7 +274,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 	zlog.Debug().Msgf("NodeUnstageVolume volume ID %s", req.GetVolumeId())
 
-	diskUnmounter := iscsi.getISCSIDiskUnmounter(req.GetVolumeId())
+	diskUnmounter := iscsi.getISCSIDiskUnmounter()
 	stagePath := req.GetStagingTargetPath()
 	var mpathDevice string
 
@@ -929,7 +929,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 	return m, nil
 }
 
-func (iscsi *iscsistorage) getISCSIDiskUnmounter(volumeID string) *iscsiDiskUnmounter {
+func (iscsi *iscsistorage) getISCSIDiskUnmounter() *iscsiDiskUnmounter {
 	return &iscsiDiskUnmounter{
 		iscsiDisk: &iscsiDisk{
 			VolName: strconv.Itoa(iscsi.cs.VolProto.VolumeID),

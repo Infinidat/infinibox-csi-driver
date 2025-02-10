@@ -63,27 +63,19 @@ type Client interface {
 	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
 
 	// for nfs
-	ExportFileSystem(export ExportFileSys) (*ExportResponse, error)
-	DeleteExportPath(exportID int) (*ExportResponse, error)
 	DeleteFileSystem(fileSystemID int) (*FileSystem, error)
-	CreateFilesystem(fileSysparameter map[string]interface{}) (*FileSystem, error)
-	GetExportByFileSystem(filesystemID int) (*[]ExportResponse, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
 	DeleteFileSystemComplete(fileSystemID int) (err error)
 	DeleteParentFileSystem(fileSystemID int) (err error)
 	GetParentID(fileSystemID int) int
-	GetFileSystemByID(fileSystemID int) (*FileSystem, error)
-	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
 	FileSystemHasChild(fileSystemID int) bool
-	DeleteExport(exportID int) (err error)
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int) (bool, error)
 
-	GetFileSystemsByPoolID(poolID int, page int, fsPrefix string) (*FSMetadata, error)
 	GetFilesystemTreeqCount(fileSystemID int) (treeqCnt int, err error)
 	CreateTreeq(filesystemID int, treeqParameter map[string]interface{}) (*Treeq, error)
 	DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error)
@@ -133,19 +125,6 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
-}
-
-// DeleteExport : Delete export by export id
-func (c *ClientService) DeleteExport(exportID int) (err error) {
-	zlog.Trace().Msgf("Delete Export with ID %d", exportID)
-
-	path := "/api/rest/exports/" + strconv.Itoa(int(exportID)) + "?approved=true"
-	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
-	if err != nil {
-		return err
-	}
-	zlog.Trace().Msgf("Deleted export : %d", exportID)
-	return
 }
 
 // AddHostSecurity - add chap security for host with given details

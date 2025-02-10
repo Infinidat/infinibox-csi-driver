@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: nfs-pvc-clone-v4
+    namespace: infinidat-csi
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ibox-nfs-v4
+  resources:
+    requests:
+      storage: 1Gi
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: nfs-pvc-v4

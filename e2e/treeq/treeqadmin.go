@@ -6,6 +6,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
+	"infinibox-csi-driver/iboxapi"
 	"os"
 	"strconv"
 	"time"
@@ -62,14 +63,14 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 		return 0, err
 	}
 
-	mapRequest := map[string]interface{}{
-		"pool_id":  pool.ID,
-		"name":     fileSystemName,
-		"size":     8589934592, // 8Gb
-		"provtype": common.SC_THIN_PROVISION_TYPE,
+	fsRequest := iboxapi.CreateFileSystemRequest{
+		PoolID:   pool.ID,
+		Name:     fileSystemName,
+		Size:     8589934592, // 8Gb
+		Provtype: common.SC_THIN_PROVISION_TYPE,
 	}
 
-	fs, err := config.ClientService.CreateFilesystem(mapRequest)
+	fs, err := config.ClientService.Iboxapi.CreateFileSystem(fsRequest)
 	if err != nil {
 		return 0, err
 	}
@@ -108,7 +109,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 	return fs.ID, nil
 }
 
-func CreatePersistentVolumesForTreeqs(fs *api.FileSystem, treeqIDs []int, networkSpaceIPAddress string, config *e2e.TestConfig) (err error) {
+func CreatePersistentVolumesForTreeqs(fs *iboxapi.FileSystem, treeqIDs []int, networkSpaceIPAddress string, config *e2e.TestConfig) (err error) {
 	rList := make(map[v1.ResourceName]resource.Quantity)
 	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {

@@ -564,8 +564,8 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	protocol := scParameters[common.SC_STORAGE_PROTOCOL]
 
 	if protocol == common.PROTOCOL_NFS || protocol == common.PROTOCOL_TREEQ {
-		var fs *api.FileSystem
-		fs, err = comnserv.Api.GetFileSystemByID(volproto.VolumeID)
+		var fs *iboxapi.FileSystem
+		fs, err = comnserv.IboxApi.GetFileSystemByID(volproto.VolumeID)
 		if err != nil {
 			zlog.Error().Msgf("ValidateVolumeCapabilities - GetFileSystemByID volume ID %d - error: %s", volproto.VolumeID, err.Error())
 			err = status.Errorf(codes.NotFound, "ValidateVolumeCapabilities failed to find filesystem ID: %d, %v", volproto.VolumeID, err)
@@ -735,7 +735,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 					parentName = strconv.Itoa(snapshots[i].ParentId)
 				}
 			case "FILESYSTEM":
-				_, err := clientsvc.GetFileSystemByID(snapshots[i].ParentId)
+				_, err := clientsvc.Iboxapi.GetFileSystemByID(snapshots[i].ParentId)
 				if err != nil {
 					zlog.Error().Msgf("ListSnapshots - GetFileSystemByID - snapshot %s FILESYSTEM parentId %d error %s", snapshots[i].Name, snapshots[i].ParentId, err.Error())
 					parentName = "unknown"

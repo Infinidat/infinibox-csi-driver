@@ -60,6 +60,9 @@ const (
 	// rwMask   = os.FileMode(0660)
 	// roMask   = os.FileMode(0440)
 	// execMask = os.FileMode(0110)
+	NFSv3Port         = "2049"
+	NFSv4Port         = "12049"
+	NFS_VERSION_REGEX = `(nfs){0,1}vers=([0-9]*)`
 )
 
 var zlog = log.Get() // grab the logger for storage package use
@@ -438,7 +441,7 @@ func IsDirectory(path string) (bool, error) {
 
 type StorageHelper interface {
 	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
-	ValidateNFSPortalIPAddress(ipAddress string) (err error)
+	ValidateNFSPortalIPAddress(ipAddress, port string) (err error)
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
 }
 
@@ -470,30 +473,56 @@ func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOpt
 	return mountOptions, nil
 }
 
+func GetNFSVersionPort(mountOptions []string) (version, port string) {
+
+	// we will default to nfs v3
+	version = "3"
+	port = NFSv3Port
+
+	for _, opt := range mountOptions {
+		if strings.Contains(opt, "vers") {
+			parts := strings.Split(opt, "=")
+			if len(parts) == 2 {
+				version = parts[1]
+			}
+		}
+		if strings.Contains(opt, "port") {
+			parts := strings.Split(opt, "=")
+			if len(parts) == 2 {
+				port = parts[1]
+			}
+		}
+	}
+	if version == "4" || version == "4.1" {
+		port = NFSv4Port
+	}
+	return version, port
+}
+
 func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequest) ([]string, error) {
-	// If vers set to anything but 3, fail.
-	re := regexp.MustCompile(`(nfs){0,1}vers=([0-9]*)`)
+	// If vers set to anything but 3 or 4 or 4.1, fail.
+	re := regexp.MustCompile(NFS_VERSION_REGEX)
 	for _, opt := range mountOptions {
 		matches := re.FindStringSubmatch(opt)
 		if len(matches) > 0 {
 			version := matches[2]
-			if version != "3" {
-				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS version 3 is supported", opt)
+			if version != "3" && version != "4" && version != "4.1" {
+				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS versions 3 and 4 are supported", opt)
 				zlog.Err(e)
 				return nil, e
 			}
 		}
 	}
 
-	// Force vers=3 to be in the mountOptions slice. IBoxes require NFS version 3.
-	vers3InMountOptions := false
+	// Force vers=3 to be in the mountOptions slice if a vers is not explicitly set in the StorageClass. IBoxes require NFS version 3 or 4.
+	versInMountOptions := false
 	for _, opt := range mountOptions {
-		if opt == "vers=3" || opt == "nfsvers=3" {
-			vers3InMountOptions = true
+		if opt == "vers=3" || opt == "nfsvers=3" || opt == "vers=4" || opt == "nfsvers=4" || opt == "vers=4.1" || opt == "nfsvers=4.1" {
+			versInMountOptions = true
 			break
 		}
 	}
-	if !vers3InMountOptions {
+	if !versInMountOptions {
 		mountOptions = append(mountOptions, "vers=3")
 	}
 
@@ -712,11 +741,10 @@ func validateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMi
 	return futureTime, nil
 }
 
-func (n Service) ValidateNFSPortalIPAddress(ip string) (err error) {
+func (n Service) ValidateNFSPortalIPAddress(ip, port string) (err error) {
 	start := time.Now()
 
-	const nfsPort = "2049"
-	nfsAddress := fmt.Sprintf("%s:%s", ip, nfsPort)
+	nfsAddress := fmt.Sprintf("%s:%s", ip, port)
 	_, err = net.Dial("tcp", nfsAddress)
 	elapsed := time.Since(start)
 

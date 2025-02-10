@@ -63,8 +63,21 @@ func Get() zerolog.Logger {
 
 		zerolog.TimeFieldFormat = time.RFC3339Nano
 
-		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339Nano} // 2023-07-11T14:54:44Z
+		/**
+		// logging to a file can be useful in some test scenarios like golang unit tests
+		//
+		file, err := os.OpenFile(
+			"/tmp/myapp.log",
+			os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+			0664,
+		)
+		if err != nil {
+			fmt.Printf("error in logger %s\n", err.Error())
+		}
+		logger = zerolog.New(file).With().Timestamp().Logger()
+		*/
 
+		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339Nano} // 2023-07-11T14:54:44Z
 		output.FormatLevel = func(i interface{}) string {
 			return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 		}
@@ -80,6 +93,7 @@ func Get() zerolog.Logger {
 		output.FormatFieldValue = func(i interface{}) string {
 			return strings.ToUpper(fmt.Sprintf("%s", i))
 		}
+
 		logger = zerolog.New(output).
 			Level(zerolog.Level(logLevel)).
 			With().

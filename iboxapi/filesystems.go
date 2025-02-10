@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"infinibox-csi-driver/common"
@@ -37,7 +38,7 @@ type FileSystem struct {
 	UpdatedAt                           int64    `json:"updated_at"`
 	Mapped                              bool     `json:"mapped"`
 	WriteProtected                      bool     `json:"write_protected"`
-	Size                                int      `json:"size"`
+	Size                                int64    `json:"size"`
 	Provtype                            string   `json:"provtype"`
 	SsdEnabled                          bool     `json:"ssd_enabled"`
 	SsaExpressEnabled                   bool     `json:"ssa_express_enabled"`
@@ -54,7 +55,7 @@ type FileSystem struct {
 	CgSnapshotGUID                      any      `json:"_cg_snapshot_guid"`
 	CgGUID                              any      `json:"_cg_guid"`
 	FamilyID                            int      `json:"family_id"`
-	LockExpiresAt                       any      `json:"lock_expires_at"`
+	LockExpiresAt                       int64    `json:"lock_expires_at"`
 	ReclaimedSnapshotRemoteSystemSerial any      `json:"_reclaimed_snapshot_remote_system_serial"`
 	SnapshotRetention                   any      `json:"snapshot_retention"`
 	DatasetType                         string   `json:"dataset_type"`
@@ -113,6 +114,33 @@ type GetFileSystemsByPoolResponse struct {
 	Error    Error        `json:"error"`
 }
 
+type GetFileSystemByNameResponse struct {
+	Metadata Metadata     `json:"metadata"`
+	Result   []FileSystem `json:"result"`
+	Error    Error        `json:"error"`
+}
+
+type GetFileSystemByIDResponse struct {
+	Metadata Metadata   `json:"metadata"`
+	Result   FileSystem `json:"result"`
+	Error    Error      `json:"error"`
+}
+
+type CreateFileSystemRequest struct {
+	AtimeMode  string `json:"atime_mode,omitempty"`
+	PoolID     int    `json:"pool_id"`
+	Name       string `json:"name"`
+	Provtype   string `json:"provtype"`
+	Size       int64  `json:"size"`
+	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
+}
+
+type CreateFileSystemResponse struct {
+	Metadata Metadata   `json:"metadata"`
+	Result   FileSystem `json:"result"`
+	Error    Error      `json:"error"`
+}
+
 func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
 	URL := fmt.Sprintf("%sapi/rest/filesystems", iboxClient.Creds.Url)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemsByPool", "URL", URL, "pool ID", poolID, "fsprefix", fsPrefix)
@@ -158,4 +186,120 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 	}
 
 	return results, nil
+}
+
+func (iboxClient *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err error) {
+	URL := fmt.Sprintf("%s/api/rest/filesystems/%d", iboxClient.Creds.Url, fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemByID", "URL", URL, "filesystem ID", fsID)
+
+	req, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByID - NewRequest - error %w", err)
+	}
+	SetAuthHeader(req, iboxClient.Creds)
+
+	resp, err := iboxClient.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByID - Do - error %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByID - ReadAll - error %w", err)
+	}
+	var responseObject GetFileSystemByIDResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByID - Unmarshal - error %w", err)
+	}
+
+	if responseObject.Error.Code != "" {
+		if responseObject.Error.Code == "FILESYSTEM_NOT_FOUND" {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("GetFileSystemByID - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
+	return &responseObject.Result, nil
+}
+
+func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*FileSystem, error) {
+
+	URL := iboxClient.Creds.Url + "api/rest/filesystems"
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateFileSystem", "URL", URL, "request", req)
+
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("CreateFileSystem - Marshal - error %w", err)
+	}
+	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, fmt.Errorf("CreateFileSystem - NewRequest - error %w", err)
+	}
+	SetAuthHeader(request, iboxClient.Creds)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := iboxClient.HttpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("CreateFileSystem - Do - error %w", err)
+	}
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	var responseObject CreateFileSystemResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("CreateFileSystem - Unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("CreateFileSystem - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateFileSystem", "FileSystem ID", responseObject.Result.ID)
+	return &responseObject.Result, nil
+}
+
+func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSystem, err error) {
+	URL := fmt.Sprintf("%sapi/rest/filesystems", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemByName", "URL", URL, "name", name)
+
+	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	totalPages := 1 // start with 1, update after first query.
+	page := 1
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemByName loop", "page", page, "totalPages", totalPages)
+
+	req, err := http.NewRequest("GET", URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByName - NewRequest - error %w", err)
+	}
+
+	values := req.URL.Query()
+	values.Add("name", name)
+	values.Add("page_size", strconv.Itoa(pageSize))
+	values.Add("page", strconv.Itoa(page))
+	req.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(req, iboxClient.Creds)
+
+	resp, err := iboxClient.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByName - Do - error %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByName - ReadAll - error %w", err)
+	}
+	var responseObject GetFileSystemByNameResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("GetFileSystemByName - Unmarshal - error %w", err)
+	}
+	if len(responseObject.Result) == 0 {
+		return nil, ErrNotFound
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("GetFileSystemByName - API error - %s", responseObject.Error.Code)
+	}
+	return &responseObject.Result[0], nil
+
 }

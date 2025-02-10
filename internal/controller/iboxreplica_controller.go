@@ -186,7 +186,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		localEntityID = vol.ID
 	case common.REPLICA_ENTITY_FILESYSTEM:
 		// look up the filesystem ID
-		fs, err := clientsvc.GetFileSystemByName(replica.Spec.LocalEntityName)
+		fs, err := clientsvc.Iboxapi.GetFileSystemByName(replica.Spec.LocalEntityName)
 		if err != nil {
 			thislog.Error(err, "error getting file system", "localEntityName", replica.Spec.LocalEntityName)
 			return err

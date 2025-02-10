@@ -106,3 +106,69 @@ func (m *MockApiService) GetVolume(volumeID int) (*Volume, error) {
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+
+func (m *MockApiService) GetFileSystemByID(fsID int) (*FileSystem, error) {
+	args := m.Called(fsID)
+	resp, _ := args.Get(0).(*FileSystem)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetExportByID(fsID int) (*Export, error) {
+	args := m.Called(fsID)
+	resp, _ := args.Get(0).(*Export)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetExportsByFileSystemID(fsID int) ([]Export, error) {
+	args := m.Called(fsID)
+	resp, _ := args.Get(0).([]Export)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) DeleteExport(exportID int) (*Export, error) {
+	args := m.Called(exportID)
+	resp, _ := args.Get(0).(*Export)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) CreateExport(request CreateExportRequest) (*Export, error) {
+	args := m.Called(request)
+	res, _ := args.Get(0).(*Export)
+	err, _ := args.Get(1).(error)
+	return res, err
+}
+
+func (m *MockApiService) CreateFileSystem(request CreateFileSystemRequest) (*FileSystem, error) {
+	//args := m.Called(request)
+	//res, _ := args.Get(0).(*FileSystem)
+	//err, _ := args.Get(1).(error)
+	//return res, err
+	args := m.Called(request)
+	var resp FileSystem
+	if args.Get(0) != nil {
+		resp, _ = args.Get(0).(FileSystem)
+	}
+	var err error
+	if args.Get(1) != nil {
+		err, _ = args.Get(1).(error)
+	}
+	return &resp, err
+}
+
+func (m *MockApiService) GetFileSystemByName(name string) (*FileSystem, error) {
+	args := m.Called(name)
+	resp, _ := args.Get(0).(*FileSystem)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetFileSystemsByPool(poolID int, fsPrefix string) ([]FileSystem, error) {
+	args := m.Called(poolID, fsPrefix)
+	resp, _ := args.Get(0).([]FileSystem)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
