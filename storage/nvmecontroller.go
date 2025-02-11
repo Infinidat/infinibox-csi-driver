@@ -322,8 +322,8 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	var ports string
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
-			if port.PortType == "NVME" {
-				ports = ports + "," + port.PortAddress
+			if port.Type == "NVME" {
+				ports = ports + "," + port.Address
 			}
 		}
 	}
@@ -493,7 +493,7 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
-		ntpStatus, err := nvme.cs.Api.GetNtpStatus()
+		ntpStatus, err := nvme.cs.IboxApi.GetNtpStatus()
 		if err != nil {
 			zlog.Error().Msgf("CreateSnapshot - GetNtpStatus - error %s", err.Error())
 			return nil, err

@@ -23,7 +23,7 @@ func (suite *ISCSIControllerSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
 	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	host := api.Host{
+	host := &iboxapi.Host{
 		ID:   1,
 		Name: "host1",
 	}
@@ -230,8 +230,8 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume() {
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.api.On("MapVolumeToHost", mock.Anything).Return(getLunInf(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -248,10 +248,10 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatEr
 
 func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
-	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
+	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
@@ -261,11 +261,11 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError()
 
 func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.api.On("CreateHost", mock.Anything).Return(getLunInfoArry(), nil)
+	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
@@ -278,7 +278,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 	}
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(deleteHostResponse, nil)
@@ -289,7 +289,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(suite.someError)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
@@ -301,7 +301,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
@@ -312,7 +312,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr(
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_Metadata_Error() {
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
-	suite.api.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
@@ -417,7 +417,7 @@ func getLunInfoArry() []iboxapi.Luns {
 	return lunInfoArry
 }
 
-func getHostByName() iboxapi.Host {
+func getHostByName() *iboxapi.Host {
 	var host iboxapi.Host
 	host.ID = 10
 	host.Name = "hostName"
@@ -430,7 +430,7 @@ func getHostByName() iboxapi.Host {
 	hostport.Type = "ISCSI"
 	hostportArr = append(hostportArr, hostport)
 	host.Ports = append(host.Ports, hostportArr...)
-	return host
+	return &host
 }
 
 func getISCSIControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {

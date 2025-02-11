@@ -84,7 +84,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
@@ -113,7 +113,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
@@ -154,7 +154,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success(
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
@@ -186,7 +186,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
@@ -440,7 +440,7 @@ func (m *MockStorageHelper) SetVolumePermissions(req *csi.NodePublishVolumeReque
 	}
 	return status.Get(0).(error)
 }
-func (m *MockStorageHelper) ValidateNFSPortalIPAddress(ip, port string) error {
+func (m *MockStorageHelper) ValidateIPAddress(ip string, port int) error {
 	status := m.Called(ip, port)
 	if status.Get(0) == nil {
 		return nil

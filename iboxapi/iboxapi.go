@@ -63,7 +63,6 @@ type Client interface {
 	NewClient() (*ClientService, error)
 	GetStoragePoolIDByName(name string) (id int64, err error)
 	FindStoragePool(id int64, name string) (StoragePool, error)
-	GetNtpStatus() ([]NtpStatus, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
@@ -89,9 +88,14 @@ type Client interface {
 	GetLunsByVolume(volumeID int) (resp []Luns, err error)
 	CreateVolume(request CreateVolumeRequest) (*Volume, error)
 
-	/**
+	// config
+	GetMaxTreeqPerFs() (int, error)
+	GetMaxFileSystems() (int, error)
+
+	// components
 	GetFCPorts() (fcNodes []FCNode, err error)
 
+	/**
 	// for consistency group (volume group)
 	CreateCG(poolID int, cgName string) (CGInfo, error)
 	AddMemberToSnapshotGroup(volumeID int, cgID int) error
@@ -135,8 +139,6 @@ type Client interface {
 	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
 	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
 	GetFileSystemCountByPoolID(poolID int64) (int, error)
-	GetMaxTreeqPerFs() (int, error)
-	GetMaxFileSystems() (int, error)
 	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 	*/
 
@@ -156,6 +158,8 @@ type Client interface {
 
 	// system
 	GetSystem() (*SystemDetails, error)
+	GetNtpStatus() ([]NtpStatus, error)
+
 	/**
 	// replication
 	CreateReplica(request CreateReplicaRequest) (Replica, error)

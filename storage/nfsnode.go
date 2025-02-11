@@ -112,9 +112,15 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		zlog.Debug().Msgf("storageclass has dnsname specified, using it for mount instead of ipAddress %s", dnsName)
 	}
 
-	err = nfs.storageHelper.ValidateNFSPortalIPAddress(sourceIP, nfsPort)
+	port, err := strconv.Atoi(nfsPort)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - error: %s", err.Error())
+		zlog.Error().Msgf("NodePublishVolume - ValidateIPAddress - port parsing error: %s", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	err = nfs.storageHelper.ValidateIPAddress(sourceIP, port)
+	if err != nil {
+		zlog.Error().Msgf("NodePublishVolume - ValidateIPAddress - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

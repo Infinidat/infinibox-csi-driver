@@ -15,9 +15,29 @@ limitations under the License.
 import (
 	"encoding/json"
 	"fmt"
+	"infinibox-csi-driver/common"
 	"io"
 	"net/http"
+	"strconv"
 )
+
+type NtpStatus struct {
+	NodeID             int   `json:"node_id"`
+	LastProbeTimestamp int64 `json:"last_probe_timestamp"`
+	NtpPeers           []struct {
+		TallyCode          string  `json:"tally_code"`
+		Remote             string  `json:"remote"`
+		Refid              string  `json:"refid"`
+		Stratum            int     `json:"stratum"`
+		Type               string  `json:"type"`
+		WhenSeconds        int     `json:"when_seconds"`
+		PollSeconds        int     `json:"poll_seconds"`
+		Reach              int     `json:"reach"`
+		DelayMilliseconds  float64 `json:"delay_milliseconds"`
+		OffsetMilliseconds float64 `json:"offset_milliseconds"`
+		JitterMilliseconds float64 `json:"jitter_milliseconds"`
+	} `json:"ntp_peers"`
+}
 
 type Capacity struct {
 	AllocatedPhysicalSpaceWithinPools int64   `json:"allocated_physical_space_within_pools"`
@@ -178,6 +198,12 @@ type GetSystemResponse struct {
 	Error    Error         `json:"error"`
 }
 
+type GetNtpStatusResponse struct {
+	Metadata Metadata    `json:"metadata"`
+	Result   []NtpStatus `json:"result"`
+	Error    Error       `json:"error"`
+}
+
 func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 	url := fmt.Sprintf("%sapi/rest/system", iboxClient.Creds.Url)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetSystem", "URL", url)
@@ -207,4 +233,49 @@ func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 		return nil, fmt.Errorf("GetSystem - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
+}
+
+func (iboxClient *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
+	URL := fmt.Sprintf("%sapi/rest/system/ntp_status", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetNtpStatus", "URL", URL)
+
+	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	totalPages := 1 // start with 1, update after first query.
+	for page := 1; page <= totalPages; page++ {
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetNtpStatus loop", "page", page, "totalPages", totalPages)
+
+		req, err := http.NewRequest("GET", URL, nil)
+		if err != nil {
+			return results, fmt.Errorf("GetNtpStatus - NewRequest - error %w", err)
+		}
+
+		values := req.URL.Query()
+		values.Add("page_size", strconv.Itoa(pageSize))
+		values.Add("page", strconv.Itoa(page))
+		req.URL.RawQuery = values.Encode()
+
+		SetAuthHeader(req, iboxClient.Creds)
+
+		resp, err := iboxClient.HttpClient.Do(req)
+		if err != nil {
+			return results, fmt.Errorf("GetNtpStatus - Do - error %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return results, fmt.Errorf("GetNtpStatus - ReadAll - error %w", err)
+		}
+		var responseObject GetNtpStatusResponse
+		err = json.Unmarshal(bodyBytes, &responseObject)
+		if err != nil {
+			return results, fmt.Errorf("GetNtpStatus - Unmarshal - error %w", err)
+		}
+		results = append(results, responseObject.Result...)
+
+		if page == 1 {
+			totalPages = responseObject.Metadata.PagesTotal
+		}
+	}
+
+	return results, nil
 }

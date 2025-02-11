@@ -21,6 +21,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -35,7 +36,7 @@ func (suite *TreeqControllerSuite) SetupTest() {
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.filesystem = new(FileSystemInterfaceMock)
 	suite.api = new(api.MockApiService)
-	host := api.Host{
+	host := &iboxapi.Host{
 		ID:   1,
 		Name: "host1",
 	}

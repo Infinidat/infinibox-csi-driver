@@ -339,8 +339,8 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 	var ports string
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
-			if port.PortType == "ISCSI" {
-				ports = ports + "," + port.PortAddress
+			if port.Type == "ISCSI" {
+				ports = ports + "," + port.Address
 			}
 		}
 	}
@@ -509,7 +509,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
-		ntpStatus, err := iscsi.cs.Api.GetNtpStatus()
+		ntpStatus, err := iscsi.cs.IboxApi.GetNtpStatus()
 		if err != nil {
 			zlog.Error().Msgf("CreateSnapshot - GetNtpStatus - error: %s", err.Error())
 			return nil, err

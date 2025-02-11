@@ -441,7 +441,7 @@ func IsDirectory(path string) (bool, error) {
 
 type StorageHelper interface {
 	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
-	ValidateNFSPortalIPAddress(ipAddress, port string) (err error)
+	ValidateIPAddress(ipAddress string, port int) (err error)
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
 }
 
@@ -741,18 +741,22 @@ func validateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMi
 	return futureTime, nil
 }
 
-func (n Service) ValidateNFSPortalIPAddress(ip, port string) (err error) {
+func (n Service) ValidateIPAddress(ip string, port int) (err error) {
 	start := time.Now()
 
-	nfsAddress := fmt.Sprintf("%s:%s", ip, port)
-	_, err = net.Dial("tcp", nfsAddress)
+	ipAndPort := fmt.Sprintf("%s:%d", ip, port)
+	d := net.Dialer{Timeout: 2 * time.Second}
+	conn, err := d.Dial("tcp", ipAndPort)
+	if conn != nil {
+		conn.Close()
+	}
 	elapsed := time.Since(start)
 
 	if err != nil {
-		zlog.Error().Msgf("error dialing NFS network space portal IP address %s - %s time: %s", nfsAddress, err.Error(), elapsed)
+		zlog.Error().Msgf("error dialing IP address %s - %s time: %s", ipAndPort, err.Error(), elapsed)
 		return err
 	}
-	zlog.Debug().Msgf("NFS network space portal IP address %s is reachable, time: %s", nfsAddress, elapsed)
+	zlog.Debug().Msgf("IP address %s is reachable, time: %s", ipAndPort, elapsed)
 	return nil
 }
 
@@ -841,19 +845,6 @@ func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 
 	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
 	return wwid, nil
-}
-
-func testConnection(ipAndPort string) error {
-	zlog.Trace().Msgf("testing connectivity to %s", ipAndPort)
-	d := net.Dialer{Timeout: 2 * time.Second}
-	conn, err := d.Dial("tcp", ipAndPort)
-	if err != nil {
-		return fmt.Errorf("could not connect to ip address %s: %s", ipAndPort, err.Error())
-	}
-	if conn != nil {
-		conn.Close()
-	}
-	return nil
 }
 
 func findMultipathDeviceFromVolumePath(volumePath string) (string, error) {

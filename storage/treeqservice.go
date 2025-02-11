@@ -141,7 +141,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 		return nil, err
 	}
 
-	maxTreeqPerFS, err := ts.cs.Api.GetMaxTreeqPerFs()
+	maxTreeqPerFS, err := ts.cs.IboxApi.GetMaxTreeqPerFs()
 	if err != nil {
 		zlog.Error().Msgf("error getting ibox %s limit %s", common.SC_MAX_TREEQS_PER_FILESYSTEM, err.Error())
 		return nil, err

@@ -36,6 +36,13 @@ func (m *MockApiService) GetPoolByName(name string) (*PoolResult, error) {
 	return resp, err
 }
 
+func (m *MockApiService) GetHostByName(name string) (*Host, error) {
+	args := m.Called(name)
+	resp, _ := args.Get(0).(*Host)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
 // DeleteHost mock
 func (m *MockApiService) DeleteHost(hostID int) (*Host, error) {
 	args := m.Called(hostID)
@@ -75,6 +82,12 @@ func (m *MockApiService) DeleteMetadata(objectID int) (*DeleteMetadataResponse, 
 func (m *MockApiService) CreateVolume(request CreateVolumeRequest) (*Volume, error) {
 	args := m.Called(request)
 	res, _ := args.Get(0).(*Volume)
+	err, _ := args.Get(1).(error)
+	return res, err
+}
+func (m *MockApiService) CreateHost(name string) (*Host, error) {
+	args := m.Called(name)
+	res, _ := args.Get(0).(*Host)
 	err, _ := args.Get(1).(error)
 	return res, err
 }
@@ -169,6 +182,27 @@ func (m *MockApiService) GetFileSystemByName(name string) (*FileSystem, error) {
 func (m *MockApiService) GetFileSystemsByPool(poolID int, fsPrefix string) ([]FileSystem, error) {
 	args := m.Called(poolID, fsPrefix)
 	resp, _ := args.Get(0).([]FileSystem)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetNtpStatus() ([]NtpStatus, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).([]NtpStatus)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetMaxTreeqPerFs() (int, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).(int)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetFCPorts() ([]FCNode, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).([]FCNode)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }

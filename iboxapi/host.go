@@ -184,8 +184,7 @@ func (iboxClient *IboxClient) GetAllHosts() (host []Host, err error) {
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	httpClient := &http.Client{}
-	resp, err := httpClient.Do(req)
+	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
 		return host, fmt.Errorf("GetAllHosts - Do - error %w", err)
 	}
@@ -235,7 +234,6 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 		return nil, fmt.Errorf("GetHostByName - Unmarshal - error %w", err)
 	}
 	if len(responseObject.Result) == 0 {
-		//TODO return just ErrNotFound and have callers check that
 		return nil, fmt.Errorf("GetHostByName - Not Found - error finding host %s - %w", hostName, ErrNotFound)
 	}
 	if responseObject.Error.Code != "" {

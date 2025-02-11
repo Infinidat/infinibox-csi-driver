@@ -294,7 +294,7 @@ func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 	return nil
 }
 
-func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
+func (cs *Commonservice) validateHost(hostName string) (*iboxapi.Host, error) {
 	zlog.Debug().Msgf("Check if host available, create if not available")
 	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
 	if removeDomainName != "" && removeDomainName == "true" {
@@ -302,14 +302,16 @@ func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 		zlog.Debug().Msgf("REMOVE_DOMAIN_NAME set to true, %s resulting in %s", hostName, shortName[0])
 		hostName = shortName[0]
 	}
-	host, err := cs.Api.GetHostByName(hostName)
-	if err != nil && !strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-		zlog.Error().Msgf("failed to get host with error %v", err)
-		return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
+	host, err := cs.IboxApi.GetHostByName(hostName)
+	if err != nil {
+		if !errors.Is(err, iboxapi.ErrNotFound) {
+			zlog.Error().Msgf("failed to get host with error %v", err)
+			return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
+		}
 	}
-	if host.ID == 0 {
+	if errors.Is(err, iboxapi.ErrNotFound) {
 		zlog.Debug().Msgf("Creating host with name: %s", hostName)
-		host, err = cs.Api.CreateHost(hostName)
+		host, err = cs.IboxApi.CreateHost(hostName)
 		if err != nil {
 			zlog.Error().Msgf("failed to create host with error %v", err)
 			return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
@@ -324,7 +326,8 @@ func (cs *Commonservice) validateHost(hostName string) (*api.Host, error) {
 			return nil, err
 		}
 	}
-	return &host, nil
+
+	return host, nil
 }
 
 func (cs *Commonservice) getCSIResponse(vol *iboxapi.Volume, req *csi.CreateVolumeRequest) *csi.Volume {

@@ -137,9 +137,15 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	nfsVersion, nfsPort := GetNFSVersionPort(mountOptions)
 	zlog.Debug().Msgf("NodePublishVolume - GetNFSVersionPort - vers %s port %s", nfsVersion, nfsPort)
 
-	err = treeq.nfsstorage.storageHelper.ValidateNFSPortalIPAddress(sourceIP, nfsPort)
+	port, err := strconv.Atoi(nfsPort)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - error: %s", err.Error())
+		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - port parsing error: %s", err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	err = treeq.nfsstorage.storageHelper.ValidateIPAddress(sourceIP, port)
+	if err != nil {
+		zlog.Error().Msgf("NodePublishVolume - ValidateIPAddress - error: %s", err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 

@@ -623,7 +623,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	var lockExpiresAt int64
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	if lockExpiresAtParameter != "" {
-		ntpStatus, err := nfs.cs.Api.GetNtpStatus()
+		ntpStatus, err := nfs.cs.IboxApi.GetNtpStatus()
 		if err != nil {
 			zlog.Error().Msgf("CreateSnapshot - GetNtpStatus - failed to get ntp status error %v", err)
 			return nil, err

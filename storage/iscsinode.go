@@ -1184,14 +1184,13 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 				continue
 			}
 
-			iscsiAddress := fmt.Sprintf("%s:%d", p.IpAdress, nspace.Properties.IscsiTcpPort)
-			err := testConnection(iscsiAddress)
+			err := iscsi.storageHelper.ValidateIPAddress(p.IpAdress, nspace.Properties.IscsiTcpPort)
 			if err != nil {
-				zlog.Error().Msgf("error getting iscsi network space %s ip connection to %s error: %v", networkSpaces[i], iscsiAddress, err)
+				zlog.Error().Msgf("error getting iscsi network space %s ip connection to %s %d error: %v", networkSpaces[i], p.IpAdress, nspace.Properties.IscsiTcpPort, err)
 				continue
 			}
 
-			zlog.Debug().Msgf("adding iscsi network space %s ip connection to %s list", networkSpaces[i], iscsiAddress)
+			zlog.Debug().Msgf("adding iscsi network space %s ip connection to %s %d list", networkSpaces[i], p.IpAdress, nspace.Properties.IscsiTcpPort)
 			targets[i].Portals = append(targets[i].Portals, portalMounter(p.IpAdress))
 			portalsExist = true
 		}

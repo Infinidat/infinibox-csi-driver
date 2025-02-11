@@ -365,15 +365,6 @@ func (m *MockApiService) CreateHost(hostName string) (Host, error) {
 
 }
 
-// GetAllHosts
-func (m *MockApiService) GetAllHosts() ([]Host, error) {
-	args := m.Called()
-	hosts, _ := args.Get(0).([]Host)
-	err, _ := args.Get(1).(error)
-	return hosts, err
-}
-
-// MapVolumeToHost
 func (m *MockApiService) MapVolumeToHost(hostID, volumeID, lun int) (LunInfo, error) {
 	args := m.Called(hostID)
 	lunInfo, _ := args.Get(0).(LunInfo)
@@ -381,7 +372,6 @@ func (m *MockApiService) MapVolumeToHost(hostID, volumeID, lun int) (LunInfo, er
 	return lunInfo, err
 }
 
-// GetLunByHostVolume
 func (m *MockApiService) GetLunByHostVolume(hostID, volumeID int) (LunInfo, error) {
 	args := m.Called(hostID)
 	lunInfo, _ := args.Get(0).(LunInfo)
@@ -389,27 +379,10 @@ func (m *MockApiService) GetLunByHostVolume(hostID, volumeID int) (LunInfo, erro
 	return lunInfo, err
 }
 
-// UnMapVolumeFromHost
 func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) error {
 	args := m.Called(hostID, volumeID)
 	err, _ := args.Get(0).(error)
 	return err
-}
-
-// GetMaxTreeqPerFs
-func (m *MockApiService) GetMaxTreeqPerFs() (int, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(int)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-// GetMaxFileSystems
-func (m *MockApiService) GetMaxFileSystems() (int, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(int)
-	err, _ := args.Get(1).(error)
-	return resp, err
 }
 
 func (m *MockApiService) CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error) {

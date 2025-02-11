@@ -455,9 +455,9 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	volproto.NodeID = req.GetNodeId()
 
 	if volproto.StorageType != common.PROTOCOL_NFS && volproto.StorageType != common.PROTOCOL_TREEQ {
-		volproto.Host, err = comnserv.Api.GetHostByName(hostName)
+		volproto.Host, err = comnserv.IboxApi.GetHostByName(hostName)
 		if err != nil {
-			if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
+			if errors.Is(err, iboxapi.ErrNotFound) {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
 			zlog.Error().Msgf("ControllerUnpublishVolume - GetHostByName - error %s", err.Error())

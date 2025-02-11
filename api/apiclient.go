@@ -33,7 +33,6 @@ type Client interface {
 	NewClient() (*ClientService, error)
 	CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error)
 	FindStoragePool(id int, name string) (StoragePool, error)
-	GetNtpStatus() ([]NtpStatus, error)
 	GetStoragePool(poolID int, storagepool string) ([]StoragePool, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
@@ -41,15 +40,11 @@ type Client interface {
 	GetAllSnapshots() ([]Volume, error)
 	GetAllVolumes() ([]Volume, error)
 
-	GetAllHosts() (host []Host, err error)
-	GetHostByName(hostName string) (host Host, err error)
-	CreateHost(hostName string) (host Host, err error)
 	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
 	AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
-	GetFCPorts() (fcNodes []FCNode, err error)
 	GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error)
 	GetLunByVolume(volumeID int) (luninfo []LunInfo, err error)
 
@@ -83,8 +78,6 @@ type Client interface {
 	UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error)
 	GetTreeqSizeByFileSystemID(filesystemID int) (int64, error)
 	GetFileSystemCountByPoolID(poolID int) (int, error)
-	GetMaxTreeqPerFs() (int, error)
-	GetMaxFileSystems() (int, error)
 	GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error)
 
 	// replication
@@ -285,21 +278,6 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	return nspace, nil
 }
 
-// CreateHost - create host  with given details
-func (c *ClientService) CreateHost(hostName string) (host Host, err error) {
-	zlog.Trace().Msgf("create host with name %s", hostName)
-	uri := "api/rest/hosts"
-	body := map[string]interface{}{"name": hostName}
-	_, err = c.getJSONResponse(http.MethodPost, uri, body, &host)
-	if err != nil {
-		zlog.Error().Msgf("error creating host : %s error : %v", hostName, err)
-		return host, err
-	}
-
-	zlog.Trace().Msgf("created host with name %s ID %d", host.Name, host.ID)
-	return host, nil
-}
-
 // GetHostPort - get host port details
 func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error) {
 	zlog.Trace().Msgf("get host port by port address %s", portAddress)
@@ -325,53 +303,6 @@ func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort Ho
 	}
 	zlog.Trace().Msgf("fetched hostPort with address %s", hostPort.PortAddress)
 	return hostPort, nil
-}
-
-// GetHostByName - get host details for given hostname
-func (c *ClientService) GetHostByName(hostName string) (host Host, err error) {
-	zlog.Trace().Msgf("get host by name %s", hostName)
-	uri := "api/rest/hosts"
-	hosts := []Host{}
-	queryParam := map[string]interface{}{"name": hostName}
-	resp, err := c.getResponseWithQueryString(uri, queryParam, &hosts)
-	if err != nil {
-		zlog.Error().Msgf("host %s not found ", hostName)
-		return host, err
-	}
-	if len(hosts) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		hosts, _ = apiresp.Result.([]Host)
-	}
-
-	if len(hosts) > 0 {
-		host = hosts[0]
-	}
-	if host.ID == 0 && host.Name == "" {
-		return host, errors.New("HOST_NOT_FOUND")
-	}
-	zlog.Trace().Msgf("fetched host with name %s", host.Name)
-	return host, nil
-}
-
-// GetFCPorts - get fc ports details
-func (c *ClientService) GetFCPorts() (fcNodes []FCNode, err error) {
-	zlog.Trace().Msgf("get fc ports")
-	uri := "api/rest/components/nodes?fields=fc_ports"
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &fcNodes)
-	if err != nil {
-		zlog.Error().Msgf("error occured while fetching fc_ports ")
-		return fcNodes, err
-	}
-	if len(fcNodes) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		fcNodes, _ = apiresp.Result.([]FCNode)
-	}
-
-	if len(fcNodes) == 0 {
-		return fcNodes, errors.New("fc port not found")
-	}
-	zlog.Trace().Msgf("fetched fc ports successfully ")
-	return fcNodes, nil
 }
 
 // UnMapVolumeFromHost - Remove mapping of volume with host
@@ -635,89 +566,3 @@ func (c *ClientService) GetAllVolumes() ([]Volume, error) {
 
 	return allvolumes, err
 }
-
-// GetNtpStatus
-func (c *ClientService) GetNtpStatus() ([]NtpStatus, error) {
-	var err error
-	uriList := []string{
-		"/api/rest/system/ntp_status",
-	}
-	allNtpStatus := make([]NtpStatus, 0)
-
-	for u := 0; u < len(uriList); u++ {
-		queryParam := make(map[string]interface{})
-		page := 1
-		total_pages := 1 // start with 1, update after first query.
-		for ok := true; ok; ok = page <= total_pages {
-			queryParam["page"] = strconv.Itoa(page)
-			ntpStats := []NtpStatus{}
-			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &ntpStats)
-			if err != nil {
-				zlog.Error().Msgf("failed to check GetNtpStatus %v response: %v", err, resp)
-				return allNtpStatus, err
-			}
-			apiresp := resp.(client.ApiResponse)
-			zlog.Trace().Msgf("uri %s page %d volumes %d", uriList[u], page, len(ntpStats))
-
-			allNtpStatus = append(allNtpStatus, ntpStats...)
-			if page == 1 {
-				total_pages = apiresp.MetaData.TotalPages
-			}
-			zlog.Trace().Msgf("total pages %d\n", total_pages)
-			page++
-		}
-	}
-
-	return allNtpStatus, err
-}
-
-// GetAllHosts - get all host details
-func (c *ClientService) GetAllHosts() ([]Host, error) {
-	zlog.Trace().Msgf("get all hosts ")
-	uri := "api/rest/hosts"
-	hosts := []Host{}
-	//queryParam := map[string]interface{}{}
-	resp, err := c.getResponseWithQueryString(uri, nil, &hosts)
-	if err != nil {
-		zlog.Error().Msgf("hosts  not found ")
-		return hosts, err
-	}
-	if len(hosts) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		hosts, _ = apiresp.Result.([]Host)
-	}
-
-	zlog.Trace().Msgf("fetched hosts len %d", len(hosts))
-	return hosts, nil
-}
-
-func (c *ClientService) CreateCustomEvent(request CustomEventRequest) error {
-
-	path := "/api/rest/events/custom"
-	eventResult := CustomEvent{}
-	_, err := c.getJSONResponse(http.MethodPost, path, request, &eventResult)
-	if err != nil {
-		return err
-	}
-	zlog.Debug().Msgf("Created CustomEvent with ID %d", eventResult.ID)
-
-	return nil
-}
-
-/**
-func (c *ClientService) CreateEvent(request EventRequest) error {
-
-	path := "/api/rest/events"
-	eventResult := EventResponse{}
-	_, err := c.getJSONResponse(http.MethodPost, path, request, &eventResult)
-	if err != nil {
-		return err
-	}
-	zlog.Debug().Msgf("Created Event with response %+v", eventResult)
-	if eventResult.Error.Code != "" {
-		zlog.Error().Msgf("Created Event with error code %s", eventResult.Error.Code)
-	}
-
-	return nil
-}
-*/

@@ -71,7 +71,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	exportResp := getExportResponse()
@@ -109,7 +109,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{nfsstorage: nfs}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	fs := &iboxapi.FileSystem{}
@@ -141,7 +141,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	nfs := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
 	service := treeqstorage{nfsstorage: nfs}
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
-	suite.storageHelperMock.On("ValidateNFSPortalIPAddress", mock.Anything, mock.Anything).Return(nil)
+	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
 	_, err := service.NodePublishVolume(context.Background(), getNodePublishVolumeRequest(targetPath, contex))

@@ -322,8 +322,8 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	var ports string
 	if len(host.Ports) > 0 {
 		for _, port := range host.Ports {
-			if port.PortType == "FC" {
-				ports = ports + "," + port.PortAddress
+			if port.Type == "FC" {
+				ports = ports + "," + port.Address
 			}
 		}
 	}
@@ -474,7 +474,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
-		ntpStatus, err := fc.cs.Api.GetNtpStatus()
+		ntpStatus, err := fc.cs.IboxApi.GetNtpStatus()
 		if err != nil {
 			zlog.Error().Msgf("CreateSnapshot - GetNtpStatus - error: %s", err.Error())
 			return nil, err

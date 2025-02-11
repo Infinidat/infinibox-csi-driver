@@ -489,10 +489,13 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	wwids := req.GetVolumeContext()["WWIDs"]
 	wwidList := strings.Split(wwids, ",")
 	targetList := []string{}
-	fcNodes, err := fc.cs.Api.GetFCPorts()
+	fcNodes, err := fc.cs.IboxApi.GetFCPorts()
 	if err != nil {
 		zlog.Error().Msgf("error %s", err.Error())
 		return nil, fmt.Errorf("error getting fiber channel details")
+	}
+	if len(fcNodes) == 0 {
+		return nil, fmt.Errorf("error getting fiber channel details, zero fc ports found")
 	}
 	for _, fcnode := range fcNodes {
 		for _, fcport := range fcnode.Ports {

@@ -13,6 +13,7 @@ limitations under the License.
 package api
 
 import (
+	"infinibox-csi-driver/iboxapi"
 	"infinibox-csi-driver/log"
 )
 
@@ -322,7 +323,7 @@ type VolumeProtocolConfig struct {
 	VolumeID      int
 	StorageType   string
 	ChildVolumeID string
-	Host          Host
+	Host          *iboxapi.Host
 	NodeID        string
 	TreeqID       int
 }

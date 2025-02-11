@@ -549,14 +549,13 @@ func (nvme *nvmestorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 				continue
 			}
 
-			nvmeAddress := fmt.Sprintf("%s:%d", p.IpAdress, NVME_DISCOVERY_PORT)
-			err := testConnection(nvmeAddress)
+			err := nvme.storageHelper.ValidateIPAddress(p.IpAdress, NVME_DISCOVERY_PORT)
 			if err != nil {
-				zlog.Error().Msgf("error getting nvme network space %s ip connection to %s error: %v", networkSpaces[i], nvmeAddress, err)
+				zlog.Error().Msgf("error getting nvme network space %s ip connection to %s %d error: %v", networkSpaces[i], p.IpAdress, NVME_DISCOVERY_PORT, err)
 				continue
 			}
 
-			zlog.Debug().Msgf("adding nvme network space %s ip connection to %s list", networkSpaces[i], nvmeAddress)
+			zlog.Debug().Msgf("adding nvme network space %s ip connection to %s %d list", networkSpaces[i], p.IpAdress, NVME_DISCOVERY_PORT)
 			targets[i].Portals = append(targets[i].Portals, portalMounter(p.IpAdress))
 			portalsExist = true
 		}

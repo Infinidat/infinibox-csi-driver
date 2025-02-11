@@ -153,29 +153,6 @@ func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_GetHostByName_Fail() {
-	expectedError := errors.New("Unable to get host by given name")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.GetHostByName("test_host")
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetHostByName_Success() {
-	expectedResponse := client.ApiResponse{Result: Host{}}
-
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	response, _ := service.GetHostByName("test_host")
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_MapVolumeToHost_Fail() {
 	expectedError := errors.New("Volume ID is missing")
 	suite.clientMock.On("Post").Return(nil, expectedError)
