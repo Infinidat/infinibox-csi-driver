@@ -120,10 +120,25 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 	eventData = append(eventData, actionData)
 
+	if storageProtocol == common.PROTOCOL_NFS {
+		mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
+		nfsVersion, nfsPort := storage.GetNFSVersionPort(mountOptions)
+		zlog.Debug().Msgf("NodePublishVolume - nfs mount options are [%v], nfs version [%s] port [%s]", mountOptions, nfsVersion, nfsPort)
+		actionData := iboxapi.EventRequestData{
+			Name:  common.CUSTOM_EVENT_NFS_VERSION,
+			Type:  "String",
+			Value: nfsVersion,
+		}
+		eventData = append(eventData, actionData)
+
+	}
+
 	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
 	if eventErr != nil {
 		zlog.Error().Msgf("NodePublishVolume - CreateEvent - error %s", eventErr.Error())
 		// only log errors since older ibox versions don't support this event code
+	} else {
+		zlog.Debug().Msgf("NodePublishVolume - created external event %+v", eventData)
 	}
 
 	return response, nil

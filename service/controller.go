@@ -265,6 +265,8 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if eventErr != nil {
 		zlog.Error().Msgf("CreateVolume - CreateEvent - error %s", eventErr.Error())
 		// only log errors if custom event fails
+	} else {
+		zlog.Debug().Msgf("CreateEvent - created external event %+v", eventData)
 	}
 
 	zlog.Info().Msgf("CreateVolume Finish - Name: %s ID: %s", volName, createVolResp.Volume.VolumeId)
@@ -872,8 +874,10 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	eventDesc := fmt.Sprintf("CSI - Create Snapshot- name: %s volume id: %s", req.GetName(), req.GetSourceVolumeId())
 	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, eventDesc, eventData)
 	if eventErr != nil {
-		zlog.Error().Msg(eventErr.Error())
+		zlog.Error().Msgf("CreateSnapshot - CreateEvent - error %s", eventErr.Error())
 		// only log errors if custom event fails
+	} else {
+		zlog.Debug().Msgf("CreateEvent - created external event %+v", eventData)
 	}
 
 	return createSnapshotResp, nil

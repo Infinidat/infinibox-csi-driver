@@ -108,6 +108,7 @@ const (
 const (
 	CUSTOM_EVENT_CAPACITY    = "capacity"
 	CUSTOM_EVENT_VOLUME_CAPS = "volume_caps"
+	CUSTOM_EVENT_NFS_VERSION = "nfs_version"
 	CUSTOM_EVENT_VOLUME_ID   = "volume_id"
 	CUSTOM_EVENT_VOLUME_NAME = "volume_name"
 	CUSTOM_EVENT_ACTION      = "csi_action"
