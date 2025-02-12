@@ -23,8 +23,8 @@ parameters:
   csi.storage.k8s.io/fstype: ext4
 
   #max_vols_per_host: "100"
-  network_space: "iSCSI"
-  pool_name: "csitesting"
+  network_space: $_E2E_NETWORK_SPACE
+  pool_name: $_E2E_POOL
   #provision_type: "THIN"
   #ssd_enabled: "false"
   storage_protocol: "iscsi"

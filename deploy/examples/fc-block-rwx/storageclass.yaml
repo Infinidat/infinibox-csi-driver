@@ -22,7 +22,7 @@ parameters:
   csi.storage.k8s.io/fstype: ext4
 
   # Infinibox configuration
-  pool_name: "csitesting"
+  pool_name: $_E2E_POOL
   storage_protocol: "fc"
 
   # optional parameters

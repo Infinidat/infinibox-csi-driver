@@ -33,7 +33,7 @@ parameters:
     # InfiniBox configuration
     storage_protocol: nfs
     network_space: $_E2E_NETWORK_SPACE # InfiniBox network space name
-    pool_name: csitesting # InfiniBox pool name
+    pool_name: $_E2E_POOL
 
     # optional parameters
     #round_up_requested_size: "true"

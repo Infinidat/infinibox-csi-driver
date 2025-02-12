@@ -23,7 +23,7 @@ parameters:
 
   # infinibox configuration
   network_space: $_E2E_NETWORK_SPACE
-  pool_name: "csitesting"
+  pool_name: $_E2E_POOL
   storage_protocol: "nvme"
 
   # optional parameters

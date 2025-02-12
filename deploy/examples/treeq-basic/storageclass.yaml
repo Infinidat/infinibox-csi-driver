@@ -25,7 +25,7 @@ parameters:
     csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
 
     # infinibox configuration
-    pool_name: csitesting
+    pool_name: $_E2E_POOL
     network_space: $_E2E_NETWORK_SPACE
     storage_protocol: nfs_treeq
 

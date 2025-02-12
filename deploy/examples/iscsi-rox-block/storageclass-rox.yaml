@@ -23,7 +23,7 @@ parameters:
   csi.storage.k8s.io/fstype: xfs
 
   network_space: $_E2E_NETWORK_SPACE
-  pool_name: "csitesting"
+  pool_name: $_E2E_POOL
   storage_protocol: "iscsi"
   useCHAP: "none" # none / chap / mutual_chap
 
