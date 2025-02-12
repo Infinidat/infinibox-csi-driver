@@ -63,10 +63,13 @@ func TestIscsiReplica(t *testing.T) {
 	if secretNamespace == "" {
 		t.Fatal("_E2E_NAMESPACE env var is not set and is required for this test")
 	}
+
+	replicaName := "iboxreplica-volume-e2e-test-" + testConfig.TestNames.UniqueSuffix
+
 	// create the iboxreplica CR
 	replica := v1.Iboxreplica{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "iboxreplica-volume-e2e-test",
+			Name: replicaName,
 			Annotations: map[string]string{
 				common.PVC_ANNOTATION_SECRET_NAME:      secretName,
 				common.PVC_ANNOTATION_SECRET_NAMESPACE: secretNamespace,
