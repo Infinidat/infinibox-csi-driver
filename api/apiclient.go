@@ -45,7 +45,6 @@ type Client interface {
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
-	GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error)
 	GetLunByVolume(volumeID int) (luninfo []LunInfo, err error)
 
 	// for consistency group (volume group)
@@ -276,33 +275,6 @@ func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace N
 	}
 	zlog.Trace().Msgf("Got network space: %s", networkSpaceName)
 	return nspace, nil
-}
-
-// GetHostPort - get host port details
-func (c *ClientService) GetHostPort(hostID int, portAddress string) (hostPort HostPort, err error) {
-	zlog.Trace().Msgf("get host port by port address %s", portAddress)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports"
-	hostPorts := []HostPort{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &hostPorts)
-	if err != nil {
-		zlog.Error().Msgf("unable to get host port %s with error ", portAddress)
-		return hostPort, err
-	}
-	if len(hostPorts) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		hostPorts, _ = apiresp.Result.([]HostPort)
-	}
-
-	for _, port := range hostPorts {
-		if port.PortAddress == portAddress {
-			hostPort = port
-		}
-	}
-	if hostPort.HostID == 0 && hostPort.PortAddress == "" {
-		return hostPort, errors.New("HOST_PORT_NOT_FOUND")
-	}
-	zlog.Trace().Msgf("fetched hostPort with address %s", hostPort.PortAddress)
-	return hostPort, nil
 }
 
 // UnMapVolumeFromHost - Remove mapping of volume with host

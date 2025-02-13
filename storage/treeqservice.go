@@ -14,6 +14,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
@@ -172,7 +173,7 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 	}
 	if fsMetaData != nil && len(fsMetaData) == 0 {
 		zlog.Debug().Msgf("NO filesystem found.filesystem array is empty")
-		return nil, iboxapi.ErrNotFound
+		return nil, &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("no filesystem found, array is empty")}
 	}
 
 	for _, fs := range fsMetaData {
@@ -195,8 +196,9 @@ func (ts *TreeqService) getExpectedFileSystemID(maxFileSystemSize int64) (filesy
 			}
 		}
 	}
-	zlog.Debug().Msgf("NO filesystem found to create treeQ")
-	return nil, iboxapi.ErrNotFound
+	e := fmt.Errorf("NO filesystem found to create treeQ")
+	zlog.Debug().Msg(e.Error())
+	return nil, &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_NOT_FOUND_ERROR, Err: e}
 }
 
 // CreateTreeqVolume create volume method
@@ -242,7 +244,8 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 
 	filesys, err = ts.getExpectedFileSystemID(maxFileSystemSize)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("CreateTreeqVolume - getExpectedFilesystemID file system not found")
 		} else {
 			zlog.Error().Msgf("CreateTreeqVolume - error in getExpectedFileSystemID  %v", err)

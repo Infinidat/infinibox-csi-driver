@@ -3,7 +3,6 @@ package iboxapi
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"io"
@@ -234,7 +233,7 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 		return nil, fmt.Errorf("GetHostByName - Unmarshal - error %w", err)
 	}
 	if len(responseObject.Result) == 0 {
-		return nil, fmt.Errorf("GetHostByName - Not Found - error finding host %s - %w", hostName, ErrNotFound)
+		return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetHostByName - host '%s' not found", hostName)}
 	}
 	if responseObject.Error.Code != "" {
 		return nil, fmt.Errorf("GetHostByName - ibox API - error code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
@@ -314,7 +313,7 @@ func (iboxClient *IboxClient) DeleteHost(hostID int) (response *Host, err error)
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "HOST_NOT_FOUND" {
-			return nil, ErrNotFound
+			return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("DeleteHost - host ID '%d' not found", hostID)}
 		}
 		return nil, fmt.Errorf("DeleteHost - ibox API - error code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
@@ -444,14 +443,15 @@ func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostP
 		return nil, fmt.Errorf("GetHostPort - Unmarshal - error %w", err)
 	}
 
+	var portFound bool
 	for _, port := range responseObject.Result {
 		if port.PortAddress == portAddress {
 			hostPort = &port
+			portFound = true
 		}
 	}
-	if hostPort.HostID == 0 && hostPort.PortAddress == "" {
-		//TODO return ErrNotFound here and have code check that
-		return nil, errors.New("HOST_PORT_NOT_FOUND")
+	if !portFound {
+		return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetHostPort - portAddress '%s' not found", portAddress)}
 	}
 	if responseObject.Error.Code != "" {
 		return nil, fmt.Errorf("GetHostPort - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)

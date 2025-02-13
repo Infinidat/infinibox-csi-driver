@@ -112,7 +112,7 @@ func (iboxClient *IboxClient) GetExportByID(exportID int) (ex *Export, err error
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "EXPORT_NOT_FOUND" {
-			return nil, ErrNotFound
+			return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetExportByID - export ID '%d' not found", exportID)}
 		}
 		return nil, fmt.Errorf("GetExportByID - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
@@ -196,7 +196,7 @@ func (iboxClient *IboxClient) DeleteExport(exportID int) (response *Export, err 
 	}
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "EXPORT_NOT_FOUND" {
-			return nil, ErrNotFound
+			return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("DeleteExport - export ID '%d' not found", exportID)}
 		}
 
 		return nil, fmt.Errorf("DeleteExport - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)

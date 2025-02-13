@@ -304,27 +304,27 @@ func (cs *Commonservice) validateHost(hostName string) (*iboxapi.Host, error) {
 	}
 	host, err := cs.IboxApi.GetHostByName(hostName)
 	if err != nil {
-		if !errors.Is(err, iboxapi.ErrNotFound) {
-			zlog.Error().Msgf("failed to get host with error %v", err)
-			return nil, status.Errorf(codes.NotFound, "host not found: %s", hostName)
-		}
-	}
-	if errors.Is(err, iboxapi.ErrNotFound) {
-		zlog.Debug().Msgf("Creating host with name: %s", hostName)
-		host, err = cs.IboxApi.CreateHost(hostName)
-		if err != nil {
-			zlog.Error().Msgf("failed to create host with error %v", err)
-			return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
-		}
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+			zlog.Debug().Msgf("Creating host with name: %s", hostName)
+			host, err = cs.IboxApi.CreateHost(hostName)
+			if err != nil {
+				zlog.Error().Msgf("failed to create host with error %v", err)
+				return nil, status.Errorf(codes.Internal, "failed to create host: %s", hostName)
+			}
 
-		metadata := map[string]interface{}{
-			common.CSI_CREATED_HOST: true,
+			metadata := map[string]interface{}{
+				common.CSI_CREATED_HOST: true,
+			}
+			_, err = cs.IboxApi.PutMetadata(host.ID, metadata)
+			if err != nil {
+				zlog.Error().Msgf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
+				return nil, err
+			}
 		}
-		_, err = cs.IboxApi.PutMetadata(host.ID, metadata)
-		if err != nil {
-			zlog.Error().Msgf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
-			return nil, err
-		}
+		e := fmt.Errorf("validateHost - GetHostByName - hostname %s error %s", hostName, err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	return host, nil

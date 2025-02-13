@@ -260,7 +260,7 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 		if len(responseObject.Result) > 0 {
 			volume = &responseObject.Result[0]
 		} else {
-			return nil, ErrNotFound
+			return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetVolumeByName - volume name '%s' not found", volumeName)}
 		}
 
 		if page == 1 {
@@ -298,7 +298,7 @@ func (iboxClient *IboxClient) GetVolume(volumeID int) (volume *Volume, err error
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "VOLUME_NOT_FOUND" {
-			return nil, ErrNotFound
+			return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetVolume - volume ID '%d' not found", volumeID)}
 		}
 		return nil, fmt.Errorf("GetVolume - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}

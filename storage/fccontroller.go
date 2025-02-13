@@ -64,7 +64,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	targetVol, err := fc.cs.IboxApi.GetVolumeByName(name)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("volume with name %s not found, proceeding to create", name)
 		} else {
 			zlog.Error().Msgf("CreateVolume - GetVolumeByName %s - error: %s", name, err.Error())
@@ -434,7 +435,8 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 
 	volumeSnapshot, err := fc.cs.IboxApi.GetVolumeByName(snapshotName)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
 		} else {
 			zlog.Error().Msgf("CreateSnapshot - GetVolumeByName - error: %s", err.Error())
@@ -521,7 +523,8 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	vol, err := fc.cs.IboxApi.GetVolume(volumeID)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("volume is already deleted %d", volumeID)
 			return nil
 		}

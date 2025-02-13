@@ -5,6 +5,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
@@ -156,7 +157,9 @@ func (suite *FCControllerSuite) Test_DeleteVolume_success() {
 
 func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	createVolReq := getISCSIDeleteRequest()
-	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, iboxapi.ErrNotFound)
+
+	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("volume not found")}
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, notFoundError)
 	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc DeleteVolume already deleted")
 }

@@ -90,7 +90,8 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 				zlog.Error().Msgf("NodeStageVolume - AddPortForHost - error: %s", err.Error())
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			_, err := fc.cs.Api.GetHostPort(hostID, fcp)
+			//_, err := fc.cs.Api.GetHostPort(hostID, fcp)
+			_, err := fc.cs.IboxApi.GetHostPort(hostID, fcp)
 			if err != nil {
 				zlog.Error().Msgf("NodeStageVolume - GetHostPort host port %s error: %s", fcp, err.Error())
 				return nil, status.Error(codes.Internal, err.Error())

@@ -87,14 +87,13 @@ func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err 
 	}
 
 	if responseObject.Error.Code != "" {
-		//TODO check for  NOT FOUND ? return ErrNotFound for callers?
 		return nil, fmt.Errorf("GetPoolByName - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	if len(responseObject.Result) > 0 {
 		pool = &responseObject.Result[0]
 	} else {
-		return nil, ErrNotFound
+		return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetPoolByName - pool '%s' not found", name)}
 	}
 
 	return pool, nil

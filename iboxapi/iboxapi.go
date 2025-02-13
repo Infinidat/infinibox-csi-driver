@@ -15,7 +15,7 @@ package iboxapi
 import (
 	"crypto/tls"
 	"encoding/base64"
-	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-logr/logr"
@@ -29,7 +29,16 @@ const (
 
 var ERROR_CODE_HOST_NOT_FOUND = "HOST_NOT_FOUND"
 
-var ErrNotFound = errors.New("resource not found")
+const IBOXAPI_NOT_FOUND_ERROR = 1
+
+type IboxAPIError struct {
+	Code int
+	Err  error
+}
+
+func (r *IboxAPIError) Error() string {
+	return fmt.Sprintf("iboxapi error code %d: err %v", r.Code, r.Err)
+}
 
 type Metadata struct {
 	Ready           bool `json:"ready"`

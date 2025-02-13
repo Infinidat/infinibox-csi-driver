@@ -60,7 +60,8 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	targetVol, err := iscsi.cs.IboxApi.GetVolumeByName(name)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("volume with name %s not found, proceeding to create", name)
 		} else {
 			zlog.Error().Msgf("CreateVolume - GetVolumeByName name %s - error: %s", name, err.Error())
@@ -180,7 +181,8 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	zlog.Debug().Msgf("DeleteVolume volumeID %s volproto %+v", req.GetVolumeId(), volproto)
 	err = iscsi.ValidateDeleteVolume(volproto.VolumeID)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			return &csi.DeleteVolumeResponse{}, nil
 		} else {
 			zlog.Error().Msgf("DeleteVolume - ValidateDeleteVolume - error: %s", err.Error())
@@ -469,7 +471,8 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	volumeSnapshot, err := iscsi.cs.IboxApi.GetVolumeByName(snapshotName)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("Snapshot with name %s not found", snapshotName)
 		} else {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -555,7 +558,8 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 			return nil, err
 		}
 
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("DeleteSnapshot - snapshot with ID %d not found", snapshotID)
 			return &csi.DeleteSnapshotResponse{}, nil
 		}
@@ -574,7 +578,8 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 	vol, err := iscsi.cs.IboxApi.GetVolume(volumeID)
 	if err != nil {
-		if err == iboxapi.ErrNotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
 			return err
 		}
 		msg := fmt.Sprintf("failed to get volume: %d, err: %s", volumeID, err.Error())
