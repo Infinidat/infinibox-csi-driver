@@ -135,7 +135,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - getFCDiskMounter - error: %s", err.Error())
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	err = fc.MountFCDisk(*diskMounter, devicePath)
@@ -152,7 +152,7 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	err = fc.storageHelper.SetVolumePermissions(req)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - SetVolumePermissions  volume ID %s - error: %s", req.GetVolumeId(), err.Error())
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -205,7 +205,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 			if !pathExist {
 				zlog.Debug().Msgf("Config file not found at %s", confFile)
 				if err := os.RemoveAll(stagePath); err != nil {
-					zlog.Error().Msgf("NOdeUnstageVolume - RemoveAll - Failed to remove mount path Error: %v", err)
+					zlog.Error().Msgf("NodeUnstageVolume - RemoveAll - Failed to remove mount path Error: %v", err)
 					return nil, err
 				}
 				zlog.Debug().Msgf("Removed stage path at %s", stagePath)

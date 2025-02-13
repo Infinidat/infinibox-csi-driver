@@ -230,7 +230,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	if err != nil {
 		zlog.Error().Msgf("NodePublishVolume - getISCSIDiskMounter - error: %s", err.Error())
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	_, err = iscsi.AttachDisk(*diskMounter)
