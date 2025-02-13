@@ -206,3 +206,10 @@ func (m *MockApiService) GetFCPorts() ([]FCNode, error) {
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+
+func (m *MockApiService) GetNetworkSpaceByName(name string) (*NetworkSpace, error) {
+	args := m.Called(name)
+	resp, _ := args.Get(0).(*NetworkSpace)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}

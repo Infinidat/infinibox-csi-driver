@@ -47,7 +47,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 	if networkSpace == "" {
 		return 0, fmt.Errorf("_E2E_NETWORK_SPACE env var not set, required")
 	}
-	networkSpaceResponse, err := config.ClientService.GetNetworkSpaceByName(networkSpace)
+	networkSpaceResponse, err := config.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return 0, err
 	}

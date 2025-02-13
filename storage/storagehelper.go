@@ -297,7 +297,7 @@ func validateNFSExportPermissions(scParameters map[string]string) error {
 }
 
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
-func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api api.Client) error {
+func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api iboxapi.Client) error {
 
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")

@@ -277,7 +277,7 @@ func (cs *Commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
 }
 
 func (cs *Commonservice) AddPortForHost(hostID int, portType, portName string) error {
-	_, err := cs.Api.AddHostPort(portType, portName, hostID)
+	_, err := cs.IboxApi.AddHostPort(portType, portName, hostID)
 	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
 		zlog.Error().Msgf("failed to add host port with error %v", err)
 		return err
@@ -286,7 +286,7 @@ func (cs *Commonservice) AddPortForHost(hostID int, portType, portName string) e
 }
 
 func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[string]string) error {
-	_, err := cs.Api.AddHostSecurity(credentials, hostID)
+	_, err := cs.IboxApi.AddHostSecurity(credentials, hostID)
 	if err != nil {
 		zlog.Error().Msgf("failed to add authentication for host %d with error %v", hostID, err)
 		return err
@@ -321,10 +321,11 @@ func (cs *Commonservice) validateHost(hostName string) (*iboxapi.Host, error) {
 				zlog.Error().Msgf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
 				return nil, err
 			}
+		} else {
+			e := fmt.Errorf("validateHost - GetHostByName - hostname %s error %s", hostName, err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, status.Error(codes.Internal, e.Error())
 		}
-		e := fmt.Errorf("validateHost - GetHostByName - hostname %s error %s", hostName, err.Error())
-		zlog.Error().Msg(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	return host, nil
@@ -370,7 +371,7 @@ func (cs *Commonservice) getStoragePoolNameFromID(id int) string {
 }
 
 func (cs *Commonservice) getNetworkSpaceIP(networkSpace string) (string, error) {
-	nspace, err := cs.Api.GetNetworkSpaceByName(networkSpace)
+	nspace, err := cs.IboxApi.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return "", err
 	}

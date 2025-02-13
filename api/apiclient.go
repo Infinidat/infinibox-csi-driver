@@ -31,17 +31,11 @@ import (
 // Client interface
 type Client interface {
 	NewClient() (*ClientService, error)
-	CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error)
 	FindStoragePool(id int, name string) (StoragePool, error)
 	GetStoragePool(poolID int, storagepool string) ([]StoragePool, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
-	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
-	GetAllSnapshots() ([]Volume, error)
-	GetAllVolumes() ([]Volume, error)
 
-	AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error)
-	AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
@@ -119,64 +113,6 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 	return c, nil
 }
 
-// AddHostSecurity - add chap security for host with given details
-func (c *ClientService) AddHostSecurity(chapCreds map[string]string, hostID int) (host Host, err error) {
-	zlog.Trace().Msgf("add chap atuhentication for hostID %d : ", hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "?approved=true"
-	_, err = c.getJSONResponse(http.MethodPut, uri, chapCreds, host)
-	if err != nil {
-		zlog.Error().Msgf("failed to add chap security to host %d with error %v", hostID, err)
-		return host, err
-	}
-	zlog.Trace().Msgf("created chap authentication for host %s: ", host.Name)
-	return host, nil
-}
-
-// AddHostPort - add port for host with given details
-func (c *ClientService) AddHostPort(portType, portAddress string, hostID int) (hostPort HostPort, err error) {
-	zlog.Trace().Msgf("add port for hostID %s %d : ", portAddress, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/ports?approved=true"
-	body := map[string]interface{}{"address": portAddress, "type": portType}
-	_, err = c.getJSONResponse(http.MethodPost, uri, body, &hostPort)
-	if err != nil {
-		if strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-			zlog.Trace().Msgf("Success: No need to add port '%s' to host with ID %d, port already belongs to host", portAddress, hostID)
-			return HostPort{}, nil
-		} else {
-			zlog.Error().Msgf("error adding port '%s' to host with ID %d, error: %+v", portAddress, hostID, err)
-			return hostPort, err
-		}
-	}
-
-	zlog.Trace().Msgf("created host port: %s", hostPort.PortAddress)
-	return hostPort, nil
-}
-
-// CreateVolume : create volume with volume details provided in storage pool provided
-func (c *ClientService) CreateVolume(volume *VolumeParam, storagePoolID int) (*Volume, error) {
-	path := "/api/rest/volumes"
-	zlog.Trace().Msgf("Creating volume in storage pool ID %d of size %d bytes", storagePoolID, volume.VolumeSize)
-
-	volume.PoolId = storagePoolID
-	volumeParameter := make(map[string]interface{})
-	volumeParameter["pool_id"] = volume.PoolId
-	volumeParameter["size"] = volume.VolumeSize
-	volumeParameter["name"] = volume.Name
-	volumeParameter["provtype"] = volume.ProvisionType
-	volumeParameter[common.SC_SSD_ENABLED] = volume.SsdEnabled
-	vol := Volume{}
-	resp, err := c.getJSONResponse(http.MethodPost, path, volumeParameter, &vol)
-	if err != nil {
-		return nil, err
-	}
-	if (Volume{}) == vol {
-		apiresp := resp.(client.ApiResponse)
-		vol, _ = apiresp.Result.(Volume)
-	}
-	zlog.Trace().Msgf("Created Volume with ID %d", vol.ID)
-	return &vol, nil
-}
-
 // FindStoragePool : Find storage pool either by id or name
 func (c *ClientService) FindStoragePool(id int, name string) (StoragePool, error) {
 	zlog.Trace().Msgf("FindStoragePool called with either id %d or name %s", id, name)
@@ -250,31 +186,6 @@ func (c *ClientService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam 
 	}
 	zlog.Trace().Msgf("Created snapshot: %s", snapResp.Name)
 	return &snapResp, nil
-}
-
-// GetNetworkSpaceByName - Get networkspace by name
-func (c *ClientService) GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error) {
-	zlog.Trace().Msgf("Get network space by name: %s", networkSpaceName)
-	netspaces := []NetworkSpace{}
-	path := "api/rest/network/spaces"
-	queryParam := map[string]interface{}{"name": networkSpaceName}
-	resp, err := c.getResponseWithQueryString(path, queryParam, &netspaces)
-
-	if err != nil {
-		zlog.Error().Msgf("unexpected error retrieving network space: %s", networkSpaceName)
-		return nspace, err
-	}
-	if len(netspaces) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		netspaces, _ = apiresp.Result.([]NetworkSpace)
-		return nspace, fmt.Errorf("no such network space: %s", networkSpaceName)
-	}
-
-	if len(netspaces) > 0 {
-		nspace = netspaces[0]
-	}
-	zlog.Trace().Msgf("Got network space: %s", networkSpaceName)
-	return nspace, nil
 }
 
 // UnMapVolumeFromHost - Remove mapping of volume with host
@@ -463,78 +374,4 @@ func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error)
 		return hostconfig, nil
 	}
 	return hostconfig, errors.New("host configuration is not valid")
-}
-
-// GetAllSnapshots method returns all snapshots for volumes and datasets
-func (c *ClientService) GetAllSnapshots() ([]Volume, error) {
-	var err error
-	uriList := []string{
-		"/api/rest/datasets",
-		//"/api/rest/volumes",
-	}
-	allvolumes := make([]Volume, 0)
-
-	for u := 0; u < len(uriList); u++ {
-		queryParam := make(map[string]interface{})
-		queryParam["type"] = "SNAPSHOT"
-		page := 1
-		total_pages := 1 // start with 1, update after first query.
-		for ok := true; ok; ok = page <= total_pages {
-			queryParam["page"] = strconv.Itoa(page)
-			volumes := []Volume{}
-			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &volumes)
-			if err != nil {
-				zlog.Error().Msgf("failed to check GetAllSnapshots %v response: %v", err, resp)
-				return allvolumes, err
-			}
-			apiresp := resp.(client.ApiResponse)
-			zlog.Trace().Msgf("uri %s page %d volumes %d", uriList[u], page, len(volumes))
-
-			allvolumes = append(allvolumes, volumes...)
-			if page == 1 {
-				total_pages = apiresp.MetaData.TotalPages
-			}
-			zlog.Trace().Msgf("total pages %d\n", total_pages)
-			page++
-		}
-	}
-
-	return allvolumes, err
-}
-
-// GetAllVolumes method returns all volumes
-func (c *ClientService) GetAllVolumes() ([]Volume, error) {
-	var err error
-	uriList := []string{
-		"/api/rest/datasets",
-		"/api/rest/volumes",
-	}
-	allvolumes := make([]Volume, 0)
-
-	for u := 0; u < len(uriList); u++ {
-		queryParam := make(map[string]interface{})
-		queryParam["type"] = "MASTER"
-		page := 1
-		total_pages := 1 // start with 1, update after first query.
-		for ok := true; ok; ok = page <= total_pages {
-			queryParam["page"] = strconv.Itoa(page)
-			volumes := []Volume{}
-			resp, err := c.getResponseWithQueryString(uriList[u], queryParam, &volumes)
-			if err != nil {
-				zlog.Error().Msgf("failed to check GetAllVolumes %v response: %v", err, resp)
-				return allvolumes, err
-			}
-			apiresp := resp.(client.ApiResponse)
-			zlog.Trace().Msgf("uri %s page %d volumes %d", uriList[u], page, len(volumes))
-
-			allvolumes = append(allvolumes, volumes...)
-			if page == 1 {
-				total_pages = apiresp.MetaData.TotalPages
-			}
-			zlog.Trace().Msgf("total pages %d\n", total_pages)
-			page++
-		}
-	}
-
-	return allvolumes, err
 }

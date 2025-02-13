@@ -735,7 +735,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			return nil, status.Error(codes.Unavailable, e.Error())
 		}
 
-		snapshots, err := clientsvc.GetAllSnapshots()
+		snapshots, err := clientsvc.Iboxapi.GetAllSnapshots()
 		if err != nil {
 			e := fmt.Errorf("ListSnapshots - GetAllSnapshots - error: %s", err.Error())
 			zlog.Error().Msg(e.Error())
@@ -1058,14 +1058,14 @@ func validateCommonStorageClassParameters(comnserv storage.Commonservice, scPara
 		arrayofNetworkSpaces := strings.Split(networkspace, ",")
 
 		for _, name := range arrayofNetworkSpaces {
-			_, err := comnserv.Api.GetNetworkSpaceByName(name)
+			_, err := comnserv.IboxApi.GetNetworkSpaceByName(name)
 			if err != nil {
 				zlog.Error().Msgf("network space %s is not found on the ibox", name)
 				return err
 			}
 		}
 		// validate network protocol / networkspace compatability
-		if err := storage.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.Api); err != nil {
+		if err := storage.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.IboxApi); err != nil {
 			zlog.Err(err)
 			return err
 		}

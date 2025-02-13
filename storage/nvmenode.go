@@ -532,7 +532,7 @@ func (nvme *nvmestorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 
 	for i := 0; i < len(networkSpaces); i++ {
 		zlog.Debug().Msgf("getting nspace by name: %v", networkSpaces[i])
-		nspace, err := nvme.cs.Api.GetNetworkSpaceByName(networkSpaces[i])
+		nspace, err := nvme.cs.IboxApi.GetNetworkSpaceByName(networkSpaces[i])
 		if err != nil {
 			e := fmt.Errorf("error getting network space: %s error: %v", networkSpaces[i], err)
 			zlog.Error().Msgf("%s", e.Error())

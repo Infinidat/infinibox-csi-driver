@@ -74,11 +74,15 @@ type Client interface {
 	FindStoragePool(id int64, name string) (StoragePool, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
-	GetNetworkSpaceByName(networkSpaceName string) (nspace NetworkSpace, err error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
-	GetAllSnapshots() ([]Volume, error)
 	GetAllVolumes() ([]Volume, error)
 	*/
+
+	// network spaces
+	GetNetworkSpaceByName(networkSpaceName string) (nspace *NetworkSpace, err error)
+
+	// datasets
+	GetAllSnapshots() ([]Volume, error)
 
 	// hosts
 	GetAllHosts() (host []Host, err error)

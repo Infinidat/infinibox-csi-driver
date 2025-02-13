@@ -41,45 +41,6 @@ func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ApiTestSuite))
 }
 
-func (suite *ApiTestSuite) Test_CreateVolume_Fail() {
-	storagePool := []StoragePool{
-		{},
-	}
-	expectedResponse := client.ApiResponse{Result: storagePool}
-
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	expectedError := errors.New("No such pool: test_storage_pool")
-	suite.clientMock.On("Post").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	volume := VolumeParam{
-		Name:       "test_volume",
-		PoolId:     1000,
-		VolumeSize: 1000000000,
-	}
-	_, err := service.CreateVolume(&volume, 100)
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_CreateVolume_Success() {
-	storagePool := []StoragePool{
-		{},
-	}
-	expectedResponse := client.ApiResponse{Result: storagePool}
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	expectedResponse = client.ApiResponse{Result: &Volume{}}
-	suite.clientMock.On("Post").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	volumeparam := VolumeParam{Name: "test_volume", PoolId: 5307, VolumeSize: 1000000000, ProvisionType: "THIN"}
-	response, _ := service.CreateVolume(&volumeparam, 100)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_GetStoragePool_Fail() {
 	expectedError := errors.New("Unable to get given pool")
 	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
@@ -125,29 +86,6 @@ func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Success() {
 
 	snapshotParams := VolumeSnapshot{ParentID: 1001, SnapshotName: "test_volume_resp"}
 	response, _ := service.CreateSnapshotVolume(0, &snapshotParams)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Fail() {
-	expectedError := errors.New("Unable to get given network space by name")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.GetNetworkSpaceByName("test_network_space")
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetNetworkSpaceByName_Success() {
-	expectedResponse := client.ApiResponse{Result: NetworkSpace{}}
-
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	response, _ := service.GetNetworkSpaceByName("test_network_space")
 
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")

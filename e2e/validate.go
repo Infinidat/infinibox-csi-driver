@@ -37,7 +37,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 		if networkSpaceToUse == "" {
 			return fmt.Errorf("%s env var is not set and is required", ENV_NETWORK_SPACE)
 		}
-		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpaceToUse)
+		_, err = testConfig.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpaceToUse)
 		if err != nil {
 			return fmt.Errorf("error getting network space by name %s %w", networkSpaceToUse, err)
 		}
@@ -46,7 +46,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	// validate network space 2 on the ibox if set
 	networkSpace2ToUse := os.Getenv(ENV_NETWORK_SPACE2)
 	if networkSpace2ToUse != "" {
-		_, err = testConfig.ClientService.GetNetworkSpaceByName(networkSpace2ToUse)
+		_, err = testConfig.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpace2ToUse)
 		if err != nil {
 			return fmt.Errorf("error getting network space by name 2 %s %w", networkSpace2ToUse, err)
 		}

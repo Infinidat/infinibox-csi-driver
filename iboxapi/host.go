@@ -411,9 +411,6 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 	if err != nil {
 		return nil, fmt.Errorf("AddHostPort - Unmarshal -error %w", err)
 	}
-	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("AddHostPort - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
-	}
 	return &responseObject, nil
 
 }

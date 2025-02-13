@@ -7,6 +7,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"infinibox-csi-driver/iboxapi"
 	"testing"
 	"time"
 
@@ -18,13 +19,15 @@ import (
 
 func (suite *StorageHelperSuite) SetupTest() {
 	suite.api = new(api.MockApiService)
+	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &Commonservice{Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.cs = &Commonservice{IboxApi: suite.iboxapi, Api: suite.api, AccessModesHelper: suite.accessMock}
 }
 
 type StorageHelperSuite struct {
 	suite.Suite
 	api        *api.MockApiService
+	iboxapi    *iboxapi.MockApiService
 	accessMock *helper.MockAccessModesHelper
 	cs         *Commonservice
 }
@@ -36,19 +39,19 @@ func TestStorageHelperSuite(t *testing.T) {
 // test NFS and TREEQ protocal validate with network space.
 func (suite *StorageHelperSuite) Test_Network_Protocol_Match_NFS_TREEQ_Success() {
 
-	networkSpace := api.NetworkSpace{Service: common.NS_NFS_SVC}
+	networkSpace := &iboxapi.NetworkSpace{Service: common.NS_NFS_SVC}
 	var scProtocol = common.PROTOCOL_NFS
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
 	// validate NFS
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 
 	// validate TREEQ
 	scProtocol = common.PROTOCOL_TREEQ
-	err = ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	err = ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 
 }
@@ -60,9 +63,9 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_Match_ISCSI_Success() {
 
 	// validate ISCSI
 	scProtocol := common.PROTOCOL_ISCSI
-	iNetworkSpace := api.NetworkSpace{Service: common.NS_ISCSI_SVC}
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 }
 
@@ -73,9 +76,9 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_ISCSI_Failure() 
 
 	// validate ISCSI
 	scProtocol := common.PROTOCOL_ISCSI
-	iNetworkSpace := api.NetworkSpace{Service: common.NS_NFS_SVC}
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_NFS_SVC}
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -86,9 +89,9 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_NFS_Failure() {
 
 	// validate ISCSI
 	scProtocol := common.PROTOCOL_NFS
-	iNetworkSpace := api.NetworkSpace{Service: common.NS_ISCSI_SVC}
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -98,9 +101,9 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_FC_ISCSI_Failure
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
 	scProtocol := common.PROTOCOL_FC
-	iNetworkSpace := api.NetworkSpace{Service: common.NS_ISCSI_SVC}
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -110,9 +113,9 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_FC_NFS_Failure()
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
 	scProtocol := common.PROTOCOL_FC
-	networkSpace := api.NetworkSpace{Service: common.NS_ISCSI_SVC}
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	networkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -122,12 +125,12 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_MisMatch_NAMESPACES_Failu
 	scNetSpace := []string{"someiscsiSpace", "someNfsSpace"}
 
 	scProtocol := common.PROTOCOL_ISCSI
-	iscsiNetworkSpace := api.NetworkSpace{Service: common.NS_ISCSI_SVC}
-	nfsNetworkSpace := api.NetworkSpace{Service: common.NS_NFS_SVC}
+	iscsiNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	nfsNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_NFS_SVC}
 
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(iscsiNetworkSpace, nil).Once()
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(nfsNetworkSpace, nil).Once()
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iscsiNetworkSpace, nil).Once()
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(nfsNetworkSpace, nil).Once()
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -136,10 +139,10 @@ func (suite *StorageHelperSuite) Test_Network_Protocol_NFS_NO_NETWORKSPACES_Fail
 
 	scNetSpace := []string{} // no network spaces
 	scProtocol := common.PROTOCOL_FC
-	networkSpace := api.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	networkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
 
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.Api)
+	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxApi)
 	assert.NotNil(suite.T(), err, "Expected non-nil for empty network space list")
 }
 

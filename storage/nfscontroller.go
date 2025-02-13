@@ -151,10 +151,11 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		zlog.Error().Msgf("CreateVolume - GetFileSystemByName pvName %s- error: %s", pvName, err.Error())
 		re, ok := err.(*iboxapi.IboxAPIError)
 		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
-			zlog.Debug().Msgf("CreateVolume - GetFileSystemByName error: %v", err)
-			return nil, status.Errorf(codes.NotFound, "error CreateVolume failed: %v", err)
+			zlog.Debug().Msgf("CreateVolume - GetFileSystemByName error: %v, will proceed to create it", err)
+			//return nil, status.Errorf(codes.NotFound, "error CreateVolume failed: %v", err)
+		} else {
+			return nil, status.Errorf(codes.Internal, "error CreateVolume failed: %v", err)
 		}
-		return nil, status.Errorf(codes.Internal, "error CreateVolume failed: %v", err)
 	}
 	if volume != nil {
 		// return existing volume
