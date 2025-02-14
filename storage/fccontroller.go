@@ -274,7 +274,7 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
 		return nil, status.Errorf(codes.Internal, "error attaching metadata to volume: %s, err: %v", dstVol.Name, err)
 	}
-	zlog.Error().Msgf("Volume (from snap) %s (%s) storage pool %s",
+	zlog.Debug().Msgf("Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
