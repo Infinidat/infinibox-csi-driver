@@ -483,7 +483,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 		volproto.Host, err = comnserv.IboxApi.GetHostByName(hostName)
 		if err != nil {
 			re, ok := err.(*iboxapi.IboxAPIError)
-			if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
 			e := fmt.Errorf("ControllerUnpublishVolume - GetHostByName - error %s", err.Error())

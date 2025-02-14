@@ -969,7 +969,7 @@ func hostCleanup(iboxClient iboxapi.Client, hostID int, hostName string) error {
 		response, err := iboxClient.DeleteHost(hostID)
 		if err != nil {
 			re, ok := err.(*iboxapi.IboxAPIError)
-			if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 				zlog.Debug().Msgf("hostCleanup: will not delete, host not found %d %+v", hostID, response)
 			} else {
 				zlog.Error().Msgf("hostCleanup: failed to delete host with error %v", err)

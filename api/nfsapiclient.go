@@ -385,7 +385,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 		_, err = c.Iboxapi.DeleteExport(ep.ID)
 		if err != nil {
 			re, ok := err.(*iboxapi.IboxAPIError)
-			if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 				err = nil
 			} else {
 				zlog.Error().Msgf("failed to delete export path %v", err)

@@ -305,7 +305,7 @@ func (cs *Commonservice) validateHost(hostName string) (*iboxapi.Host, error) {
 	host, err := cs.IboxApi.GetHostByName(hostName)
 	if err != nil {
 		re, ok := err.(*iboxapi.IboxAPIError)
-		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("Creating host with name: %s", hostName)
 			host, err = cs.IboxApi.CreateHost(hostName)
 			if err != nil {

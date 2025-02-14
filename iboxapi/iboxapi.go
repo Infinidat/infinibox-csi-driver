@@ -29,7 +29,7 @@ const (
 
 var ERROR_CODE_HOST_NOT_FOUND = "HOST_NOT_FOUND"
 
-const IBOXAPI_NOT_FOUND_ERROR = 1
+const IBOXAPI_RESOURCE_NOT_FOUND_ERROR = 1
 
 type IboxAPIError struct {
 	Code int

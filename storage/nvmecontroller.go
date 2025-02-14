@@ -58,7 +58,7 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	targetVol, err := nvme.cs.IboxApi.GetVolumeByName(name)
 	if err != nil {
 		re, ok := err.(*iboxapi.IboxAPIError)
-		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("CreateVolume volume: %s not found, will proceed to create it", req.GetName())
 		} else {
 			zlog.Error().Msgf("CreateVolume - GetVolumeByName - error %s", err.Error())
@@ -462,7 +462,7 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 	volumeSnapshot, err := nvme.cs.IboxApi.GetVolumeByName(snapshotName)
 	if err != nil {
 		re, ok := err.(*iboxapi.IboxAPIError)
-		if ok && re.Code == iboxapi.IBOXAPI_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("Snapshot with name %s not found", snapshotName)
 		} else {
 			zlog.Error().Msgf("CreateSnapshot  - GetVolumeByName - snapshot %s error: %s", snapshotName, err.Error())

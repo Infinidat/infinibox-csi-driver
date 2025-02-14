@@ -118,7 +118,7 @@ func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networ
 		if len(responseObject.Result) > 0 {
 			networkSpace = &responseObject.Result[0]
 		} else {
-			return nil, &IboxAPIError{Code: IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("GetNetworkSpaceByName - netspace name '%s' not found", netspaceName)}
+			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetNetworkSpaceByName - netspace name '%s' not found", netspaceName)}
 		}
 
 		if page == 1 {

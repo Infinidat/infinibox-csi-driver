@@ -158,7 +158,7 @@ func (suite *FCControllerSuite) Test_DeleteVolume_success() {
 func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	createVolReq := getISCSIDeleteRequest()
 
-	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_NOT_FOUND_ERROR, Err: fmt.Errorf("volume not found")}
+	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("volume not found")}
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, notFoundError)
 	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc DeleteVolume already deleted")
