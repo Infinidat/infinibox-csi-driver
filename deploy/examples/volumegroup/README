@@ -1,37 +1,33 @@
 
 ## Install Prereqs
 
-For this we will use the latest external-snapshotter, when you install the external snapshotter (snapshot-controller) on
-your kube system, you will need to make sure to add the volumegroup CRDs to the following external snapshotter configuration
-file:
-	modified:   client/config/crd/kustomization.yaml
+For this we will use the external-snapshotter version 8.2.0.
 
-Make this file look like the following before performing the snapshotter installation:
+
+You have to enable the volume group snapshots feature when you install the external snapshotter
+into your kube cluster.  On some kube distros this has been done for you, check your distro for
+this by looking at the version that is deployed:
 ```
----
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-  - snapshot.storage.k8s.io_volumesnapshotclasses.yaml
-  - snapshot.storage.k8s.io_volumesnapshotcontents.yaml
-  - snapshot.storage.k8s.io_volumesnapshots.yaml
-  - groupsnapshot.storage.k8s.io_volumegroupsnapshotclasses.yaml
-  - groupsnapshot.storage.k8s.io_volumegroupsnapshotcontents.yaml
-  - groupsnapshot.storage.k8s.io_volumegroupsnapshots.yaml
+kubectl -n kube-system get pod
 ```
 
-You also have to enable the feature when the snapshot controller is executed, to do this you
-have to add the feature flag into the container arguments in the following files:
+Verify you have the external snapshotter running, if not, you will need to manually install
+it into your kube cluster.
+
+For a default external-snapshotter install (version 8.2.0), you will need to modify the 
+flags that enable the volume group snapshots feature as follows:
+
+edit the following files:
 	modified:   deploy/kubernetes/csi-snapshotter/setup-csi-snapshotter.yaml
 	modified:   deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml
 
-The flag arguments look like this:
+The flag arguments look like this, notice the feature flags argument:
 ```
         - name: csi-snapshotter
-          image: registry.k8s.io/sig-storage/csi-snapshotter:v8.0.1
+          image: registry.k8s.io/sig-storage/csi-snapshotter:v8.2.0
           args:
             - "--v=5"
-            - "--enable-volume-group-snapshots=true"
+            - "--feature-gates=CSIVolumeGroupSnapshot=true"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=false"
 ```
@@ -40,10 +36,11 @@ and
 
 ```
         - name: snapshot-controller
-          image: registry.k8s.io/sig-storage/snapshot-controller:v8.0.1
+          image: registry.k8s.io/sig-storage/snapshot-controller:v8.2.0
           args:
             - "--v=5"
             - "--leader-election=true"
+	    - "--feature-gates=CSIVolumeGroupSnapshot=true"
             - "--enable-volume-group-snapshots=true"
 
 ```
@@ -58,7 +55,7 @@ Make sure your helm template for the controller has the following flag enabled f
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
-            - "--enable-volume-group-snapshots=true"
+            - "--feature-gates=CSIVolumeGroupSnapshot=true"
 ```
 
 
@@ -115,7 +112,7 @@ spec:
 After a period of time, openshift will configure itself for all the new feature gates and you
 should see the following VolumeGroupSnapshot CRDs installed:
 ```
-10:25:35 ~/infinidat-csi-driver (CSIC-193-ibox-api*) $ oc get crd | grep -i volumegroupsnapshot
+$ oc get crd | grep -i volumegroupsnapshot
 volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io           2024-08-05T15:29:05Z
 volumegroupsnapshotcontents.groupsnapshot.storage.k8s.io          2024-08-05T15:29:05Z
 volumegroupsnapshots.groupsnapshot.storage.k8s.io                 2024-08-05T15:29:05Z
