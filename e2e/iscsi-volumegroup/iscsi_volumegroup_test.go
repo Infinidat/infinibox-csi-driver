@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	v1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
+	"github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -48,7 +48,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 	// create the VolumeGroupSnapshotClass, using the StorageClass name for uniqueness, we also will use
 	// the StorageClass name for the CG name
 	vgcsName := testConfig.TestNames.SCName
-	vgsc := &v1alpha1.VolumeGroupSnapshotClass{
+	vgsc := &v1beta1.VolumeGroupSnapshotClass{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: vgcsName,
 		},
@@ -71,12 +71,12 @@ func TestIscsiVolumeGroup(t *testing.T) {
 
 	// create the VolumeGroupSnapshot
 	const VGSName = "mygroup-volumegroupsnapshot"
-	vgs := &v1alpha1.VolumeGroupSnapshot{
+	vgs := &v1beta1.VolumeGroupSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: VGSName,
 		},
-		Spec: v1alpha1.VolumeGroupSnapshotSpec{
-			Source: v1alpha1.VolumeGroupSnapshotSource{
+		Spec: v1beta1.VolumeGroupSnapshotSpec{
+			Source: v1beta1.VolumeGroupSnapshotSource{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						vgLabelKey: vgLabelValue,

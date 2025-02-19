@@ -7,4 +7,4 @@ driver: infinibox-csi-driver
 parameters:
   csi.storage.k8s.io/group-snapshotter-secret-name: infinibox-creds
   csi.storage.k8s.io/group-snapshotter-secret-namespace: infinidat-csi
-  infinidat.com/cgname: jeff-cg
+  infinidat.com/cgname: dogbert

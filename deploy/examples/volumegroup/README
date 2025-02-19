@@ -1,7 +1,10 @@
 
 ## Install Prereqs
 
-For this we will use the external-snapshotter version 8.2.0.
+For this we will use the external-snapshotter version 8.2.0.  In that version of the 
+snapshotter, it migrated the VolumeGroupSnapshot APIs from v1alpha1 to v1beta1.  The
+CSI driver now supports only v1beta1.  This means users wanting to use VolumeGroupSnapshots
+will need to install external-snapshotter version 8.2.0 or greater.
 
 
 You have to enable the volume group snapshots feature when you install the external snapshotter

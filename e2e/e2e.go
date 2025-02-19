@@ -11,7 +11,7 @@ import (
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
-	groupsnapshotv1alpha1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1beta1"
+	groupsnapshotv1beta1 "github.com/kubernetes-csi/external-snapshotter/client/v8/clientset/versioned/typed/volumegroupsnapshot/v1beta1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	v1 "k8s.io/api/core/v1"
@@ -48,7 +48,7 @@ type TestConfig struct {
 	ClientSet             *kubernetes.Clientset
 	DynamicClient         *dynamic.DynamicClient
 	SnapshotClient        *snapshotv6.Clientset
-	GroupSnapshotClient   *groupsnapshotv1alpha1.GroupsnapshotV1beta1Client
+	GroupSnapshotClient   *groupsnapshotv1beta1.GroupsnapshotV1beta1Client
 	RestConfig            *rest.Config
 	UsePVCVolumeRef       bool
 	UseFsGroup            bool
