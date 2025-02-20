@@ -150,54 +150,6 @@ func (c *ClientService) AddMemberToSnapshotGroup(volumeID int, cgID int) (err er
 
 }
 
-// RemoveMemberFromSnapshotGroup removes a dataset from a consistency group
-func (c *ClientService) RemoveMemberFromSnapshotGroup(volumeID int, cgID int) (err error) {
-	zlog.Trace().Msgf("RemoveMemberFromSnapshotGroup volume ID %d cg ID %d", volumeID, cgID)
-
-	path := fmt.Sprintf("/api/rest/cgs/%s/members/%s?approved=true", strconv.Itoa(cgID), strconv.Itoa(volumeID))
-	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
-	if err != nil {
-		return err
-	}
-	zlog.Trace().Msgf("RemoveMemberFromSnapshotGroup volume ID %d cg %d", volumeID, cgID)
-	return nil
-
-}
-
-// GetAllCG gets all the consistency groups from the ibox
-func (c *ClientService) GetAllCG() (cgInfo []CGInfo, err error) {
-	zlog.Trace().Msg("GetAllCG")
-
-	page := 1
-	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
-	total_pages := 1 // start with 1, update after first query.
-
-	for ok := true; ok; ok = page <= total_pages {
-		uri := fmt.Sprintf("api/rest/cgs?page_size=%s&page=%s", strconv.Itoa(page_size), strconv.Itoa(page))
-
-		resp, err := c.getResponseWithQueryString(uri, nil, &cgInfo)
-
-		if err != nil {
-			zlog.Error().Msgf("failed to get CGs with error %v", err)
-			return cgInfo, err
-		}
-
-		apiresp := resp.(client.ApiResponse)
-		currentResults, _ := apiresp.Result.([]CGInfo)
-		cgInfo = append(cgInfo, currentResults...)
-		responseSize := apiresp.MetaData.NoOfObject
-		zlog.Trace().Msgf("added %d CGs to results", responseSize)
-		if page == 1 {
-			total_pages = apiresp.MetaData.TotalPages
-		}
-		page++
-	}
-
-	zlog.Trace().Msgf("GetAllCG completed with %d results", len(cgInfo))
-	return cgInfo, nil
-
-}
-
 // GetMembersByCGID gets all the datasets for a consistency group by its ID
 func (c *ClientService) GetMembersByCGID(cgID int) (memberInfo []MemberInfo, err error) {
 	zlog.Trace().Msgf("GetMembersByCGID cg ID %d", cgID)

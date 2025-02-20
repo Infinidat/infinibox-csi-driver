@@ -295,14 +295,6 @@ func (m *MockApiService) DeleteExportRule(fileSystemID int, ipAddress string) er
 	return err
 }
 
-// DeleteExportRule
-func (m *MockApiService) GetFileSystemCountByPoolID(poolID int) (int, error) {
-	args := m.Called(poolID)
-	cnt, _ := args.Get(0).(int)
-	err, _ := args.Get(1).(error)
-	return cnt, err
-}
-
 // GetTreeqByName
 func (m *MockApiService) GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error) {
 	args := m.Called(fileSystemID, treeqName)
@@ -414,31 +406,11 @@ func (m *MockApiService) AddMemberToSnapshotGroup(volumeID int, cgID int) error 
 	return err
 }
 
-func (m *MockApiService) RemoveMemberFromSnapshotGroup(volumeID int, cgID int) error {
-	args := m.Called(volumeID, cgID)
-	err, _ := args.Get(0).(error)
-	return err
-}
-
-func (m *MockApiService) GetAllCG() ([]CGInfo, error) {
-	args := m.Called()
-	cgInfo, _ := args.Get(0).([]CGInfo)
-	err, _ := args.Get(1).(error)
-	return cgInfo, err
-}
-
 func (m *MockApiService) GetLinks() ([]Link, error) {
 	args := m.Called()
 	links, _ := args.Get(0).([]Link)
 	err, _ := args.Get(1).(error)
 	return links, err
-}
-
-func (m *MockApiService) GetLink(id int) (*Link, error) {
-	args := m.Called(id)
-	link, _ := args.Get(0).(Link)
-	err, _ := args.Get(1).(error)
-	return &link, err
 }
 
 func (m *MockApiService) CreateReplica(req CreateReplicaRequest) (Replica, error) {

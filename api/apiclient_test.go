@@ -299,29 +299,6 @@ func (suite *ApiTestSuite) Test_GetSnapshotByName_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_RestoreFileSystemFromSnapShot_Fail() {
-	// Test volume snapshot will not be created
-	expectedError := errors.New("Missing parameters")
-	suite.clientMock.On("Post").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.RestoreFileSystemFromSnapShot(1001, 1002)
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_RestoreFileSystemFromSnapShot_Success() {
-	// Test volume snapshot will be created
-	var expectedResponse client.ApiResponse
-	suite.clientMock.On("Post").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	response, _ := service.RestoreFileSystemFromSnapShot(1001, 1002)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), false, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_GetVolumeSnapshotByParentID_Fail() {
 	// Test volume snapshot will not be created
 	expectedError := errors.New("Missing parameters")
@@ -582,25 +559,6 @@ func (suite *ApiTestSuite) Test_DeleteNodeFromExport_update_success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
 	assert.Nil(suite.T(), err, "Error should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_success() {
-	expectedResponse := client.ApiResponse{Result: getFilesystemArry(), MetaData: client.Resultmetadata{NoOfObject: 100}}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	var poolID = 1
-	response, err := service.GetFileSystemCountByPoolID(poolID)
-	assert.Nil(suite.T(), err, "Response should not be nil")
-	assert.Equal(suite.T(), 100, response, "response should be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetFileSystemCountByPoolID_Error() {
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("Get").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	var poolID = 1
-	_, err := service.GetFileSystemCountByPoolID(poolID)
-	assert.NotNil(suite.T(), err, "Response should not be nil")
 }
 
 func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_success() {

@@ -39,13 +39,10 @@ type Client interface {
 	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
 	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (err error)
-	GetLunByVolume(volumeID int) (luninfo []LunInfo, err error)
 
 	// for consistency group (volume group)
 	CreateCG(poolID int, cgName string) (CGInfo, error)
 	AddMemberToSnapshotGroup(volumeID int, cgID int) error
-	RemoveMemberFromSnapshotGroup(volumeID int, cgID int) error
-	GetAllCG() ([]CGInfo, error)
 	GetMembersByCGID(cgID int) ([]MemberInfo, error)
 	GetCG(name string) (CGInfo, error)
 	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
@@ -62,7 +59,6 @@ type Client interface {
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
 	UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
-	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int) (bool, error)
 
 	GetFilesystemTreeqCount(fileSystemID int) (treeqCnt int, err error)
 	CreateTreeq(filesystemID int, treeqParameter map[string]interface{}) (*Treeq, error)
@@ -70,12 +66,10 @@ type Client interface {
 	GetTreeq(fileSystemID, treeqID int) (*Treeq, error)
 	UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error)
 	GetTreeqSizeByFileSystemID(filesystemID int) (int64, error)
-	GetFileSystemCountByPoolID(poolID int) (int, error)
 	GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error)
 
 	// replication
 	CreateReplica(request CreateReplicaRequest) (Replica, error)
-	GetLink(linkID int) (*Link, error)
 	GetLinks() ([]Link, error)
 }
 
@@ -247,33 +241,6 @@ func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInf
 		luninfo = luns[0]
 	}
 	zlog.Trace().Msgf("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
-	return luninfo, nil
-}
-
-// GetLunByVolume - Get all luns for volume id provided
-func (c *ClientService) GetLunByVolume(volumeID int) (luninfo []LunInfo, err error) {
-
-	page := 1
-	page_size := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
-
-	zlog.Trace().Msgf("Get luns for volume %d", volumeID)
-
-	uri := "api/rest/volumes/" + strconv.Itoa(volumeID) + "/luns" + "?page_size=" + strconv.Itoa(page_size) + "&page=" + strconv.Itoa(page)
-
-	resp, err := c.getResponseWithQueryString(uri, nil, &luninfo)
-
-	if err != nil {
-		zlog.Error().Msgf("failed to get luns for volume %d with error %v", volumeID, err)
-		return luninfo, err
-	}
-
-	apiresp := resp.(client.ApiResponse)
-	currentResults, _ := apiresp.Result.([]LunInfo)
-	luninfo = append(luninfo, currentResults...)
-	responseSize := apiresp.MetaData.NoOfObject
-	zlog.Trace().Msgf("added %d items to results", responseSize)
-
-	zlog.Trace().Msgf("got %d Luns for host %d", len(luninfo), volumeID)
 	return luninfo, nil
 }
 

@@ -437,26 +437,6 @@ func (c *ClientService) UpdateFilesystem(fileSystemID int, fileSystem FileSystem
 	return &fileSystemResp, nil
 }
 
-// RestoreFileSystemFromSnapShot :
-func (c *ClientService) RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int) (bool, error) {
-	zlog.Trace().Msgf("Restore filesystem from snapshot with snapshot ID %d", srcSnapShotID)
-	uri := "api/rest/filesystems/" + strconv.Itoa(parentID) + "/restore?approved=true"
-	var result bool
-	body := map[string]interface{}{"source_id": srcSnapShotID}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, body, &result)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while updating filesystem : %s", err)
-		return false, err
-	}
-
-	if !result {
-		apiresp := resp.(client.ApiResponse)
-		result, _ = apiresp.Result.(bool)
-	}
-	zlog.Trace().Msgf("Restored filesystem from snapshot with snapsshot ID %d", srcSnapShotID)
-	return result, nil
-}
-
 func removeIndex(s []Permissions, index int) []Permissions {
 	return append(s[:index], s[index+1:]...)
 }
@@ -477,24 +457,4 @@ func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSna
 	}
 	zlog.Trace().Msgf("Got snapshot %s", snapshotName)
 	return &snapshot, nil
-}
-
-// GetFileSystemCountByPoolID :
-func (c *ClientService) GetFileSystemCountByPoolID(poolID int) (fileSysCnt int, err error) {
-	zlog.Trace().Msgf("Get FileSystem Count")
-	uri := "api/rest/filesystems?pool_id=" + strconv.Itoa(poolID)
-	filesystems := []FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &filesystems)
-	if err != nil {
-		zlog.Error().Msgf("error occured while fetching filesystems : %s ", err)
-		return
-	}
-	apiresp := resp.(client.ApiResponse)
-	metadata := apiresp.MetaData
-	if len(filesystems) == 0 {
-		filesystems, _ = apiresp.Result.([]FileSystem)
-	}
-	zlog.Trace().Msgf("Total number of filesystems: %d", metadata.NoOfObject)
-	fileSysCnt = metadata.NoOfObject
-	return
 }

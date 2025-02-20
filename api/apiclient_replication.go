@@ -285,19 +285,6 @@ func (c *ClientService) DeleteReplica(id int) (err error) {
 	return nil
 }
 
-// GetLink : get link by id
-func (c *ClientService) GetLink(linkid int) (*Link, error) {
-	zlog.Trace().Msgf("GetLink called - ID %d", linkid)
-	link := Link{}
-	path := "/api/rest/links/" + strconv.Itoa(linkid)
-	_, err := c.getJSONResponse(http.MethodGet, path, nil, &link)
-	if err != nil {
-		return nil, err
-	}
-
-	return &link, nil
-}
-
 // GetLinks - get links
 func (c *ClientService) GetLinks() (links []Link, err error) {
 	zlog.Trace().Msgf("GetLinks called")
