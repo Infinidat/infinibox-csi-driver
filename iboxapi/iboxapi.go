@@ -61,6 +61,7 @@ type Error struct {
 type Client interface {
 	// pools
 	GetPoolByName(name string) (*PoolResult, error)
+	GetPoolByID(id int) (*PoolResult, error)
 
 	// volumes
 	DeleteVolume(volumeID int) (*DeleteVolumeResponse, error)
@@ -70,8 +71,6 @@ type Client interface {
 
 	/**
 	NewClient() (*ClientService, error)
-	GetStoragePoolIDByName(name string) (id int64, err error)
-	FindStoragePool(id int64, name string) (StoragePool, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
@@ -119,7 +118,6 @@ type Client interface {
 	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
 
 	// for nfs
-	DeleteFileSystem(fileSystemID int64) (*FileSystem, error)
 	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
 	DetachMetadataFromObject(objectID int64) (*[]Metadata, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
@@ -133,7 +131,6 @@ type Client interface {
 	FileSystemHasChild(fileSystemID int64) bool
 	DeleteExport(exportID int64) (err error)
 	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
-	UpdateFilesystem(fileSystemID int64, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
 
@@ -141,8 +138,11 @@ type Client interface {
 
 	GetFileSystemByName(name string) (*FileSystem, error)
 	GetFileSystemsByPool(poolID int, fsPrefix string) ([]FileSystem, error)
+	GetFileSystemsByParentID(parentID int) ([]FileSystem, error)
 	GetFileSystemByID(fileSystemID int) (*FileSystem, error)
 	CreateFileSystem(request CreateFileSystemRequest) (*FileSystem, error)
+	DeleteFileSystem(fileSystemID int) error
+	UpdateFileSystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
 
 	/**
 	GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt int, err error)

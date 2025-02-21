@@ -282,7 +282,7 @@ func (nfs *nfsstorage) createExportPathAndAddMetadata() (err error) {
 	defer func() {
 		if err != nil && nfs.fileSystemID != 0 {
 			zlog.Debug().Msgf("seems to be some problem reverting filesystem: %s", nfs.pVName)
-			if _, errDelFS := nfs.cs.Api.DeleteFileSystem(nfs.fileSystemID); errDelFS != nil {
+			if errDelFS := nfs.cs.IboxApi.DeleteFileSystem(nfs.fileSystemID); errDelFS != nil {
 				zlog.Error().Msgf("failed to delete file system id: %d %v", nfs.fileSystemID, errDelFS)
 			}
 		}
@@ -447,8 +447,12 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 		return status.Errorf(codes.Aborted, "snapshot %d is locked and can't be deleted till it expires at %s", nfs.uniqueID, time.UnixMilli(fs.LockExpiresAt))
 	}
 
-	hasChild := nfs.cs.Api.FileSystemHasChild(nfs.uniqueID)
-	if hasChild {
+	fileSystems, err := nfs.cs.IboxApi.GetFileSystemsByParentID(nfs.uniqueID)
+	if err != nil {
+		zlog.Error().Msgf("failed to get file systems by parentID %d %v", nfs.uniqueID, err)
+		return err
+	}
+	if len(fileSystems) > 0 {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}
@@ -460,15 +464,14 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 		return
 	}
 
-	parentID := nfs.cs.Api.GetParentID(nfs.uniqueID)
 	err = nfs.cs.Api.DeleteFileSystemComplete(nfs.uniqueID)
 	if err != nil {
-		zlog.Error().Msgf("failed to delete filesystem %s error: %v parentID: %d", nfs.pVName, err, parentID)
+		zlog.Error().Msgf("failed to delete filesystem %s error: %v id: %d parentID: %d", nfs.pVName, err, nfs.uniqueID, fs.ParentID)
 		err = errors.New("error while delete file system")
 	}
 
-	if parentID != 0 {
-		err = nfs.cs.Api.DeleteParentFileSystem(parentID)
+	if fs.ParentID != 0 {
+		err = nfs.cs.Api.DeleteParentFileSystem(fs.ParentID)
 		if err != nil {
 			zlog.Error().Msgf("failed to delete filesystem's %s parent filesystems error: %v", nfs.pVName, err)
 		}
@@ -694,11 +697,11 @@ func (nfs *nfsstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 	}
 
 	// Expand file system size
-	var fileSys api.FileSystem
+	var fileSys iboxapi.FileSystem
 	fileSys.Size = capacity
-	_, err = nfs.cs.Api.UpdateFilesystem(ID, fileSys)
+	_, err = nfs.cs.IboxApi.UpdateFileSystem(ID, fileSys)
 	if err != nil {
-		zlog.Error().Msgf("ControllerExpandVolume - UpdateFilesystem - error: %v", err)
+		zlog.Error().Msgf("ControllerExpandVolume - UpdateFileSystem - error: %v", err)
 		return
 	}
 	return &csi.ControllerExpandVolumeResponse{

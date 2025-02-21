@@ -31,8 +31,6 @@ import (
 // Client interface
 type Client interface {
 	NewClient() (*ClientService, error)
-	FindStoragePool(id int, name string) (StoragePool, error)
-	GetStoragePool(poolID int, storagepool string) ([]StoragePool, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
 	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 
@@ -48,16 +46,12 @@ type Client interface {
 	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
 
 	// for nfs
-	DeleteFileSystem(fileSystemID int) (*FileSystem, error)
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
 	DeleteFileSystemComplete(fileSystemID int) (err error)
 	DeleteParentFileSystem(fileSystemID int) (err error)
-	GetParentID(fileSystemID int) int
-	FileSystemHasChild(fileSystemID int) bool
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
-	UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 
 	GetFilesystemTreeqCount(fileSystemID int) (treeqCnt int, err error)
@@ -105,58 +99,6 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
-}
-
-// FindStoragePool : Find storage pool either by id or name
-func (c *ClientService) FindStoragePool(id int, name string) (StoragePool, error) {
-	zlog.Trace().Msgf("FindStoragePool called with either id %d or name %s", id, name)
-	storagePools, err := c.GetStoragePool(id, name)
-	if err != nil {
-		return StoragePool{}, fmt.Errorf("error getting storage pool %s", err)
-	}
-
-	for _, storagePool := range storagePools {
-		if storagePool.ID == id || storagePool.Name == name {
-			zlog.Trace().Msgf("Got storage pool: %s", storagePool.Name)
-			return storagePool, nil
-		}
-	}
-	return StoragePool{}, errors.New("couldn't find storage pool")
-}
-
-// GetStoragePool : Get storage pool(s) either by id or name
-func (c *ClientService) GetStoragePool(poolID int, storagepoolname string) ([]StoragePool, error) {
-	zlog.Trace().Msgf("GetStoragePool called with either id %d or name %s", poolID, storagepoolname)
-	storagePool := StoragePool{}
-	storagePools := []StoragePool{}
-
-	if storagepoolname == "" && poolID != -1 {
-		resp, err := c.getJSONResponse(http.MethodGet, "/api/rest/pools", nil, &storagePools)
-		if err != nil {
-			return nil, err
-		}
-		if len(storagePools) == 0 {
-			apiresp := resp.(client.ApiResponse)
-			storagePools, _ = apiresp.Result.([]StoragePool)
-		}
-	} else {
-		queryParam := make(map[string]interface{})
-		if poolID != -1 {
-			queryParam["id"] = poolID
-		} else {
-			queryParam["name"] = storagepoolname
-		}
-		storagePool := StoragePool{}
-		_, err := c.getResponseWithQueryString("api/rest/pools", queryParam, &storagePool)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if storagepoolname != "" {
-		storagePools = append(storagePools, storagePool)
-	}
-	return storagePools, nil
 }
 
 // CreateSnapshotVolume : Create volume from snapshot

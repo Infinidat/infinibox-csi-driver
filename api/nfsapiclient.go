@@ -25,24 +25,6 @@ import (
 	"strings"
 )
 
-// DeleteFileSystem :
-func (c *ClientService) DeleteFileSystem(fileSystemID int) (*FileSystem, error) {
-	zlog.Trace().Msgf("Delete filesystem with ID %d", fileSystemID)
-	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "?approved=true"
-	fileSystem := FileSystem{}
-	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &fileSystem)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while deleting file System : %s ", err)
-		return nil, err
-	}
-	if fileSystem == (FileSystem{}) {
-		apiresp := resp.(client.ApiResponse)
-		fileSystem, _ = apiresp.Result.(FileSystem)
-	}
-	zlog.Trace().Msgf("Deleted filesystem with ID %d", fileSystemID)
-	return &fileSystem, nil
-}
-
 // AttachMetadataToObject :
 func (c *ClientService) AttachMetadataToObject(objectID int, body map[string]interface{}) (*[]Metadata, error) {
 	zlog.Trace().Msgf("Attach metadata: %v to object id: %d", body, objectID)
@@ -294,44 +276,10 @@ func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotPa
 	return &snapShotResponse, nil
 }
 
-// FileSystemHasChild method return true is the filesystemID has child else false
-func (c *ClientService) FileSystemHasChild(fileSystemID int) bool {
-	hasChild := false
-	voluri := "/api/rest/filesystems/"
-	filesystem := []FileSystem{}
-	queryParam := make(map[string]interface{})
-	queryParam["parent_id"] = fileSystemID
-	resp, err := c.getResponseWithQueryString(voluri, queryParam, &filesystem)
-	if err != nil {
-		zlog.Error().Msgf("failed to check FileSystemHasChild %v", err)
-		return hasChild
-	}
-	if len(filesystem) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		filesystem, _ = apiresp.Result.([]FileSystem)
-	}
-	if len(filesystem) > 0 {
-		hasChild = true
-	}
-	return hasChild
-}
-
 const (
 	// TOBEDELETED status
 	TOBEDELETED = "host.k8s.to_be_deleted"
 )
-
-// GetParentID method return the
-func (c *ClientService) GetParentID(fileSystemID int) int {
-	zlog.Trace().Msgf("Get parent of file system with ID %d", fileSystemID)
-	fileSystem, err := c.Iboxapi.GetFileSystemByID(fileSystemID)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while getting file system: %s", err)
-		return 0
-	}
-	zlog.Trace().Msgf("Got parent of file system with ID %d", fileSystemID)
-	return fileSystem.ParentID
-}
 
 // DeleteParentFileSystem method delete the ascenders of fileystem
 func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { // delete fileystem's parent ID
@@ -349,20 +297,30 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { /
 		}
 	}
 
-	// first check .. hasChild ...
-	hasChild := c.FileSystemHasChild(fileSystemID)
-	if !hasChild && toBeDeleted { // If No child and to_be_delete_status =true in metadata then
-		parentID := c.GetParentID(fileSystemID)        // get the parentID .. before delete
+	childFileSystems, err := c.Iboxapi.GetFileSystemsByParentID(fileSystemID)
+	if err != nil {
+		zlog.Error().Msgf("Failed to get filesystem with parent ID %d: %v", fileSystemID, err)
+		return err
+	}
+
+	if len(childFileSystems) == 0 && toBeDeleted { // If No child and to_be_delete_status =true in metadata then
+
+		// get the filesystem before deleting so we can recall the ParentID
+		fs, err := c.Iboxapi.GetFileSystemByID(fileSystemID)
+		if err != nil {
+			zlog.Error().Msgf("Failed to get filesystem with ID %d: %v", fileSystemID, err)
+			return err
+		}
 		err = c.DeleteFileSystemComplete(fileSystemID) // delete the filesystem
 		if err != nil {
 			zlog.Error().Msgf("Failed to delete filesystem with ID %d: %v", fileSystemID, err)
-			return
+			return err
 		}
-		if parentID != 0 {
-			err = c.DeleteParentFileSystem(parentID)
+		if fs.ParentID != 0 {
+			err = c.DeleteParentFileSystem(fs.ParentID)
 			if err != nil {
 				zlog.Error().Msgf("Failed to delete parent filesystem with parent ID %d: %v", fileSystemID, err)
-				return
+				return err
 			}
 		}
 	}
@@ -409,32 +367,12 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 
 	// 3. delete file system
 	zlog.Trace().Msgf("delete FileSystem FileSystemID %d", fileSystemID)
-	_, err = c.DeleteFileSystem(fileSystemID)
+	err = c.Iboxapi.DeleteFileSystem(fileSystemID)
 	if err != nil {
 		zlog.Error().Msgf("failed to delete filesystem %v", err)
 		return
 	}
 	return
-}
-
-// UpdateFilesystem : update file system
-func (c *ClientService) UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error) {
-	zlog.Trace().Msgf("Update filesystem with ID %d", fileSystemID)
-	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID)
-	fileSystemResp := FileSystem{}
-
-	resp, err := c.getJSONResponse(http.MethodPut, uri, fileSystem, &fileSystemResp)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while updating filesystem : %s", err)
-		return nil, err
-	}
-
-	if fileSystem == (FileSystem{}) {
-		apiresp := resp.(client.ApiResponse)
-		fileSystemResp, _ = apiresp.Result.(FileSystem)
-	}
-	zlog.Trace().Msgf("Updated filesystem with ID %d", fileSystemID)
-	return &fileSystemResp, nil
 }
 
 func removeIndex(s []Permissions, index int) []Permissions {

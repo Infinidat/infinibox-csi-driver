@@ -84,21 +84,6 @@ func (m *MockApiService) CreateTreeq(filesystemID int, treeqParameter map[string
 	return &resp, err
 }
 
-// UpdateFilesystem
-func (m *MockApiService) UpdateFilesystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error) {
-	args := m.Called(fileSystemID, fileSystem)
-	var filessy FileSystem
-	if args.Get(0) != nil {
-		filessy, _ = args.Get(0).(FileSystem)
-	}
-
-	var err error
-	if args.Get(1) != nil {
-		err, _ = args.Get(1).(error)
-	}
-	return &filessy, err
-}
-
 func (m *MockApiService) DeleteFileSystem(fileSystemID int) (*FileSystem, error) {
 	args := m.Called(fileSystemID)
 	var filessy FileSystem
@@ -222,20 +207,6 @@ func (m *MockApiService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotP
 	return &resp, err
 }
 
-// FileSystemHasChild
-func (m *MockApiService) FileSystemHasChild(fileSystemID int) bool {
-	args := m.Called(fileSystemID)
-	err, _ := args.Get(0).(bool)
-	return err
-}
-
-// GetParentID
-func (m *MockApiService) GetParentID(fileSystemID int) int {
-	args := m.Called(fileSystemID)
-	resp, _ := args.Get(0).(int)
-	return resp
-}
-
 // DeleteFileSystemComplete
 func (m *MockApiService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	args := m.Called(fileSystemID)
@@ -312,25 +283,6 @@ func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolID int) (*
 	}
 	err, _ := args.Get(1).(error)
 	return &vol, err
-}
-
-// FindStoragePool
-func (m *MockApiService) FindStoragePool(id int, name string) (StoragePool, error) {
-	args := m.Called(id, name)
-	var storage StoragePool
-	if args.Get(0) != nil {
-		storage, _ = args.Get(0).(StoragePool)
-	}
-	err, _ := args.Get(1).(error)
-	return storage, err
-}
-
-// GetStoragePool
-func (m *MockApiService) GetStoragePool(poolID int, storagepoolname string) ([]StoragePool, error) {
-	args := m.Called(poolID, storagepoolname)
-	storageArry, _ := args.Get(0).([]StoragePool)
-	err, _ := args.Get(1).(error)
-	return storageArry, err
 }
 
 // CreateSnapshotVolume

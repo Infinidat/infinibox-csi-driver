@@ -41,31 +41,6 @@ func TestServiceTestSuite(t *testing.T) {
 	suite.Run(t, new(ApiTestSuite))
 }
 
-func (suite *ApiTestSuite) Test_GetStoragePool_Fail() {
-	expectedError := errors.New("Unable to get given pool")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.GetStoragePool(1001, "test_storage_pool")
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetStoragePool_Success() {
-	storagePool := []StoragePool{
-		{},
-	}
-	expectedResponse := client.ApiResponse{Result: storagePool}
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	response, _ := service.GetStoragePool(1001, "test_storage_pool")
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_CreateSnapshotVolume_Fail() {
 	expectedError := errors.New("Missing parameters")
 	suite.clientMock.On("Post").Return(nil, expectedError)
@@ -114,32 +89,6 @@ func (suite *ApiTestSuite) Test_MapVolumeToHost_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_UpdateFilesystem_Fail() {
-	// Test volume snapshot will not be created
-	expectedError := errors.New("Missing parameters")
-	suite.clientMock.On("Put").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	fileSystem := FileSystem{}
-	_, err := service.UpdateFilesystem(1001, fileSystem)
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_UpdateFilesystem_Success() {
-	// Test volume snapshot will be created
-	expectedResponse := client.ApiResponse{Result: &FileSystem{}}
-
-	suite.clientMock.On("Put").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	fileSystem := FileSystem{Size: 100}
-	response, _ := service.UpdateFilesystem(1001, fileSystem)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
 func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Fail() {
 	// Test volume snapshot will not be created
 	expectedError := errors.New("Missing parameters")
@@ -173,29 +122,6 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_DeleteFileSystem_Fail() {
-	// Test volume snapshot will not be created
-	expectedError := errors.New("Missing parameters")
-	suite.clientMock.On("Delete").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	_, err := service.DeleteFileSystem(1001)
-
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedError, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_DeleteFileSystem_Success() {
-	expectedResponse := client.ApiResponse{Result: &FileSystem{ID: 0, PoolID: 0, Name: "", SsdEnabled: false, Provtype: "", Size: 0, ParentID: 0, PoolName: "", CreatedAt: 0}}
-	suite.clientMock.On("Delete").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	response, _ := service.DeleteFileSystem(1001)
-
-	assert.NotNil(suite.T(), response, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
-// ****************************************
 func (suite *ApiTestSuite) Test_GetFilesystemTreeqCount_error() {
 	expectedError := errors.New("some error")
 	suite.clientMock.On("Get").Return(nil, expectedError)
@@ -367,28 +293,6 @@ func (suite *ApiTestSuite) Test_UpdateTreeq_fail() {
 	_, err := service.UpdateTreeq(FilesystemID, treeqID, body)
 	assert.NotNil(suite.T(), err, "Error should not be nil")
 	assert.Equal(suite.T(), expectedErr, err, "Error not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_FileSystemHasChild_success() {
-	var FilesystemID = 3111
-	fileSysArry := []FileSystem{
-		{ID: 3111},
-	}
-
-	expectedResponse := client.ApiResponse{Result: fileSysArry}
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	status := service.FileSystemHasChild(FilesystemID)
-	assert.True(suite.T(), status)
-}
-
-func (suite *ApiTestSuite) Test_FileSystemHasChild_Error() {
-	var FilesystemID = 3111
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	status := service.FileSystemHasChild(FilesystemID)
-	assert.False(suite.T(), status)
 }
 
 func (suite *ApiTestSuite) Test_AddNodeInExport_Error() {

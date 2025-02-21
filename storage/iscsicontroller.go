@@ -236,7 +236,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	// Check the storagePool is the same.
 	pool, err := iscsi.cs.IboxApi.GetPoolByName(storagePool)
 	if err != nil {
-		e := fmt.Errorf("error GetStoragePoolIDByName name: %s error: %v", storagePool, err)
+		e := fmt.Errorf("error GetStoragePoolName name: %s error: %v", storagePool, err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}

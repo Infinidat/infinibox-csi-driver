@@ -60,8 +60,6 @@ func TestTreeqServiceSuite(t *testing.T) {
 }
 
 func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_maxfilesystem() {
-	expectedErr := errors.New("some error")
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(0, expectedErr)
 	nfs := nfsstorage{capacity: 209951162777600}
 	service := &TreeqService{
 		cs:         *suite.cs,
@@ -72,8 +70,6 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_maxfilesystem() {
 }
 
 func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() {
-	poolID := 10
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	nfs := nfsstorage{capacity: 209951162777600}
 	service := TreeqService{cs: *suite.cs, nfsstorage: nfs}
 	configmap := map[string]string{
@@ -87,8 +83,6 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() 
 
 func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FileSystemByPoolID_error() {
 	expectedErr := errors.New("some error")
-	poolID := 10
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.iboxapi.On("GetFileSystemsByPool", mock.Anything, mock.Anything).Return(nil, expectedErr)
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
 	service := TreeqService{cs: *suite.cs}
@@ -99,8 +93,6 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FileSystemByPoolID_
 func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeqCount_error() {
 	expectedErr := errors.New("some error")
 	fsMetada := getfsMetadata2()
-	poolID := 10
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.iboxapi.On("GetFileSystemsByPool", mock.Anything, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(0, expectedErr)
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
@@ -114,7 +106,6 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_Success() {
 	fsMetada := getfsMetadata()
 	poolID := 10
 	fsID := 10
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.iboxapi.On("GetFileSystemsByPool", mock.Anything, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(1, nil)
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
@@ -162,7 +153,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_Success() {
 	metadataResp := getMetadaResponse()
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(*metadataResp, nil)
 
-	suite.api.On("UpdateFilesystem", fsID, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("UpdateFileSystem", fsID, mock.Anything).Return(nil, nil)
 	service := TreeqService{cs: *suite.cs}
 
 	// CreateVolumeRequest parameter values to filesystemService
@@ -185,7 +176,6 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Error() {
 	}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&pool, nil)
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.iboxapi.On("GetFileSystemsByPool", poolID, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(0, expectedErr)
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
@@ -217,7 +207,6 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowe
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&pool, nil)
 	expectedErr := errors.New("some error")
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.iboxapi.On("GetFileSystemsByPool", poolID, mock.Anything).Return(fsMetada, nil)
 	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(0, expectedErr)
 	suite.iboxapi.On("CreateFileSystem", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
@@ -275,7 +264,6 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Error() 
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&pool, nil)
 
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(getnetworkspace(), nil)
-	suite.api.On("GetStoragePoolIDByName", mock.Anything).Return(poolID, nil)
 	suite.iboxapi.On("GetFileSystemsByPool", poolID, mock.Anything).Return(fsMetada, nil)
 	suite.iboxapi.On("CreateFileSystem", mock.Anything).Return(getFileSystem, nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(nil, expectedErr)
@@ -512,7 +500,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error(
 	assert.Nil(suite.T(), err, "Response not returned as expected")
 }
 
-func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() {
+func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateFileSystem_error() {
 	var filesytemID, treeqID = 100, 200
 	var capacity, treeqSize int64 = common.BytesInOneGibibyte, 200
 	maxSize := "3gib"
@@ -523,7 +511,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateFilesystem_error() 
 	suite.iboxapi.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
 	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
 	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(treeqSize, nil)
-	suite.api.On("UpdateFilesystem", filesytemID, mock.Anything).Return(nil, expectedErr)
+	suite.iboxapi.On("UpdateFileSystem", filesytemID, mock.Anything).Return(nil, expectedErr)
 	service := TreeqService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
@@ -541,7 +529,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() {
 	suite.iboxapi.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
 	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
 	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(treeqSize, nil)
-	suite.api.On("UpdateFilesystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
+	suite.iboxapi.On("UpdateFileSystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
 	suite.api.On("UpdateTreeq", filesytemID, treeqID, body).Return(nil, expectedErr)
 	service := TreeqService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
@@ -561,7 +549,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_Success() {
 	suite.iboxapi.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
 	suite.api.On("GetTreeq", filesytemID, treeqID).Return(*expectedResponse, nil)
 	suite.api.On("GetTreeqSizeByFileSystemID", filesytemID).Return(treeqSize, nil)
-	suite.api.On("UpdateFilesystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
+	suite.iboxapi.On("UpdateFileSystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
 	suite.api.On("UpdateTreeq", filesytemID, treeqID, body).Return(expectedResponse, nil)
 	service := TreeqService{cs: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)

@@ -9,6 +9,12 @@ import (
 	"strconv"
 )
 
+type GetPoolByIDResponse struct {
+	Metadata Metadata   `json:"metadata"`
+	Result   PoolResult `json:"result"`
+	Error    Error      `json:"error"`
+}
+
 type GetPoolByNameResponse struct {
 	Metadata Metadata     `json:"metadata"`
 	Result   []PoolResult `json:"result"`
@@ -97,4 +103,41 @@ func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err 
 	}
 
 	return pool, nil
+}
+
+func (iboxClient *IboxClient) GetPoolByID(id int) (pool *PoolResult, err error) {
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/pools", id)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetPoolByID", "URL", url, "id", id)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("GetPoolByID - NewRequest - error %w", err)
+	}
+
+	SetAuthHeader(req, iboxClient.Creds)
+
+	resp, err := iboxClient.HttpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GetPoolByID - Do - error %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("GetPoolByID - ReadAll - error %w", err)
+	}
+	var responseObject GetPoolByIDResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("GetPoolByID - Unmarshal - error %w", err)
+	}
+
+	if responseObject.Error.Code == "POOL_NOT_FOUND" {
+		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetPoolByID - pool '%d' not found", id)}
+	}
+
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("GetPoolByID - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
+
+	return &responseObject.Result, nil
 }

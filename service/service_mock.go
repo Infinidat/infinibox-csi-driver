@@ -40,13 +40,6 @@ func (m *MockClient) DeleteVolume(volumeId int) error {
 	return err
 }
 
-func (m *MockClient) GetStoragePoolIDByName(name string) (id int64, err error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(int64)
-	err, _ = args.Get(1).(error)
-	return resp, err
-}
-
 func (m *MockClient) GetVolume(volumeid int) ([]api.Volume, error) {
 	args := m.Called()
 	resp, _ := args.Get(0).([]api.Volume)
@@ -57,21 +50,6 @@ func (m *MockClient) GetVolume(volumeid int) ([]api.Volume, error) {
 func (m *MockClient) FindVolumeID(volumename string) (int, error) {
 	args := m.Called()
 	resp, _ := args.Get(0).(int)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-func (m *MockClient) GetStoragePool(poolId int64,
-	storagepoolname string) ([]api.StoragePool, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).([]api.StoragePool)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-func (m *MockClient) FindStoragePool(id int64, name string) (api.StoragePool, error) {
-	args := m.Called()
-	resp, _ := args.Get(0).(api.StoragePool)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }

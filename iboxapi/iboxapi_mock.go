@@ -36,6 +36,13 @@ func (m *MockApiService) GetPoolByName(name string) (*PoolResult, error) {
 	return resp, err
 }
 
+func (m *MockApiService) GetPoolByID(id int) (*PoolResult, error) {
+	args := m.Called(id)
+	resp, _ := args.Get(0).(*PoolResult)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
 func (m *MockApiService) GetHostByName(name string) (*Host, error) {
 	args := m.Called(name)
 	resp, _ := args.Get(0).(*Host)
@@ -185,6 +192,12 @@ func (m *MockApiService) GetFileSystemsByPool(poolID int, fsPrefix string) ([]Fi
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+func (m *MockApiService) GetFileSystemsByParentID(parentID int) ([]FileSystem, error) {
+	args := m.Called(parentID)
+	resp, _ := args.Get(0).([]FileSystem)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
 
 func (m *MockApiService) GetNtpStatus() ([]NtpStatus, error) {
 	args := m.Called()
@@ -212,4 +225,17 @@ func (m *MockApiService) GetNetworkSpaceByName(name string) (*NetworkSpace, erro
 	resp, _ := args.Get(0).(*NetworkSpace)
 	err, _ := args.Get(1).(error)
 	return resp, err
+}
+
+func (m *MockApiService) DeleteFileSystem(fsID int) error {
+	args := m.Called(fsID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+
+func (m *MockApiService) UpdateFileSystem(fsID int, fs FileSystem) (*FileSystem, error) {
+	args := m.Called(fsID, fs)
+	res, _ := args.Get(0).(FileSystem)
+	err, _ := args.Get(1).(error)
+	return &res, err
 }

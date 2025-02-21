@@ -359,7 +359,7 @@ func (cs *Commonservice) getStoragePoolNameFromID(id int) string {
 	zlog.Debug().Msgf("getStoragePoolNameFromID called with storagepoolid %d", id)
 	storagePoolName := cs.storagePoolIdName[id]
 	if storagePoolName == "" {
-		pool, err := cs.Api.FindStoragePool(id, "")
+		pool, err := cs.IboxApi.GetPoolByID(id)
 		if err == nil {
 			storagePoolName = pool.Name
 			cs.storagePoolIdName[id] = pool.Name

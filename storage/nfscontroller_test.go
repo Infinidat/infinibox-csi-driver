@@ -80,7 +80,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	suite.iboxapi.On("CreateFileSystem", mock.Anything).Return(getFileSystem(), nil)
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(getExportPath(), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(&iboxapi.Export{}, nil)
-	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
+	suite.iboxapi.On("DeleteFileSystem", mock.Anything).Return(nil)
 	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -161,7 +161,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(getExportPath(), nil)
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&pool, nil)
-	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
+	suite.iboxapi.On("DeleteFileSystem", mock.Anything).Return(nil)
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkSpace(), nil)
 	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("not found")}
 	suite.iboxapi.On("GetFileSystemByName", mock.Anything).Return(nil, notFoundError)
@@ -264,7 +264,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() 
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(nil, suite.someError)
-	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
+	suite.iboxapi.On("DeleteFileSystem", mock.Anything).Return(nil)
 
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err.Error(), "failed to get export path")
@@ -285,7 +285,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
-	suite.api.On("DeleteFileSystem", mock.Anything).Return(nil)
+	suite.iboxapi.On("DeleteFileSystem", mock.Anything).Return(nil)
 	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
 
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
@@ -349,51 +349,51 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_failed() {
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_VolumeID_empty() {
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(""))
 	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume Volume ID missing in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_InvalidVolumeID() {
 	volumeID := "10x"
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume invalid Volume ID in request")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error() {
 	fileSystemID := "100#"
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
 	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume update file system")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_Error_filenotfound() {
 	fileSystemID := "100#"
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(mock.Anything, suite.someError)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
 	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume update volume")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success() {
 	fileSystemID := "100#"
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(mock.Anything, nil)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(mock.Anything, nil)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
 	assert.Nil(suite.T(), err, "expected to succeed: NfsControllerExpandVolume UpdateVolume")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_UpdateVolume_Error() {
 	fileSystemID := "100"
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(nil, suite.someError)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume UpdateFilesystem")
+	assert.NotNil(suite.T(), err, "expected to fail: NfsControllerExpandVolume UpdateFileSystem")
 }
 
 func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success_expand() {
 	fileSystemID := "100"
-	suite.api.On("UpdateFilesystem", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("UpdateFileSystem", mock.Anything, mock.Anything).Return(nil, nil)
 	_, err := suite.service.ControllerExpandVolume(context.Background(), getNfsExpandVolumeRequest(fileSystemID))
-	assert.Nil(suite.T(), err, "expected to succeed: NfsControllerExpandVolume UpdateFilesystem")
+	assert.Nil(suite.T(), err, "expected to succeed: NfsControllerExpandVolume UpdateFileSystem")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_GetSnapshot_Error() {
@@ -509,9 +509,9 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_Success() {
 		"host.k8s.to_be_deleted": true,
 	}
 	suite.iboxapi.On("GetFileSystemByID", snapshotID).Return(fileSystem, nil)
-	suite.api.On("FileSystemHasChild", snapshotID).Return(true)
+	suite.iboxapi.On("GetFileSystemsByParentID", snapshotID).Return(mock.Anything, nil)
 	suite.iboxapi.On("PutMetadata", snapshotID, metadata).Return(nil, nil)
-	suite.api.On("GetParentID", snapshotID).Return(parentID)
+	suite.iboxapi.On("GetFileSystemByID", snapshotID).Return(fileSystem, nil)
 	suite.api.On("DeleteFileSystemComplete", snapshotID).Return(nil)
 	suite.api.On("DeleteParentFileSystem", parentID).Return(nil)
 	err := suite.service.DeleteNFSVolume()
@@ -535,8 +535,9 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Error() {
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_Metadata_failed() {
 	delValReq := getNFSDeleteRequest()
+	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(suite.someError)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
-	suite.api.On("FileSystemHasChild", mock.Anything).Return(true)
+	suite.iboxapi.On("GetFileSystemsByParentID", mock.Anything).Return(mock.Anything, nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 
 	_, err := suite.service.DeleteVolume(context.Background(), delValReq)
@@ -545,11 +546,14 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Metadata_failed() {
 
 func (suite *NFSControllerSuite) Test_DeleteVolume_delete_Error() {
 	delValReq := getNFSDeleteRequest()
-	parentID := 0
+	fs := &iboxapi.FileSystem{
+		ParentID: 0,
+	}
+	emptyFileSystems := make([]iboxapi.FileSystem, 0)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
-	suite.api.On("FileSystemHasChild", mock.Anything).Return(false)
+	suite.iboxapi.On("GetFileSystemsByParentID", mock.Anything).Return(emptyFileSystems, nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
-	suite.api.On("GetParentID", mock.Anything).Return(parentID)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(fs, nil)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(suite.someError)
 
 	_, err := suite.service.DeleteVolume(context.Background(), delValReq)
@@ -559,11 +563,13 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_delete_Error() {
 func (suite *NFSControllerSuite) Test_DeleteVolume_Err2() {
 	delValReq := getNFSDeleteRequest()
 
-	parentID := 11
-	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
-	suite.api.On("FileSystemHasChild", mock.Anything).Return(false)
+	fs := &iboxapi.FileSystem{
+		ParentID: 11,
+	}
+	emptyFileSystems := make([]iboxapi.FileSystem, 0)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(fs, nil)
+	suite.iboxapi.On("GetFileSystemsByParentID", mock.Anything).Return(emptyFileSystems, nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
-	suite.api.On("GetParentID", mock.Anything).Return(parentID)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(nil)
 	suite.api.On("DeleteParentFileSystem", mock.Anything).Return(suite.someError)
 
@@ -574,11 +580,10 @@ func (suite *NFSControllerSuite) Test_DeleteVolume_Err2() {
 func (suite *NFSControllerSuite) Test_DeleteVolume_success() {
 	delValReq := getNFSDeleteRequest()
 
-	var parentID int = 11
+	emptyFileSystems := make([]iboxapi.FileSystem, 0)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
-	suite.api.On("FileSystemHasChild", mock.Anything).Return(false)
+	suite.iboxapi.On("GetFileSystemsByParentID", mock.Anything).Return(emptyFileSystems, nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
-	suite.api.On("GetParentID", mock.Anything).Return(parentID)
 	suite.api.On("DeleteFileSystemComplete", mock.Anything).Return(nil)
 	suite.api.On("DeleteParentFileSystem", mock.Anything).Return(nil)
 

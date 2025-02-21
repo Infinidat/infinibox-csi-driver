@@ -323,9 +323,9 @@ func (ts *TreeqService) CreateTreeqVolume(storageClassParameters map[string]stri
 
 	// if new file system is created ,while creating the treeq, then not need to update size
 	if filesys != nil {
-		var updateFileSys api.FileSystem
+		var updateFileSys iboxapi.FileSystem
 		updateFileSys.Size = filesys.Size + ts.nfsstorage.capacity
-		_, updateFileSizeErr := ts.cs.Api.UpdateFilesystem(filesystemID, updateFileSys)
+		_, updateFileSizeErr := ts.cs.IboxApi.UpdateFileSystem(filesystemID, updateFileSys)
 		if updateFileSizeErr != nil {
 			zlog.Error().Msgf("failed to update File Size %v", err)
 			err = errors.New("failed to update files size")
@@ -493,7 +493,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID int, capacity i
 
 	needToIncreaseSize := capacity - treeq.HardCapacity
 	if totalTreeqSize+needToIncreaseSize > fileSystemResponse.Size {
-		var fileSys api.FileSystem
+		var fileSys iboxapi.FileSystem
 		freeSpace := fileSystemResponse.Size - totalTreeqSize
 		increaseFileSizeBy := needToIncreaseSize - freeSpace
 		fileSys.Size = fileSystemResponse.Size + increaseFileSizeBy
@@ -512,7 +512,7 @@ func (svc *TreeqService) UpdateTreeqVolume(filesystemID, treeqID int, capacity i
 		}
 
 		// Expand file system size
-		_, err = svc.cs.Api.UpdateFilesystem(filesystemID, fileSys)
+		_, err = svc.cs.IboxApi.UpdateFileSystem(filesystemID, fileSys)
 		if err != nil {
 			zlog.Error().Msgf("failed to update file system %v", err)
 			return err
