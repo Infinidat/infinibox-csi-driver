@@ -391,8 +391,6 @@ func (iboxClient *IboxClient) CreateSnapshotVolume(lockExpiresAt int64, req Crea
 	if lockExpiresAt > 0 {
 		values := request.URL.Query()
 		values.Add("approved", "true")
-		//lockString := fmt.Sprintf("%d", lockExpiresAt)
-		//values.Add("lock_expires_at", lockString)
 		request.URL.RawQuery = values.Encode()
 	}
 
