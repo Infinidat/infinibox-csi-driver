@@ -68,22 +68,6 @@ func (m *MockApiClient) GetWithQueryString(ctx context.Context, url string, host
 	return resp, err
 }
 
-// GetFilesystemTreeqCount mock
-func (m *MockApiService) GetFilesystemTreeqCount(filesystemID int) (int, error) {
-	args := m.Called(filesystemID)
-	resp, _ := args.Get(0).(int)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-// CreateTreeq mock
-func (m *MockApiService) CreateTreeq(filesystemID int, treeqParameter map[string]interface{}) (*Treeq, error) {
-	args := m.Called(filesystemID, treeqParameter)
-	resp, _ := args.Get(0).(Treeq)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 func (m *MockApiService) DeleteFileSystem(fileSystemID int) (*FileSystem, error) {
 	args := m.Called(fileSystemID)
 	var filessy FileSystem
@@ -114,42 +98,10 @@ func (m *MockApiService) DeleteExportPath(fileSystemID int) (*ExportResponse, er
 	return &resp, err
 }
 
-// GetTreeq
-func (m *MockApiService) GetTreeq(fileSystemID, treeqID int) (*Treeq, error) {
-	args := m.Called(fileSystemID, treeqID)
-	resp, _ := args.Get(0).(Treeq)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
-// DeleteTreeq
-func (m *MockApiService) DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error) {
-	args := m.Called(fileSystemID, treeqID)
-	resp, _ := args.Get(0).(Treeq)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // GetNetworkSpaceByName
 func (m *MockApiService) GetNetworkSpaceByName(networkSpaceName string) (NetworkSpace, error) {
 	args := m.Called(networkSpaceName)
 	resp, _ := args.Get(0).(NetworkSpace)
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-// UpdateTreeq
-func (m *MockApiService) UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error) {
-	args := m.Called(fileSystemID, treeqID, body)
-	resp, _ := args.Get(0).(Treeq)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
-// GetTreeqSizeByFileSystemID
-func (m *MockApiService) GetTreeqSizeByFileSystemID(fileSystemID int) (int64, error) {
-	args := m.Called(fileSystemID)
-	resp, _ := args.Get(0).(int64)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
@@ -264,14 +216,6 @@ func (m *MockApiService) DeleteExportRule(fileSystemID int, ipAddress string) er
 	args := m.Called(fileSystemID, ipAddress)
 	err, _ := args.Get(0).(error)
 	return err
-}
-
-// GetTreeqByName
-func (m *MockApiService) GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error) {
-	args := m.Called(fileSystemID, treeqName)
-	trq, _ := args.Get(0).(Treeq)
-	err, _ := args.Get(1).(error)
-	return &trq, err
 }
 
 // CreateVolume

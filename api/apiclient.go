@@ -54,14 +54,6 @@ type Client interface {
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 
-	GetFilesystemTreeqCount(fileSystemID int) (treeqCnt int, err error)
-	CreateTreeq(filesystemID int, treeqParameter map[string]interface{}) (*Treeq, error)
-	DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error)
-	GetTreeq(fileSystemID, treeqID int) (*Treeq, error)
-	UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error)
-	GetTreeqSizeByFileSystemID(filesystemID int) (int64, error)
-	GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error)
-
 	// replication
 	CreateReplica(request CreateReplicaRequest) (Replica, error)
 	GetLinks() ([]Link, error)

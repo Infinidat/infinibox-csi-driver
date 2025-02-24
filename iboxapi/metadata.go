@@ -51,7 +51,7 @@ func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]inte
 	if err != nil {
 		return nil, fmt.Errorf("PutMetadata - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("PutMetadata - NewRequest - error %w", err)
 	}
@@ -91,7 +91,7 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetMetadata loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetMetadata - NewRequest - error %w", err)
 		}
@@ -132,7 +132,7 @@ func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMeta
 	url := fmt.Sprintf("%sapi/rest/metadata/%d", iboxClient.Creds.Url, objectID)
 	iboxClient.Log.V(DEBUG_LEVEL).Info("DeleteMetadata", "URL", url, "object ID", objectID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("DeleteMetadata - NewRequest - error %w", err)
 	}

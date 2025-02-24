@@ -239,3 +239,45 @@ func (m *MockApiService) UpdateFileSystem(fsID int, fs FileSystem) (*FileSystem,
 	err, _ := args.Get(1).(error)
 	return &res, err
 }
+
+func (m *MockApiService) GetTreeqByName(fsID int, name string) (*Treeq, error) {
+	args := m.Called(fsID, name)
+	resp, _ := args.Get(0).(*Treeq)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) GetTreeq(fsID int, treeqID int) (*Treeq, error) {
+	args := m.Called(fsID, treeqID)
+	resp, _ := args.Get(0).(*Treeq)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) DeleteTreeq(fsID, treeqID int) (*Treeq, error) {
+	args := m.Called(fsID, treeqID)
+	resp, _ := args.Get(0).(*Treeq)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) CreateTreeq(fsID int, treeqRequest CreateTreeqRequest) (*Treeq, error) {
+	args := m.Called(fsID, treeqRequest)
+	resp, _ := args.Get(0).(*Treeq)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) UpdateTreeq(fsID, treeqID int, updateRequest UpdateTreeqRequest) (*Treeq, error) {
+	args := m.Called(fsID, treeqID, updateRequest)
+	resp, _ := args.Get(0).(Treeq)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) GetTreeqsByFileSystem(fsID int) ([]Treeq, error) {
+	args := m.Called(fsID)
+	resp, _ := args.Get(0).([]Treeq)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}

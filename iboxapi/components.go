@@ -44,7 +44,7 @@ func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 	url := iboxClient.Creds.Url + "api/rest/components/nodes"
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetFCPorts", "URL", url)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nodes, fmt.Errorf("GetFCPorts - NewRequest - error %w", err)
 	}

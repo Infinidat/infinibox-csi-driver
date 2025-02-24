@@ -13,7 +13,6 @@ limitations under the License.
 package api
 
 import (
-	"errors"
 	"infinibox-csi-driver/api/client"
 	"net/http"
 	"strconv"
@@ -125,76 +124,4 @@ func (c *ClientService) GetTreeqSizeByFileSystemID(filesystemID int) (int64, err
 		size = size + treeq.HardCapacity
 	}
 	return size, nil
-}
-
-// DeleteTreeq :
-func (c *ClientService) DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error) {
-	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs/" + strconv.Itoa(treeqID)
-	treeq := Treeq{}
-	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &treeq)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while deleting treeq : %s ", err)
-		return nil, err
-	}
-	if treeq == (Treeq{}) {
-		apiresp := resp.(client.ApiResponse)
-		treeq, _ = apiresp.Result.(Treeq)
-	}
-	zlog.Trace().Msgf("Treeq deleted successfully: %d", fileSystemID)
-	return &treeq, nil
-}
-
-// GetTreeq
-func (c *ClientService) GetTreeq(fileSystemID, treeqID int) (*Treeq, error) {
-	uri := "/api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs/" + strconv.Itoa(treeqID)
-	eResp := Treeq{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-	if err != nil {
-		return nil, err
-	}
-	if eResp == (Treeq{}) {
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(Treeq)
-	}
-	return &eResp, nil
-}
-
-// UpdateTreeq :
-func (c *ClientService) UpdateTreeq(fileSystemID, treeqID int, body map[string]interface{}) (*Treeq, error) {
-	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs/" + strconv.Itoa(treeqID)
-	treeq := Treeq{}
-	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &treeq)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while updating file System : %s ", err)
-		return nil, err
-	}
-	if treeq == (Treeq{}) {
-		apiresp := resp.(client.ApiResponse)
-		treeq, _ = apiresp.Result.(Treeq)
-	}
-	zlog.Trace().Msgf("Treeq updated successfully: %d", fileSystemID)
-	return &treeq, nil
-}
-
-// GetFileSystemByName :
-func (c *ClientService) GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error) {
-	uri := "api/rest/filesystems/" + strconv.Itoa(fileSystemID) + "/treeqs"
-	treeq := []Treeq{}
-	queryParam := make(map[string]interface{})
-	queryParam["name"] = treeqName
-	resp, err := c.getResponseWithQueryString(uri, queryParam, &treeq)
-	if err != nil {
-		return nil, err
-	}
-	if len(treeq) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		treeq, _ = apiresp.Result.([]Treeq)
-	}
-	for _, fsystem := range treeq {
-		if fsystem.Name == treeqName {
-			zlog.Trace().Msgf("Got treeq : %s", treeqName)
-			return &fsystem, nil
-		}
-	}
-	return nil, errors.New("treeq with given name not found")
 }

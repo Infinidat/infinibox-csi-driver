@@ -76,12 +76,6 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(exports), fileSystemId)
 
-	treeqCount, err := treeq.nfsstorage.cs.Api.GetFilesystemTreeqCount(fileSystemId)
-	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - GetFilesystemTreeqCount - error: %s", err.Error())
-		return nil, err
-	}
-	zlog.Debug().Msgf("treeq count %d on filesystemId %d", treeqCount, fileSystemId)
 	if len(exports) == 0 {
 		exportAccess := "RW"
 		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
@@ -89,7 +83,6 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			exportAccess = "RO"
 		}
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
-		//exportPerms := "[{'access':'RW','client':'" + req.GetVolumeContext()["nodeID"] + "','no_root_squash':true}]"
 		if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] != "" {
 			exportPerms = req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
 			zlog.Debug().Msgf("%s was specified %s, will not create default export rule, will create this rule instead", common.SC_NFS_EXPORT_PERMISSIONS, exportPerms)

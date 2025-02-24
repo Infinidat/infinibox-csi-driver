@@ -168,7 +168,7 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemsByPool loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetFileSystemsByPool - NewRequest - error %w", err)
 		}
@@ -213,7 +213,7 @@ func (iboxClient *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err e
 	URL := fmt.Sprintf("%s/api/rest/filesystems/%d", iboxClient.Creds.Url, fsID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemByID", "URL", URL, "filesystem ID", fsID)
 
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetFileSystemByID - NewRequest - error %w", err)
 	}
@@ -252,7 +252,7 @@ func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*Fi
 	if err != nil {
 		return nil, fmt.Errorf("CreateFileSystem - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("CreateFileSystem - NewRequest - error %w", err)
 	}
@@ -288,7 +288,7 @@ func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSyst
 	page := 1
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemByName loop", "page", page, "totalPages", totalPages)
 
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetFileSystemByName - NewRequest - error %w", err)
 	}
@@ -334,7 +334,7 @@ func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetFileSystemsByParentID loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetFileSystemsByParentID - NewRequest - error %w", err)
 		}
@@ -379,7 +379,7 @@ func (iboxClient *IboxClient) DeleteFileSystem(fsID int) (err error) {
 	url := fmt.Sprintf("%sapi/rest/filesystems/%d", iboxClient.Creds.Url, fsID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("DeleteFileSystem", "URL", url, "fs ID", fsID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return fmt.Errorf("DeleteFileSystem - NewRequest - error %w", err)
 	}
@@ -418,7 +418,7 @@ func (iboxClient *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSy
 	if err != nil {
 		return nil, fmt.Errorf("UpdateFileSystem - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("UpdateFileSystem - NewRequest - error %w", err)
 	}

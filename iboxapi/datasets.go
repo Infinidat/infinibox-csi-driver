@@ -36,7 +36,7 @@ func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetAllSnapshots loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetAllSnapshots - NewRequest - error %w", err)
 		}

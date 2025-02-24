@@ -89,7 +89,7 @@ func (iboxClient *IboxClient) GetExportByID(exportID int) (ex *Export, err error
 	URL := fmt.Sprintf("%s/api/rest/exports/%d", iboxClient.Creds.Url, exportID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetExportByID", "URL", URL, "export ID", exportID)
 
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetExportByID - NewRequest - error %w", err)
 	}
@@ -128,7 +128,7 @@ func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Expo
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetExportsByFileSystemID loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetExportsByFileSystemID - NewRequest - error %w", err)
 		}
@@ -169,7 +169,7 @@ func (iboxClient *IboxClient) DeleteExport(exportID int) (response *Export, err 
 	url := fmt.Sprintf("%sapi/rest/exports/%d", iboxClient.Creds.Url, exportID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("DeleteExport", "URL", url, "export ID", exportID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("DeleteExport - NewRequest - error %w", err)
 	}
@@ -213,7 +213,7 @@ func (iboxClient *IboxClient) CreateExport(req CreateExportRequest) (*Export, er
 	if err != nil {
 		return nil, fmt.Errorf("CreateExport - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("CreateExport - NewRequest - error %w", err)
 	}

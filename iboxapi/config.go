@@ -32,7 +32,7 @@ func (iboxClient *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 	url := fmt.Sprintf("%sapi/rest/config/limits?fields=nas.max_filesystems_in_system", iboxClient.Creds.Url)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetMaxFileSystems", "URL", url)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, fmt.Errorf("GetMaxFileSystems - NewRequest - error %w", err)
 	}
@@ -68,7 +68,7 @@ func (iboxClient *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
 	url := fmt.Sprintf("%sapi/rest/config/limits?fields=nas.treeq_max_count_per_filesystem", iboxClient.Creds.Url)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetMaxTreeqPerFs", "URL", url)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return 0, fmt.Errorf("GetMaxTreeqPerFs - NewRequest - error %w", err)
 	}

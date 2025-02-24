@@ -177,7 +177,7 @@ func (iboxClient *IboxClient) GetAllHosts() (host []Host, err error) {
 	url := iboxClient.Creds.Url + "api/rest/hosts"
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetAllHosts", "URL", url)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return host, fmt.Errorf("GetAllHosts - NewRequest - error %w", err)
 	}
@@ -208,7 +208,7 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 	url := iboxClient.Creds.Url + "api/rest/hosts"
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetHostByName", "URL", url, "host name", hostName)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetHostByName - NewRequest - error %w", err)
 	}
@@ -254,7 +254,7 @@ func (iboxClient *IboxClient) CreateHost(hostName string) (host *Host, err error
 	if err != nil {
 		return nil, fmt.Errorf("CreateHost - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("CreateHost - NewRequest - error %w", err)
 	}
@@ -289,7 +289,7 @@ func (iboxClient *IboxClient) DeleteHost(hostID int) (response *Host, err error)
 	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("DeleteHost", "URL", url, "host ID", hostID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("DeleteHost - NewRquest -  error %w", err)
 	}
@@ -337,7 +337,7 @@ func (iboxClient *IboxClient) AddHostSecurity(chapCreds map[string]string, hostI
 	if err != nil {
 		return nil, fmt.Errorf("AddHostSecurity - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("AddHostSecurity - NewRequest - error %w", err)
 	}
@@ -386,7 +386,7 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 	if err != nil {
 		return nil, fmt.Errorf("AddHostPort - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("AddHostPort - NewRequest - error %w", err)
 	}
@@ -419,7 +419,7 @@ func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostP
 	URL := fmt.Sprintf("%s/api/rest/hosts/%d/ports", iboxClient.Creds.Url, hostID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetHostPort", "URL", URL, "host ID", hostID, "port address", portAddress)
 
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetHostPort - NewRequest - error %w", err)
 	}
@@ -469,7 +469,7 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 	if err != nil {
 		return nil, fmt.Errorf("MapVolumeToHost - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("MapVolumeToHost - NewRequest - error %w", err)
 	}
@@ -510,7 +510,7 @@ func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []Luns, err erro
 
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetAllLunByHost loop", "page", page, "totalPages", totalPages)
-		req, err := http.NewRequest("GET", url, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return luns, fmt.Errorf("GetAllLunByHost - NewRequest - error %w", err)
 		}
@@ -566,7 +566,7 @@ func (iboxClient *IboxClient) UnMapVolumeFromHost(hostID, volumeID int) (unmapRe
 	url := fmt.Sprintf("%s%s/%d/luns/volume_id/%d", iboxClient.Creds.Url, "api/rest/hosts/", hostID, volumeID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("UnMapVolumeFromHost", "URL", url, "host ID", hostID, "volume ID", volumeID)
 
-	request, err := http.NewRequest("DELETE", url, nil)
+	request, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("UnMapVolumeFromHost - NewRequest - error %w", err)
 	}

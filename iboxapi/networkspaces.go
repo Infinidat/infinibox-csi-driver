@@ -84,7 +84,7 @@ func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networ
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetNetworkSpaceByName loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return nil, fmt.Errorf("GetNetworkSpaceByName - NewRequest - error %w", err)
 		}

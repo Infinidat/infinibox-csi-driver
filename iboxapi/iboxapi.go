@@ -145,15 +145,16 @@ type Client interface {
 	UpdateFileSystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
 
 	/**
-	GetFilesystemTreeqCount(fileSystemID int64) (treeqCnt int, err error)
-	CreateTreeq(filesystemID int64, treeqParameter map[string]interface{}) (*Treeq, error)
-	DeleteTreeq(fileSystemID, treeqID int64) (*Treeq, error)
-	GetTreeq(fileSystemID, treeqID int64) (*Treeq, error)
-	UpdateTreeq(fileSystemID, treeqID int64, body map[string]interface{}) (*Treeq, error)
-	GetTreeqSizeByFileSystemID(filesystemID int64) (int64, error)
 	GetFileSystemCountByPoolID(poolID int64) (int, error)
-	GetTreeqByName(fileSystemID int64, treeqName string) (*Treeq, error)
 	*/
+
+	// treeq
+	GetTreeqsByFileSystem(filesystemID int) ([]Treeq, error)
+	UpdateTreeq(fileSystemID, treeqID int, body UpdateTreeqRequest) (*Treeq, error)
+	CreateTreeq(filesystemID int, treeqParameter CreateTreeqRequest) (*Treeq, error)
+	DeleteTreeq(fileSystemID, treeqID int) (*Treeq, error)
+	GetTreeq(fileSystemID, treeqID int) (*Treeq, error)
+	GetTreeqByName(fileSystemID int, treeqName string) (*Treeq, error)
 
 	// exports
 	GetExportsByFileSystemID(filesystemID int) ([]Export, error)

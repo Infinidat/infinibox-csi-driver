@@ -109,7 +109,7 @@ func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []Luns, err
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetLunsByVolume loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetLunsByVolume - NewRequest - error %w", err)
 		}
@@ -154,7 +154,7 @@ func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, er
 	if err != nil {
 		return nil, fmt.Errorf("CreateVolume - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("CreateVolume - NewRequest - error %w", err)
 	}
@@ -185,7 +185,7 @@ func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolume
 	url := fmt.Sprintf("%sapi/rest/volumes/%d", iboxClient.Creds.Url, volumeID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("DeleteVolume", "URL", url, "volume ID", volumeID)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("DeleteVolume - NewRequest - error %w", err)
 	}
@@ -226,7 +226,7 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetVolumeByName loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return nil, fmt.Errorf("GetVolumeByName - NewRequest - error %w", err)
 		}
@@ -275,7 +275,7 @@ func (iboxClient *IboxClient) GetVolume(volumeID int) (volume *Volume, err error
 	URL := fmt.Sprintf("%s/api/rest/volumes/%d", iboxClient.Creds.Url, volumeID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetVolume", "URL", URL, "volume ID", volumeID)
 
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetVolume - NewRequest - error %w", err)
 	}
@@ -313,7 +313,7 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 	if err != nil {
 		return nil, fmt.Errorf("UpdateVolume - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("UpdateVolume - NewRequest - error %w", err)
 	}

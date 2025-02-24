@@ -82,7 +82,7 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetLinks loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetLinks - NewRequest - error %w", err)
 		}
@@ -122,7 +122,7 @@ func (iboxClient *IboxClient) GetLink(linkID int) (link *Link, err error) {
 	url := fmt.Sprintf("%sapi/rest/links/%d", iboxClient.Creds.Url, linkID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetLink", "URL", url, "link ID", linkID)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetLink - NewRequest - error %w", err)
 	}

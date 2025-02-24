@@ -58,7 +58,7 @@ func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error)
 	if err != nil {
 		return fmt.Errorf("CreateEvent - Marshal - error %w", err)
 	}
-	request, err := http.NewRequest("POST", URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("CreateEvent - NewRequest - error %w", err)
 	}

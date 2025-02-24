@@ -208,7 +208,7 @@ func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 	url := fmt.Sprintf("%sapi/rest/system", iboxClient.Creds.Url)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetSystem", "URL", url)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetSystem - NewRequest - error %w", err)
 	}
@@ -244,7 +244,7 @@ func (iboxClient *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info("GetNtpStatus loop", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest("GET", URL, nil)
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
 			return results, fmt.Errorf("GetNtpStatus - NewRequest - error %w", err)
 		}

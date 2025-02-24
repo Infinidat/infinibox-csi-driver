@@ -78,7 +78,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
 	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetFileSystemTreeqCount", mock.Anything).Return(nil, nil)
 
 	contex := getPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
@@ -119,7 +119,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_sucess() {
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
 	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
-	suite.api.On("GetFilesystemTreeqCount", mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetFileSystemTreeqCount", mock.Anything).Return(nil, nil)
 
 	req := getNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeId = "94148131#20000$$nfs_treeq"

@@ -65,7 +65,7 @@ func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err 
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/pools")
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetPoolByName", "URL", url, "name", name)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetPoolByName - NewRequest - error %w", err)
 	}
@@ -109,7 +109,7 @@ func (iboxClient *IboxClient) GetPoolByID(id int) (pool *PoolResult, err error) 
 	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/pools", id)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetPoolByID", "URL", url, "id", id)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("GetPoolByID - NewRequest - error %w", err)
 	}

@@ -122,84 +122,6 @@ func (suite *ApiTestSuite) Test_CreateFileSystemSnapshot_Success() {
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
 }
 
-func (suite *ApiTestSuite) Test_GetFilesystemTreeqCount_error() {
-	expectedError := errors.New("some error")
-	suite.clientMock.On("Get").Return(nil, expectedError)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	response, err := service.GetFilesystemTreeqCount(1001)
-	expectedResponse := 0
-	assert.NotNil(suite.T(), err, "Response should not be nil")
-	assert.Equal(suite.T(), expectedResponse, response, "Response should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetFilesystemTreeqCount_Success() {
-	expectedResponse := client.ApiResponse{MetaData: client.Resultmetadata{NoOfObject: 10}}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	response, err := service.GetFilesystemTreeqCount(1001)
-	expectedvalue := 10
-	assert.Nil(suite.T(), err, "Response should not be nil")
-	assert.Equal(suite.T(), expectedvalue, response, "Response should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_CreateTreeq_success() {
-	fileSysID := 100
-	expectedResponse := client.ApiResponse{Result: Treeq{ID: 1, FilesystemID: fileSysID, Name: "treeq", Path: "\treeq", HardCapacity: 100}}
-	suite.clientMock.On("Post").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	pvName := "treeq"
-	treeqParameter := map[string]interface{}{
-		"path":          "\\" + pvName,
-		"name":          pvName,
-		"hard_capacity": 100,
-	}
-
-	response, err := service.CreateTreeq(fileSysID, treeqParameter)
-
-	assert.Nil(suite.T(), err, "Response should not be nil")
-	assert.Equal(suite.T(), fileSysID, response.FilesystemID, "filesystemID should be equal")
-	assert.Equal(suite.T(), "\treeq", response.Path, "path should be equal")
-	assert.Equal(suite.T(), treeqParameter["name"], response.Name, "name should be equal")
-}
-
-func (suite *ApiTestSuite) Test_CreateTreeq_Error() {
-	fileSysID := 100
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("Post").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-
-	pvName := "treeq"
-	treeqParameter := map[string]interface{}{
-		"path":          "\\" + pvName,
-		"name":          pvName,
-		"hard_capacity": 100,
-	}
-	response, err := service.CreateTreeq(fileSysID, treeqParameter)
-	assert.NotNil(suite.T(), err, "Response should not be nil")
-	assert.Nil(suite.T(), response, "response should be nil")
-}
-
-func (suite *ApiTestSuite) Test_DeleteTreeq_Success() {
-	resp := client.ApiResponse{}
-	suite.clientMock.On("Delete").Return(resp, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	FilesystemID := 3111
-	treeqID := 20000
-	_, err := service.DeleteTreeq(FilesystemID, treeqID)
-	assert.Nil(suite.T(), err, "Response should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_DeleteTreeq_Error() {
-	expectedErr := errors.New("some error occured")
-	suite.clientMock.On("Delete").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	FilesystemID := 3111
-	treeqID := 20000
-	_, err := service.DeleteTreeq(FilesystemID, treeqID)
-	assert.NotNil(suite.T(), err, "Response should not be nil")
-}
-
 func (suite *ApiTestSuite) Test_GetSnapshotByName_Fail() {
 	// Test volume snapshot will not be created
 	expectedError := errors.New("Missing parameters")
@@ -248,51 +170,6 @@ func (suite *ApiTestSuite) Test_GetVolumeSnapshotByParentID_Success() {
 
 	assert.NotNil(suite.T(), response, "Response should not be nil")
 	assert.Equal(suite.T(), expectedResponse.Result, response, "Response not returned as expected")
-}
-
-func (suite *ApiTestSuite) Test_GetTreeq_Success() {
-	FilesystemID := 3111
-	treeqID := 20000
-	expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	resp, err := service.GetTreeq(FilesystemID, treeqID)
-	assert.Nil(suite.T(), err, "err should  nil")
-	assert.Equal(suite.T(), FilesystemID, resp.FilesystemID, "file systemID should be equal")
-}
-
-func (suite *ApiTestSuite) Test_GetTreeq_fail() {
-	FilesystemID := 3111
-	treeqID := 20000
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("Get").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	_, err := service.GetTreeq(FilesystemID, treeqID)
-	assert.NotNil(suite.T(), err, "err should  nil")
-}
-
-func (suite *ApiTestSuite) Test_UpdateTreeq_Success() {
-	FilesystemID := 3111
-	treeqID := 20000
-	expectedResponse := client.ApiResponse{Result: Treeq{ID: treeqID, FilesystemID: FilesystemID, HardCapacity: 10000, Name: "treeq1", Path: "/treeqPath", UsedCapacity: 10}}
-	suite.clientMock.On("Put").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	body := map[string]interface{}{"hard_capacity": 1000000}
-	resp, err := service.UpdateTreeq(FilesystemID, treeqID, body)
-	assert.Nil(suite.T(), err, "err should  nil")
-	assert.Equal(suite.T(), FilesystemID, resp.FilesystemID, "file systemID should be equal")
-}
-
-func (suite *ApiTestSuite) Test_UpdateTreeq_fail() {
-	FilesystemID := 3111
-	treeqID := 20000
-	expectedErr := errors.New("some error")
-	suite.clientMock.On("Put").Return(nil, expectedErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	body := map[string]interface{}{"hard_capacity": 1000000}
-	_, err := service.UpdateTreeq(FilesystemID, treeqID, body)
-	assert.NotNil(suite.T(), err, "Error should not be nil")
-	assert.Equal(suite.T(), expectedErr, err, "Error not returned as expected")
 }
 
 func (suite *ApiTestSuite) Test_AddNodeInExport_Error() {
@@ -463,59 +340,6 @@ func (suite *ApiTestSuite) Test_DeleteNodeFromExport_update_success() {
 	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
 	_, err := service.DeleteNodeFromExport(100, "RW", false, "10.20.30.40")
 	assert.Nil(suite.T(), err, "Error should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_success() {
-	treeqArr := []Treeq{
-		{
-			ID:           111,
-			Name:         "treeqName",
-			HardCapacity: 100,
-		},
-	}
-
-	expectedResponse := client.ApiResponse{Result: treeqArr}
-	suite.clientMock.On("Get").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	var filesystemID = 100
-	_, err := service.GetTreeqSizeByFileSystemID(filesystemID)
-	assert.Nil(suite.T(), err, "Response should not be nil")
-	// assert.Equal(suite.T(), 100, response, "response should be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetTreeqSizeByFileSystemID_Error() {
-	expecteErr := errors.New("some Error")
-	suite.clientMock.On("Get").Return(nil, expecteErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	var filesystemID = 100
-	_, err := service.GetTreeqSizeByFileSystemID(filesystemID)
-	assert.NotNil(suite.T(), err, "Response should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetTreeqByName_Error() {
-	expecteErr := errors.New("some Error")
-	suite.clientMock.On("GetWithQueryString").Return(nil, expecteErr)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	var filesystemID = 100
-	_, err := service.GetTreeqByName(filesystemID, "treeqName")
-	assert.NotNil(suite.T(), err, "Response should not be nil")
-}
-
-func (suite *ApiTestSuite) Test_GetTreeqByName_success() {
-	treeqArr := []Treeq{
-		{
-			ID:           111,
-			Name:         "treeqName",
-			HardCapacity: 100,
-		},
-	}
-
-	expectedResponse := client.ApiResponse{Result: treeqArr}
-	suite.clientMock.On("GetWithQueryString").Return(expectedResponse, nil)
-	service := ClientService{api: suite.clientMock, SecretsMap: setSecret()}
-	var filesystemID = 100
-	_, err := service.GetTreeqByName(filesystemID, "treeqName")
-	assert.Nil(suite.T(), err, "Response should not be nil")
 }
 
 func getExportResponse() *[]ExportResponse {
