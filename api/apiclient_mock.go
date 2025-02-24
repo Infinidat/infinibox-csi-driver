@@ -173,14 +173,6 @@ func (m *MockApiService) DeleteParentFileSystem(fileSystemID int) (err error) {
 	return err
 }
 
-// GetVolumeSnapshotByParentID
-func (m *MockApiService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
-	args := m.Called(volumeID)
-	resp, _ := args.Get(0).([]Volume)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // GetMetadataStatus
 func (m *MockApiService) GetMetadataStatus(fileSystemID int) bool {
 	args := m.Called(fileSystemID)
@@ -227,14 +219,6 @@ func (m *MockApiService) CreateVolume(volume *VolumeParam, storagePoolID int) (*
 	}
 	err, _ := args.Get(1).(error)
 	return &vol, err
-}
-
-// CreateSnapshotVolume
-func (m *MockApiService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
-	args := m.Called(snapshotParam)
-	snapshotVolumesResp, _ := args.Get(0).(SnapshotVolumesResp)
-	err, _ := args.Get(1).(error)
-	return &snapshotVolumesResp, err
 }
 
 // GetHostByName

@@ -23,9 +23,9 @@ import (
 )
 
 type GetLunsByVolumeResponse struct {
-	Metadata Metadata `json:"metadata"`
-	Result   []Luns   `json:"result"`
-	Error    Error    `json:"error"`
+	Metadata Metadata  `json:"metadata"`
+	Result   []LunInfo `json:"result"`
+	Error    Error     `json:"error"`
 }
 
 type Volume struct {
@@ -100,7 +100,36 @@ type GetVolumeResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []Luns, err error) {
+type Snapshot struct {
+	SnapShotID int    `json:"id,omitempty"`
+	Size       int64  `json:"size,omitempty"`
+	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
+	ParentID   int    `json:"parent_id,omitempty"`
+	PoolID     int    `json:"pool_id,omitempty"`
+	Name       string `json:"name,omitempty"`
+}
+
+type CreateSnapshotVolumeRequest struct {
+	ParentID       int    `json:"parent_id"`
+	SnapshotName   string `json:"name"`
+	WriteProtected bool   `json:"write_protected"`
+	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
+	LockExpiresAt  int64  `json:"lock_expires_at,omitempty"`
+}
+
+type CreateSnapshotVolumeResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   Snapshot `json:"result"`
+	Error    Error    `json:"error"`
+}
+
+type GetVolumesByParentIDResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   []Volume `json:"result"`
+	Error    Error    `json:"error"`
+}
+
+func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err error) {
 	URL := fmt.Sprintf("%sapi/rest/volumes/%d/luns", iboxClient.Creds.Url, volumeID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetLunsByVolume", "URL", URL, "volume ID", volumeID)
 
@@ -343,4 +372,98 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 		return nil, fmt.Errorf("UpdateVolume - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
+}
+
+func (iboxClient *IboxClient) CreateSnapshotVolume(lockExpiresAt int64, req CreateSnapshotVolumeRequest) (*Snapshot, error) {
+
+	URL := iboxClient.Creds.Url + "api/rest/volumes"
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateSnapshotVolume", "URL", URL, "request", req)
+
+	jsonBytes, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("CreateSnapshotVolume - Marshal - error %w", err)
+	}
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, fmt.Errorf("CreateSnapshotVolume - NewRequest - error %w", err)
+	}
+
+	if lockExpiresAt > 0 {
+		values := request.URL.Query()
+		values.Add("approved", "true")
+		//lockString := fmt.Sprintf("%d", lockExpiresAt)
+		//values.Add("lock_expires_at", lockString)
+		request.URL.RawQuery = values.Encode()
+	}
+
+	SetAuthHeader(request, iboxClient.Creds)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := iboxClient.HttpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("CreateSnapshotVolume - Do - error %w", err)
+	}
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	var responseObject CreateSnapshotVolumeResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("CreateSnapshotVolume - Unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("CreateSnapshotVolume - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateSnapshotVolume", "Snapshot ID", responseObject.Result.SnapShotID)
+	return &responseObject.Result, nil
+}
+
+func (iboxClient *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volume, err error) {
+	URL := fmt.Sprintf("%sapi/rest/volumes", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetVolumesByParentID", "URL", URL, "parent ID", parentID)
+
+	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	totalPages := 1 // start with 1, update after first query.
+	for page := 1; page <= totalPages; page++ {
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetVolumesByParentID loop", "page", page, "totalPages", totalPages)
+
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		if err != nil {
+			return volumes, fmt.Errorf("GetVolumesByParentID - NewRequest - error %w", err)
+		}
+
+		values := req.URL.Query()
+		values.Add("parent_id", strconv.Itoa(parentID))
+		values.Add("page_size", strconv.Itoa(pageSize))
+		values.Add("page", strconv.Itoa(page))
+		req.URL.RawQuery = values.Encode()
+
+		SetAuthHeader(req, iboxClient.Creds)
+
+		resp, err := iboxClient.HttpClient.Do(req)
+		if err != nil {
+			return volumes, fmt.Errorf("GetVolumesByParentID - Do - error %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return volumes, fmt.Errorf("GetVolumesByParentID - ReadAll - error %w", err)
+		}
+		var responseObject GetVolumesByParentIDResponse
+		err = json.Unmarshal(bodyBytes, &responseObject)
+		if err != nil {
+			return volumes, fmt.Errorf("GetVolumesByParentID - Unmarshal - error %w", err)
+		}
+		if responseObject.Error.Code != "" {
+			return volumes, fmt.Errorf("GetVolumesByParentID - ibox API - error code %s message %s", responseObject.Error.Code, responseObject.Error.Message)
+		}
+
+		volumes = append(volumes, responseObject.Result...)
+		if page == 1 {
+			totalPages = responseObject.Metadata.PagesTotal
+		}
+	}
+
+	return volumes, nil
 }

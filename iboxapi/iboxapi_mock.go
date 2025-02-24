@@ -65,9 +65,9 @@ func (m *MockApiService) GetMetadata(objectID int) ([]GetMetadataResult, error) 
 	return resp, err
 }
 
-func (m *MockApiService) GetAllLunByHost(hostID int) ([]Luns, error) {
+func (m *MockApiService) GetAllLunByHost(hostID int) ([]LunInfo, error) {
 	args := m.Called(hostID)
-	resp, _ := args.Get(0).([]Luns)
+	resp, _ := args.Get(0).([]LunInfo)
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
@@ -280,4 +280,39 @@ func (m *MockApiService) GetTreeqsByFileSystem(fsID int) ([]Treeq, error) {
 	resp, _ := args.Get(0).([]Treeq)
 	err, _ := args.Get(1).(error)
 	return resp, err
+}
+
+func (m *MockApiService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error) {
+	args := m.Called(lockExpiresAt, snapshotParam)
+	resp, _ := args.Get(0).(Snapshot)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) GetVolumesByParentID(parentID int) ([]Volume, error) {
+	args := m.Called(parentID)
+	resp, _ := args.Get(0).([]Volume)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) MapVolumeToHost(hostID, volumeID, lun int) (*LunInfo, error) {
+	args := m.Called(hostID, volumeID, lun)
+	resp, _ := args.Get(0).(LunInfo)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) GetLunByHostVolume(hostID, volumeID int) (*LunInfo, error) {
+	args := m.Called(hostID, volumeID)
+	resp, _ := args.Get(0).(LunInfo)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) (*UnMapVolumeFromHostResponse, error) {
+	args := m.Called(hostID, volumeID)
+	resp, _ := args.Get(0).(UnMapVolumeFromHostResponse)
+	err, _ := args.Get(1).(error)
+	return &resp, err
 }

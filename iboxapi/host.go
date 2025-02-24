@@ -79,46 +79,46 @@ type Ports struct {
 	Type    string `json:"type"`
 	HostID  int    `json:"host_id"`
 }
-type Luns struct {
-	ID            int  `json:"id"`
-	Lun           int  `json:"lun"`
-	Clustered     bool `json:"clustered"`
-	VolumeID      int  `json:"volume_id"`
-	Udid          any  `json:"udid"`
-	HostClusterID int  `json:"host_cluster_id"`
-	HostID        int  `json:"host_id"`
+type LunInfo struct {
+	ID            int  `json:"id,omitempty"`
+	Lun           int  `json:"lun,omitempty"`
+	CLustered     bool `json:"clustered,omitempty"`
+	VolumeID      int  `json:"volume_id,omitempty"`
+	HostClusterID int  `json:"host_cluster_id,omitempty"`
+	HostID        int  `json:"host_id,omitempty"`
+	Udid          any  `json:"udid,omitempty"`
 }
 
 type GetAllLunsResponse struct {
-	Result   []Luns   `json:"result"`
-	Error    Error    `json:"error"`
-	Metadata Metadata `json:"metadata"`
+	Result   []LunInfo `json:"result"`
+	Error    Error     `json:"error"`
+	Metadata Metadata  `json:"metadata"`
 }
 
 type UnMapVolumeFromHostResponse struct {
-	Result   Luns     `json:"result"`
+	Result   LunInfo  `json:"result"`
 	Error    Error    `json:"error"`
 	Metadata Metadata `json:"metadata"`
 }
 
 type Host struct {
-	ID                            int     `json:"id"`
-	Name                          string  `json:"name"`
-	Ports                         []Ports `json:"ports"`
-	Luns                          []Luns  `json:"luns"`
-	CreatedAt                     int64   `json:"created_at"`
-	UpdatedAt                     int64   `json:"updated_at"`
-	HostType                      string  `json:"host_type"`
-	SecurityMethod                string  `json:"security_method"`
-	SecurityChapInboundUsername   any     `json:"security_chap_inbound_username"`
-	SecurityChapOutboundUsername  any     `json:"security_chap_outbound_username"`
-	Optimized                     bool    `json:"optimized"`
-	SanClientType                 string  `json:"san_client_type"`
-	HostClusterID                 int     `json:"host_cluster_id"`
-	SubsystemNqn                  any     `json:"subsystem_nqn"`
-	SecurityChapHasInboundSecret  bool    `json:"security_chap_has_inbound_secret"`
-	SecurityChapHasOutboundSecret bool    `json:"security_chap_has_outbound_secret"`
-	TenantID                      int     `json:"tenant_id"`
+	ID                            int       `json:"id"`
+	Name                          string    `json:"name"`
+	Ports                         []Ports   `json:"ports"`
+	Luns                          []LunInfo `json:"luns"`
+	CreatedAt                     int64     `json:"created_at"`
+	UpdatedAt                     int64     `json:"updated_at"`
+	HostType                      string    `json:"host_type"`
+	SecurityMethod                string    `json:"security_method"`
+	SecurityChapInboundUsername   any       `json:"security_chap_inbound_username"`
+	SecurityChapOutboundUsername  any       `json:"security_chap_outbound_username"`
+	Optimized                     bool      `json:"optimized"`
+	SanClientType                 string    `json:"san_client_type"`
+	HostClusterID                 int       `json:"host_cluster_id"`
+	SubsystemNqn                  any       `json:"subsystem_nqn"`
+	SecurityChapHasInboundSecret  bool      `json:"security_chap_has_inbound_secret"`
+	SecurityChapHasOutboundSecret bool      `json:"security_chap_has_outbound_secret"`
+	TenantID                      int       `json:"tenant_id"`
 }
 
 type AddHostSecurityResponse struct {
@@ -157,14 +157,6 @@ type AddPortResult struct {
 
 type MapVolumeToHostRequest struct {
 	VolumeID int `json:"volume_id"`
-}
-type LunInfo struct {
-	HostClusterID int  `json:"host_cluster_id,omitempty"`
-	VolumeID      int  `json:"volume_id,omitempty"`
-	CLustered     bool `json:"clustered,omitempty"`
-	HostID        int  `json:"host_id,omitempty"`
-	ID            int  `json:"id,omitempty"`
-	Lun           int  `json:"lun,omitempty"`
 }
 
 type MapVolumeToHostResponse struct {
@@ -501,7 +493,7 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 
 }
 
-func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []Luns, err error) {
+func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err error) {
 	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
 	iboxClient.Log.V(TRACE_LEVEL).Info("GetAllLunByHost", "URL", url, "host ID", hostID)
 
@@ -547,18 +539,57 @@ func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []Luns, err erro
 	return luns, nil
 }
 
-func (iboxClient *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *Luns, err error) {
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetLunByHostVolume", "host ID", hostID, "volume ID", volumeID)
-	allLuns, err := iboxClient.GetAllLunByHost(hostID)
-	if err != nil {
-		return nil, fmt.Errorf("GetLunByHostVolume - GetAllLunByHost - error %w", err)
-	}
-	for _, l := range allLuns {
-		if l.VolumeID == volumeID {
-			lun = &l
+func (iboxClient *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *LunInfo, err error) {
+	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetLunByHostVolume", "URL", url, "host ID", hostID, "volume ID", volumeID)
+
+	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	totalPages := 1 // start with 1, update after first query.
+
+	for page := 1; page <= totalPages; page++ {
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetLunByHostVolume loop", "page", page, "totalPages", totalPages)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("GetLunByHostVolume - NewRequest - error %w", err)
+		}
+		values := req.URL.Query()
+		values.Add("volume_id", strconv.Itoa(volumeID))
+		values.Add("page_size", strconv.Itoa(pageSize))
+		values.Add("page", strconv.Itoa(page))
+		req.URL.RawQuery = values.Encode()
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetLunByHostVolume loop", "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
+
+		SetAuthHeader(req, iboxClient.Creds)
+
+		resp, err := iboxClient.HttpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("GetLunByHostVolume - Do - error %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("GetLunByHostVolume - ReadAll - error %w", err)
+		}
+		var responseObject GetAllLunsResponse
+		err = json.Unmarshal(bodyBytes, &responseObject)
+		if err != nil {
+			return nil, fmt.Errorf("GetLunByHostVolume - Unmarshal - error %w", err)
+		}
+
+		if page == 1 {
+			totalPages = responseObject.Metadata.PagesTotal
+		}
+
+		if len(responseObject.Result) > 0 {
+			lun = &responseObject.Result[0]
 			break
 		}
 	}
+
+	if lun == nil {
+		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetLunByHostVolume - host ID '%d' volume ID '%d' not found", hostID, volumeID)}
+	}
+
 	return lun, nil
 }
 

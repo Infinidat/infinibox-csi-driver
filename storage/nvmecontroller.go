@@ -238,14 +238,14 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	}
 
 	// Create snapshot descriptor
-	snapshotParam := &api.VolumeSnapshot{
+	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
 		ParentID:       volproto.VolumeID,
 		SnapshotName:   name,
 		WriteProtected: false,
 	}
 
 	// Create snapshot
-	snapResponse, err := nvme.cs.Api.CreateSnapshotVolume(0, snapshotParam)
+	snapResponse, err := nvme.cs.IboxApi.CreateSnapshotVolume(0, snapshotParam)
 	if err != nil {
 		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -486,7 +486,7 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		return nil, status.Error(codes.AlreadyExists, e.Error())
 	}
 
-	snapshotParam := &api.VolumeSnapshot{
+	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
 		ParentID:       nvme.cs.VolProto.VolumeID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
@@ -508,7 +508,7 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		zlog.Debug().Msgf("snapshot param has a lock_expires_at of %s int value %d, start time on ibox is %d", lockExpiresAtParameter, lockExpiresAt, ntpStatus[0].LastProbeTimestamp)
 	}
 
-	snapshot, err := nvme.cs.Api.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
+	snapshot, err := nvme.cs.IboxApi.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
 	if err != nil {
 		zlog.Error().Msgf("CreateSnapshot - CreateSnapshotVolume - snapshot %s error %s", snapshotName, err.Error())
 		return nil, err
@@ -574,12 +574,12 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return status.Errorf(codes.Aborted, "volume %d was locked, can not delete till expire date is reached at %s", volumeID, time.UnixMilli(vol.LockExpiresAt))
 	}
 
-	childVolumes, err := nvme.cs.Api.GetVolumeSnapshotByParentID(vol.ID)
+	childVolumes, err := nvme.cs.IboxApi.GetVolumesByParentID(vol.ID)
 	if err != nil {
 		zlog.Err(err)
 		return err
 	}
-	if len(*childVolumes) > 0 {
+	if len(childVolumes) > 0 {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}

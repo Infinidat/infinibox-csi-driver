@@ -150,7 +150,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataE
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, suite.someError)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return(getVolumeArray(), nil)
+	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return(getVolumeArray(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 
 	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
@@ -160,7 +160,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataE
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_Error() {
 	createVolReq := getISCSIDeleteRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
+	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return([]iboxapi.Volume{}, nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
@@ -175,7 +175,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_success() {
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
-	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
+	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return([]iboxapi.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, nil)
@@ -200,7 +200,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -216,7 +216,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_AttachMetadataToObj
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
@@ -232,7 +232,8 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume() {
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
-	suite.api.On("MapVolumeToHost", mock.Anything).Return(getLunInf(), nil)
+	lunInfo := getLunInf()
+	suite.iboxapi.On("MapVolumeToHost", mock.Anything, mock.Anything, mock.Anything).Return(&lunInfo, nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi ControllerPublishVolume")
@@ -278,7 +279,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(deleteHostResponse, nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -289,7 +290,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_success() {
 func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(suite.someError)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
@@ -301,7 +302,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr(
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
@@ -312,7 +313,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerUnpublishVolume_Metadata_Error
 	ctrUnPublishValReq := getISCSIControllerUnpublishVolume()
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
-	suite.api.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
 	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
@@ -323,7 +324,7 @@ func (suite *ISCSIControllerSuite) Test_CreateSnapshot() {
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), suite.someError)
-	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
 
 	_, err := suite.service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateSnapshot GetVolumeByName")
@@ -334,7 +335,7 @@ func (suite *ISCSIControllerSuite) Test_CreateSnapshot_already_Created() {
 	ctrUnPublishValReq := getISCSICreateSnapshotRequest()
 	ctrUnPublishValReq.SourceVolumeId = "1001$$iscsi"
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
-	suite.api.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
 
 	_, err := suite.service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi CreateSnapshot")
@@ -343,7 +344,7 @@ func (suite *ISCSIControllerSuite) Test_CreateSnapshot_already_Created() {
 func (suite *ISCSIControllerSuite) Test_DeleteSnapshot() {
 	ctrdeleteSnapValReq := getISCSIDeleteSnapshotRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
-	suite.api.On("GetVolumeSnapshotByParentID", mock.Anything).Return([]api.Volume{}, nil)
+	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return([]iboxapi.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
@@ -403,15 +404,16 @@ func getISCSIControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
 	}
 }
 
-func getLunInf() iboxapi.Luns {
-	var luninfo iboxapi.Luns
-	luninfo.HostID = 100
-	luninfo.ID = 1
+func getLunInf() iboxapi.LunInfo {
+	luninfo := iboxapi.LunInfo{
+		HostID: 100,
+		ID:     1,
+	}
 	return luninfo
 }
 
-func getLunInfoArry() []iboxapi.Luns {
-	var lunInfoArry []iboxapi.Luns
+func getLunInfoArry() []iboxapi.LunInfo {
+	var lunInfoArry []iboxapi.LunInfo
 	lunInfoArry = append(lunInfoArry, getLunInf())
 	return lunInfoArry
 }
@@ -440,8 +442,8 @@ func getISCSIControllerPublishVolumeRequest() *csi.ControllerPublishVolumeReques
 	}
 }
 
-func getSnapshotResp() api.SnapshotVolumesResp {
-	snap := api.SnapshotVolumesResp{
+func getSnapshotResp() *iboxapi.Snapshot {
+	snap := &iboxapi.Snapshot{
 		Name:       "snaName",
 		SnapShotID: 1000,
 		PoolID:     10,

@@ -68,12 +68,12 @@ type Client interface {
 	GetVolumeByName(volumeName string) (*Volume, error)
 	GetVolume(volumeID int) (*Volume, error)
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
+	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error)
+	GetVolumesByParentID(parentID int) ([]Volume, error)
 
 	/**
 	NewClient() (*ClientService, error)
 	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
-	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
-	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
 	GetAllVolumes() ([]Volume, error)
 	*/
 
@@ -92,12 +92,12 @@ type Client interface {
 	AddHostPort(portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error)
 	GetHostPort(hostID int, portAddress string) (hostPort *HostPort, err error)
 	MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *LunInfo, err error)
-	GetAllLunByHost(hostID int) (luninfo []Luns, err error)
-	GetLunByHostVolume(hostID, volumeID int) (lun *Luns, err error)
+	GetAllLunByHost(hostID int) (luninfo []LunInfo, err error)
+	GetLunByHostVolume(hostID, volumeID int) (lun *LunInfo, err error)
 	UnMapVolumeFromHost(hostID, volumeID int) (resp *UnMapVolumeFromHostResponse, err error)
 
 	// volumes
-	GetLunsByVolume(volumeID int) (resp []Luns, err error)
+	GetLunsByVolume(volumeID int) (resp []LunInfo, err error)
 	CreateVolume(request CreateVolumeRequest) (*Volume, error)
 
 	// config

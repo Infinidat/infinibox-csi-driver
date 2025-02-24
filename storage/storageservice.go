@@ -243,11 +243,11 @@ func (cs *Commonservice) verifyApiClient() error {
 	return nil
 }
 
-func (cs *Commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.LunInfo, err error) {
-	luninfo, err = cs.Api.MapVolumeToHost(hostID, volumeID, -1)
+func (cs *Commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo *iboxapi.LunInfo, err error) {
+	luninfo, err = cs.IboxApi.MapVolumeToHost(hostID, volumeID, -1)
 	if err != nil {
 		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-			luninfo, err = cs.Api.GetLunByHostVolume(hostID, volumeID)
+			luninfo, err = cs.IboxApi.GetLunByHostVolume(hostID, volumeID)
 		}
 		if err != nil {
 			return luninfo, err
@@ -257,7 +257,7 @@ func (cs *Commonservice) mapVolumeTohost(volumeID int, hostID int) (luninfo api.
 }
 
 func (cs *Commonservice) unmapVolumeFromHost(hostID, volumeID int) (err error) {
-	err = cs.Api.UnMapVolumeFromHost(hostID, volumeID)
+	_, err = cs.IboxApi.UnMapVolumeFromHost(hostID, volumeID)
 	if err != nil {
 		// Ignore the following errors
 		successMsg := fmt.Sprintf("Success: No need to unmap volume with ID %d from host with ID %d", volumeID, hostID)

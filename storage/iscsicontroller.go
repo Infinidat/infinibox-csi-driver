@@ -254,7 +254,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	ssdEnabled, _ := strconv.ParseBool(ssd)
 
 	// Create snapshot descriptor
-	snapshotParam := &api.VolumeSnapshot{
+	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
 		ParentID:       volproto.VolumeID,
 		SnapshotName:   name,
 		WriteProtected: false,
@@ -262,7 +262,7 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	}
 
 	// Create snapshot
-	snapResponse, err := iscsi.cs.Api.CreateSnapshotVolume(0, snapshotParam)
+	snapResponse, err := iscsi.cs.IboxApi.CreateSnapshotVolume(0, snapshotParam)
 	if err != nil {
 		zlog.Error().Msg(err.Error())
 		return nil, status.Error(codes.Internal, err.Error())
@@ -502,7 +502,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
-	snapshotParam := &api.VolumeSnapshot{
+	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
 		ParentID:       int(iscsi.cs.VolProto.VolumeID),
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
@@ -525,7 +525,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		zlog.Debug().Msgf("CreateSnapshot - snapshot param has a lock_expires_at of %s int value %d, start time on ibox is %d", lockExpiresAtParameter, lockExpiresAt, ntpStatus[0].LastProbeTimestamp)
 	}
 
-	snapshot, err := iscsi.cs.Api.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
+	snapshot, err := iscsi.cs.IboxApi.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
 	if err != nil {
 		zlog.Error().Msgf("CreateSnapshot - CreateSnapshotVolume snapshot %s - error: %s", snapshotName, err.Error())
 		return nil, err
@@ -592,12 +592,12 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return status.Errorf(codes.Aborted, "volume %d was locked, can not delete till expire date is reached at %s", volumeID, time.UnixMilli(vol.LockExpiresAt))
 	}
 
-	childVolumes, err := iscsi.cs.Api.GetVolumeSnapshotByParentID(vol.ID)
+	childVolumes, err := iscsi.cs.IboxApi.GetVolumesByParentID(vol.ID)
 	if err != nil {
 		zlog.Err(err)
 		return err
 	}
-	if len(*childVolumes) > 0 {
+	if len(childVolumes) > 0 {
 		metadata := map[string]interface{}{
 			TOBEDELETED: true,
 		}

@@ -17,12 +17,9 @@ import (
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api/client"
-	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/iboxapi"
 	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
@@ -31,12 +28,6 @@ import (
 // Client interface
 type Client interface {
 	NewClient() (*ClientService, error)
-	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error)
-	GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error)
-
-	MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error)
-	GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error)
-	UnMapVolumeFromHost(hostID, volumeID int) (err error)
 
 	// for consistency group (volume group)
 	CreateCG(poolID int, cgName string) (CGInfo, error)
@@ -91,109 +82,6 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
-}
-
-// CreateSnapshotVolume : Create volume from snapshot
-func (c *ClientService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam *VolumeSnapshot) (*SnapshotVolumesResp, error) {
-	zlog.Trace().Msgf("Create a snapshot: %s", snapshotParam.SnapshotName)
-	path := "/api/rest/volumes"
-	snapResp := SnapshotVolumesResp{}
-	parameters := make(map[string]interface{})
-	parameters["parent_id"] = snapshotParam.ParentID
-	parameters["name"] = snapshotParam.SnapshotName
-	parameters["write_protected"] = snapshotParam.WriteProtected
-	parameters[common.SC_SSD_ENABLED] = snapshotParam.SsdEnabled
-	if lockExpiresAt > 0 {
-		path = path + "?approved=true"
-		parameters["lock_expires_at"] = lockExpiresAt
-	}
-
-	_, err := c.getJSONResponse(http.MethodPost, path, parameters, &snapResp)
-	if err != nil {
-		return nil, err
-	}
-	zlog.Trace().Msgf("Created snapshot: %s", snapResp.Name)
-	return &snapResp, nil
-}
-
-// UnMapVolumeFromHost - Remove mapping of volume with host
-func (c *ClientService) UnMapVolumeFromHost(hostID, volumeID int) (err error) {
-	zlog.Trace().Msgf("Remove mapping of volume %d from host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns/volume_id/" + strconv.Itoa(volumeID) + "?approved=true"
-	_, err = c.getJSONResponse(http.MethodDelete, uri, nil, nil)
-	if err != nil {
-		if !strings.Contains(err.Error(), "HOST_NOT_FOUND") && !strings.Contains(err.Error(), "VOLUME_NOT_FOUND") && !strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-			zlog.Error().Msgf("failed to unmap volume %d from host %d with error %v", volumeID, hostID, err)
-		}
-		return err
-	}
-	zlog.Trace().Msgf("successfully unmapped volume %d from host %d", volumeID, hostID)
-	return nil
-}
-
-// MapVolumeToHost - Map volume with given volumeID to Host with given hostID
-func (c *ClientService) MapVolumeToHost(hostID, volumeID, lun int) (luninfo LunInfo, err error) {
-	zlog.Trace().Msgf("map volume %d to host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns?approved=true"
-	data := make(map[string]interface{})
-	data["volume_id"] = volumeID
-	if lun != -1 {
-		data["lun"] = lun
-	}
-	resp, err := c.getJSONResponse(http.MethodPost, uri, data, &luninfo)
-	if err != nil {
-		// ignore logging for following error code
-		if !strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-			zlog.Error().Msgf("error occured while mapping volume to host %v", err)
-		}
-		return luninfo, err
-	}
-	if luninfo == (LunInfo{}) {
-		apiresp := resp.(client.ApiResponse)
-		luninfo, _ = apiresp.Result.(LunInfo)
-	}
-	zlog.Trace().Msgf("Successfully mapped volume %d to host %d", volumeID, hostID)
-	return luninfo, nil
-}
-
-// GetLunByHostVolume - Get Lun details for volume and host provided
-func (c *ClientService) GetLunByHostVolume(hostID, volumeID int) (luninfo LunInfo, err error) {
-	luns := []LunInfo{}
-	zlog.Trace().Msgf("get lun for volume %d and host %d", volumeID, hostID)
-	uri := "api/rest/hosts/" + strconv.Itoa(hostID) + "/luns"
-	data := map[string]interface{}{"volume_id": volumeID}
-	resp, err := c.getResponseWithQueryString(uri, data, &luns)
-	if err != nil {
-		zlog.Error().Msgf("error occured while get luns for volumeID %d and host %d err %v", volumeID, hostID, err)
-		return luninfo, err
-	}
-	if len(luns) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		luns, _ = apiresp.Result.([]LunInfo)
-	}
-	if len(luns) > 0 {
-		luninfo = luns[0]
-	}
-	zlog.Trace().Msgf("got %d lun for volume %d and host %d", luninfo.Lun, volumeID, hostID)
-	return luninfo, nil
-}
-
-// GetVolumeSnapshotByParentID method return true is the filesystemID has child else false
-func (c *ClientService) GetVolumeSnapshotByParentID(volumeID int) (*[]Volume, error) {
-	voluri := "/api/rest/volumes/"
-	volumes := []Volume{}
-	queryParam := make(map[string]interface{})
-	queryParam["parent_id"] = volumeID
-	resp, err := c.getResponseWithQueryString(voluri, queryParam, &volumes)
-	if err != nil {
-		zlog.Error().Msgf("failed to check GetVolumeSnapshotByParentID %v", err)
-		return &volumes, err
-	}
-	if len(volumes) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		volumes, _ = apiresp.Result.([]Volume)
-	}
-	return &volumes, err
 }
 
 func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
