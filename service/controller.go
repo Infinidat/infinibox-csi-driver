@@ -796,8 +796,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				Snapshot: snapshot,
 			}
 
-			zlog.Info().Msgf("SourceVolumeId = %s", req.SourceVolumeId)
-			zlog.Info().Msgf("SnapshotId = %s", req.SnapshotId)
+			zlog.Info().Msgf("SourceVolumeId = %s SnapshotId = %s", req.SourceVolumeId, req.SnapshotId)
 
 			if req.SourceVolumeId != "" {
 				volProto, err := storage.ValidateVolumeID(req.SourceVolumeId)
@@ -806,7 +805,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 					zlog.Error().Msg(e.Error())
 					return nil, status.Error(codes.InvalidArgument, e.Error())
 				} else {
-					zlog.Debug().Msgf("comparing %d to %s whole thing %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
+					zlog.Debug().Msgf("comparing %d to %s %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
 					if strconv.Itoa(volProto.VolumeID) == entry.Snapshot.SourceVolumeId {
 						zlog.Debug().Msgf("matches!")
 						entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs

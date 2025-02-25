@@ -29,7 +29,14 @@ const (
 
 var ERROR_CODE_HOST_NOT_FOUND = "HOST_NOT_FOUND"
 
-const IBOXAPI_RESOURCE_NOT_FOUND_ERROR = 1
+const (
+	IBOXAPI_RESOURCE_NOT_FOUND_ERROR = 1
+	PARAMETER_APPROVED               = "approved"
+	PARAMETER_VALUE_TRUE             = "true"
+	PARAMETER_VALUE_FALSE            = "false"
+	CONTENT_TYPE                     = "Content-Type"
+	JSON_CONTENT_TYPE                = "application/json; charset=UTF-8"
+)
 
 type IboxAPIError struct {
 	Code int
@@ -107,15 +114,16 @@ type Client interface {
 	// components
 	GetFCPorts() (fcNodes []FCNode, err error)
 
-	/**
 	// for consistency group (volume group)
-	CreateCG(poolID int, cgName string) (CGInfo, error)
-	AddMemberToSnapshotGroup(volumeID int, cgID int) error
-	RemoveMemberFromSnapshotGroup(volumeID int, cgID int) error
-	GetAllCG() ([]CGInfo, error)
+	GetConsistencyGroup(cgID int) (*ConsistencyGroupInfo, error)
+	DeleteConsistencyGroup(cgID int) error
+	GetConsistencyGroupByName(name string) (*ConsistencyGroupInfo, error)
+	CreateSnapshotGroup(req CreateSnapshotGroupRequest) (*ConsistencyGroupInfo, error)
 	GetMembersByCGID(cgID int) ([]MemberInfo, error)
-	GetCG(name string) (CGInfo, error)
-	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
+	AddMemberToSnapshotGroup(volumeID, cgID int) error
+	CreateConsistencyGroup(req CreateConsistencyGroupRequest) (*ConsistencyGroupInfo, error)
+
+	/**
 
 	// for nfs
 	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
@@ -166,19 +174,18 @@ type Client interface {
 	GetMetadata(objectID int) ([]GetMetadataResult, error)
 	DeleteMetadata(objectID int) (*DeleteMetadataResponse, error)
 
-	// links
+	// links and replication
 	GetLink(linkID int) (*Link, error)
 	GetLinks() ([]Link, error)
+	CreateReplica(request CreateReplicaRequest) (*Replica, error)
+	GetReplicas() ([]Replica, error)
+	DeleteReplica(id int) error
+	GetReplica(id int) (*Replica, error)
 
 	// system
 	GetSystem() (*SystemDetails, error)
 	GetNtpStatus() ([]NtpStatus, error)
 
-	/**
-	// replication
-	CreateReplica(request CreateReplicaRequest) (Replica, error)
-	CreateCustomEvent(request CustomEventRequest) error
-	*/
 	CreateEvent(request EventRequest) error
 }
 

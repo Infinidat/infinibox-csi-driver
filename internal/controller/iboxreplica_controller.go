@@ -32,6 +32,7 @@ import (
 	"infinibox-csi-driver/api/clientgo"
 	csidriverinfinidatcomv1 "infinibox-csi-driver/api/v1"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 )
 
 const (
@@ -170,7 +171,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	switch replica.Spec.EntityType {
 	case common.REPLICA_ENTITY_CONSISTENCY_GROUP:
 		// look up the CG ID
-		cg, err := clientsvc.GetCG(replica.Spec.LocalEntityName)
+		cg, err := clientsvc.Iboxapi.GetConsistencyGroupByName(replica.Spec.LocalEntityName)
 		if err != nil {
 			thislog.Error(err, "error getting CG", "localEntityName", replica.Spec.LocalEntityName)
 			return err
@@ -201,7 +202,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	thislog.Info("creating replica", "entity look up worked", localEntityID)
 	var linkID int
 	// look up the link ID
-	links, err := clientsvc.GetLinks()
+	links, err := clientsvc.Iboxapi.GetLinks()
 	if err != nil {
 		thislog.Error(err, "error getting Links")
 		return err
@@ -217,7 +218,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	}
 
 	// verify that a replica for this entity doesn't already exist
-	replicas, err := clientsvc.GetReplicas()
+	replicas, err := clientsvc.Iboxapi.GetReplicas()
 	if err != nil {
 		thislog.Error(err, "error getting replicas")
 		return err
@@ -230,7 +231,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	}
 
 	thislog.Info("creating replica", "link look up worked", linkID)
-	request := api.CreateReplicaRequest{
+	request := iboxapi.CreateReplicaRequest{
 		SyncInterval:    replica.Spec.SyncInterval,
 		Description:     replica.Spec.Description,
 		EntityType:      replica.Spec.EntityType,
@@ -242,7 +243,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		RemotePoolID:    replica.Spec.RemotePoolID,
 	}
 
-	response, err := clientsvc.CreateReplica(request)
+	response, err := clientsvc.Iboxapi.CreateReplica(request)
 	if err != nil {
 		thislog.Error(err, "error creating replica")
 		return err
@@ -277,7 +278,7 @@ func (r *IboxreplicaReconciler) deleteReplica(replica *csidriverinfinidatcomv1.I
 		return err
 	}
 
-	err = clientsvc.DeleteReplica(replica.Status.ID)
+	err = clientsvc.Iboxapi.DeleteReplica(replica.Status.ID)
 	if err != nil {
 		thislog.Error(err, "error deleting replica", "ID", replica.Status.ID)
 		return err
@@ -296,7 +297,7 @@ func (r *IboxreplicaReconciler) updateIboxreplicaState(replica *csidriverinfinid
 		return err
 	}
 
-	rep, err := clientsvc.GetReplica(replica.Status.ID)
+	rep, err := clientsvc.Iboxapi.GetReplica(replica.Status.ID)
 	if err != nil {
 		thislog.Error(err, "error getting replica")
 		return err

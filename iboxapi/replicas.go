@@ -1,5 +1,7 @@
+package iboxapi
+
 /*
-Copyright 2024 Infinidat
+Copyright 2025 Infinidat
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -10,25 +12,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package api
-
 import (
-	"infinibox-csi-driver/api/client"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"infinibox-csi-driver/common"
+	"io"
 	"net/http"
 	"strconv"
 )
-
-type CreateReplicaRequest struct {
-	SyncInterval    int    `json:"sync_interval"`
-	Description     string `json:"description"`
-	EntityType      string `json:"entity_type"`
-	LocalEntityID   int    `json:"local_entity_id"`
-	ReplicationType string `json:"replication_type"`
-	BaseAction      string `json:"base_action"`
-	LinkID          int    `json:"link_id"`
-	RpoValue        int    `json:"rpo_value"`
-	RemotePoolID    int    `json:"remote_pool_id"`
-}
 
 type Replica struct {
 	ID                             int    `json:"id"`
@@ -214,121 +206,194 @@ type Replica struct {
 	LocalCgID                int    `json:"local_cg_id"`
 }
 
-type Link struct {
-	ID                              int    `json:"id"`
-	Version                         int    `json:"_version"`
-	RemoteVersion                   string `json:"remote_version"`
-	Name                            string `json:"name"`
-	RemoteHost                      string `json:"remote_host"`
-	RemoteManagementIP              string `json:"_remote_management_ip"`
-	RemoteLinkID                    int    `json:"remote_link_id"`
-	RemoteReplicationNetworkSpaceID int    `json:"remote_replication_network_space_id"`
-	RemoteSystemSerialNumber        int    `json:"remote_system_serial_number"`
-	RemoteSystemName                string `json:"remote_system_name"`
-	ConnectTimeout                  int    `json:"connect_timeout"`
-	KeepAliveTime                   int    `json:"keep_alive_time"`
-	RetryCount                      int    `json:"retry_count"`
-	RetryWait                       int    `json:"retry_wait"`
-	RemoteReplicationIPAddresses    []struct {
-		ID         int    `json:"id"`
-		IPAddress  string `json:"ip_address"`
-		Local      bool   `json:"local"`
-		Management bool   `json:"management"`
-		Type       string `json:"type"`
-		LinkID     int    `json:"link_id"`
-	} `json:"remote_replication_ip_addresses"`
-	LinkState                      string   `json:"link_state"`
-	StateDescription               any      `json:"state_description"`
-	LastConnectionTimestamp        int64    `json:"last_connection_timestamp"`
-	LocalHost                      any      `json:"_local_host"`
-	WitnessAddress                 any      `json:"witness_address"`
-	LinkConfigurationGUID          string   `json:"_link_configuration_guid"`
-	LinkMode                       string   `json:"link_mode"`
-	ResiliencyMode                 string   `json:"resiliency_mode"`
-	LocalWitnessState              string   `json:"local_witness_state"`
-	LocalWitnessStateDescription   string   `json:"local_witness_state_description"`
-	RemoteWitnessState             string   `json:"remote_witness_state"`
-	LocalReplicationNetworkSpaceID int      `json:"local_replication_network_space_id"`
-	AsyncOnly                      bool     `json:"async_only"`
-	IsLocalLinkReadyForSync        bool     `json:"is_local_link_ready_for_sync"`
-	LocalLinkReplicationType       []string `json:"local_link_replication_type"`
-	LinkReplicationType            []string `json:"link_replication_type"`
+type CreateReplicaRequest struct {
+	SyncInterval    int    `json:"sync_interval"`
+	Description     string `json:"description"`
+	EntityType      string `json:"entity_type"`
+	LocalEntityID   int    `json:"local_entity_id"`
+	ReplicationType string `json:"replication_type"`
+	BaseAction      string `json:"base_action"`
+	LinkID          int    `json:"link_id"`
+	RpoValue        int    `json:"rpo_value"`
+	RemotePoolID    int    `json:"remote_pool_id"`
 }
 
-// CreateReplica creates a replica
-func (c *ClientService) CreateReplica(req CreateReplicaRequest) (replica Replica, err error) {
-	zlog.Trace().Msgf("CreateReplica called - %v", req)
-
-	path := "/api/rest/replicas?approved=true"
-
-	_, err = c.getJSONResponse(http.MethodPost, path, req, &replica)
-
-	if err != nil {
-		return replica, err
-	}
-
-	zlog.Trace().Msgf("CreateReplica completed - %s", replica.Description)
-	return replica, nil
-
+type GetReplicaResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   Replica  `json:"result"`
+	Error    Error    `json:"error"`
+}
+type CreateReplicaResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   Replica  `json:"result"`
+	Error    Error    `json:"error"`
+}
+type DeleteReplicaResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   Replica  `json:"result"`
+	Error    Error    `json:"error"`
+}
+type GetReplicasResponse struct {
+	Metadata Metadata  `json:"metadata"`
+	Result   []Replica `json:"result"`
+	Error    Error     `json:"error"`
 }
 
-// DeleteReplica : Delete replica by replica id
-func (c *ClientService) DeleteReplica(id int) (err error) {
-	zlog.Trace().Msgf("DeleteReplica called - ID %d", id)
+func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
 
-	path := "/api/rest/replicas/" + strconv.Itoa(id) + "?approved=true"
-	_, err = c.getJSONResponse(http.MethodDelete, path, nil, nil)
+	URL := iboxClient.Creds.Url + "api/rest/replicas"
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateReplica", "URL", URL, "request", req)
+
+	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("CreateReplica - Marshal - error %w", err)
 	}
-	zlog.Trace().Msgf("DeletedReplica completed - ID %d", id)
+	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, fmt.Errorf("CreateReplica - NewRequest - error %w", err)
+	}
+
+	values := request.URL.Query()
+	values.Add("approved", "true")
+	request.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(request, iboxClient.Creds)
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	response, err := iboxClient.HttpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("CreateReplica - Do - error %w", err)
+	}
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	var responseObject CreateReplicaResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("CreateReplica - Unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("CreateReplica - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
+	iboxClient.Log.V(TRACE_LEVEL).Info("CreateReplica", "Export ID", responseObject.Result.ID)
+	return &responseObject.Result, nil
+}
+
+func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
+	URL := fmt.Sprintf("%sapi/rest/replicas", iboxClient.Creds.Url)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetReplicas", "URL", URL)
+
+	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	totalPages := 1 // start with 1, update after first query.
+	for page := 1; page <= totalPages; page++ {
+		iboxClient.Log.V(TRACE_LEVEL).Info("GetReplicas loop", "page", page, "totalPages", totalPages)
+
+		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		if err != nil {
+			return results, fmt.Errorf("GetReplicas - NewRequest - error %w", err)
+		}
+
+		values := req.URL.Query()
+		values.Add("page_size", strconv.Itoa(pageSize))
+		values.Add("page", strconv.Itoa(page))
+		req.URL.RawQuery = values.Encode()
+
+		SetAuthHeader(req, iboxClient.Creds)
+
+		resp, err := iboxClient.HttpClient.Do(req)
+		if err != nil {
+			return results, fmt.Errorf("GetReplicas - Do - error %w", err)
+		}
+		defer resp.Body.Close()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return results, fmt.Errorf("GetReplicas - ReadAll - error %w", err)
+		}
+		var responseObject GetReplicasResponse
+		err = json.Unmarshal(bodyBytes, &responseObject)
+		if err != nil {
+			return results, fmt.Errorf("GetReplicas - Unmarshal - error %w", err)
+		}
+		results = append(results, responseObject.Result...)
+
+		if page == 1 {
+			totalPages = responseObject.Metadata.PagesTotal
+		}
+	}
+
+	return results, nil
+}
+
+func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
+	url := fmt.Sprintf("%sapi/rest/replicas/%d", iboxClient.Creds.Url, replicaID)
+	iboxClient.Log.V(TRACE_LEVEL).Info("DeleteReplica", "URL", url, "replica ID", replicaID)
+
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("DeleteReplica - NewRequest - error %w", err)
+	}
+
+	values := req.URL.Query()
+	values.Add("approved", "true")
+	req.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(req, iboxClient.Creds)
+
+	resp, err := iboxClient.HttpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("DeleteReplica - Do - error %w", err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("DeleteReplica - ReadAll -error %w", err)
+	}
+	var responseObject DeleteReplicaResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return fmt.Errorf("DeleteReplica - Unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		if responseObject.Error.Code == "REPLICA_NOT_FOUND" {
+			return &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("DeleteReplica - replica ID '%d' not found", replicaID)}
+		}
+
+		return fmt.Errorf("DeleteReplica - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
 	return nil
 }
 
-// GetLinks - get links
-func (c *ClientService) GetLinks() (links []Link, err error) {
-	zlog.Trace().Msgf("GetLinks called")
-	uri := "api/rest/links"
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &links)
+func (iboxClient *IboxClient) GetReplica(id int) (ex *Replica, err error) {
+	URL := fmt.Sprintf("%s/api/rest/replicas/%d", iboxClient.Creds.Url, id)
+	iboxClient.Log.V(TRACE_LEVEL).Info("GetReplica", "URL", URL, "replica ID", id)
+
+	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
-		zlog.Error().Msgf("error occured while getting links ")
-		return links, err
+		return nil, fmt.Errorf("GetReplica - NewRequest - error %w", err)
 	}
-	if len(links) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		links, _ = apiresp.Result.([]Link)
-	}
+	SetAuthHeader(req, iboxClient.Creds)
 
-	zlog.Trace().Msgf("GetLinks completed - count %d", len(links))
-	return links, nil
-}
-
-func (c *ClientService) GetReplica(replicaID int) (*Replica, error) {
-	zlog.Trace().Msgf("GetReplica called - ID %d", replicaID)
-	replica := Replica{}
-	path := "/api/rest/replicas/" + strconv.Itoa(replicaID)
-	_, err := c.getJSONResponse(http.MethodGet, path, nil, &replica)
+	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetReplica - Do - error %w", err)
 	}
-
-	return &replica, nil
-}
-
-// GetReplicas - get replicas
-func (c *ClientService) GetReplicas() (replicas []Replica, err error) {
-	zlog.Trace().Msgf("GetReplicas called")
-	uri := "api/rest/replicas"
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &replicas)
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		zlog.Error().Msgf("error occured while getting replicas ")
-		return replicas, err
+		return nil, fmt.Errorf("GetReplica - ReadAll - error %w", err)
 	}
-	if len(replicas) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		replicas, _ = apiresp.Result.([]Replica)
+	var responseObject GetReplicaResponse
+	err = json.Unmarshal(bodyBytes, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("GetReplica - Unmarshal - error %w", err)
 	}
 
-	zlog.Trace().Msgf("GetReplicas completed - count %d", len(replicas))
-	return replicas, nil
+	if responseObject.Error.Code != "" {
+		if responseObject.Error.Code == "REPLICA_NOT_FOUND" {
+			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetReplica - export ID '%d' not found", id)}
+		}
+		return nil, fmt.Errorf("GetReplica - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+	}
+	return &responseObject.Result, nil
 }

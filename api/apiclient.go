@@ -15,7 +15,6 @@ package api
 import (
 	"context"
 	"errors"
-	"fmt"
 	"infinibox-csi-driver/api/client"
 	"infinibox-csi-driver/iboxapi"
 	"net/http"
@@ -29,13 +28,6 @@ import (
 type Client interface {
 	NewClient() (*ClientService, error)
 
-	// for consistency group (volume group)
-	CreateCG(poolID int, cgName string) (CGInfo, error)
-	AddMemberToSnapshotGroup(volumeID int, cgID int) error
-	GetMembersByCGID(cgID int) ([]MemberInfo, error)
-	GetCG(name string) (CGInfo, error)
-	CreateSnapshotGroup(cgID int, snapName, snapPrefix, snapSuffix string) (CGInfo, error)
-
 	// for nfs
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
 	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
@@ -44,10 +36,6 @@ type Client interface {
 	DeleteParentFileSystem(fileSystemID int) (err error)
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
 	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
-
-	// replication
-	CreateReplica(request CreateReplicaRequest) (Replica, error)
-	GetLinks() ([]Link, error)
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations
@@ -105,25 +93,6 @@ func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedRes
 	}
 	zlog.Trace().Msgf("Requesting method: %s , %s%s successful", method, hostsecret.ApiHost, apiuri)
 	return
-}
-
-func (c *ClientService) getResponseWithQueryString(apiuri string, queryParam map[string]interface{}, expectedResp interface{}) (resp interface{}, err error) {
-	hostsecret, err := c.getAPIConfig()
-	if err != nil {
-		zlog.Error().Msgf("error occured: %v ", err)
-		return nil, err
-	}
-	zlog.Trace().Msgf("Requesting %s%s", hostsecret.ApiHost, apiuri)
-
-	var queryString string
-	for key, val := range queryParam {
-		if queryString != "" {
-			queryString += "&"
-		}
-		queryString += key + "=" + fmt.Sprintf("%v", val)
-	}
-	resp, err = c.api.GetWithQueryString(context.Background(), apiuri, hostsecret, queryString, expectedResp)
-	return resp, err
 }
 
 func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error) {

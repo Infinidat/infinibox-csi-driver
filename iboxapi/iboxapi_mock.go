@@ -316,3 +316,81 @@ func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) (*UnMapVolume
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }
+
+func (m *MockApiService) GetConsistencyGroup(cgID int) (*ConsistencyGroupInfo, error) {
+	args := m.Called(cgID)
+	resp, _ := args.Get(0).(ConsistencyGroupInfo)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) DeleteConsistencyGroup(cgID int) error {
+	args := m.Called(cgID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+
+func (m *MockApiService) GetConsistencyGroupByName(name string) (*ConsistencyGroupInfo, error) {
+	args := m.Called(name)
+	resp, _ := args.Get(0).(ConsistencyGroupInfo)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) CreateSnapshotGroup(req CreateSnapshotGroupRequest) (*ConsistencyGroupInfo, error) {
+	args := m.Called(req)
+	resp, _ := args.Get(0).(ConsistencyGroupInfo)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+func (m *MockApiService) GetMembersByCGID(cgID int) ([]MemberInfo, error) {
+	args := m.Called(cgID)
+	resp, _ := args.Get(0).([]MemberInfo)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+func (m *MockApiService) AddMemberToSnapshotGroup(volumeID, cgID int) error {
+	args := m.Called(volumeID, cgID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+func (m *MockApiService) CreateConsistencyGroup(req CreateConsistencyGroupRequest) (*ConsistencyGroupInfo, error) {
+	args := m.Called(req)
+	resp, _ := args.Get(0).(ConsistencyGroupInfo)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) GetLinks() ([]Link, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).([]Link)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
+	args := m.Called(req)
+	resp, _ := args.Get(0).(Replica)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) GetReplicas() ([]Replica, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).([]Replica)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
+func (m *MockApiService) DeleteReplica(replicaID int) error {
+	args := m.Called(replicaID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+
+func (m *MockApiService) GetReplica(id int) (*Replica, error) {
+	args := m.Called(id)
+	resp, _ := args.Get(0).(Replica)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
