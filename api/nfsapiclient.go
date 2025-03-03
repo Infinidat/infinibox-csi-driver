@@ -14,55 +14,10 @@ package api
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
-	"infinibox-csi-driver/api/client"
 	"infinibox-csi-driver/iboxapi"
 	"net"
-	"net/http"
-	"reflect"
-	"strconv"
 	"strings"
 )
-
-// AttachMetadataToObject :
-func (c *ClientService) AttachMetadataToObject(objectID int, body map[string]interface{}) (*[]Metadata, error) {
-	zlog.Trace().Msgf("Attach metadata: %v to object id: %d", body, objectID)
-	uri := "api/rest/metadata/" + strconv.Itoa(objectID)
-	metadata := []Metadata{}
-	resp, err := c.getJSONResponse(http.MethodPut, uri, body, &metadata)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while attaching metadata to object id: %d, %s", objectID, err)
-		return nil, err
-	}
-	if len(metadata) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		metadata, _ = apiresp.Result.([]Metadata)
-	}
-	zlog.Trace().Msgf("Attached metadata to object id: %d", objectID)
-	return &metadata, nil
-}
-
-// DetachMetadataFromObject :
-func (c *ClientService) DetachMetadataFromObject(objectID int) (*[]Metadata, error) {
-	zlog.Trace().Msgf("Detach metadata from object with ID %d", objectID)
-	uri := "api/rest/metadata/" + strconv.Itoa(objectID) + "?approved=true"
-	metadata := []Metadata{}
-	resp, err := c.getJSONResponse(http.MethodDelete, uri, nil, &metadata)
-	if err != nil {
-		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
-			err = nil
-		}
-		zlog.Error().Msgf("Error occured while detaching metadata from object : %s ", err)
-		return nil, err
-	}
-	if len(metadata) == 0 {
-		apiresp := resp.(client.ApiResponse)
-		metadata, _ = apiresp.Result.([]Metadata)
-	}
-	zlog.Trace().Msgf("Detached metadata from object with ID %d", objectID)
-	return &metadata, nil
-}
 
 func compareClientIP(permissionIP, ip string) bool {
 	flag := false
@@ -81,85 +36,57 @@ func compareClientIP(permissionIP, ip string) bool {
 }
 
 // AddNodeInExport : Export should be updated in case of node addition in k8s cluster
-func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
+func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
 	zlog.Trace().Msgf("AddNodeInExport() called")
-	zlog.Trace().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ip, exportID, access)
+	zlog.Trace().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ip, id, access)
 	flag := false
 
-	uri := "api/rest/exports/" + strconv.Itoa(exportID)
-	eResp := ExportResponse{}
-
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
+	ex, err := c.Iboxapi.GetExportByID(id)
 	if err != nil {
-		zlog.Error().Msgf("Error occurred while getting export path for export with ID %d: %s", exportID, err)
+		zlog.Error().Msgf("Error occurred while getting export path for export with ID %d: %s", ex.ID, err)
 		return nil, err
 	}
 
-	zlog.Trace().Msgf("Current export with export ID %d. Response type: %T,  response: %v", exportID, resp, resp)
-	if respApiResponse, ok := resp.(client.ApiResponse); !ok {
-		msg := fmt.Sprintf("Getting current export with ID %d returned a resp that is not of type client.ApiResponse", exportID)
-		zlog.Error().Msg(msg)
-		err = errors.New(msg)
-		return nil, err
-	} else {
-		var respResult interface{} = respApiResponse.Result
-
-		if exportResponse, ok := respResult.(*ExportResponse); !ok {
-			msg := fmt.Sprintf("Export response for export with ID %d is not of type ExportResponse", exportID)
-			zlog.Trace().Msg(msg)
-		} else {
-			zlog.Trace().Msgf("Current export with export ID %d. exportResponse: %v", exportID, *exportResponse)
-		}
-	}
-
-	// TODO - Remove this block. Needed only for allowing UT to pass.
-	//        UT: TestServiceTestSuite/Test_AddNodeInExport_IPAddress_exist_success
-	if reflect.DeepEqual(eResp, ExportResponse{}) {
-		zlog.Trace().Msgf("DeepEqual(eResp, ExportResponse{}) is true")
-		apiresp := resp.(client.ApiResponse)
-		eResp, _ = apiresp.Result.(ExportResponse)
-		zlog.Trace().Msgf("Current export with export ID %d. apiresp type: %T, apiresp: %v", exportID, apiresp, apiresp)
-		zlog.Trace().Msgf("Current export with export ID %d. eResp type: %T, eResp: %v", exportID, eResp, eResp)
-	} else {
-		zlog.Trace().Msgf("DeepEqual(eResp, ExportResponse{}) is false")
-	}
+	zlog.Trace().Msgf("Current export with export ID %d. export: %v", ex.ID, ex)
 
 	index := -1
-	permissionList := eResp.Permissions
+	permissionList := ex.Permissions
 	for i, permission := range permissionList {
 		if compareClientIP(permission.Client, ip) {
 			flag = true
-			zlog.Trace().Msgf("Node IP address %s already added in export rule with ID %d", ip, exportID)
+			zlog.Trace().Msgf("Node IP address %s already added in export rule with ID %d", ip, ex.ID)
 		} else if permission.Client == "*" {
 			index = i
 			flag = true
-			zlog.Trace().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ip, exportID)
+			zlog.Trace().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ip, ex.ID)
 		}
 	}
 	if index != -1 {
 		permissionList = removeIndex(permissionList, index)
 	}
 	if !flag {
-		newPermission := Permissions{
+		newPermission := iboxapi.Permissions{
 			Access:       access,
 			NoRootSquash: noRootSquash,
 			Client:       ip,
 		}
 		permissionList = append(permissionList, newPermission)
 
-		exportPermissions := ExportPermissions{}
-		exportPermissions.Permissions = permissionList
-		zlog.Trace().Msgf("Setting export with ID %d permissions to %+v", exportID, exportPermissions)
-		resp, err = c.getJSONResponse(http.MethodPut, uri, exportPermissions, &eResp)
+		zlog.Trace().Msgf("Setting export with ID %d permissions to %+v", ex.ID, permissionList)
+
+		exportPathRef := iboxapi.ExportPathRef{
+			Permissions: permissionList,
+		}
+		ex, err = c.Iboxapi.UpdateExport(*ex, exportPathRef)
 		if err != nil {
-			zlog.Error().Msgf("Error occurred while updating export rule for export with ID %d: %s", exportID, err)
+			zlog.Error().Msgf("Error occurred while updating export rule for export with ID %d: %s", ex.ID, err)
 			return nil, err
 		} else {
-			zlog.Trace().Msgf("Updated export rule for export with ID %d, resp %v, eResp %v", exportID, resp, eResp)
+			zlog.Trace().Msgf("Updated export rule for export with ID %d, export Response %v", ex.ID, ex)
 		}
 	}
-	zlog.Trace().Msgf("Completed adding node %s to export with export ID %d: %+v", ip, exportID, eResp)
-	return &eResp, nil
+	zlog.Trace().Msgf("Completed adding node %s to export with export ID %d: %+v", ip, ex.ID, ex)
+	return ex, nil
 }
 
 // DeleteExportRule method
@@ -171,17 +98,10 @@ func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) err
 		return err
 	}
 	for _, export := range exportArray {
-		uri := "api/rest/exports/" + strconv.Itoa(export.ID)
-		eResp := ExportResponse{}
-		_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-		if err != nil {
-			zlog.Error().Msgf("Error occured while getting export path : %s", err)
-			return err
-		}
-		permissionList := eResp.Permissions
+		permissionList := export.Permissions
 		for _, permission := range permissionList {
 			if permission.Client == ipAddress {
-				_, err = c.DeleteNodeFromExport(export.ID, permission.Access, permission.NoRootSquash, ipAddress)
+				_, err = c.DeleteNodeFromExport(export, permission.Access, permission.NoRootSquash, ipAddress)
 				if err != nil {
 					zlog.Error().Msgf("Error occured while getting export path : %s", err)
 					return err
@@ -194,19 +114,13 @@ func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) err
 }
 
 // DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
-func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
-	zlog.Trace().Msgf("Delete node from export with export ID %d", exportID)
+func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
+	zlog.Trace().Msgf("Delete node from export with export ID %d", export.ID)
 	flag := false
 	var index int
-	exportPathRef := ExportPathRef{}
-	uri := "api/rest/exports/" + strconv.Itoa(exportID)
-	eResp := ExportResponse{}
-	_, err := c.getJSONResponse(http.MethodGet, uri, nil, &eResp)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while getting export path : %s", err)
-		return nil, err
-	}
-	permissionList := eResp.Permissions
+	exportPathRef := iboxapi.ExportPathRef{}
+	var exportResponse *iboxapi.Export
+	permissionList := export.Permissions
 	for i, permission := range permissionList {
 		if permission.Client == ip {
 			flag = true
@@ -217,63 +131,25 @@ func (c *ClientService) DeleteNodeFromExport(exportID int, access string, noRoot
 	if flag {
 		permissionList = removeIndex(permissionList, index)
 		if len(permissionList) == 0 {
-			defaultPermission := Permissions{}
+			defaultPermission := iboxapi.Permissions{}
 			defaultPermission.Access = "RW"
 			defaultPermission.Client = "*"
 			defaultPermission.NoRootSquash = true
 			permissionList = append(permissionList, defaultPermission)
 		}
 		exportPathRef.Permissions = permissionList
-		resp, err := c.getJSONResponse(http.MethodPut, uri, exportPathRef, &eResp)
+
+		var err error
+		exportResponse, err = c.Iboxapi.UpdateExport(export, exportPathRef)
 		if err != nil {
 			zlog.Error().Msgf("Error occured while updating permission : %s", err)
 			return nil, err
 		}
-		if reflect.DeepEqual(eResp, ExportResponse{}) {
-			zlog.Trace().Msgf("inside DeepEquals Deleted node from export with ID %d", exportID)
-			eResp, _ = resp.(ExportResponse)
-		}
 	} else {
 		zlog.Error().Msgf("Given Ip %s address not found in the list", ip)
 	}
-	zlog.Trace().Msgf("Deleted node from export with ID %d", exportID)
-	return &eResp, nil
-}
-
-// CreateFileSystemSnapshot method create the filesystem snapshot
-func (c *ClientService) CreateFileSystemSnapshot(lockExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
-	zlog.Trace().Msgf("Create a snapshot of filesystem params %+v", snapshotParam)
-	path := "/api/rest/filesystems"
-	snapShotResponse := FileSystemSnapshotResponse{}
-	if lockExpiresAt > 0 {
-		path = path + "?approved=true"
-		tmp := &FileSystemSnapshotLocked{}
-		tmp.LockExpiresAt = lockExpiresAt
-		tmp.ParentID = snapshotParam.ParentID
-		tmp.SnapshotName = snapshotParam.SnapshotName
-		tmp.WriteProtected = snapshotParam.WriteProtected
-		resp, err := c.getJSONResponse(http.MethodPost, path, tmp, &snapShotResponse)
-		if err != nil {
-			zlog.Error().Msgf("failed to create %v", err)
-			return nil, err
-		}
-		if (FileSystemSnapshotResponse{}) == snapShotResponse {
-			apiresp := resp.(client.ApiResponse)
-			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponse)
-		}
-	} else {
-		resp, err := c.getJSONResponse(http.MethodPost, path, snapshotParam, &snapShotResponse)
-		if err != nil {
-			zlog.Error().Msgf("failed to create %v", err)
-			return nil, err
-		}
-		if (FileSystemSnapshotResponse{}) == snapShotResponse {
-			apiresp := resp.(client.ApiResponse)
-			snapShotResponse, _ = apiresp.Result.(FileSystemSnapshotResponse)
-		}
-	}
-	zlog.Trace().Msgf("Created snapshot: %s", snapShotResponse.Name)
-	return &snapShotResponse, nil
+	zlog.Trace().Msgf("Deleted node from export with ID %d", export.ID)
+	return exportResponse, nil
 }
 
 const (
@@ -375,24 +251,6 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	return
 }
 
-func removeIndex(s []Permissions, index int) []Permissions {
+func removeIndex(s []iboxapi.Permissions, index int) []iboxapi.Permissions {
 	return append(s[:index], s[index+1:]...)
-}
-
-// GetSnapshotByName :
-func (c *ClientService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error) {
-	zlog.Trace().Msgf("Get snapshot %s", snapshotName)
-	uri := "api/rest/filesystems?name=" + snapshotName
-	snapshot := []FileSystemSnapshotResponse{}
-	resp, err := c.getJSONResponse(http.MethodGet, uri, nil, &snapshot)
-	if err != nil {
-		zlog.Error().Msgf("Error occured while getting snapshot : %s ", err)
-		return nil, err
-	}
-	if len(snapshot) == 0 {
-		zlog.Trace().Msgf("no snapshot found for name %s", snapshotName)
-		snapshot, _ = resp.([]FileSystemSnapshotResponse)
-	}
-	zlog.Trace().Msgf("Got snapshot %s", snapshotName)
-	return &snapshot, nil
 }

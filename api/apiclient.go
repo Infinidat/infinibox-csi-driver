@@ -13,11 +13,8 @@ limitations under the License.
 package api
 
 import (
-	"context"
 	"errors"
-	"infinibox-csi-driver/api/client"
 	"infinibox-csi-driver/iboxapi"
-	"net/http"
 	"net/url"
 
 	"github.com/go-logr/logr"
@@ -29,31 +26,28 @@ type Client interface {
 	NewClient() (*ClientService, error)
 
 	// for nfs
-	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	DeleteNodeFromExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
+	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error)
+	DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ip string) (*iboxapi.Export, error)
 	DeleteFileSystemComplete(fileSystemID int) (err error)
 	DeleteParentFileSystem(fileSystemID int) (err error)
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
-	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations
 type ClientService struct {
-	api        client.RestClient
 	Iboxapi    *iboxapi.IboxClient
 	SecretsMap map[string]string
 	ConfigMap  map[string]string
+}
+type HostConfig struct {
+	ApiHost  string
+	UserName string
+	Password string
 }
 
 // NewClient : Create New Client
 func (c *ClientService) NewClient() (*ClientService, error) {
 	zlog.Trace().Msg("NewClient Started")
-	restclient, err := client.NewRestClient()
-	if err != nil {
-		return c, err
-	}
-	c.api = restclient
 
 	// for setting up iboxapi
 	hostconfig, err := c.getAPIConfig()
@@ -72,30 +66,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 	return c, nil
 }
 
-func (c *ClientService) getJSONResponse(method, apiuri string, body, expectedResp interface{}) (resp interface{}, err error) {
-	hostsecret, err := c.getAPIConfig()
-	if err != nil {
-		zlog.Error().Msgf("error occured: %v ", err)
-		return nil, err
-	}
-	if method == http.MethodPost {
-		resp, err = c.api.Post(context.Background(), apiuri, hostsecret, body, expectedResp)
-	} else if method == http.MethodGet {
-		resp, err = c.api.Get(context.Background(), apiuri, hostsecret, expectedResp)
-	} else if method == http.MethodDelete {
-		resp, err = c.api.Delete(context.Background(), apiuri, hostsecret)
-	} else if method == http.MethodPut {
-		resp, err = c.api.Put(context.Background(), apiuri, hostsecret, body, expectedResp)
-	}
-	if err != nil {
-		zlog.Error().Msgf("api json response error occured, method: %s URL: %s, error: %+v", hostsecret.ApiHost, apiuri, err)
-		return
-	}
-	zlog.Trace().Msgf("Requesting method: %s , %s%s successful", method, hostsecret.ApiHost, apiuri)
-	return
-}
-
-func (c *ClientService) getAPIConfig() (hostconfig client.HostConfig, err error) {
+func (c *ClientService) getAPIConfig() (hostconfig HostConfig, err error) {
 	if c.SecretsMap == nil {
 		return hostconfig, errors.New("secret not found")
 	}

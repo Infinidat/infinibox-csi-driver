@@ -36,6 +36,8 @@ const (
 	PARAMETER_VALUE_FALSE            = "false"
 	CONTENT_TYPE                     = "Content-Type"
 	JSON_CONTENT_TYPE                = "application/json; charset=UTF-8"
+	PARAMETER_PAGE_SIZE              = "page_size"
+	PARAMETER_PAGE                   = "page"
 )
 
 type IboxAPIError struct {
@@ -64,7 +66,6 @@ type Error struct {
 	Data     any    `json:"data"`
 }
 
-// Client interface
 type Client interface {
 	// pools
 	GetPoolByName(name string) (*PoolResult, error)
@@ -77,12 +78,6 @@ type Client interface {
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
 	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error)
 	GetVolumesByParentID(parentID int) ([]Volume, error)
-
-	/**
-	NewClient() (*ClientService, error)
-	GetStoragePool(poolID int64, storagepool string) ([]StoragePool, error)
-	GetAllVolumes() ([]Volume, error)
-	*/
 
 	// network spaces
 	GetNetworkSpaceByName(networkSpaceName string) (nspace *NetworkSpace, err error)
@@ -114,7 +109,7 @@ type Client interface {
 	// components
 	GetFCPorts() (fcNodes []FCNode, err error)
 
-	// for consistency group (volume group)
+	// consistency group (volume group)
 	GetConsistencyGroup(cgID int) (*ConsistencyGroupInfo, error)
 	DeleteConsistencyGroup(cgID int) error
 	GetConsistencyGroupByName(name string) (*ConsistencyGroupInfo, error)
@@ -123,27 +118,7 @@ type Client interface {
 	AddMemberToSnapshotGroup(volumeID, cgID int) error
 	CreateConsistencyGroup(req CreateConsistencyGroupRequest) (*ConsistencyGroupInfo, error)
 
-	/**
-
 	// for nfs
-	AttachMetadataToObject(objectID int64, body map[string]interface{}) (*[]Metadata, error)
-	DetachMetadataFromObject(objectID int64) (*[]Metadata, error)
-	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	DeleteNodeFromExport(exportID int64, access string, noRootSquash bool, ip string) (*ExportResponse, error)
-	CreateFileSystemSnapshot(lockedExpiresAt int64, snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
-	DeleteFileSystemComplete(fileSystemID int64) (err error)
-	DeleteParentFileSystem(fileSystemID int64) (err error)
-	GetParentID(fileSystemID int64) int64
-	GetFileSystemByName(fileSystemName string) (*FileSystem, error)
-	GetMetadataStatus(fileSystemID int64) bool
-	FileSystemHasChild(fileSystemID int64) bool
-	DeleteExport(exportID int64) (err error)
-	DeleteExportRule(fileSystemID int64, ipAddress string) (err error)
-	GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error)
-	RestoreFileSystemFromSnapShot(parentID, srcSnapShotID int64) (bool, error)
-
-	*/
-
 	GetFileSystemByName(name string) (*FileSystem, error)
 	GetFileSystemsByPool(poolID int, fsPrefix string) ([]FileSystem, error)
 	GetFileSystemsByParentID(parentID int) ([]FileSystem, error)
@@ -151,10 +126,7 @@ type Client interface {
 	CreateFileSystem(request CreateFileSystemRequest) (*FileSystem, error)
 	DeleteFileSystem(fileSystemID int) error
 	UpdateFileSystem(fileSystemID int, fileSystem FileSystem) (*FileSystem, error)
-
-	/**
-	GetFileSystemCountByPoolID(poolID int64) (int, error)
-	*/
+	CreateFileSystemSnapshot(snapshotParam FileSystemSnapshot) (*FileSystemSnapshotResponse, error)
 
 	// treeq
 	GetTreeqsByFileSystem(filesystemID int) ([]Treeq, error)
@@ -168,6 +140,7 @@ type Client interface {
 	GetExportsByFileSystemID(filesystemID int) ([]Export, error)
 	DeleteExport(exportID int) (*Export, error)
 	CreateExport(request CreateExportRequest) (*Export, error)
+	UpdateExport(export Export, exportPathRef ExportPathRef) (*Export, error)
 
 	// metadata
 	PutMetadata(objectID int, metadata map[string]interface{}) (*PutMetadataResponse, error)

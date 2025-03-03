@@ -7,7 +7,6 @@ require (
 	github.com/containerd/containerd v1.7.24
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zerologr v1.2.3
-	github.com/go-resty/resty/v2 v2.16.2
 	github.com/kubernetes-csi/csi-lib-utils v0.19.0
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.3.0
 	github.com/kubernetes-csi/external-snapshotter/client/v8 v8.2.0

@@ -41,12 +41,13 @@ type GetFCPortsResponse struct {
 }
 
 func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
+	const function = "GetFCPorts"
 	url := iboxClient.Creds.Url + "api/rest/components/nodes"
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetFCPorts", "URL", url)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nodes, fmt.Errorf("GetFCPorts - NewRequest - error %w", err)
+		return nodes, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	values := req.URL.Query()
@@ -57,20 +58,20 @@ func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nodes, fmt.Errorf("GetFCPorts - Do - error %w", err)
+		return nodes, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nodes, fmt.Errorf("GetFCPorts - ReadAll - error %w", err)
+		return nodes, fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 	var responseObject GetFCPortsResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nodes, fmt.Errorf("GetFCPorts - Unmarshal - error %w", err)
+		return nodes, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nodes, fmt.Errorf("GetFCPorts - ibox API - error code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nodes, fmt.Errorf("%s - ibox API - error code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	return responseObject.Result, nil

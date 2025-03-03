@@ -79,13 +79,12 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 	treeqIDs := make([]int, len(TREEQ_USERS))
 
 	for i := 0; i < len(TREEQ_USERS); i++ {
-		treeqParameters := map[string]interface{}{
-			"path":          "/" + TREEQ_USERS[i],
-			"name":          TREEQ_USERS[i],
-			"hard_capacity": common.BytesInOneGibibyte, // 1Gi
+		request := iboxapi.CreateTreeqRequest{
+			Path:         "/" + TREEQ_USERS[i],
+			Name:         TREEQ_USERS[i],
+			HardCapacity: common.BytesInOneGibibyte,
 		}
-
-		resp, err := config.ClientService.CreateTreeq(fs.ID, treeqParameters)
+		resp, err := config.ClientService.Iboxapi.CreateTreeq(fs.ID, request)
 		if err != nil {
 			return 0, err
 		}

@@ -744,7 +744,7 @@ func validateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMi
 func (n Service) ValidateIPAddress(ip string, port int) (err error) {
 	start := time.Now()
 
-	ipAndPort := fmt.Sprintf("%s:%d", ip, port)
+	ipAndPort := ip + ":" + strconv.Itoa(port)
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", ipAndPort)
 	if conn != nil {

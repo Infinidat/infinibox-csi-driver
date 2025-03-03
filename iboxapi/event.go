@@ -50,40 +50,40 @@ type CreateEventResult struct {
 }
 
 func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
-
+	const function = "CreateEvent"
 	URL := iboxClient.Creds.Url + "api/rest/events"
-	iboxClient.Log.V(TRACE_LEVEL).Info("CreateEvent", "URL", URL, "event", eventRequest)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "event", eventRequest)
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
-		return fmt.Errorf("CreateEvent - Marshal - error %w", err)
+		return fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("CreateEvent - NewRequest - error %w", err)
+		return fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 	SetAuthHeader(request, iboxClient.Creds)
-	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := iboxClient.HttpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("CreateEvent - Do - error %w", err)
+		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("CreateEvent - ReadAll - error %w", err)
+		return fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 
 	var responseObject CreateEventResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return fmt.Errorf("CreateEvent - Unmarshal - error %w", err)
+		return fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	iboxClient.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("CreateEvent - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return nil
 }

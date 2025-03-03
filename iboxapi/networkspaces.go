@@ -76,49 +76,50 @@ type GetNetworkSpaceByNameResponse struct {
 }
 
 func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networkSpace *NetworkSpace, err error) {
+	const function = "GetNetworkSpaceByName"
 	URL := fmt.Sprintf("%sapi/rest/network/spaces", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetNetworkSpaceByName", "URL", URL, "net space Name", netspaceName)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "net space Name", netspaceName)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info("GetNetworkSpaceByName loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
-			return nil, fmt.Errorf("GetNetworkSpaceByName - NewRequest - error %w", err)
+			return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
 
 		values := req.URL.Query()
 		values.Add("name", netspaceName)
-		values.Add("page_size", strconv.Itoa(pageSize))
-		values.Add("page", strconv.Itoa(page))
+		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
+		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
 		SetAuthHeader(req, iboxClient.Creds)
 
 		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("GetNetworkSpaceByName - Do - error %w", err)
+			return nil, fmt.Errorf("%s - Do - error %w", function, err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("GetNetworkSpaceByName - ReadAll - error %w", err)
+			return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
 		}
 		var responseObject GetNetworkSpaceByNameResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return nil, fmt.Errorf("GetNetworkSpaceByName - Unmarshal - error %w", err)
+			return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 		}
 		if responseObject.Error.Code != "" {
 			//TODO check for NOT FOUND?  return ErrNotFound for callers?
-			return nil, fmt.Errorf("GetNetworkSpaceByName - ibox API - error code %s message %s", responseObject.Error.Code, responseObject.Error.Message)
+			return nil, fmt.Errorf("%s - ibox API - error code %s message %s", function, responseObject.Error.Code, responseObject.Error.Message)
 		}
 		if len(responseObject.Result) > 0 {
 			networkSpace = &responseObject.Result[0]
 		} else {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetNetworkSpaceByName - netspace name '%s' not found", netspaceName)}
+			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - netspace name '%s' not found", function, netspaceName)}
 		}
 
 		if page == 1 {

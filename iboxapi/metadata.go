@@ -44,80 +44,82 @@ type GetMetadataResult struct {
 }
 
 func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]interface{}) (r *PutMetadataResponse, err error) {
+	const function = "PutMetadata"
 	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/metadata/", objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info("PutMetadata", "URL", url, "object ID", objectID, "map", metadata)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "object ID", objectID, "map", metadata)
 
 	jsonBytes, err := json.Marshal(metadata)
 	if err != nil {
-		return nil, fmt.Errorf("PutMetadata - Marshal - error %w", err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("PutMetadata - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	SetAuthHeader(request, iboxClient.Creds)
 
-	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := iboxClient.HttpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("PutMetadata - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("PutMetadata - ReadAll - error %w", err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 
 	var responseObject PutMetadataResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("PutMetadata - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("PutMetadata - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
 }
 
 func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult, err error) {
+	const function = "GetMetadata"
 	URL := fmt.Sprintf("%sapi/rest/metadata/%d", iboxClient.Creds.Url, objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetMetadata", "URL", URL, "object ID", objectID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "object ID", objectID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info("GetMetadata loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
-			return results, fmt.Errorf("GetMetadata - NewRequest - error %w", err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
 
 		values := req.URL.Query()
-		values.Add("page_size", strconv.Itoa(pageSize))
-		values.Add("page", strconv.Itoa(page))
+		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
+		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
 		SetAuthHeader(req, iboxClient.Creds)
 
 		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("GetMetadata - Do - error %w", err)
+			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("GetMetadata - ReadAll - error %w", err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
 		}
 		var responseObject GetMetadataResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("GetMetadata - Unmarshal - error %w", err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 		}
-		iboxClient.Log.V(TRACE_LEVEL).Info("GetMetadata resp", "resp", responseObject)
+		iboxClient.Log.V(TRACE_LEVEL).Info(function, "resp", responseObject)
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {
@@ -129,36 +131,37 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 }
 
 func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
+	const function = "DeleteMetadata"
 	url := fmt.Sprintf("%sapi/rest/metadata/%d", iboxClient.Creds.Url, objectID)
-	iboxClient.Log.V(DEBUG_LEVEL).Info("DeleteMetadata", "URL", url, "object ID", objectID)
+	iboxClient.Log.V(DEBUG_LEVEL).Info(function, "URL", url, "object ID", objectID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("DeleteMetadata - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	values := req.URL.Query()
-	values.Add("approved", "true")
+	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
 	req.URL.RawQuery = values.Encode()
 
 	SetAuthHeader(req, iboxClient.Creds)
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("DeleteMetadata - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("DeleteMetadata - ReadAll - error %w", err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 	var responseObject DeleteMetadataResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("DeleteMetadata - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("DeleteMetadata - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
 }

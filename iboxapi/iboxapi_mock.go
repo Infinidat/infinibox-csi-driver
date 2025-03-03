@@ -157,9 +157,9 @@ func (m *MockApiService) DeleteExport(exportID int) (*Export, error) {
 
 func (m *MockApiService) CreateExport(request CreateExportRequest) (*Export, error) {
 	args := m.Called(request)
-	res, _ := args.Get(0).(*Export)
+	res, _ := args.Get(0).(Export)
 	err, _ := args.Get(1).(error)
-	return res, err
+	return &res, err
 }
 
 func (m *MockApiService) CreateFileSystem(request CreateFileSystemRequest) (*FileSystem, error) {
@@ -391,6 +391,19 @@ func (m *MockApiService) DeleteReplica(replicaID int) error {
 func (m *MockApiService) GetReplica(id int) (*Replica, error) {
 	args := m.Called(id)
 	resp, _ := args.Get(0).(Replica)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
+
+func (m *MockApiService) UpdateExport(export Export, exportPathRef ExportPathRef) (*Export, error) {
+	args := m.Called(export, exportPathRef)
+	res, _ := args.Get(0).(Export)
+	err, _ := args.Get(1).(error)
+	return &res, err
+}
+func (m *MockApiService) CreateFileSystemSnapshot(params FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
+	args := m.Called(params)
+	resp, _ := args.Get(0).(FileSystemSnapshotResponse)
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }

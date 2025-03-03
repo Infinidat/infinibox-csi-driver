@@ -205,70 +205,72 @@ type GetNtpStatusResponse struct {
 }
 
 func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
+	const function = "GetSystem"
 	url := fmt.Sprintf("%sapi/rest/system", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetSystem", "URL", url)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GetSystem - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GetSystem - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("GetSystem - ReadAll - error %w", err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 	var responseObject GetSystemResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("GetSystem - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
 		//TODO check for NOT FOUND ?  return ErrNotFound for callers?
-		return nil, fmt.Errorf("GetSystem - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
+	const function = "GetNtpStatus"
 	URL := fmt.Sprintf("%sapi/rest/system/ntp_status", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetNtpStatus", "URL", URL)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info("GetNtpStatus loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
-			return results, fmt.Errorf("GetNtpStatus - NewRequest - error %w", err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
 
 		values := req.URL.Query()
-		values.Add("page_size", strconv.Itoa(pageSize))
-		values.Add("page", strconv.Itoa(page))
+		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
+		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
 		SetAuthHeader(req, iboxClient.Creds)
 
 		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("GetNtpStatus - Do - error %w", err)
+			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("GetNtpStatus - ReadAll - error %w", err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
 		}
 		var responseObject GetNtpStatusResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("GetNtpStatus - Unmarshal - error %w", err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 		}
 		results = append(results, responseObject.Result...)
 

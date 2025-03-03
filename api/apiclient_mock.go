@@ -13,8 +13,7 @@ limitations under the License.
 package api
 
 import (
-	"context"
-	"infinibox-csi-driver/api/client"
+	"infinibox-csi-driver/iboxapi"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -26,46 +25,6 @@ type MockApiService struct {
 
 type MockApiClient struct {
 	mock.Mock
-}
-
-// Get : mock for get request
-func (m *MockApiClient) Get(ctx context.Context, url string, hostconfig client.HostConfig, expectedResp interface{}) (interface{}, error) {
-	args := m.Called()
-	resp := args.Get(0) //.(interface{})
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-// Post : mock for post request
-func (m *MockApiClient) Post(ctx context.Context, url string, hostconfig client.HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	args := m.Called()
-	resp := args.Get(0) //.(interface{})
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-// Put : mock for put request
-func (m *MockApiClient) Put(ctx context.Context, url string, hostconfig client.HostConfig, body, expectedResp interface{}) (interface{}, error) {
-	args := m.Called()
-	response := args.Get(0) //.(interface{})
-	err, _ := args.Get(1).(error)
-	return response, err
-}
-
-// Delete : mock for Delete request
-func (m *MockApiClient) Delete(ctx context.Context, url string, hostconfig client.HostConfig) (interface{}, error) {
-	args := m.Called()
-	resp := args.Get(0) //.(interface{})
-	err, _ := args.Get(1).(error)
-	return resp, err
-}
-
-// GetWithQueryString : mock for GetWithQueryString request
-func (m *MockApiClient) GetWithQueryString(ctx context.Context, url string, hostconfig client.HostConfig, queryString string, expectedResp interface{}) (interface{}, error) {
-	args := m.Called()
-	resp := args.Get(0) //.(interface{})
-	err, _ := args.Get(1).(error)
-	return resp, err
 }
 
 func (m *MockApiService) DeleteFileSystem(fileSystemID int) (*FileSystem, error) {
@@ -180,21 +139,13 @@ func (m *MockApiService) GetMetadataStatus(fileSystemID int) bool {
 	return err
 }
 
-// GetSnapshotByName
-func (m *MockApiService) GetSnapshotByName(snapshotName string) (*[]FileSystemSnapshotResponse, error) {
-	args := m.Called(snapshotName)
-	resp, _ := args.Get(0).([]FileSystemSnapshotResponse)
-	err, _ := args.Get(1).(error)
-	return &resp, err
-}
-
 // AddNodeInExport
-func (m *MockApiService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*ExportResponse, error) {
+func (m *MockApiService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
 	argsArray := m.Called(exportID, access, noRootSquash, ip)
 	args := argsArray[0]
-	var resp ExportResponse
+	var resp iboxapi.Export
 	if argsArray.Get(0) != nil {
-		resp, _ = args.(ExportResponse)
+		resp, _ = args.(iboxapi.Export)
 	}
 	var err error
 	if argsArray.Get(1) != nil {
@@ -255,4 +206,12 @@ func (m *MockApiService) UnMapVolumeFromHost(hostID, volumeID int) error {
 	args := m.Called(hostID, volumeID)
 	err, _ := args.Get(0).(error)
 	return err
+}
+
+func (m *MockApiService) DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
+	args := m.Called(export, access, noRootSquash, ip)
+	resp, _ := args.Get(0).(iboxapi.Export)
+	err, _ := args.Get(0).(error)
+	return &resp, err
+
 }

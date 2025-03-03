@@ -16,7 +16,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/iboxapi"
 	"strconv"
@@ -242,11 +241,10 @@ func (nfs *nfsstorage) createVolumeFromPVCSource(req *csi.CreateVolumeRequest, s
 	}
 
 	newSnapshotName := req.GetName() // create snapshot using the original CreateVolumeRequest
-	newSnapshotParams := &api.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: newSnapshotName, WriteProtected: false}
+	newSnapshotParams := iboxapi.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: newSnapshotName, WriteProtected: false}
 	zlog.Debug().Msgf("CreateFileSystemSnapshot: %v", newSnapshotParams)
 	// Create snapshot
-	var lockExpiresAt int64
-	newSnapshot, err := nfs.cs.Api.CreateFileSystemSnapshot(lockExpiresAt, newSnapshotParams)
+	newSnapshot, err := nfs.cs.IboxApi.CreateFileSystemSnapshot(newSnapshotParams)
 	if err != nil {
 		e := fmt.Errorf("failed to create snapshot: %s error: %v", newSnapshotParams.SnapshotName, err)
 		zlog.Err(e)
@@ -586,29 +584,29 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	srcVolumeId := req.GetSourceVolumeId()
 
 	sourceFilesystemID := nfs.cs.VolProto.VolumeID
-	snapshotArray, err := nfs.cs.Api.GetSnapshotByName(snapshotName)
+	snap, err := nfs.cs.IboxApi.GetFileSystemByName(snapshotName)
 	if err != nil {
-		zlog.Error().Msgf("CreateSnapshot - GetSnapshotByName %d - error: %v", nfs.cs.VolProto.VolumeID, err)
-		return
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		} else {
+			zlog.Error().Msgf("CreateSnapshot - GetSnapshotByName %d - error: %v", nfs.cs.VolProto.VolumeID, err)
+			return
+		}
 	}
-	if len(*snapshotArray) > 0 {
-		for _, snap := range *snapshotArray {
-			if snap.ParentId == sourceFilesystemID {
-				snapshotID = strconv.Itoa(snap.SnapshotID) + "$$" + nfs.cs.VolProto.StorageType
-				zlog.Debug().Msgf("snapshot: %s src fs id: %d exists, snapshot id: %d", snapshotName, snap.ParentId, snap.SnapshotID)
-				return &csi.CreateSnapshotResponse{
-					Snapshot: &csi.Snapshot{
-						SizeBytes:      snap.Size,
-						SnapshotId:     snapshotID,
-						SourceVolumeId: srcVolumeId,
-						CreationTime:   timestamppb.Now(),
-						ReadyToUse:     true,
-					},
-				}, nil
-			} else {
-				zlog.Debug().Msgf("Snapshot: %s snapshot id: %d src fs id: %d (requested: %d)",
-					snapshotName, snap.ParentId, snap.SnapshotID, sourceFilesystemID)
-			}
+
+	if snap != nil {
+		if snap.ParentID == sourceFilesystemID {
+			snapshotID = strconv.Itoa(snap.ID) + "$$" + nfs.cs.VolProto.StorageType
+			zlog.Debug().Msgf("snapshot: %s src fs id: %d exists, snapshot id: %d", snapshotName, snap.ParentID, snap.ID)
+			return &csi.CreateSnapshotResponse{
+				Snapshot: &csi.Snapshot{
+					SizeBytes:      snap.Size,
+					SnapshotId:     snapshotID,
+					SourceVolumeId: srcVolumeId,
+					CreationTime:   timestamppb.Now(),
+					ReadyToUse:     true,
+				},
+			}, nil
 		}
 		return nil, status.Error(codes.AlreadyExists, "CreateSnapshot snapshot with already existing name and different source volume ID")
 	}
@@ -619,7 +617,7 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		return
 	}
 
-	fileSystemSnapshot := &api.FileSystemSnapshot{
+	fileSystemSnapshot := iboxapi.FileSystemSnapshot{
 		ParentID:       sourceFilesystemID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
@@ -640,8 +638,9 @@ func (nfs *nfsstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 			return nil, err
 		}
 		zlog.Debug().Msgf("snapshot param has a lock_expires_at of %s", lockExpiresAtParameter)
+		fileSystemSnapshot.LockExpiresAt = lockExpiresAt
 	}
-	resp, err := nfs.cs.Api.CreateFileSystemSnapshot(lockExpiresAt, fileSystemSnapshot)
+	resp, err := nfs.cs.IboxApi.CreateFileSystemSnapshot(fileSystemSnapshot)
 	if err != nil {
 		zlog.Error().Msgf("CreateSnapshot - CreateFileSystemSnapshot - failed to create snapshot %s error %v", snapshotName, err)
 		return

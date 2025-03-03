@@ -245,7 +245,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_faile
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(getExportPath(), nil)
 	poolResult := &iboxapi.PoolResult{ID: 100}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, suite.someError)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, suite.someError)
 
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err.Error(), "failed to create snapshot")
@@ -262,7 +262,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_exportPath_failed() 
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(getFileSystem(), nil)
 	poolResult := &iboxapi.PoolResult{ID: 100}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("DeleteFileSystem", mock.Anything).Return(nil)
 
@@ -282,7 +282,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	poolResult := &iboxapi.PoolResult{ID: 100}
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(getExportPath(), nil)
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("DeleteFileSystem", mock.Anything).Return(nil)
@@ -305,7 +305,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_Success() {
 	}
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(getExportPath(), nil)
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&poolResult, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -326,7 +326,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Clone_Success() {
 		ID: 100,
 	}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(&poolResult, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(GetFileSystemSnapshotResponse(1), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -398,55 +398,51 @@ func (suite *NFSControllerSuite) Test_NfsControllerExpandVolume_success_expand()
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_GetSnapshot_Error() {
 	expectedErr := errors.New("Snapshot Name is must")
-	suite.api.On("GetSnapshotByName", mock.Anything).Return(nil, expectedErr)
+	suite.iboxapi.On("GetFileSystemByName", mock.Anything).Return(nil, expectedErr)
 	_, err := suite.service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))
 	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot get snapshot by name")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_SourceVolumeID_Error() {
 	fileSystem := &iboxapi.FileSystem{}
-	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSystem, nil)
+	suite.iboxapi.On("GetFileSystemByName", mock.Anything).Return(fileSystem, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(fileSystem, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, suite.someError)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("100"))
 	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot create snapshot by name")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_Success() {
-	fileSysSnapshotRespArry := []api.FileSystemSnapshotResponse{
-		{
-			SnapshotID: 1,
-			Name:       "snapshot",
-			ParentId:   1,
-		},
+	filesystem := &iboxapi.FileSystem{
+		ID:       1,
+		Name:     "snapshot",
+		ParentID: 1,
 	}
-
-	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
+	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(filesystem, nil)
+	suite.iboxapi.On("GetFileSystemByName", mock.Anything).Return(filesystem, nil)
 
 	_, err := suite.service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
 	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_Error() {
-	var fileSysSnapshotRespArry []api.FileSystemSnapshotResponse
 	filesystem := &iboxapi.FileSystem{}
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(filesystem, nil)
-	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, suite.someError)
+	suite.iboxapi.On("GetFileSystemByName", mock.Anything).Return(filesystem, nil)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
 	assert.NotNil(suite.T(), err, "expected to fail: CreateSnapshot create file system snapshot")
 }
 
 func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_success() {
-	var fileSysSnapshotRespArry []api.FileSystemSnapshotResponse
 	filesystem := &iboxapi.FileSystem{
-		ParentID:       10,
-		WriteProtected: false,
+		ID: 1,
 	}
 
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(filesystem, nil)
-	suite.api.On("GetSnapshotByName", mock.Anything).Return(fileSysSnapshotRespArry, nil)
-	suite.api.On("CreateFileSystemSnapshot", mock.Anything).Return(filesystem, nil)
+	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetFileSystemByName - name '%s' not found", "foo")}
+	suite.iboxapi.On("GetFileSystemByName", mock.Anything).Return(nil, notFoundError)
+	suite.iboxapi.On("CreateFileSystemSnapshot", mock.Anything).Return(filesystem, nil)
 	_, err := suite.service.CreateSnapshot(context.Background(), getNfsCreateSnapshotRequest("1$$nfs"))
 	assert.Nil(suite.T(), err, "expected to succeed: CreateSnapshot CreateFileSystemSnapshot")
 }
@@ -670,8 +666,8 @@ func getExportPath() []iboxapi.Export {
 	return exportRepo
 }
 
-func GetFileSystemSnapshotResponse(snapshotID int) api.FileSystemSnapshotResponse {
-	return api.FileSystemSnapshotResponse{SnapshotID: snapshotID, Name: "snapshotName"}
+func GetFileSystemSnapshotResponse(snapshotID int) *iboxapi.FileSystemSnapshotResponse {
+	return &iboxapi.FileSystemSnapshotResponse{SnapshotID: snapshotID, Name: "snapshotName"}
 }
 
 func getFileSystemPrior() *iboxapi.FileSystem {

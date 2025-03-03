@@ -175,7 +175,7 @@ func NewStorageNode(comnserv Commonservice, configparams ...map[string]string) (
 func BuildCommonService(config map[string]string, secretMap map[string]string, volProto *api.VolumeProtocolConfig) (Commonservice, error) {
 	commonserv := Commonservice{}
 	if config != nil {
-		if secretMap == nil || len(secretMap) < 3 {
+		if len(secretMap) < 3 {
 			zlog.Error().Msgf("Api client cannot be initialized without proper secrets")
 			return commonserv, errors.New("secrets are missing or not valid")
 		}

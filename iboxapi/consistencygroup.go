@@ -158,16 +158,18 @@ const DELETE_MEMBERS = "delete_members"
 
 func (iboxClient *IboxClient) CreateConsistencyGroup(req CreateConsistencyGroupRequest) (*ConsistencyGroupInfo, error) {
 
+	const function = "CreateConsistencyGroup"
+
 	URL := iboxClient.Creds.Url + "api/rest/cgs"
-	iboxClient.Log.V(TRACE_LEVEL).Info("CreateConsistencyGroup", "URL", URL, "request", req)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("CreateConsistencyGroup - Marshal - error %w", err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("CreateConsistencyGroup - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	values := request.URL.Query()
@@ -179,7 +181,7 @@ func (iboxClient *IboxClient) CreateConsistencyGroup(req CreateConsistencyGroupR
 
 	response, err := iboxClient.HttpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("CreateConsistencyGroup - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer response.Body.Close()
 
@@ -188,38 +190,39 @@ func (iboxClient *IboxClient) CreateConsistencyGroup(req CreateConsistencyGroupR
 	var responseObject CreateConsistencyGroupResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("CreateConsistencyGroup - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("CreateConsistencyGroup - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info("CreateConsistencyGroup", "Export ID", responseObject.Result.ID)
+	iboxClient.Log.V(TRACE_LEVEL).Info("%s", "Export ID", function, responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) AddMemberToSnapshotGroup(volumeID, cgID int) error {
+	const function = "AddMemberToSnapshotGroup"
 
 	path := fmt.Sprintf("api/rest/cgs/%s/members", strconv.Itoa(cgID))
 	URL := iboxClient.Creds.Url + path
-	iboxClient.Log.V(TRACE_LEVEL).Info("AddMemberToSnapshotGroup", "URL", URL, "volume ID", volumeID, "cg ID", cgID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "volume ID", volumeID, "cg ID", cgID)
 
 	req := AddMemberToSnapshotGroupRequest{
 		DatasetID: volumeID,
 	}
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("AddMemberToSnapshotGroup - Marshal - error %w", err)
+		return fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("AddMemberToSnapshotGroup - NewRequest - error %w", err)
+		return fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := iboxClient.HttpClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("AddMemberToSnapshotGroup - Do - error %w", err)
+		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer response.Body.Close()
 
@@ -228,49 +231,50 @@ func (iboxClient *IboxClient) AddMemberToSnapshotGroup(volumeID, cgID int) error
 	var responseObject AddMemberToSnapshotGroupResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return fmt.Errorf("AddMemberToSnapshotGroup - Unmarshal - error %w", err)
+		return fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("AddMemberToSnapshotGroup - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info("AddMemberToSnapshotGroup", "response", responseObject.Result)
+	iboxClient.Log.V(TRACE_LEVEL).Info("%s", "response", function, responseObject.Result)
 	return nil
 }
 
 func (iboxClient *IboxClient) GetMembersByCGID(cgID int) (memberInfo []MemberInfo, err error) {
+	const function = "GetMembersByCGID"
 	URL := fmt.Sprintf("%sapi/rest/cgs/%d/members", iboxClient.Creds.Url, cgID)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetMembersByCGID", "URL", URL, "cg ID", cgID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "cg ID", cgID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info("GetMembersByCGID loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
-			return memberInfo, fmt.Errorf("GetMembersByCGID - NewRequest - error %w", err)
+			return memberInfo, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
 
 		values := req.URL.Query()
-		values.Add("page_size", strconv.Itoa(pageSize))
-		values.Add("page", strconv.Itoa(page))
+		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
+		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
 		SetAuthHeader(req, iboxClient.Creds)
 
 		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return memberInfo, fmt.Errorf("GetMembersByCGID - Do - error %w", err)
+			return memberInfo, fmt.Errorf("%s - Do - error %w", function, err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return memberInfo, fmt.Errorf("GetMembersByCGID - ReadAll - error %w", err)
+			return memberInfo, fmt.Errorf("%s - ReadAll - error %w", function, err)
 		}
 		var responseObject GetMembersByCGIDResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return memberInfo, fmt.Errorf("GetMembersByCGID - Unmarshal - error %w", err)
+			return memberInfo, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 		}
 		memberInfo = append(memberInfo, responseObject.Result...)
 
@@ -283,17 +287,17 @@ func (iboxClient *IboxClient) GetMembersByCGID(cgID int) (memberInfo []MemberInf
 }
 
 func (iboxClient *IboxClient) CreateSnapshotGroup(req CreateSnapshotGroupRequest) (newCG *ConsistencyGroupInfo, err error) {
-
+	const function = "CreateSnapshotGroup"
 	URL := iboxClient.Creds.Url + "api/rest/cgs"
-	iboxClient.Log.V(TRACE_LEVEL).Info("CreateSnapshotGroup", "URL", URL, "request", req)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("CreateSnapshotGroup - Marshal - error %w", err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("CreateSnapshotGroup - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	SetAuthHeader(request, iboxClient.Creds)
@@ -301,7 +305,7 @@ func (iboxClient *IboxClient) CreateSnapshotGroup(req CreateSnapshotGroupRequest
 
 	response, err := iboxClient.HttpClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("CreateSnapshotGroup - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer response.Body.Close()
 
@@ -310,49 +314,50 @@ func (iboxClient *IboxClient) CreateSnapshotGroup(req CreateSnapshotGroupRequest
 	var responseObject CreateSnapshotGroupResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("CreateSnapshotGroup - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("CreateSnapshotGroup - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info("CreateSnapshotGroup", "Export ID", responseObject.Result.ID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "Export ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) GetConsistencyGroupByName(name string) (cg *ConsistencyGroupInfo, err error) {
+	const function = "GetConsistencyGroupByName"
 	URL := fmt.Sprintf("%sapi/rest/cgs", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetConsistencyGroupByName", "URL", URL, "cg name", name)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "cg name", name)
 
 	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroupByName - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	values := req.URL.Query()
 	values.Add("name", name)
-	values.Add("page_size", strconv.Itoa(common.IBOX_DEFAULT_QUERY_PAGE_SIZE))
-	values.Add("page", strconv.Itoa(1))
+	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOX_DEFAULT_QUERY_PAGE_SIZE))
+	values.Add(PARAMETER_PAGE, strconv.Itoa(1))
 	req.URL.RawQuery = values.Encode()
 
 	SetAuthHeader(req, iboxClient.Creds)
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroupByName - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroupByName - ReadAll - error %w", err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 	var responseObject GetConsistencyGroupByNameResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroupByName - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 
 	if len(responseObject.Result) == 0 {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetConsistencyGroupByName - cg name '%s' not found", name)}
+		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - cg name '%s' not found", function, name)}
 	}
 	cg = &responseObject.Result[0]
 
@@ -360,12 +365,13 @@ func (iboxClient *IboxClient) GetConsistencyGroupByName(name string) (cg *Consis
 }
 
 func (iboxClient *IboxClient) DeleteConsistencyGroup(cgID int) (err error) {
+	const function = "DeleteConsistencyGroup"
 	url := fmt.Sprintf("%sapi/rest/cgs/%d", iboxClient.Creds.Url, cgID)
-	iboxClient.Log.V(TRACE_LEVEL).Info("DeleteConsistencyGroup", "URL", url, "cg ID", cgID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "cg ID", cgID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return fmt.Errorf("DeleteConsistencyGroup - NewRequest - error %w", err)
+		return fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
 	values := req.URL.Query()
@@ -377,54 +383,55 @@ func (iboxClient *IboxClient) DeleteConsistencyGroup(cgID int) (err error) {
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("DeleteConsistencyGroup - Do - error %w", err)
+		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("DeleteConsistencyGroup - ReadAll -error %w", err)
+		return fmt.Errorf("%s - ReadAll -error %w", function, err)
 	}
 	var responseObject DeleteConsistencyGroupResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return fmt.Errorf("DeleteConsistencyGroup - Unmarshal - error %w", err)
+		return fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 	if responseObject.Error.Code != "" {
 		//TODO check for NOT FOUND?  have callers check for ErrNotFound?
-		return fmt.Errorf("DeleteConsistencyGroup - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return nil
 }
 func (iboxClient *IboxClient) GetConsistencyGroup(cgID int) (cg *ConsistencyGroupInfo, err error) {
+	const function = "GetConsistencyGroup"
 	URL := fmt.Sprintf("%s/api/rest/cgs/%d", iboxClient.Creds.Url, cgID)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetConsistencyGroup", "URL", URL, "cg ID", cgID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "cg ID", cgID)
 
 	req, err := http.NewRequest(http.MethodGet, URL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroup - NewRequest - error %w", err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroup - Do - error %w", err)
+		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroup - ReadAll - error %w", err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
 	}
 	var responseObject GetConsistencyGroupResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("GetConsistencyGroup - Unmarshal - error %w", err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 	}
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "CG_NOT_FOUND" {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("GetConsistencyGroup - cg ID '%d' not found", cgID)}
+			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - cg ID '%d' not found", function, cgID)}
 		}
-		return nil, fmt.Errorf("GetConsistencyGroup - ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }

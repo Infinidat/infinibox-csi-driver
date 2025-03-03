@@ -28,22 +28,23 @@ type GetAllSnapshotsResponse struct {
 }
 
 func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
+	const function = "GetAllSnapshots"
 	URL := fmt.Sprintf("%sapi/rest/datasets", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info("GetAllSnapshots", "URL", URL)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info("GetAllSnapshots loop", "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, URL, nil)
 		if err != nil {
-			return results, fmt.Errorf("GetAllSnapshots - NewRequest - error %w", err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
 
 		values := req.URL.Query()
-		values.Add("page_size", strconv.Itoa(pageSize))
-		values.Add("page", strconv.Itoa(page))
+		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
+		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		values.Add("type", "SNAPSHOT")
 		req.URL.RawQuery = values.Encode()
 
@@ -51,17 +52,17 @@ func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 
 		resp, err := iboxClient.HttpClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("GetAllSnapshots - Do - error %w", err)
+			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
 		defer resp.Body.Close()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("GetAllSnapshots - ReadAll - error %w", err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
 		}
 		var responseObject GetAllSnapshotsResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("GetAllSnapshots - Unmarshal - error %w", err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", function, err)
 		}
 		results = append(results, responseObject.Result...)
 
