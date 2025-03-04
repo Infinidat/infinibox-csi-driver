@@ -3,6 +3,7 @@
 package fc
 
 import (
+	"context"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
@@ -19,33 +20,33 @@ func TestFc(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
-	volumesToCreate := 6
-
 	originalPVCName := testConfig.TestNames.PVCName
 
 	testConfig.UseFsGroup = true
-	for i := 0; i < volumesToCreate; i++ {
+	for i := range testConfig.StressIterations {
 		testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)
+		t.Logf("creating pvc %s", testConfig.TestNames.PVCName)
 		e2e.CreatePVC(testConfig)
 		podName := testConfig.TestNames.PVCName
+		t.Logf("creating pod %s", podName)
 		e2e.CreatePod(testConfig, testConfig.TestNames.NSName, podName)
-		time.Sleep(time.Second * 5)
-		t.Logf("creating volume %d", i)
+		time.Sleep(time.Second * time.Duration(testConfig.StressSleepSeconds))
 	}
 
-	/**
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
 		ctx := context.Background()
-		for i := 0; i < volumesToCreate; i++ {
+		for i := range testConfig.StressIterations {
 			testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", testConfig.TestNames.PVCName, i)
-			e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
+			t.Logf("deleting pod %s", testConfig.TestNames.PVCName)
 			e2e.DeletePod(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
+			t.Logf("deleting pvc %s", testConfig.TestNames.PVCName)
+			e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
 			time.Sleep(time.Second * 5)
 		}
+		testConfig.TestNames.PVCName = originalPVCName
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
-	*/
 
 }

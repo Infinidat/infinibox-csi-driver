@@ -265,6 +265,16 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	allowExpand := true
 	sc.AllowVolumeExpansion = &allowExpand
 
+	nfsV4 := os.Getenv(ENV_USE_NFS_V4)
+	if nfsV4 != "" {
+		if nfsV4 == "true" {
+			sc.MountOptions = append(sc.MountOptions, "nfsvers=4.1")
+			sc.MountOptions = append(sc.MountOptions, "port=12049")
+			sc.MountOptions = append(sc.MountOptions, "rsize=262144")
+			sc.MountOptions = append(sc.MountOptions, "wsize=262144")
+		}
+	}
+
 	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
 	if err != nil {
 		return err
@@ -941,6 +951,9 @@ func GetEnvVars() string {
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_HOSTNAME, os.Getenv(ENV_IBOX_HOSTNAME)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_LINK_REMOTE_SYSTEM_NAME, os.Getenv(ENV_IBOX_LINK_REMOTE_SYSTEM_NAME)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_REMOTE_POOL_ID, os.Getenv(ENV_IBOX_REMOTE_POOL_ID)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_USE_NFS_V4, os.Getenv(ENV_USE_NFS_V4)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_STRESS_ITERATIONS, os.Getenv(ENV_STRESS_ITERATIONS)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_STRESS_SLEEP_SECONDS, os.Getenv(ENV_STRESS_SLEEP_SECONDS)))
 
 	return sb.String()
 }

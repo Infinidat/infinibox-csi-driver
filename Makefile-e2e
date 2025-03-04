@@ -83,6 +83,13 @@ e2etreeqanno:  ## run the infinidat developed e2e treeq tests
 	$(_GOTEST) -timeout=20m -count=1 -v ./e2e/treeqanno -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2enfsstressout
+e2enfsstressout:  ## create a bunch of nfs filesystems
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nfs-stress -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2enfs
 e2enfs:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)

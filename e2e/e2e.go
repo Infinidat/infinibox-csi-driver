@@ -40,6 +40,9 @@ const (
 	ENV_IBOX_REMOTE_POOL_ID          = "_E2E_IBOX_REMOTE_POOL_ID"
 	ENV_K8S_VERSION                  = "_E2E_K8S_VERSION"
 	ENV_OCP_VERSION                  = "_E2E_OCP_VERSION"
+	ENV_USE_NFS_V4                   = "_E2E_USE_NFS_V4"
+	ENV_STRESS_ITERATIONS            = "_E2E_STRESS_ITERATIONS"
+	ENV_STRESS_SLEEP_SECONDS         = "_E2E_STRESS_SLEEP_SECONDS"
 )
 
 type TestConfig struct {
@@ -58,9 +61,12 @@ type TestConfig struct {
 	UseSnapdirVisible     bool
 	ReadOnlyPod           bool
 	ReadOnlyPodVolume     bool
+	UseNFSV4              bool
 	UseSELinux            bool
 	UseSnapshot           bool
 	UseSnapshotLock       bool
+	StressIterations      int
+	StressSleepSeconds    int
 	PVCAnnotations        *PVCAnnotations
 	AccessMode            v1.PersistentVolumeAccessMode
 	TestNames             *TestResourceNames

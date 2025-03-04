@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"os"
+	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -20,6 +21,30 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	_, err = testConfig.ClientService.Iboxapi.GetPoolByName(poolToUse)
 	if err != nil {
 		return fmt.Errorf("error getting pool by name %s %w", poolToUse, err)
+	}
+
+	tmp := os.Getenv(ENV_STRESS_ITERATIONS)
+	if tmp != "" {
+		testConfig.StressIterations, err = strconv.Atoi(tmp)
+		if err != nil {
+			return fmt.Errorf("error parsing %s %s - error %s", ENV_STRESS_ITERATIONS, tmp, err.Error())
+		}
+	}
+	useNFSV4 := os.Getenv(ENV_USE_NFS_V4)
+	if useNFSV4 != "" {
+		testConfig.UseNFSV4, err = strconv.ParseBool(useNFSV4)
+		if err != nil {
+			return fmt.Errorf("%s env var is set but is not a valid boolean", ENV_USE_NFS_V4)
+		}
+	}
+	tmp = os.Getenv(ENV_STRESS_SLEEP_SECONDS)
+	if tmp != "" {
+		testConfig.StressSleepSeconds, err = strconv.Atoi(tmp)
+		if err != nil {
+			return fmt.Errorf("error parsing %s %s - error %s", ENV_STRESS_SLEEP_SECONDS, tmp, err.Error())
+		}
+	} else {
+		testConfig.StressSleepSeconds = 15
 	}
 
 	// validate network space on the ibox

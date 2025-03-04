@@ -1,6 +1,6 @@
 //go:build e2e
 
-package nvme
+package nfs
 
 import (
 	"context"
@@ -11,27 +11,25 @@ import (
 	"time"
 )
 
-func TestNvme(t *testing.T) {
+func TestNfs(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
 	e2e.Setup(testConfig)
 
-	t.Logf("creating %d nvme volumes", testConfig.StressIterations)
-
 	originalPVCName := testConfig.TestNames.PVCName
 
-	testConfig.UseFsGroup = true
+	//testConfig.UseFsGroup = true
 
 	for i := range testConfig.StressIterations {
 		testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)
-		t.Logf("creating nvme pvc %s", testConfig.TestNames.PVCName)
+		t.Logf("creating pvc %s", testConfig.TestNames.PVCName)
 		e2e.CreatePVC(testConfig)
 		podName := testConfig.TestNames.PVCName
-		t.Logf("creating nvme pod %s", podName)
+		t.Logf("creating pod %s", podName)
 		e2e.CreatePod(testConfig, testConfig.TestNames.NSName, podName)
 		time.Sleep(time.Second * time.Duration(testConfig.StressSleepSeconds))
 	}
@@ -39,7 +37,7 @@ func TestNvme(t *testing.T) {
 	if *e2e.CleanUp {
 		ctx := context.Background()
 		for i := range testConfig.StressIterations {
-			testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", testConfig.TestNames.PVCName, i)
+			testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)
 			t.Logf("deleting pod %s", testConfig.TestNames.PVCName)
 			e2e.DeletePod(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
 			t.Logf("deleting pvc %s", testConfig.TestNames.PVCName)
