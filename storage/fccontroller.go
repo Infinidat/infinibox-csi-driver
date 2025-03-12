@@ -39,8 +39,9 @@ func (fc *fcstorage) ValidateStorageClass(params map[string]string) error {
 	// validate required parameters
 	err := ValidateRequiredOptionalSCParameters(requiredFCParams, optionalFCParams, params)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return status.Error(codes.InvalidArgument, err.Error())
+		e := fmt.Errorf("ValidateStorageClass (fc) - error %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return status.Error(codes.InvalidArgument, e.Error())
 	}
 	return nil
 }
@@ -48,14 +49,14 @@ func (fc *fcstorage) ValidateStorageClass(params map[string]string) error {
 func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	params := req.GetParameters()
 	fc.configmap = params
-	zlog.Debug().Msgf("requested volume parameters are %v", params)
+	zlog.Debug().Msgf("CreateVolume (fc) - requested volume parameters are %v", params)
 
 	gid := params[common.SC_GID]
 	uid := params[common.SC_UID]
 	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
-	zlog.Debug().Msgf("storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
+	zlog.Debug().Msgf("CreateVolume (fc) - storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
 
-	zlog.Debug().Msgf("requested size in bytes is %d ", fc.capacity)
+	zlog.Debug().Msgf("CreateVolume (fc) - requested size in bytes is %d ", fc.capacity)
 
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
@@ -66,15 +67,16 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	if err != nil {
 		re, ok := err.(*iboxapi.IboxAPIError)
 		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
-			zlog.Debug().Msgf("volume with name %s not found, proceeding to create", name)
+			zlog.Debug().Msgf("CreateVolume (fc) - volume with name %s not found, proceeding to create", name)
 		} else {
-			zlog.Error().Msgf("CreateVolume - GetVolumeByName %s - error: %s", name, err.Error())
-			return nil, status.Errorf(codes.Internal, "%s", fmt.Sprintf("CreateVolume failed: %v", err))
+			e := fmt.Errorf("CreateVolume (fc) - GetVolumeByName %s - error: %s", name, err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
 
 	if targetVol != nil {
-		zlog.Debug().Msgf("volume: %s found, size: %d requested: %d", name, targetVol.Size, fc.capacity)
+		zlog.Debug().Msgf("CreateVolume (fc) - volume: %s found, size: %d requested: %d", name, targetVol.Size, fc.capacity)
 		if targetVol.Size == fc.capacity {
 			existingVolumeInfo := fc.cs.getCSIResponse(targetVol, req)
 			copyRequestParameters(params, existingVolumeInfo.VolumeContext)
@@ -82,8 +84,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 				Volume: existingVolumeInfo,
 			}, nil
 		}
-		err = status.Errorf(codes.AlreadyExists, "error CreateVolume: volume exists but has different size")
-		zlog.Error().Msgf("CreateVolume - volume: %s already exists with a different size, %v", name, err)
+		err = status.Errorf(codes.AlreadyExists, "CreateVolume (fc) - volume: %s already exists with a different size, %v", name, err)
+		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
 
@@ -106,14 +108,16 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	volumeParam.SsdEnabled, err = determineSSDValue(params[common.SC_SSD_ENABLED], poolName, fc.cs.IboxApi)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume - determineSSDValue - error: %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		e := fmt.Sprintf("CreateVolume (fc) - determineSSDValue - error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	pool, err := fc.cs.IboxApi.GetPoolByName(poolName)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume - GetPoolByName name %s- error: %s", poolName, err.Error())
-		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		e := fmt.Sprintf("CreateVolume (fc) - GetPoolByName volume name: %s pool name: %s error: %s", name, poolName, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	createVolumeRequest := iboxapi.CreateVolumeRequest{
@@ -126,8 +130,9 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	volumeResp, err := fc.cs.IboxApi.CreateVolume(createVolumeRequest)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume - CreateVolume - error: %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		e := fmt.Sprintf("CreateVolume (fc) - CreateVolume - error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	attributes := map[string]string{
@@ -149,7 +154,7 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	var vol *iboxapi.Volume
 	vol, err = fc.cs.IboxApi.GetVolume(volumeResp.ID)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume - GetVolume - error: %s", err.Error())
+		zlog.Error().Msgf("CreateVolume (fc) - GetVolume - error: %s", err.Error())
 	}
 
 	// a single test just in case there is a race condition on createVolume (doubtful)
@@ -157,8 +162,9 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		time.Sleep(3 * time.Second)
 		_, err = fc.cs.IboxApi.GetVolume(volumeResp.ID)
 		if err != nil {
-			zlog.Error().Msgf("CreateVolume - GetVolume - error: %s", err.Error())
-			return nil, status.Errorf(codes.Internal, "failed to create volume name: %s volume not retrieved for id: %d", name, volumeResp.ID)
+			e := fmt.Sprintf("fCreateVolume (fc) - GetVolume - failed to create volume name: %s volume not retrieved for id: %d", name, volumeResp.ID)
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 	}
 
@@ -174,20 +180,22 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 	_, err = fc.cs.IboxApi.PutMetadata(volumeResp.ID, metadata)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume - PutMetadata volume %s- error: %s", name, err.Error())
-		return nil, status.Errorf(codes.Internal, "failed to attach metadata")
+		e := fmt.Sprintf("CreateVolume (fc) - PutMetadata - failed to attach metadata - volume %s- error: %s", name, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
-	zlog.Debug().Msgf("created volume: %s id: %d", name, volumeResp.ID)
+	zlog.Debug().Msgf("CreateVolume (fc) - created volume: %s id: %d", name, volumeResp.ID)
 	return csiResp, err
 }
 
 func (fc *fcstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
-	zlog.Debug().Msgf("DeleteVolume")
+	zlog.Debug().Msgf("DeleteVolume (fc) called")
 	err = fc.ValidateDeleteVolume(fc.cs.VolProto.VolumeID)
 	if err != nil {
-		zlog.Error().Msgf("DeleteVolume - ValidateDeleteVolume volume ID %d- error: %s", fc.cs.VolProto.VolumeID, err.Error())
-		return nil, status.Errorf(codes.Internal, "error deleting volume : %s", err.Error())
+		e := fmt.Sprintf("DeleteVolume (fc) - ValidateDeleteVolume volume ID %d- error: %s", fc.cs.VolProto.VolumeID, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 	return &csi.DeleteVolumeResponse{}, nil
 }
@@ -209,14 +217,16 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	// Validate the source content id
 	volproto, err := ValidateVolumeID(volumeContentID)
 	if err != nil {
-		zlog.Error().Msgf("failed to validate storage type for source id: %s, err: %v", volumeContentID, err)
-		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %s", volumeContentID)
+		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - failed to validate storage type for restore type: %s source id: %s, err: %v", restoreType, volumeContentID, err)
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.NotFound, e)
 	}
 
 	srcVol, err := fc.cs.IboxApi.GetVolume(volproto.VolumeID)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return nil, status.Errorf(codes.NotFound, restoreType+" not found: %d", volproto.VolumeID)
+		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - GetVolume - restoreType: %s volume ID: %d error: %s", restoreType, volproto.VolumeID, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.NotFound, e)
 	}
 
 	// Validate the size is the same.
@@ -229,12 +239,14 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	// Validate the storagePool is the same.
 	pool, err := fc.cs.IboxApi.GetPoolByName(storagePool)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "error getting pool [%s]", storagePool)
+		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - GetPoolByName - pool name: %s  error %s", storagePool, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 	if pool.ID != srcVol.PoolId {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"volume storage pool is different than requested storage pool %s", storagePool)
+		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - volume storage pool is different than requested storage pool %s", storagePool)
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.InvalidArgument, e)
 	}
 	ssd := req.GetParameters()[common.SC_SSD_ENABLED]
 	if ssd == "" {
@@ -250,16 +262,18 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	// Create snapshot
 	snapResponse, err := fc.cs.IboxApi.CreateSnapshotVolume(0, snapshotParam)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "error create snapshot: %s", err.Error())
+		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - CreateSnapshotVolume - error %s", err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	// Retrieve created destination volume
 	volID := snapResponse.SnapShotID
 	dstVol, err := fc.cs.IboxApi.GetVolume(volID)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "error get volume: %d", volID)
+		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - GetVolume - volume ID: %d error: %s", volID, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	// Create a volume response and return it
@@ -271,10 +285,11 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 	_, err = fc.cs.IboxApi.PutMetadata(dstVol.ID, metadata)
 	if err != nil {
-		zlog.Error().Msgf("failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
-		return nil, status.Errorf(codes.Internal, "error attaching metadata to volume: %s, err: %v", dstVol.Name, err)
+		e := fmt.Sprintf("createVolumeFromVolumeContent - PutMetadata - failed to attach metadata for volume: %s, err: %v", dstVol.Name, err)
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
-	zlog.Debug().Msgf("Volume (from snap) %s (%s) storage pool %s",
+	zlog.Debug().Msgf("createVolumeFromVolumeContent - Volume (from snap) %s (%s) storage pool %s",
 		csiVolume.VolumeContext["Name"], csiVolume.VolumeId, csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }
@@ -284,41 +299,47 @@ func (fc *fcstorage) ControllerModifyVolume(ctx context.Context, req *csi.Contro
 }
 
 func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	zlog.Debug().Msgf("ControllerPublishVolume nodeID %s and volumeId %s", req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("ControllerPublishVolume (fc) nodeID: %s volumeId: %s", req.GetNodeId(), req.GetVolumeId())
 	volproto, err := ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - ValidateVolumeID - error: %s", err.Error())
-		return nil, errors.New("error getting volume ID")
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - ValidateVolumeID - error: %s", err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	hostName, err := DetermineHostName(req.GetNodeId())
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - DetermineHostName - error: %s", err.Error())
-		return nil, err
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - DetermineHostName - error: %s", err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	host, err := fc.cs.validateHost(hostName)
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - validateHost hostname %s- error: %s", hostName, err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - validateHost hostname %s- error: %s", hostName, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	v, err := fc.cs.IboxApi.GetVolume(volproto.VolumeID)
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - GetVolume volume ID '%s' - error: %v", req.GetVolumeId(), err.Error())
-		return nil, errors.New("error getting volume by id")
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - GetVolume volume ID '%s' - error: %v", req.GetVolumeId(), err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	_, err = fc.cs.AccessModesHelper.IsValidAccessMode(v, req)
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - IsValidAccessMode - error: %s", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - IsValidAccessMode - error: %s", err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	lunList, err := fc.cs.IboxApi.GetAllLunByHost(host.ID)
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - GetAllLunByHost host ID %d- error: %s", host.ID, err.Error())
-		return nil, err
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - GetAllLunByHost volume Name: %s host ID: %d- error: %s", v.Name, host.ID, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 	var ports string
 	if len(host.Ports) > 0 {
@@ -339,7 +360,7 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 				HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
 				HOST_PORTS_PUBLISH_CONTEXT: ports,
 			}
-			zlog.Debug().Msgf("volumeID %d already mapped to host %s", lun.VolumeID, host.Name)
+			zlog.Debug().Msgf("ControllerPublishVolume (fc) - volume Name: %s volumeID: %d already mapped to host: %s", v.Name, lun.VolumeID, host.Name)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: volCtx,
 			}, nil
@@ -351,27 +372,30 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	if maxAllowedVolString != "" {
 		maxAllowedVol, err := strconv.Atoi(maxAllowedVolString)
 		if err != nil {
-			zlog.Error().Msgf("ControllerPublishVolume - invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
-			return nil, err
+			e := fmt.Sprintf("ControllerPublishVolume (fc) - invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Errorf("ControllerPublishVolume - invalid parameter %s error:  required to be greater than 0", common.SC_MAX_VOLS_PER_HOST)
-			zlog.Error().Msgf("error %s", e.Error())
-			return nil, e
+			e := fmt.Sprintf("ControllerPublishVolume (fc) - invalid parameter %s error:  required to be greater than 0", common.SC_MAX_VOLS_PER_HOST)
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 		zlog.Debug().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
 		zlog.Debug().Msgf("host %s has %d volume mapped", host.Name, len(lunList))
 		if len(lunList) >= maxAllowedVol {
-			zlog.Error().Msgf("ControllerPublishVolume - unable to publish volume on host %s, maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
-			return nil, status.Error(codes.ResourceExhausted, "Unable to publish volume as max allowed volume (per host) limit reached")
+			e := fmt.Sprintf("ControllerPublishVolume (fc) - unable to publish volume on host %s, maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.ResourceExhausted, e)
 		}
 	}
 	// map volume to host
-	zlog.Debug().Msgf("mapping volume %d to host %s", volproto.VolumeID, host.Name)
+	zlog.Debug().Msgf("ControllerPublishVolume (fc) - mapping volume Name: %s volume ID: %d to host: %s", v.Name, volproto.VolumeID, host.Name)
 	luninfo, err := fc.cs.mapVolumeTohost(volproto.VolumeID, host.ID)
 	if err != nil {
-		zlog.Error().Msgf("ControllerPublishVolume - mapVolumeToHost - error: %s", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		e := fmt.Sprintf("ControllerPublishVolume (fc) - mapVolumeToHost - error: %s", err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	volCtx := map[string]string{
@@ -385,30 +409,31 @@ func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 }
 
 func (fc *fcstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	zlog.Debug().Msgf("ControllerUnpublishVolume volProto %+v nodeID %s and volumeId %s", fc.cs.VolProto, req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("ControllerUnpublishVolume (fc) - volProto %+v nodeID %s and volumeId %s", fc.cs.VolProto, req.GetNodeId(), req.GetVolumeId())
 
 	host := fc.cs.VolProto.Host
 	if len(host.Luns) > 0 {
-		zlog.Debug().Msgf("unmap volume %d from host %d", fc.cs.VolProto.VolumeID, host.ID)
+		zlog.Debug().Msgf("ControllerUnpublishVolume (fc) - unmap volume ID: %d from host: %d", fc.cs.VolProto.VolumeID, host.ID)
 		err = fc.cs.unmapVolumeFromHost(host.ID, int(fc.cs.VolProto.VolumeID))
 		if err != nil {
-			zlog.Error().Msgf("ControllerUnpublishVolume - unmapVolumeFromHost - error unmapping volume %d from host %d error %v", fc.cs.VolProto.VolumeID, host.ID, err)
-			return nil, status.Error(codes.Internal, err.Error())
+			e := fmt.Sprintf("ControllerUnpublishVolume (fc) - unmapVolumeFromHost - error unmapping volume %d from host %d error %v", fc.cs.VolProto.VolumeID, host.ID, err)
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 	}
 	if len(host.Luns) < 2 {
 		err = hostCleanup(fc.cs.IboxApi, host.ID, host.Name)
 		if err != nil {
-			e := fmt.Errorf("ControllerUnpublishVolume: hostCleanup - error host ID %d. Error: %s", host.ID, err.Error())
-			zlog.Error().Msgf("%s", e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			e := fmt.Sprintf("ControllerUnpublishVolume (fc) - hostCleanup - error host ID: %d. Error: %s", host.ID, err.Error())
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (fc *fcstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	zlog.Error().Msgf("should not be called, implemented in controller.go instead")
+	zlog.Error().Msgf("ValidateVolumeCapabilities (fc) - should not be called, implemented in controller.go instead")
 	return
 }
 
@@ -431,16 +456,17 @@ func (fc *fcstorage) ControllerGetCapabilities(ctx context.Context, req *csi.Con
 func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	var snapshotID string
 	snapshotName := req.GetName()
-	zlog.Debug().Msgf("CreateSnapshot name %s source volume ID %s volproto %+v", snapshotName, req.GetSourceVolumeId(), fc.cs.VolProto)
+	zlog.Debug().Msgf("CreateSnapshot (fc) - name: %s source volume ID: %s volproto: %+v", snapshotName, req.GetSourceVolumeId(), fc.cs.VolProto)
 
 	volumeSnapshot, err := fc.cs.IboxApi.GetVolumeByName(snapshotName)
 	if err != nil {
 		re, ok := err.(*iboxapi.IboxAPIError)
 		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
-			zlog.Debug().Msgf("Snapshot with given name not found : %s", snapshotName)
+			zlog.Debug().Msgf("CreateSnapshot (fc) - snapshot with given name not found : %s", snapshotName)
 		} else {
-			zlog.Error().Msgf("CreateSnapshot - GetVolumeByName - error: %s", err.Error())
-			return nil, status.Error(codes.Internal, fmt.Sprintf("error getting volume by name %s", snapshotName))
+			e := fmt.Sprintf("CreateSnapshot (fc) - GetVolumeByName - name: %s error: %s", snapshotName, err.Error())
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 	} else if volumeSnapshot.ParentId == fc.cs.VolProto.VolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + fc.cs.VolProto.StorageType
@@ -454,16 +480,16 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 			},
 		}, nil
 	} else {
-		return nil, status.Error(codes.AlreadyExists, "snapshot with already existing name and different source volume ID")
+		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot Name: %s with already existing name and different source volume ID", volumeSnapshot.Name))
 	}
 
 	// look up the parent volume so we can get the ssd_enabled value and use that for
 	// the snapshot being created next
 	parentVolume, err := fc.cs.IboxApi.GetVolume(fc.cs.VolProto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("CreateSnapshot - GetVolume - error get parent volume when creating snapshot - volume id %d, err: %v", fc.cs.VolProto.VolumeID, err)
-		zlog.Error().Msgf("%s", e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
+		e := fmt.Sprintf("CreateSnapshot (fc) - GetVolume - error get parent volume when creating snapshot - volume id %d, err: %v", fc.cs.VolProto.VolumeID, err)
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.NotFound, e)
 	}
 
 	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
@@ -478,21 +504,24 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := fc.cs.IboxApi.GetNtpStatus()
 		if err != nil {
-			zlog.Error().Msgf("CreateSnapshot - GetNtpStatus - error: %s", err.Error())
-			return nil, err
+			e := fmt.Sprintf("CreateSnapshot (fc) - GetNtpStatus - error: %s", err.Error())
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
 		lockExpiresAt, err = validateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
-			zlog.Error().Msgf("CreateSnapshot - failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
-			return nil, err
+			e := fmt.Sprintf("CreateSnapshot (fc) - failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
+			zlog.Error().Msg(e)
+			return nil, status.Error(codes.Internal, e)
 		}
-		zlog.Info().Msgf("snapshot param has a lock_expires_at of %s", lockExpiresAtParameter)
+		zlog.Info().Msgf("CreateSnapshot (fc) - snapshot Name: %s snapshot param has a lock_expires_at: %s", snapshotName, lockExpiresAtParameter)
 	}
 
 	snapshot, err := fc.cs.IboxApi.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
 	if err != nil {
-		zlog.Error().Msgf("CreateSnapshot - CreateSnapshotVolume  snapshot %s error: %s", snapshotName, err.Error())
-		return
+		e := fmt.Sprintf("CreateSnapshot (fc) - CreateSnapshotVolume  snapshot name: %s error: %s", snapshotName, err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 
 	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + fc.cs.VolProto.StorageType
@@ -503,7 +532,7 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		CreationTime:   timestamppb.Now(),
 		SizeBytes:      snapshot.Size,
 	}
-	zlog.Debug().Msgf("CreateFileSystemSnapshot resp: %v", csiSnapshot)
+	zlog.Debug().Msgf("CreateFileSystemSnapshot (fc) resp: %v", csiSnapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
 	return snapshotResp, nil
 }
@@ -514,8 +543,9 @@ func (fc *fcstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 
 	err = fc.ValidateDeleteVolume(snapshotID)
 	if err != nil {
-		zlog.Error().Msgf("DeleteSnapshot - ValidateDeleteVolume - error: %s", err.Error())
-		return nil, err
+		e := fmt.Sprintf("DeleteSnapshot (fc) - ValidateDeleteVolume - snapshot ID: %s error: %s", req.GetSnapshotId(), err.Error())
+		zlog.Error().Msg(e)
+		return nil, status.Error(codes.Internal, e)
 	}
 	return &csi.DeleteSnapshotResponse{}, nil
 }
@@ -525,22 +555,23 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	if err != nil {
 		re, ok := err.(*iboxapi.IboxAPIError)
 		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
-			zlog.Debug().Msgf("volume is already deleted %d", volumeID)
+			zlog.Debug().Msgf("ValidateDeleteVolume (fc) - volume ID: %d is already deleted", volumeID)
 			return nil
 		}
-		zlog.Error().Msgf("error %s", err.Error())
-		return status.Errorf(codes.Internal,
-			"error while validating volume status : %s",
-			err.Error())
+		e := fmt.Sprintf("ValidateDeleteVolume (fc) - GetVolume - error %s", err.Error())
+		zlog.Error().Msg(e)
+		return status.Error(codes.Internal, e)
 	}
 
 	if vol.LockState == common.LOCKED_STATE {
-		return status.Errorf(codes.Aborted, "volume %d was locked, can not delete till expire date %s is reached", volumeID, time.UnixMilli(vol.LockExpiresAt))
+		e := fmt.Sprintf("ValidateDeleteVolume (fc) - volume ID: %d was locked, can not delete till expire date %s is reached", volumeID, time.UnixMilli(vol.LockExpiresAt))
+		zlog.Error().Msg(e)
+		return status.Error(codes.Aborted, e)
 	}
 
 	childVolumes, err := fc.cs.IboxApi.GetVolumesByParentID(vol.ID)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
+		zlog.Error().Msgf("ValidateDeleteVolume (fc) - error %s", err.Error())
 	}
 	if len(childVolumes) > 0 {
 		metadata := map[string]interface{}{
@@ -548,30 +579,33 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		}
 		_, err = fc.cs.IboxApi.PutMetadata(vol.ID, metadata)
 		if err != nil {
-			zlog.Error().Msgf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
-			err = errors.New("error while Set metadata host.k8s.to_be_deleted")
+			e := fmt.Sprintf("ValidateDeleteVolume (fc) - failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
+			zlog.Error().Msg(e)
+			err = errors.New(e)
 		}
 		return
 	}
-	zlog.Debug().Msgf("Deleting volume name: %s id: %d", vol.Name, vol.ID)
+	zlog.Debug().Msgf("ValidateDeleteVolume (fc) - deleting volume name: %s ID: %d", vol.Name, vol.ID)
 	_, err = fc.cs.IboxApi.DeleteMetadata(vol.ID)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return status.Errorf(codes.Internal,
-			"error removing metadata for volume: %s", err.Error())
+		e := fmt.Sprintf("ValidateDeleteVolume (fc) - DeleteMetadata - error %s", err.Error())
+		zlog.Error().Msg(e)
+		return status.Error(codes.Internal, e)
 	}
 	_, err = fc.cs.IboxApi.DeleteVolume(vol.ID)
 	if err != nil {
-		zlog.Error().Msgf("error %s", err.Error())
-		return status.Errorf(codes.Internal, "error removing volume: %s", err.Error())
+		e := fmt.Sprintf("ValidateDeleteVolume (fc) -  DeleteVolume - error %s", err.Error())
+		zlog.Error().Msg(e)
+		return status.Error(codes.Internal, e)
 	}
 	if vol.ParentId != 0 {
-		zlog.Debug().Msgf("checking if parent volume can be name: %s id: %d", vol.Name, vol.ID)
+		zlog.Debug().Msgf("ValidateDeleteVolume (fc) - checking if parent volume can be name: %s ID: %d", vol.Name, vol.ID)
 		var metadata []iboxapi.GetMetadataResult
 		metadata, err = fc.cs.IboxApi.GetMetadata(vol.ParentId)
 		if err != nil {
-			zlog.Error().Msgf("error %s", err.Error())
-			return err
+			e := fmt.Sprintf("ValidateDeleteVolume (fc) - error %s", err.Error())
+			zlog.Error().Msg(e)
+			return status.Error(codes.Internal, e)
 		}
 		var toBeDeleted bool
 		for _, m := range metadata {
@@ -582,8 +616,9 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		if toBeDeleted {
 			err = fc.ValidateDeleteVolume(vol.ParentId)
 			if err != nil {
-				zlog.Error().Msgf("error %s", err.Error())
-				return
+				e := fmt.Sprintf("ValidateDeleteVolume (fc) - error %s", err.Error())
+				zlog.Error().Msg(e)
+				return status.Error(codes.Internal, e)
 			}
 		}
 	}
@@ -593,12 +628,12 @@ func (fc *fcstorage) ValidateDeleteVolume(volumeID int) (err error) {
 func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
 
 	volumeID := fc.cs.VolProto.VolumeID
-	zlog.Debug().Msgf("ControllerExpandVolume volume ID %d", volumeID)
+	zlog.Debug().Msgf("ControllerExpandVolume (fc) - volume ID: %d", volumeID)
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 	if capacity < gib {
 		capacity = gib
-		zlog.Warn().Msgf("Volume Minimum capacity should be greater 1 GB")
+		zlog.Warn().Msgf("ControllerExpandVolume (fc) - Volume Minimum capacity should be greater 1 GB")
 	}
 
 	// Expand volume size
@@ -607,10 +642,11 @@ func (fc *fcstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	}
 	_, err = fc.cs.IboxApi.UpdateVolume(volumeID, volume)
 	if err != nil {
-		zlog.Error().Msgf("ControllerExpandVolume - UpdateVolume - error: %s", err.Error())
-		return
+		e := fmt.Errorf("ControllerExpandVolume (fc) - UpdateVolume - error: %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, e
 	}
-	zlog.Debug().Msg("Volume size updated successfully")
+	zlog.Debug().Msgf("ControllerExpandVolume (fc) - volume size updated successfully volume ID: %d", volumeID)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
 		NodeExpansionRequired: true,

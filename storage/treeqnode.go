@@ -27,7 +27,7 @@ import (
 const DEFAULT_HOST_MOUNT_POINT = "/host/"
 
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	zlog.Debug().Msg("NodePublishVolume started")
+	zlog.Debug().Msg("NodePublishVolume (treeq) - started")
 
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
@@ -36,17 +36,17 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Debug().Msgf("NodePublishVolume with targetPath %s volumeId %s\n", hostTargetPath, req.GetVolumeId())
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - with targetPath %s volumeId %s\n", hostTargetPath, req.GetVolumeId())
 
 	fileSystemId, treeqId, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume - getVolumeIDs - error parsing fileSystemId %v from %s", err, req.GetVolumeId())
+		e := fmt.Errorf("NodePublishVolume (treeq) - getVolumeIDs - error parsing fileSystemId %v from %s", err, req.GetVolumeId())
 		zlog.Err(e)
 		return nil, e
 	}
-	zlog.Debug().Msgf("fileSystemId %d treeqId %d\n", fileSystemId, treeqId)
-	zlog.Debug().Msgf("volumeContext=%+v", req.GetVolumeContext())
-	zlog.Debug().Msgf("treeq.nfsstorage.configmap=%+v", treeq.nfsstorage.storageClassParameters)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - fileSystemId %d treeqId %d", fileSystemId, treeqId)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - volumeContext=%+v", req.GetVolumeContext())
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - treeq.nfsstorage.configmap=%+v", treeq.nfsstorage.storageClassParameters)
 
 	treeq.nfsstorage.snapdirVisible = false
 	treeq.nfsstorage.usePrivilegedPorts = false
@@ -55,110 +55,118 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	if snapDirVisible != "" {
 		treeq.nfsstorage.snapdirVisible, err = strconv.ParseBool(snapDirVisible)
 		if err != nil {
-			zlog.Error().Msgf("NodePublishVolume - parse snapdir visible - error: %s", err.Error())
-			return nil, err
+			e := fmt.Errorf("NodePublishVolume (treeq) - parse snapdir visible - error: %s", err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, e
 		}
 	}
 	privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
 	if privPorts != "" {
 		treeq.nfsstorage.usePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
-			zlog.Error().Msgf("NodePublishVolume - parse priv ports - error: %s", err.Error())
-			return nil, err
+			e := fmt.Errorf("NodePublishVolume (treeq) - parse priv ports - error: %s", err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, e
 		}
 	}
 
 	// only update the export if this is the only treeq since treeq's share a single export
 	exports, err := treeq.nfsstorage.cs.IboxApi.GetExportsByFileSystemID(fileSystemId)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - GetExportByFileSystem - error: %s", err.Error())
-		return nil, err
+		e := fmt.Errorf("NodePublishVolume (treeq) - GetExportByFileSystem - error: %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, e
 	}
-	zlog.Debug().Msgf("treeq exports count %d on filesystemId %d", len(exports), fileSystemId)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - exports count %d on filesystemId %d", len(exports), fileSystemId)
 
 	if len(exports) == 0 {
 		exportAccess := "RW"
 		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-			zlog.Debug().Msgf("NodePublishVolume detected read-only, setting export to RO")
+			zlog.Debug().Msgf("NodePublishVolume (treeq) - detected read-only, setting export to RO")
 			exportAccess = "RO"
 		}
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
 		if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] != "" {
 			exportPerms = req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
-			zlog.Debug().Msgf("%s was specified %s, will not create default export rule, will create this rule instead", common.SC_NFS_EXPORT_PERMISSIONS, exportPerms)
+			zlog.Debug().Msgf("NodePublishVolume (treeq) - %s was specified %s, will not create default export rule, will create this rule instead", common.SC_NFS_EXPORT_PERMISSIONS, exportPerms)
 		}
 		err = treeq.nfsstorage.updateExport(fileSystemId, exportPerms)
 		if err != nil {
-			zlog.Error().Msgf("NodePublishVolume - updateExport - error: %s", err.Error())
-			return nil, err
+			e := fmt.Errorf("NodePublishVolume (treeq) - updateExport - error: %s", err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, e
 		}
 	} else {
-		zlog.Debug().Msg("skipping updateExport because other exports exist")
+		zlog.Debug().Msg("NodePublishVolume (treeq) - skipping updateExport because other exports exist")
 	}
 
 	_, err = os.Stat(hostTargetPath)
 	if os.IsNotExist(err) {
-		zlog.Debug().Msgf("targetPath %s does not exist, will create", targetPath)
+		zlog.Debug().Msgf("NodePublishVolume (treeq) - targetPath %s does not exist, will create", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-			zlog.Error().Msgf("NodePublishVolume - mkdirAll - error: %s", err.Error())
-			return nil, err
+			e := fmt.Errorf("NodePublishVolume (treeq) - mkdirAll - error: %s", err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, e
 		}
 	} else {
 		if err != nil {
-			zlog.Error().Msgf("NodePublishVolume - host target path exists - error: %s", err.Error())
+			zlog.Error().Msgf("NodePublishVolume (treeq) - host target path exists - error: %s", err.Error())
 		}
-		zlog.Debug().Msgf("targetPath %s already exists, will not do anything", targetPath)
+		zlog.Debug().Msgf("NodePublishVolume (treeq) - targetPath %s already exists, will not do anything", targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
 		// don't return, this may be a second call after a mount timeout
 	}
 
 	mountOptions, err := treeq.nfsstorage.storageHelper.GetNFSMountOptions(req)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - GetNFSMountOptions - error: %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "Failed to get mount options for targetPath '%s': %s", hostTargetPath, err.Error())
+		e := fmt.Errorf("NodePublishVolume (treeq) - GetNFSMountOptions - targetPath: %s error: %s", hostTargetPath, err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	dnsName := req.GetVolumeContext()["dnsname"]
 	if dnsName != "" {
 		sourceIP = dnsName
-		zlog.Debug().Msgf("storageclass has dnsname specified, using it for mount instead of ipAddress %s", dnsName)
+		zlog.Debug().Msgf("NodePublishVolume (treeq) - storageclass has dnsname specified, using it for mount instead of ipAddress %s", dnsName)
 	}
 	ep := req.GetVolumeContext()["volumePath"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
 
 	nfsVersion, nfsPort := GetNFSVersionPort(mountOptions)
-	zlog.Debug().Msgf("NodePublishVolume - GetNFSVersionPort - vers %s port %s", nfsVersion, nfsPort)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - GetNFSVersionPort - vers %s port %s", nfsVersion, nfsPort)
 
 	port, err := strconv.Atoi(nfsPort)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ValidateNFSPortalIPAddress - port parsing error: %s", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		e := fmt.Errorf("NodePublishVolume (treeq) - ValidateNFSPortalIPAddress - port parsing error: %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	err = treeq.nfsstorage.storageHelper.ValidateIPAddress(sourceIP, port)
 	if err != nil {
-		zlog.Error().Msgf("NodePublishVolume - ValidateIPAddress - error: %s", err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		e := fmt.Errorf("NodePublishVolume (treeq) - ValidateIPAddress - error: %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Debug().Msgf("mount sourcePath %v, targetPath %v", source, targetPath)
+	zlog.Debug().Msgf("NodePUblishVolume (treeq) - mount sourcePath %v, targetPath %v", source, targetPath)
 	err = treeq.nfsstorage.mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume - Mount - failed to mount targetPath %s sourcePath '%s' : %v", targetPath, source, err)
+		e := fmt.Errorf("NodePublishVolume (treeq) - Mount - failed to mount targetPath %s sourcePath '%s' : %v", targetPath, source, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	zlog.Debug().Msgf("mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - mounted treeq volume: '%s' volumeID: %s to mount point: '%s' with options %s", source, req.GetVolumeId(), targetPath, mountOptions)
 
 	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		zlog.Debug().Msg("this is a readonly volume, skipping setting volume permissions")
+		zlog.Debug().Msg("NodePublishVolume (treeq) - this is a readonly volume, skipping setting volume permissions")
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	err = treeq.nfsstorage.storageHelper.SetVolumePermissions(req)
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume - SetVolumePermissions - failed to set volume permissions '%v'", err)
+		e := fmt.Errorf("NodePublishVolume (treeq) - SetVolumePermissions - failed to set volume permissions '%v'", err)
 		zlog.Err(e)
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -167,12 +175,13 @@ func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 }
 
 func (treeq *treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	zlog.Debug().Msg("NodeUnpublishVolume")
+	zlog.Debug().Msg("NodeUnpublishVolume (treeq) starts")
 	targetPath := req.GetTargetPath()
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnpublishVolume - unmountAndCleanup - error: %s", err.Error())
-		return nil, err
+		e := fmt.Errorf("NodeUnpublishVolume  (treeq) - unmountAndCleanup - error: %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, e
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
