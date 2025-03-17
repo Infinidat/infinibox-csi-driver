@@ -408,6 +408,64 @@ func getClusterVersion() string {
 	return version
 }
 
+// Flush a multipath device map for device.
+
+func multipathFlush(mpath string) {
+	zlog.Debug().Msgf("multipathFlush - Running multipath -f '%s'", mpath)
+
+	isToLogOutput := true
+	if out, err := execCommand.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput); err != nil {
+		zlog.Error().Msgf("multipathFlush - multipath -f '%s' failed - ignored: %s", mpath, err)
+	} else {
+		zlog.Debug().Msgf("multipathFlush - multipath -f '%s' succeeded: %s", mpath, out)
+	}
+
+	// _, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)
+	// _, _ = execScsi.Command("ls", "/host/dev/sd*; echo", isToLogOutput)
+}
+
+// Given a device like '/dev/dm-0', find its matching multipath name such as 'mpathab'.
+func findMpathFromDevice(device string) (mpath string, err error) {
+	deviceName := strings.Replace(device, "/dev/", "", 1)
+	//command := fmt.Sprintf("multipath -l | grep --word-regexp %s | awk '{print $1}'", deviceName)
+	wildcards := "\"%n_%d_\""
+	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+	zlog.Debug().Msgf("command [%s]", command)
+
+	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	if err != nil {
+		e := fmt.Errorf("findMpathFromDevice - cannot findMpathFromDevice: %s, Error: %s: %v", device, mpath, err)
+		zlog.Error().Msg(e.Error())
+		return mpath, e
+	}
+	outParts := strings.Split(string(out), "_")
+	if len(outParts) < 1 {
+		e := fmt.Errorf("findMpathFromDevice - cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
+		zlog.Error().Msg(e.Error())
+		return mpath, e
+	}
+	if len(outParts) > 0 {
+		mpath = outParts[0]
+	}
+
+	zlog.Debug().Msgf("findMpathFromDevice - device %s corresponds to multipath %s", device, mpath)
+	return
+}
+
+func mountPathExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		zlog.Debug().Msgf("mountPathExists : Path %s exists", path)
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		zlog.Debug().Msgf("mountPathExists : Path %s does not exist", path)
+		return false, nil
+	}
+	return false, err
+}
+
 func detachMpathDevice(mpathDevice string, protocol string) error {
 	var err error
 	var devices []string
@@ -450,7 +508,7 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 		}
 
 		// 2
-		for i := 0; i < len(devices); i++ {
+		for i := range devices {
 			err = detachDiskByDeviceName(devices[i])
 			if err != nil {
 				zlog.Error().Msgf("error : %s", err)
@@ -615,7 +673,7 @@ func waitForDeviceState(hostId string, lun string, state string, diskid string) 
 	n := 5
 	lastChars := diskid[len(diskid)-n:]
 	key := lastChars[:3]
-	for i := 0; i < len(allWWIDs); i++ {
+	for i := range allWWIDs {
 		if strings.Contains(allWWIDs[i], key) {
 			zlog.Debug().Msgf("matched wwid using diskid %s key %s, wwid %s", diskid, key, allWWIDs[i])
 			return allWWIDs[i], nil

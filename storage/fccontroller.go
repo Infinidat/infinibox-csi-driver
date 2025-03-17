@@ -51,11 +51,6 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	fc.configmap = params
 	zlog.Debug().Msgf("CreateVolume (fc) - requested volume parameters are %v", params)
 
-	gid := params[common.SC_GID]
-	uid := params[common.SC_UID]
-	unix_permissions := params[common.SC_UNIX_PERMISSIONS]
-	zlog.Debug().Msgf("CreateVolume (fc) - storageClass request parameters uid %s gid %s unix_permissions %s", gid, uid, unix_permissions)
-
 	zlog.Debug().Msgf("CreateVolume (fc) - requested size in bytes is %d ", fc.capacity)
 
 	// Volume name to be created - already verified in controller.go

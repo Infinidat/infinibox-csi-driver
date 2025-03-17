@@ -83,8 +83,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	// Volume content source support volume and snapshots
-	contentSource := req.GetVolumeContentSource()
-	if contentSource != nil {
+	if req.GetVolumeContentSource() != nil {
 		return iscsi.createVolumeFromContentSource(req, name, iscsi.capacity, poolName)
 	}
 
@@ -102,14 +101,14 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		e := status.Errorf(codes.Internal, "CreateVolume (iscsi) - determineSSDValue - error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
 		zlog.Error().Msg(e.Error())
-		return nil, e
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	pool, err := iscsi.cs.IboxApi.GetPoolByName(poolName)
 	if err != nil {
 		e := status.Errorf(codes.Internal, "CreateVolume (iscsi) - GetPoolByName - error when getting pool %s , err: %s", poolName, err.Error())
 		zlog.Error().Msg(e.Error())
-		return nil, e
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	request := iboxapi.CreateVolumeRequest{
 		Name:          name,
@@ -122,15 +121,16 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		e := fmt.Errorf("CreateVolume (iscsi) - api CreateVolume - error creating volume: %s pool %s error: %v", name, poolName, err)
 		zlog.Error().Msg(e.Error())
-		return nil, status.Errorf(codes.Internal, "%s", e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	vi := iscsi.cs.getCSIResponse(volumeResp, req)
 
 	// check volume id format
 	volID, err := strconv.Atoi(vi.VolumeId)
 	if err != nil {
-		zlog.Error().Msgf("CreateVolume (iscsi) - volumeID conversion error - %s", err.Error())
-		return nil, status.Errorf(codes.Internal, "error getting volume id")
+		e := fmt.Errorf("CreateVolume (iscsi) - volumeID conversion error - %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	// confirm volume creation
@@ -140,7 +140,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		e := fmt.Errorf("CreateVolume (iscsi) - GetVolume - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
-		return nil, e
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	for vol == nil && counter < 100 {
 		time.Sleep(3 * time.Millisecond)
@@ -148,7 +148,7 @@ func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if err != nil {
 			e := fmt.Errorf("CreateVolume (iscsi) - GetVolume - error: %s", err.Error())
 			zlog.Error().Msg(e.Error())
-			return nil, e
+			return nil, status.Error(codes.Internal, e.Error())
 		}
 		counter = counter + 1
 	}
@@ -198,11 +198,8 @@ func (iscsi *iscsistorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 }
 
 func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
-	var msg string
-
+	var msg, volumeContentID, restoreType string
 	volumecontent := req.GetVolumeContentSource()
-	var volumeContentID string
-	var restoreType string
 	if volumecontent.GetSnapshot() != nil {
 		restoreType = RESTORE_TYPE_SNAPSHOT
 		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
@@ -392,8 +389,7 @@ func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
-		zlog.Debug().Msgf("host can have maximum %d volume mapped", maxAllowedVol)
-		zlog.Debug().Msgf("host %s id: %d has %d volumes mapped", host.Name, host.ID, len(lunList))
+		zlog.Debug().Msgf("host %s id: %d has %d volumes mapped, maxAllowed %d", host.Name, host.ID, len(lunList), maxAllowedVol)
 		if len(lunList) >= maxAllowedVol {
 			e := fmt.Errorf("ControllerPublishVolume (iscsi) - unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
 			zlog.Error().Msg(e.Error())
@@ -485,7 +481,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		} else {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-	} else if volumeSnapshot.ParentId == int(iscsi.cs.VolProto.VolumeID) {
+	} else if volumeSnapshot.ParentId == iscsi.cs.VolProto.VolumeID {
 		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + iscsi.cs.VolProto.StorageType
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
@@ -511,7 +507,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	}
 
 	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       int(iscsi.cs.VolProto.VolumeID),
+		ParentID:       iscsi.cs.VolProto.VolumeID,
 		SnapshotName:   snapshotName,
 		WriteProtected: true,
 		SsdEnabled:     parentVolume.SsdEnabled,
@@ -524,13 +520,13 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		if err != nil {
 			e := fmt.Errorf("CreateSnapshot (iscsi) - GetNtpStatus - error: %s", err.Error())
 			zlog.Error().Msg(e.Error())
-			return nil, e
+			return nil, status.Error(codes.Internal, e.Error())
 		}
 		lockExpiresAt, err = validateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
 			e := fmt.Errorf("CreateSnapshot (iscsi) - validateSnapshotLockingParameter snapshot %s -  error: %s, invalid lock_expires_at parameter ", snapshotName, err.Error())
 			zlog.Error().Msg(e.Error())
-			return nil, e
+			return nil, status.Error(codes.Internal, e.Error())
 		}
 		zlog.Debug().Msgf("CreateSnapshot (iscsi) - snapshot param has a lock_expires_at of %s int value %d, start time on ibox is %d", lockExpiresAtParameter, lockExpiresAt, ntpStatus[0].LastProbeTimestamp)
 	}
@@ -539,7 +535,7 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	if err != nil {
 		e := fmt.Errorf("CreateSnapshot (iscsi) - CreateSnapshotVolume snapshot %s - error: %s", snapshotName, err.Error())
 		zlog.Error().Msg(e.Error())
-		return nil, e
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + iscsi.cs.VolProto.StorageType
@@ -567,7 +563,7 @@ func (iscsi *iscsistorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		if status.Code(err) == codes.Aborted {
 			e := fmt.Errorf("DeleteSnapshot (iscsi) - ValidateDeleteVolume snapshot ID %d - error: %s", snapshotID, err.Error())
 			zlog.Error().Msg(e.Error())
-			return nil, e
+			return nil, status.Error(codes.Internal, e.Error())
 		}
 
 		re, ok := err.(*iboxapi.IboxAPIError)
@@ -606,8 +602,9 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 	childVolumes, err := iscsi.cs.IboxApi.GetVolumesByParentID(vol.ID)
 	if err != nil {
-		zlog.Err(err)
-		return err
+		e := fmt.Errorf("ValidateDeleteVolume (iscsi) - GetVolumesByParentID error :%s", err.Error())
+		zlog.Err(e)
+		return status.Error(codes.Internal, e.Error())
 	}
 	if len(childVolumes) > 0 {
 		metadata := map[string]interface{}{
@@ -617,10 +614,10 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		if err != nil {
 			e := fmt.Errorf("ValidateDeleteVolume (iscsi) - failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
 			zlog.Err(e)
-			return e
+			return status.Error(codes.Internal, e.Error())
 		}
 		zlog.Debug().Msgf("ValidateDeleteVolume (iscsi) - found volume with ID %d has children volumes. Set metadata TOBEDELETED to 'true'. Deferring deletion.", volumeID)
-		return
+		return nil
 	}
 	zlog.Debug().Msgf("ValidateDeleteVolume (iscsi) - deleting volume named %s with ID %d", vol.Name, vol.ID)
 	_, err = iscsi.cs.IboxApi.DeleteMetadata(vol.ID)
@@ -643,8 +640,9 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 		var metadata []iboxapi.GetMetadataResult
 		metadata, err = iscsi.cs.IboxApi.GetMetadata(vol.ParentId)
 		if err != nil {
-			zlog.Err(err)
-			return err
+			e := fmt.Errorf("ValidateDeleteVolume (iscsi) GetMetadata - error: %s", err.Error())
+			zlog.Err(e)
+			return status.Error(codes.Internal, e.Error())
 		}
 		var toBeDeleted bool
 		for _, m := range metadata {
@@ -657,8 +655,9 @@ func (iscsi *iscsistorage) ValidateDeleteVolume(volumeID int) (err error) {
 			// Recursion
 			err = iscsi.ValidateDeleteVolume(vol.ParentId)
 			if err != nil {
-				zlog.Err(err)
-				return err
+				e := fmt.Errorf("ValidateDeleteVolume - recurse - error: %s", err.Error())
+				zlog.Err(e)
+				return status.Error(codes.Internal, e.Error())
 			}
 		}
 	}
@@ -693,9 +692,6 @@ func (iscsi *iscsistorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	}, nil
 }
 
-func (st *iscsistorage) ControllerGetVolume(
-	_ context.Context, _ *csi.ControllerGetVolumeRequest,
-) (*csi.ControllerGetVolumeResponse, error) {
-	// Infinidat does not support ControllerGetVolume
+func (st *iscsistorage) ControllerGetVolume(_ context.Context, _ *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
