@@ -107,10 +107,11 @@ type CreateExportResponse struct {
 
 func (iboxClient *IboxClient) GetExportByID(exportID int) (ex *Export, err error) {
 	const function = "GetExportByID"
-	URL := fmt.Sprintf("%s/api/rest/exports/%d", iboxClient.Creds.Url, exportID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "export ID", exportID)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", exportID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "export ID", exportID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -142,15 +143,16 @@ func (iboxClient *IboxClient) GetExportByID(exportID int) (ex *Export, err error
 
 func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Export, err error) {
 	const function = "GetExportsByFileSystemID"
-	URL := fmt.Sprintf("%sapi/rest/exports", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "filesystem ID", fsID)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/exports")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "filesystem ID", fsID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -189,7 +191,8 @@ func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Expo
 
 func (iboxClient *IboxClient) DeleteExport(exportID int) (response *Export, err error) {
 	const function = "DeleteExport"
-	url := fmt.Sprintf("%sapi/rest/exports/%d", iboxClient.Creds.Url, exportID)
+
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", exportID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "export ID", exportID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -229,14 +232,15 @@ func (iboxClient *IboxClient) DeleteExport(exportID int) (response *Export, err 
 
 func (iboxClient *IboxClient) CreateExport(req CreateExportRequest) (*Export, error) {
 	const function = "CreateExport"
-	URL := iboxClient.Creds.Url + "api/rest/exports"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/exports")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}

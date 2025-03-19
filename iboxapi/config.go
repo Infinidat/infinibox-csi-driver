@@ -31,7 +31,8 @@ func (iboxClient *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 			Ready bool `json:"ready"`
 		} `json:"metadata"`
 	}
-	url := fmt.Sprintf("%sapi/rest/config/limits", iboxClient.Creds.Url)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/config/limits")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -74,7 +75,8 @@ func (iboxClient *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
 			Ready bool `json:"ready"`
 		} `json:"metadata"`
 	}
-	url := fmt.Sprintf("%sapi/rest/config/limits", iboxClient.Creds.Url)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/config/limits")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

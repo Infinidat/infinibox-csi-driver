@@ -42,7 +42,7 @@ type GetFCPortsResponse struct {
 
 func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 	const function = "GetFCPorts"
-	url := iboxClient.Creds.Url + "api/rest/components/nodes"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/components/nodes")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

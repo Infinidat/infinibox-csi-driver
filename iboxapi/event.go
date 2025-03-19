@@ -51,14 +51,15 @@ type CreateEventResult struct {
 
 func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
 	const function = "CreateEvent"
-	URL := iboxClient.Creds.Url + "api/rest/events"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "event", eventRequest)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/events")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "event", eventRequest)
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
 		return fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}

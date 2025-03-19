@@ -66,6 +66,13 @@ spec:
             initialDelaySeconds: 10
             timeoutSeconds: 3
             periodSeconds: 2
+          resources:
+            limits:
+              cpu: {{ .Values.nodeserver.resources.limits.cpu | default "0.5" | quote }}
+              memory: {{ .Values.nodeserver.resources.limits.memory | default "450Mi" | quote }}
+            requests:
+              cpu: {{ .Values.nodeserver.resources.requests.cpu | default "0.1" | quote }}
+              memory: {{ .Values.nodeserver.resources.requests.memory | default "150Mi" | quote }}
           securityContext:
             privileged: true
             capabilities:

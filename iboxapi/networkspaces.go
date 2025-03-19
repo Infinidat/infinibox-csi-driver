@@ -77,15 +77,15 @@ type GetNetworkSpaceByNameResponse struct {
 
 func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networkSpace *NetworkSpace, err error) {
 	const function = "GetNetworkSpaceByName"
-	URL := fmt.Sprintf("%sapi/rest/network/spaces", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "net space Name", netspaceName)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/network/spaces")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "net space Name", netspaceName)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}

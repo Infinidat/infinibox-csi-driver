@@ -241,14 +241,14 @@ type GetReplicasResponse struct {
 
 func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
 	const function = "CreateReplica"
-	URL := iboxClient.Creds.Url + "api/rest/replicas"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/replicas")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -282,15 +282,15 @@ func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica,
 
 func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
 	const function = "GetReplicas"
-	URL := fmt.Sprintf("%sapi/rest/replicas", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/replicas")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -328,7 +328,7 @@ func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
 
 func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
 	const function = "DeleteReplica"
-	url := fmt.Sprintf("%sapi/rest/replicas/%d", iboxClient.Creds.Url, replicaID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/replicas", replicaID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "replica ID", replicaID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -368,10 +368,10 @@ func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
 
 func (iboxClient *IboxClient) GetReplica(id int) (ex *Replica, err error) {
 	const function = "GetReplica"
-	URL := fmt.Sprintf("%s/api/rest/replicas/%d", iboxClient.Creds.Url, id)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "replica ID", id)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/replicas/%d", id)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "replica ID", id)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}

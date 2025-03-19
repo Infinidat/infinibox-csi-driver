@@ -144,7 +144,7 @@ type MapVolumeToHostResponse struct {
 
 func (iboxClient *IboxClient) GetAllHosts() (host []Host, err error) {
 	const function = "GetAllHosts"
-	url := iboxClient.Creds.Url + "api/rest/hosts"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/hosts")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -176,7 +176,7 @@ func (iboxClient *IboxClient) GetAllHosts() (host []Host, err error) {
 
 func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err error) {
 	const function = "GetHostByName"
-	url := iboxClient.Creds.Url + "api/rest/hosts"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/hosts")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "host name", hostName)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -215,8 +215,8 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 
 func (iboxClient *IboxClient) CreateHost(hostName string) (host *Host, err error) {
 	const function = "CreateHost"
-	URL := iboxClient.Creds.Url + "api/rest/hosts"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "host name", hostName)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/hosts")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "host name", hostName)
 
 	hp := CreateHostPost{
 		Name: hostName,
@@ -225,7 +225,7 @@ func (iboxClient *IboxClient) CreateHost(hostName string) (host *Host, err error
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -347,8 +347,8 @@ func (iboxClient *IboxClient) AddHostSecurity(chapCreds map[string]string, hostI
 
 func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error) {
 	const function = "AddHostPort"
-	URL := fmt.Sprintf("%s/api/rest/hosts/%d/ports", iboxClient.Creds.Url, hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "port type", portType, "port address", portAddress, "host ID", hostID)
+	url := fmt.Sprintf("%s%s/%d/ports", iboxClient.Creds.Url, "api/rest/hosts", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "port type", portType, "port address", portAddress, "host ID", hostID)
 
 	hp := AddPortRequest{
 		Type:    portType,
@@ -359,7 +359,7 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -390,10 +390,10 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 
 func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostPort *HostPort, err error) {
 	const function = "GetHostPort"
-	URL := fmt.Sprintf("%s/api/rest/hosts/%d/ports", iboxClient.Creds.Url, hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "host ID", hostID, "port address", portAddress)
+	url := fmt.Sprintf("%s%s/%d/ports", iboxClient.Creds.Url, "api/rest/hosts", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "host ID", hostID, "port address", portAddress)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -432,8 +432,8 @@ func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostP
 
 func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *LunInfo, err error) {
 	const function = "MapVolumeToHost"
-	URL := fmt.Sprintf("%s/api/rest/hosts/%d/luns", iboxClient.Creds.Url, hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "volume ID", volumeID, "lun", lun, "host ID", hostID)
+	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/hosts", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "volume ID", volumeID, "lun", lun, "host ID", hostID)
 
 	hp := MapVolumeToHostRequest{
 		VolumeID: volumeID,
@@ -443,7 +443,7 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}

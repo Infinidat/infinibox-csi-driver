@@ -182,15 +182,16 @@ type FileSystemSnapshot struct {
 
 func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
 	const function = "GetFileSystemsByPool"
-	URL := fmt.Sprintf("%sapi/rest/filesystems", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "pool ID", poolID, "fsprefix", fsPrefix)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "pool ID", poolID, "fsprefix", fsPrefix)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -233,10 +234,11 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 
 func (iboxClient *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err error) {
 	const function = "GetFileSystemByID"
-	URL := fmt.Sprintf("%s/api/rest/filesystems/%d", iboxClient.Creds.Url, fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "filesystem ID", fsID)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "filesystem ID", fsID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -268,14 +270,15 @@ func (iboxClient *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err e
 
 func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*FileSystem, error) {
 	const function = "CreateFileSystem"
-	URL := iboxClient.Creds.Url + "api/rest/filesystems"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -304,15 +307,16 @@ func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*Fi
 
 func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSystem, err error) {
 	const function = "GetFileSystemByName"
-	URL := fmt.Sprintf("%sapi/rest/filesystems", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "name", name)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "name", name)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	page := 1
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -351,15 +355,16 @@ func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSyst
 
 func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []FileSystem, err error) {
 	const function = "GetFileSystemsByParentID"
-	URL := fmt.Sprintf("%sapi/rest/filesystems", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "parent ID", parentID)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "parent ID", parentID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -402,7 +407,7 @@ func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []
 
 func (iboxClient *IboxClient) DeleteFileSystem(fsID int) (err error) {
 	const function = "DeleteFileSystem"
-	url := fmt.Sprintf("%sapi/rest/filesystems/%d", iboxClient.Creds.Url, fsID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "fs ID", fsID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -481,14 +486,15 @@ func (iboxClient *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSy
 
 func (iboxClient *IboxClient) CreateFileSystemSnapshot(snapshotParam FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
 	const function = "CreateFileSystemSnapshot"
-	URL := iboxClient.Creds.Url + "api/rest/filesystems"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "snapshotParam", snapshotParam)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "snapshotParam", snapshotParam)
 
 	jsonBytes, err := json.Marshal(snapshotParam)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}

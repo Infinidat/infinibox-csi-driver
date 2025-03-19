@@ -85,15 +85,15 @@ func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]inte
 
 func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult, err error) {
 	const function = "GetMetadata"
-	URL := fmt.Sprintf("%sapi/rest/metadata/%d", iboxClient.Creds.Url, objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "object ID", objectID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/metadata", objectID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "object ID", objectID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -132,7 +132,7 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 
 func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
 	const function = "DeleteMetadata"
-	url := fmt.Sprintf("%sapi/rest/metadata/%d", iboxClient.Creds.Url, objectID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/metadata", objectID)
 	iboxClient.Log.V(DEBUG_LEVEL).Info(function, "URL", url, "object ID", objectID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)

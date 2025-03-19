@@ -206,7 +206,7 @@ type GetNtpStatusResponse struct {
 
 func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 	const function = "GetSystem"
-	url := fmt.Sprintf("%sapi/rest/system", iboxClient.Creds.Url)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/system")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -238,15 +238,15 @@ func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 
 func (iboxClient *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
 	const function = "GetNtpStatus"
-	URL := fmt.Sprintf("%sapi/rest/system/ntp_status", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/system/ntp_status")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}

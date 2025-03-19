@@ -74,10 +74,10 @@ type UpdateTreeqResponse struct {
 
 func (iboxClient *IboxClient) GetTreeqByName(fsID int, name string) (treeq *Treeq, err error) {
 	const function = "GetTreeqByName"
-	URL := fmt.Sprintf("%s/api/rest/filesystems/%d/treeqs", iboxClient.Creds.Url, fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "filesystem ID", fsID, "treeq name", name)
+	url := fmt.Sprintf("%s%s/%d/treeqs", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "filesystem ID", fsID, "treeq name", name)
 
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -118,10 +118,10 @@ func (iboxClient *IboxClient) GetTreeqByName(fsID int, name string) (treeq *Tree
 
 func (iboxClient *IboxClient) GetTreeq(fsID, treeqID int) (treeq *Treeq, err error) {
 	const function = "GetTreeq"
-	URL := fmt.Sprintf("%s/api/rest/filesystems/%d/treeqs/%d", iboxClient.Creds.Url, fsID, treeqID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "fs ID", fsID, "treeq ID", treeqID)
+	url := fmt.Sprintf("%s%s/%d/treeqs/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID, treeqID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "fs ID", fsID, "treeq ID", treeqID)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -153,8 +153,7 @@ func (iboxClient *IboxClient) GetTreeq(fsID, treeqID int) (treeq *Treeq, err err
 
 func (iboxClient *IboxClient) DeleteTreeq(fsID, treeqID int) (response *Treeq, err error) {
 	const function = "DeleteTreeq"
-	tmpurl := fmt.Sprintf("api/rest/filesystems/%d/treeq/%d", fsID, treeqID)
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, tmpurl)
+	url := fmt.Sprintf("%s%s/%d/treeq/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID, treeqID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "fs ID", fsID, "treeq ID", treeqID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -192,14 +191,14 @@ func (iboxClient *IboxClient) DeleteTreeq(fsID, treeqID int) (response *Treeq, e
 func (iboxClient *IboxClient) CreateTreeq(fsID int, treeqRequest CreateTreeqRequest) (treeq *Treeq, err error) {
 
 	const function = "CreateTreeq"
-	URL := iboxClient.Creds.Url + fmt.Sprintf("api/rest/filesystems/%d/treeqs", fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "fs ID", fsID)
+	url := fmt.Sprintf("%s%s/%d/treeqs", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "fs ID", fsID)
 
 	jsonBytes, err := json.Marshal(treeqRequest)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -231,8 +230,7 @@ func (iboxClient *IboxClient) CreateTreeq(fsID int, treeqRequest CreateTreeqRequ
 
 func (iboxClient *IboxClient) UpdateTreeq(fsID, treeqID int, updateRequest UpdateTreeqRequest) (*Treeq, error) {
 	const function = "UpdateTreeq"
-	tmpurl := fmt.Sprintf("api/rest/filesystems/%d/treeqs/%d", fsID, treeqID)
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, tmpurl)
+	url := fmt.Sprintf("%s%s/%d/treeqs/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID, treeqID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "fs ID", fsID, "treeq ID", treeqID)
 
 	jsonBytes, err := json.Marshal(updateRequest)
@@ -278,15 +276,15 @@ func (iboxClient *IboxClient) UpdateTreeq(fsID, treeqID int, updateRequest Updat
 
 func (iboxClient *IboxClient) GetTreeqsByFileSystem(fsID int) (results []Treeq, err error) {
 	const function = "GetTreeqsByFileSystem"
-	URL := fmt.Sprintf("%sapi/rest/filesystems/%d/treeqs", iboxClient.Creds.Url, fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "fs ID", fsID)
+	url := fmt.Sprintf("%s%s/%d/treeqs", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "fs ID", fsID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}

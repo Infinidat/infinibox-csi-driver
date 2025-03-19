@@ -29,15 +29,16 @@ type GetAllSnapshotsResponse struct {
 
 func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 	const function = "GetAllSnapshots"
-	URL := fmt.Sprintf("%sapi/rest/datasets", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/datasets")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}

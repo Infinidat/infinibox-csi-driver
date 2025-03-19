@@ -160,14 +160,14 @@ func (iboxClient *IboxClient) CreateConsistencyGroup(req CreateConsistencyGroupR
 
 	const function = "CreateConsistencyGroup"
 
-	URL := iboxClient.Creds.Url + "api/rest/cgs"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/cgs")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -202,9 +202,8 @@ func (iboxClient *IboxClient) CreateConsistencyGroup(req CreateConsistencyGroupR
 func (iboxClient *IboxClient) AddMemberToSnapshotGroup(volumeID, cgID int) error {
 	const function = "AddMemberToSnapshotGroup"
 
-	path := fmt.Sprintf("api/rest/cgs/%s/members", strconv.Itoa(cgID))
-	URL := iboxClient.Creds.Url + path
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "volume ID", volumeID, "cg ID", cgID)
+	url := fmt.Sprintf("%s%s/%s/members", iboxClient.Creds.Url, "api/rest/cgs", strconv.Itoa(cgID))
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "volume ID", volumeID, "cg ID", cgID)
 
 	req := AddMemberToSnapshotGroupRequest{
 		DatasetID: volumeID,
@@ -213,7 +212,7 @@ func (iboxClient *IboxClient) AddMemberToSnapshotGroup(volumeID, cgID int) error
 	if err != nil {
 		return fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -242,15 +241,16 @@ func (iboxClient *IboxClient) AddMemberToSnapshotGroup(volumeID, cgID int) error
 
 func (iboxClient *IboxClient) GetMembersByCGID(cgID int) (memberInfo []MemberInfo, err error) {
 	const function = "GetMembersByCGID"
-	URL := fmt.Sprintf("%sapi/rest/cgs/%d/members", iboxClient.Creds.Url, cgID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "cg ID", cgID)
+
+	url := fmt.Sprintf("%s%s/%d/members", iboxClient.Creds.Url, "api/rest/cgs", cgID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "cg ID", cgID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return memberInfo, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -288,14 +288,15 @@ func (iboxClient *IboxClient) GetMembersByCGID(cgID int) (memberInfo []MemberInf
 
 func (iboxClient *IboxClient) CreateSnapshotGroup(req CreateSnapshotGroupRequest) (newCG *ConsistencyGroupInfo, err error) {
 	const function = "CreateSnapshotGroup"
-	URL := iboxClient.Creds.Url + "api/rest/cgs"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/cgs")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -325,10 +326,11 @@ func (iboxClient *IboxClient) CreateSnapshotGroup(req CreateSnapshotGroupRequest
 
 func (iboxClient *IboxClient) GetConsistencyGroupByName(name string) (cg *ConsistencyGroupInfo, err error) {
 	const function = "GetConsistencyGroupByName"
-	URL := fmt.Sprintf("%sapi/rest/cgs", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "cg name", name)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/cgs")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "cg name", name)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -366,7 +368,8 @@ func (iboxClient *IboxClient) GetConsistencyGroupByName(name string) (cg *Consis
 
 func (iboxClient *IboxClient) DeleteConsistencyGroup(cgID int) (err error) {
 	const function = "DeleteConsistencyGroup"
-	url := fmt.Sprintf("%sapi/rest/cgs/%d", iboxClient.Creds.Url, cgID)
+
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/cgs", cgID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "cg ID", cgID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -403,10 +406,11 @@ func (iboxClient *IboxClient) DeleteConsistencyGroup(cgID int) (err error) {
 }
 func (iboxClient *IboxClient) GetConsistencyGroup(cgID int) (cg *ConsistencyGroupInfo, err error) {
 	const function = "GetConsistencyGroup"
-	URL := fmt.Sprintf("%s/api/rest/cgs/%d", iboxClient.Creds.Url, cgID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "cg ID", cgID)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/cgs", cgID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "cg ID", cgID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}

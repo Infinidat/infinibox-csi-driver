@@ -159,6 +159,13 @@ spec:
             initialDelaySeconds: 10
             timeoutSeconds: 3
             periodSeconds: 2
+          resources:
+            limits:
+              cpu: {{ .Values.controllerserver.resources.limits.cpu | default "0.5" | quote }}
+              memory: {{ .Values.controllerserver.resources.limits.memory | default "450Mi" | quote }}
+            requests:
+              cpu: {{ .Values.controllerserver.resources.requests.cpu | default "0.1" | quote }}
+              memory: {{ .Values.controllerserver.resources.requests.memory | default "150Mi" | quote }}
           securityContext:
             privileged: true
             capabilities:

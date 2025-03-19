@@ -131,15 +131,15 @@ type GetVolumesByParentIDResponse struct {
 
 func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err error) {
 	const function = "GetLunsByVolume"
-	URL := fmt.Sprintf("%sapi/rest/volumes/%d/luns", iboxClient.Creds.Url, volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "volume ID", volumeID)
+	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/volumes", volumeID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "volume ID", volumeID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -177,14 +177,14 @@ func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, 
 
 func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, error) {
 	const function = "CreateVolume"
-	URL := iboxClient.Creds.Url + "api/rest/volumes"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/volumes")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -213,7 +213,7 @@ func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, er
 
 func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolumeResponse, err error) {
 	const function = "DeleteVolume"
-	url := fmt.Sprintf("%sapi/rest/volumes/%d", iboxClient.Creds.Url, volumeID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/volumes", volumeID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "volume ID", volumeID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
@@ -250,15 +250,15 @@ func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolume
 
 func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume, err error) {
 	const function = "GetVolumeByName"
-	URL := fmt.Sprintf("%sapi/rest/volumes", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "volume Name", volumeName)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/volumes")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "volume Name", volumeName)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -305,10 +305,10 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 
 func (iboxClient *IboxClient) GetVolume(volumeID int) (volume *Volume, err error) {
 	const function = "GetVolume"
-	URL := fmt.Sprintf("%s/api/rest/volumes/%d", iboxClient.Creds.Url, volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "volume ID", volumeID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/volumes", volumeID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "volume ID", volumeID)
 
-	req, err := http.NewRequest(http.MethodGet, URL, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -381,14 +381,14 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 
 func (iboxClient *IboxClient) CreateSnapshotVolume(lockExpiresAt int64, req CreateSnapshotVolumeRequest) (*Snapshot, error) {
 	const function = "CreateSnapshotVolume"
-	URL := iboxClient.Creds.Url + "api/rest/volumes"
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "request", req)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/volumes")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, URL, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
@@ -424,15 +424,15 @@ func (iboxClient *IboxClient) CreateSnapshotVolume(lockExpiresAt int64, req Crea
 
 func (iboxClient *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volume, err error) {
 	const function = "GetVolumesByParentID"
-	URL := fmt.Sprintf("%sapi/rest/volumes", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL, "parent ID", parentID)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/volumes")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "parent ID", parentID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return volumes, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}

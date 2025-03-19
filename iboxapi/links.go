@@ -75,15 +75,15 @@ type Link struct {
 
 func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 	const function = "GetLinks"
-	URL := fmt.Sprintf("%sapi/rest/links", iboxClient.Creds.Url)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", URL)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/links")
+	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(function, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, URL, nil)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", function, err)
 		}
@@ -121,7 +121,7 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 
 func (iboxClient *IboxClient) GetLink(linkID int) (link *Link, err error) {
 	const function = "GetLink"
-	url := fmt.Sprintf("%sapi/rest/links/%d", iboxClient.Creds.Url, linkID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/links", linkID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "link ID", linkID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

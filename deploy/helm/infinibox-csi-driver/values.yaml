@@ -31,6 +31,24 @@ removeDomainName: "false"
 # the default is "true" when not set
 #createEvents: "false"
 
+# set cpu and memory limits for the CSI servers
+nodeserver:
+  resources:
+    requests:
+      cpu: "0.1"
+      memory: "150Mi"
+    limits:
+      cpu: "0.5"
+      memory: "450Mi"
+controllerserver:
+  resources:
+    requests:
+      cpu: "0.1"
+      memory: "150Mi"
+    limits:
+      cpu: "0.5"
+      memory: "450Mi"
+
 # Image paths
 images:
   # https://kubernetes-csi.github.io/docs/external-attacher.html
