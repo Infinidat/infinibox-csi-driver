@@ -497,8 +497,8 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	var devicePath string
 	var iscsiTransport string
 
-	zlog.Debug().Msgf("AttachDisk (iscsi), disk: %v fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s",
-		b.iscsiDisk, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
+	zlog.Debug().Msgf("AttachDisk (iscsi), fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s",
+		b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
 
 	zlog.Debug().Msgf("check that provided interface '%s' is available", b.Iface)
 	isToLogOutput := false
