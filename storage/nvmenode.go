@@ -61,6 +61,11 @@ type nvmeDisk struct {
 	MpathDevice string
 	Targets     []nvmeTarget
 }
+
+// for NVMEDevices, note that UsedBytes, MaximumLBA, and PhysicalSize are different types (either int/int64 or string) depending
+// on the version of nvme used, that is why they specify 'any' as the type.
+// Ubuntu and RHEL return int/int64 for those whereas Suse returns strings.
+// Currently these fields are unused so there is no need to check the type that was set in the JSON.
 type NVMEDevices struct {
 	Devices []struct {
 		NameSpace    int    `json:"NameSpace"`
@@ -69,9 +74,9 @@ type NVMEDevices struct {
 		Index        int    `json:"Index"`
 		ModelNumber  string `json:"ModelNumber"`
 		SerialNumber string `json:"SerialNumber"`
-		UsedBytes    int64  `json:"UsedBytes"`
-		MaximumLBA   int    `json:"MaximumLBA"`
-		PhysicalSize int64  `json:"PhysicalSize"`
+		UsedBytes    any    `json:"UsedBytes"`
+		MaximumLBA   any    `json:"MaximumLBA"`
+		PhysicalSize any    `json:"PhysicalSize"`
 		SectorSize   int    `json:"SectorSize"`
 	} `json:"Devices"`
 }
