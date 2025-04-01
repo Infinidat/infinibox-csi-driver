@@ -253,9 +253,10 @@ func (fc *fcstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		SnapshotName:   name,
 		WriteProtected: false,
 		SsdEnabled:     ssdEnabled,
+		LockExpiresAt:  0,
 	}
 	// Create snapshot
-	snapResponse, err := fc.cs.IboxApi.CreateSnapshotVolume(0, snapshotParam)
+	snapResponse, err := fc.cs.IboxApi.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		e := fmt.Sprintf("createVolumeFromVolumeContent (fc) - CreateSnapshotVolume - error %s", err.Error())
 		zlog.Error().Msg(e)
@@ -512,7 +513,8 @@ func (fc *fcstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		zlog.Info().Msgf("CreateSnapshot (fc) - snapshot Name: %s snapshot param has a lock_expires_at: %s", snapshotName, lockExpiresAtParameter)
 	}
 
-	snapshot, err := fc.cs.IboxApi.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
+	snapshotParam.LockExpiresAt = lockExpiresAt
+	snapshot, err := fc.cs.IboxApi.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		e := fmt.Sprintf("CreateSnapshot (fc) - CreateSnapshotVolume  snapshot name: %s error: %s", snapshotName, err.Error())
 		zlog.Error().Msg(e)

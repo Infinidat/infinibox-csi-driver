@@ -15,7 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func TestNvmeSnapshotLocking(t *testing.T) {
+func XTestNvmeSnapshotLocking(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {

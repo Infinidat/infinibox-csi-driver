@@ -282,8 +282,8 @@ func (m *MockApiService) GetTreeqsByFileSystem(fsID int) ([]Treeq, error) {
 	return resp, err
 }
 
-func (m *MockApiService) CreateSnapshotVolume(lockExpiresAt int64, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error) {
-	args := m.Called(lockExpiresAt, snapshotParam)
+func (m *MockApiService) CreateSnapshotVolume(snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error) {
+	args := m.Called(snapshotParam)
 	resp, _ := args.Get(0).(Snapshot)
 	err, _ := args.Get(1).(error)
 	return &resp, err

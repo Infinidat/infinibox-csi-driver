@@ -379,7 +379,7 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) CreateSnapshotVolume(lockExpiresAt int64, req CreateSnapshotVolumeRequest) (*Snapshot, error) {
+func (iboxClient *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeRequest) (*Snapshot, error) {
 	const function = "CreateSnapshotVolume"
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/volumes")
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
@@ -393,7 +393,7 @@ func (iboxClient *IboxClient) CreateSnapshotVolume(lockExpiresAt int64, req Crea
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
 	}
 
-	if lockExpiresAt > 0 {
+	if req.LockExpiresAt > 0 {
 		values := request.URL.Query()
 		values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
 		request.URL.RawQuery = values.Encode()

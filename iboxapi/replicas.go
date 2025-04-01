@@ -368,7 +368,7 @@ func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
 
 func (iboxClient *IboxClient) GetReplica(id int) (ex *Replica, err error) {
 	const function = "GetReplica"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/replicas/%d", id)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/replicas", id)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "replica ID", id)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)

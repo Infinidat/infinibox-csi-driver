@@ -76,7 +76,7 @@ type Client interface {
 	GetVolumeByName(volumeName string) (*Volume, error)
 	GetVolume(volumeID int) (*Volume, error)
 	UpdateVolume(volumeID int, volume Volume) (*Volume, error)
-	CreateSnapshotVolume(lockExpiresAt int64, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error)
+	CreateSnapshotVolume(snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error)
 	GetVolumesByParentID(parentID int) ([]Volume, error)
 
 	// network spaces

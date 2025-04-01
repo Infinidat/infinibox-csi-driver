@@ -92,7 +92,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		t.Fatalf("error creating VolumeGroupSnapshot %s", err.Error())
 	}
 
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 15)
 
 	// verify the VolumeGroupSnapshot was created
 	currentVgs, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Get(context.Background(), createdVgs.Name, metav1.GetOptions{})

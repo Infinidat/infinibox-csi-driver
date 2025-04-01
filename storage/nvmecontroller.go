@@ -248,10 +248,11 @@ func (nvme *nvmestorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 		ParentID:       volproto.VolumeID,
 		SnapshotName:   name,
 		WriteProtected: false,
+		LockExpiresAt:  0,
 	}
 
 	// Create snapshot
-	snapResponse, err := nvme.cs.IboxApi.CreateSnapshotVolume(0, snapshotParam)
+	snapResponse, err := nvme.cs.IboxApi.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		e := fmt.Errorf("createVolumeFromContentSource (nvme) - CreateSnapshotVolume - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
@@ -521,7 +522,9 @@ func (nvme *nvmestorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		zlog.Debug().Msgf("CreateSnapshot (nvme) - snapshot param has a lock_expires_at of %s int value %d, start time on ibox is %d", lockExpiresAtParameter, lockExpiresAt, ntpStatus[0].LastProbeTimestamp)
 	}
 
-	snapshot, err := nvme.cs.IboxApi.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
+	snapshotParam.LockExpiresAt = lockExpiresAt
+
+	snapshot, err := nvme.cs.IboxApi.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		e := fmt.Errorf("CreateSnapshot (nvme) - CreateSnapshotVolume - snapshot %s error %s", snapshotName, err.Error())
 		zlog.Error().Msg(e.Error())

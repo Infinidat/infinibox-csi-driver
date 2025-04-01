@@ -260,10 +260,11 @@ func (iscsi *iscsistorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 		SnapshotName:   name,
 		WriteProtected: false,
 		SsdEnabled:     ssdEnabled,
+		LockExpiresAt:  0,
 	}
 
 	// Create snapshot
-	snapResponse, err := iscsi.cs.IboxApi.CreateSnapshotVolume(0, snapshotParam)
+	snapResponse, err := iscsi.cs.IboxApi.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		e := fmt.Errorf("createVolumeFromContentSource (iscsi) - CreateSnapshotVolume - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
@@ -531,7 +532,9 @@ func (iscsi *iscsistorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		zlog.Debug().Msgf("CreateSnapshot (iscsi) - snapshot param has a lock_expires_at of %s int value %d, start time on ibox is %d", lockExpiresAtParameter, lockExpiresAt, ntpStatus[0].LastProbeTimestamp)
 	}
 
-	snapshot, err := iscsi.cs.IboxApi.CreateSnapshotVolume(lockExpiresAt, snapshotParam)
+	snapshotParam.LockExpiresAt = lockExpiresAt
+
+	snapshot, err := iscsi.cs.IboxApi.CreateSnapshotVolume(snapshotParam)
 	if err != nil {
 		e := fmt.Errorf("CreateSnapshot (iscsi) - CreateSnapshotVolume snapshot %s - error: %s", snapshotName, err.Error())
 		zlog.Error().Msg(e.Error())

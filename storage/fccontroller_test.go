@@ -172,7 +172,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
-	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
@@ -188,7 +188,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_AttachMetadataToObject
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
-	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
@@ -307,7 +307,7 @@ func (suite *FCControllerSuite) Test_CreateSnapshot_GetVolumeByNameErr() {
 	unpublishVolReq := getISCSICreateSnapshotRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, suite.someError)
-	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
 	_, err := suite.service.CreateSnapshot(context.Background(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateSnapshot GetVolumeByName")
@@ -318,7 +318,7 @@ func (suite *FCControllerSuite) Test_CreateSnapshot_already_Created() {
 	unpublishVolReq := getISCSICreateSnapshotRequest()
 	unpublishVolReq.SourceVolumeId = "1001$$iscsi"
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
-	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything, mock.Anything).Return(getSnapshotResp(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 
 	_, err := suite.service.CreateSnapshot(context.Background(), unpublishVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc CreateSnapshot when already exists")
