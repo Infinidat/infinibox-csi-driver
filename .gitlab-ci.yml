@@ -6,7 +6,6 @@
 # Note that environment variables can be set in several places
 # See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
 
-
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -14,7 +13,6 @@ workflow:
       when: never
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG
-
 
 .go-cache:
     variables:
@@ -34,7 +32,7 @@ stages:
 - test
 - build
 - docker_build
-- release
+- copyimages
 
 lint:
     image:
@@ -213,6 +211,43 @@ test-merge-image-build:
       --build-arg BLAME_MACHINE=$CI_SERVER_HOST
       -t $BUILD_IMAGE -f Dockerfile .
 
+copyimages:
+  stage: copyimages
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: always
+    - when: never
+  tags:
+    - copyimages
+  image:
+    name: docker:20.10.16
+    pull_policy: if-not-present
+  services:
+    - name: docker:20.10.16-dind
+      alias: dockerhost
+  variables:
+    DOCKER_HOST: tcp://dockerhost:2375/
+    # Use the overlayfs driver for improved performance:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+   - mkdir ~/.docker
+   - echo "$DOCKER_AUTH_CONFIG" > ~/.docker/config.json
+   - echo -n ci registry user is $CI_REGISTRY_USER
+   - echo -n ci registry is $CI_REGISTRY
+   - echo -n ci project namespace is $CI_PROJECT_NAMESPACE
+   - echo -n path is $PATH
+  rules:
+    - if: $CI_COMMIT_TAG && $CI_PROJECT_NAMESPACE == "host-opensource" # Run this job only for host-opensource
+      when: always
+    - when: never
+  script:
+    - docker pull git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-driver/infinidat-csi-driver:$CI_COMMIT_TAG
+    - docker pull git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-driver/infinidat-csi-metrics:$CI_COMMIT_TAG
+    - docker tag git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-driver/infinidat-csi-driver:$CI_COMMIT_TAG git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-releases/infinidat-csi-driver:$CI_COMMIT_TAG
+    - docker tag git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-driver/infinidat-csi-metrics:$CI_COMMIT_TAG git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-releases/infinidat-csi-metrics:$CI_COMMIT_TAG
+    - docker push git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-releases/infinidat-csi-driver:$CI_COMMIT_TAG
+    - docker push git.infinidat.com:4567/$CI_PROJECT_NAMESPACE/infinidat-csi-releases/infinidat-csi-metrics:$CI_COMMIT_TAG
 
 include:
 - template: Security/SAST.gitlab-ci.yml
