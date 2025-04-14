@@ -1,0 +1,26 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: fc-test-rox-reader
+  namespace: infinidat-csi
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  securityContext:
+    seLinuxOptions:
+      type: "spc_t"
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE
+      env:
+      - name: READ_ONLY
+        value: "true"
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+        readOnly: true
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: fc-pvc-rox-readers

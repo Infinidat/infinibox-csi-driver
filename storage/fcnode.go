@@ -156,11 +156,15 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	// print out the target permissions
 	logPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
 	logPermissions("after mount devicePath ", "/host"+devicePath)
-	err = fc.storageHelper.SetVolumePermissions(req)
-	if err != nil {
-		e := fmt.Errorf("NodePublishVolume (fc) - SetVolumePermissions - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
-		zlog.Error().Msg(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+	if diskMounter.ReadOnly {
+		zlog.Debug().Msgf("NodePublishVolume (fc) - skipping chown-chmod since this is readOnly volume")
+	} else {
+		err = fc.storageHelper.SetVolumePermissions(req)
+		if err != nil {
+			e := fmt.Errorf("NodePublishVolume (fc) - SetVolumePermissions - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+			zlog.Error().Msg(e.Error())
+			return nil, status.Error(codes.Internal, e.Error())
+		}
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -385,7 +389,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		// option A: raw block volume access
 		zlog.Debug().Msgf("MountFCDisk - mounting raw block volume at given path %s", fm.TargetPath)
 		if fm.ReadOnly {
-			e := fmt.Errorf("Read only is not supported for Block Volume")
+			e := fmt.Errorf("read only is not supported for Block Volume")
 			zlog.Error().Msg(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
@@ -412,7 +416,11 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		devicePath = strings.Replace(devicePath, "/host", "", 1)
 
 		options := []string{"bind"}
-		options = append(options, "rw") // TODO: address in CSIC-343
+		if fm.ReadOnly {
+			options = append(options, "ro")
+		} else {
+			options = append(options, "rw")
+		}
 		if err := fm.Mounter.Mount(devicePath, fm.TargetPath, "", options); err != nil {
 			e := fmt.Errorf("MountFCDisk: failed to mount fc volume %s to %s, error %v", devicePath, fm.TargetPath, err)
 			zlog.Error().Msg(e.Error())
@@ -475,7 +483,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			}
 		}
 	}
-	if strings.HasPrefix(devicePath, "/dev/dm-") {
+	if strings.HasPrefix(devicePath, "/dev/dm-") && !fm.ReadOnly {
 		dskinfo := diskInfo{
 			MpathDevice: devicePath,
 			IsBlock:     fm.fcDisk.isBlock,
@@ -563,6 +571,12 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 	mountOptions := []string{}
 	blockVolCapability := reqVolCapability.GetBlock()
 
+	readOnly := false
+	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+		readOnly = true
+		zlog.Debug().Msg("MULTI_NODE_READER_ONLY AccessMode requested")
+	}
+
 	// protocol-specific paths below
 	if mountVolCapability != nil && blockVolCapability == nil {
 		// option A. user wants file access to their FC device
@@ -598,7 +612,7 @@ func (fc *fcstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 
 	return &FCMounter{
 		fcDisk:       fcDetails,
-		ReadOnly:     false, // TODO: not accurate, address in CSIC-343
+		ReadOnly:     readOnly,
 		FsType:       fstype,
 		MountOptions: mountOptions,
 		Mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},

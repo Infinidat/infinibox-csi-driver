@@ -350,3 +350,100 @@ func TestFcBlockRWX(t *testing.T) {
 	}
 
 }
+
+func TestROX(t *testing.T) {
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	testConfig.UseRetainStorageClass = true
+	e2e.Setup(testConfig)
+
+	// get the PV name, we'll construct a 2nd PVC using that volume name for the ROX test
+
+	pvName, err := e2e.GetPVName(testConfig.TestNames.PVCName, testConfig.TestNames.NSName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error getting PV name %s\n", err.Error())
+	}
+
+	// delete the Pod and PVC, the PV will be retained because we set the StorageClass to Retain
+	ctx := context.Background()
+	err = e2e.DeletePod(ctx, testConfig.TestNames.NSName, e2e.POD_NAME, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error deleting Pod %s\n", err.Error())
+	}
+
+	err = e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error deleting Pod %s\n", err.Error())
+	}
+
+	// we are going to reuse the PVC name, so give it some time to be deleted before reusing
+	time.Sleep(time.Second * 10)
+
+	// update the PV to use ROX access mode and remove the existing claimRef so that the new PVC can bind to it
+
+	err = e2e.UpdatePV(ctx, pvName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error updating PV %s\n", err.Error())
+	}
+
+	// create the ROX PVC using the PV from above as the volumeName
+	testConfig.AccessMode = v1.ReadOnlyMany
+	testConfig.ReadOnlyPod = true
+	testConfig.UsePVCVolumeRef = true
+	testConfig.TestNames.PVName = pvName
+
+	err = e2e.CreatePVC(testConfig)
+	if err != nil {
+		t.Fatalf("error creating ROX PVC %s\n", err.Error())
+	}
+
+	readOnlyManyPodName := e2e.POD_NAME + "-rox"
+	testConfig.UseSELinux = true
+
+	err = e2e.CreatePod(testConfig, testConfig.TestNames.NSName, readOnlyManyPodName)
+	if err != nil {
+		t.Fatalf("error creating ROX Pod %s\n", err.Error())
+	}
+
+	err = e2e.WaitForPod(testConfig.Testt, readOnlyManyPodName, testConfig.TestNames.NSName, testConfig.ClientSet, time.Second*5, time.Minute*4)
+	if err != nil {
+		e2e.DescribePVC(testConfig.Testt, readOnlyManyPodName, testConfig.TestNames.NSName, testConfig.ClientSet)
+		testConfig.Testt.Fatalf("error waiting for rox pod %s", err.Error())
+	}
+
+	testConfig.Testt.Logf("✓ Pod %s is running\n", readOnlyManyPodName)
+
+	// lastly, verify that the mount is ro inside the running pod
+	err = e2e.VerifyReadOnlyMount(testConfig.ClientSet, testConfig.RestConfig, readOnlyManyPodName, testConfig.TestNames.NSName)
+	if err != nil {
+		t.Errorf("error verifying read-only %s\n", err.Error())
+		t.Fail()
+	} else {
+		testConfig.Testt.Logf("✓ Pod %s volume is mounted read only\n", readOnlyManyPodName)
+	}
+
+	err = e2e.DeletePod(ctx, testConfig.TestNames.NSName, readOnlyManyPodName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error deleting rox pod %s\n", err.Error())
+	}
+
+	err = e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error deleting rox pvc %s\n", err.Error())
+	}
+
+	// because of Retain being used, we delete the PV
+	err = e2e.DeletePV(ctx, pvName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error deleting PV %s\n", err.Error())
+	}
+
+	err = e2e.DeleteStorageClass(ctx, testConfig.TestNames.SCName, testConfig.ClientSet)
+	if err != nil {
+		t.Fatalf("error deleting StorageClass %s\n", err.Error())
+	}
+
+}
