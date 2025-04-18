@@ -57,6 +57,17 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
+
+	caps := []*csi.VolumeCapability{
+		req.VolumeCapability,
+	}
+
+	_, err := validateCapabilities(caps)
+	if err != nil {
+		e := fmt.Errorf("NodePublishVolume - validateCapabilities - error %s, volume cap %v", err.Error(), req.VolumeCapability)
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.FailedPrecondition, e.Error())
+	}
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
@@ -239,6 +250,18 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
+
+	caps := []*csi.VolumeCapability{
+		req.VolumeCapability,
+	}
+
+	_, err := validateCapabilities(caps)
+	if err != nil {
+		e := fmt.Errorf("NodeStageVolume - validateCapabilities - error %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.FailedPrecondition, e.Error())
+	}
+
 	if req.StagingTargetPath == "" {
 		e := fmt.Errorf("NodeStageVolume  - error stagingTargetPath parameter was empty")
 		zlog.Error().Msg(e.Error())

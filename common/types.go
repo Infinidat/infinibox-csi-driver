@@ -14,6 +14,10 @@ package common
 
 // storage class parameter keys
 const (
+	FS_TYPE_EXT3 = "ext3"
+	FS_TYPE_EXT4 = "ext4"
+	FS_TYPE_XFS  = "xfs"
+
 	SC_NFS_EXPORT_PERMISSIONS = "nfs_export_permissions"
 	SC_PRIV_PORTS             = "privileged_ports_only"
 	SC_SNAPDIR_VISIBLE        = "snapdir_visible"
@@ -88,6 +92,7 @@ const (
 )
 
 const (
+	SC_FSTYPE                         = "csi.storage.k8s.io/fstype"
 	SC_PROVISIONER_SECRET_NAME        = "csi.storage.k8s.io/provisioner-secret-name"
 	SC_CONTROLLER_PUBLISH_SECRET_NAME = "csi.storage.k8s.io/controller-publish-secret-name"
 	SC_NODE_STAGE_SECRET_NAME         = "csi.storage.k8s.io/node-stage-secret-name"

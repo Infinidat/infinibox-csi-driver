@@ -60,22 +60,22 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 
 	networkSpace := reqParameters[common.SC_NETWORK_SPACE]
-	storageprotocol := reqParameters[common.SC_STORAGE_PROTOCOL]
+	storageProtocol := reqParameters[common.SC_STORAGE_PROTOCOL]
 	reqCapabilities := req.GetVolumeCapabilities()
 
 	zlog.Debug().Msgf("CreateVolume - capacity-range: %v ", req.GetCapacityRange())
 	zlog.Debug().Msgf("CreateVolume - params: %v", reqParameters)
 	zlog.Debug().Msgf("CreateVolume  - name: '%s' controller nodeid: '%s' storage_protocol: '%s' capacity-range: %v params: %v",
-		volName, s.Driver.nodeID, storageprotocol, req.GetCapacityRange(), reqParameters)
+		volName, s.Driver.nodeID, storageProtocol, req.GetCapacityRange(), reqParameters)
 
 	// Basic CSI parameter checking across protocols
 
-	if len(storageprotocol) == 0 {
+	if len(storageProtocol) == 0 {
 		e := fmt.Errorf("CreateVolume - storage protocol empty ")
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
-	if storageprotocol != common.PROTOCOL_FC && len(networkSpace) == 0 {
+	if storageProtocol != common.PROTOCOL_FC && len(networkSpace) == 0 {
 		e := fmt.Errorf("CreateVolume - network space empty ")
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
@@ -174,7 +174,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, err
 	}
 
-	storageController, err := storage.NewStorageController(comnserv, capacity, storageprotocol, configparams, secretsToUse)
+	storageController, err := storage.NewStorageController(comnserv, capacity, storageProtocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("CreateVolume - NewStorageController - name %s error %s", volName, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -230,13 +230,13 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageprotocol
+	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageProtocol
 
 	eventData := make([]iboxapi.EventRequestData, 0)
 	protocolData := iboxapi.EventRequestData{
 		Name:  common.SC_STORAGE_PROTOCOL,
 		Type:  "String",
-		Value: storageprotocol,
+		Value: storageProtocol,
 	}
 	eventData = append(eventData, protocolData)
 
@@ -380,6 +380,18 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
+
+	caps := []*csi.VolumeCapability{
+		req.VolumeCapability,
+	}
+
+	_, err = validateCapabilities(caps)
+	if err != nil {
+		e := fmt.Errorf("ControllerPublishVolume - validateCapabilities - error %s, node ID %s, volume cap %v", err.Error(), req.GetNodeId(), req.VolumeCapability)
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.FailedPrecondition, e.Error())
+	}
+
 	if req.GetVolumeId() == "" {
 		e := fmt.Errorf("ControllerPublishVolume  - request volumeId was empty")
 		zlog.Error().Msg(e.Error())
@@ -519,31 +531,44 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (summary string,
 
 	var modes string
 	for _, capability := range capabilities {
-		// validate accessMode
 		accessMode := capability.GetAccessMode()
 		if accessMode == nil {
 			return "", errors.New("no accessmode specified in volume capability")
 		}
 		mode := accessMode.GetMode()
-		// TODO: do something to actually reject invalid access modes, if any
-		// there aren't any that we don't support yet, but some combinations are dumb?
+
+		if block := capability.GetBlock(); block != nil {
+			isBlock = true
+			switch mode {
+			case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+				csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+				csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
+			default:
+				return "", fmt.Errorf("access mode [%s] is not a supported block access mode", mode)
+			}
+		}
+		if file := capability.GetMount(); file != nil {
+			isFile = true
+			switch mode {
+			case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+				csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+				csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
+			default:
+				return "", fmt.Errorf("access mode [%s] is not a supported file access mode", mode)
+			}
+
+			switch file.FsType {
+			case "", common.FS_TYPE_EXT3, common.FS_TYPE_EXT4, common.FS_TYPE_XFS:
+			default:
+				return "", fmt.Errorf("fstype [%s] is not supported", file.FsType)
+			}
+		}
+
 		if modes != "" {
 			modes = modes + ", "
 		}
 		modes = modes + fmt.Sprintf("mode: %s", mode.String())
 
-		// check block and file behavior
-		if block := capability.GetBlock(); block != nil {
-			isBlock = true
-			if mode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
-				zlog.Warn().Msg("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
-			}
-			// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
-		}
-		if file := capability.GetMount(); file != nil {
-			isFile = true
-			// We should validate fs_type and []mount_flags parts of MountVolume message in NFS/TreeQ controllers - CSIC-339
-		}
 	}
 
 	if isBlock && isFile {
