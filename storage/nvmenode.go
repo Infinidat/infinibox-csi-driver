@@ -20,9 +20,7 @@ import (
 	"infinibox-csi-driver/helper"
 
 	"os"
-	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -316,116 +314,20 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nv
 		return "", fmt.Errorf("AttachDisk (nvme) - could not find nvme device path using lun %s", b.lun)
 	}
 
-	// Mount device
-	notMnt, err := b.mounter.IsLikelyNotMountPoint(b.targetPath)
-	if err == nil {
-		if !notMnt {
-			zlog.Debug().Msgf("AttachDisk (nvme) - %s already mounted", b.targetPath)
-			return "", nil
-		}
-	} else if !os.IsNotExist(err) {
-		zlog.Error().Msgf("%s", err.Error())
-		return "", status.Errorf(codes.Internal, "AttachDisk (nvme) - %s exists but IsLikelyNotMountPoint failed: %v", b.targetPath, err)
+	diskinf := diskInfo{
+		MpathDevice: nvmeDevicePath,
+		VolumeID:    b.nvmeDisk.VolumeID,
+		IsBlock:     b.isBlock,
 	}
 
-	b.nvmeDisk.MpathDevice = nvmeDevicePath
+	zlog.Debug().Msgf("AttachDisk (nvme) - diskinf %v", diskinf)
 
-	mountOptionMode := "rw"
-	mode := "0750" //rwx
-	var options []string
-	if b.readOnly {
-		mountOptionMode = "ro"
-		mode = "0550" //read only
-		zlog.Debug().Msgf("AttachDisk (nvme) - readOnly so setting mountPoint to %s", mode)
+	err = mountLogic(diskinf, b.targetPath, nvmeDevicePath, b.stagePath, b.fsType, b.mountOptions, b.isBlock, b.readOnly)
+	if err != nil {
+		zlog.Error().Msgf("AttachDisk (nvme) - mountLogic() error %s", err.Error())
+		return "", err
 	}
 
-	if b.isBlock {
-		zlog.Debug().Msgf("AttachDisk (nvme) - mounting raw block volume at given path %s", b.targetPath)
-
-		zlog.Debug().Msgf("AttachDisk (nvme) - run: mkdir --parents --mode %s '%s' ", mode, filepath.Dir(b.targetPath))
-		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-		// MkdirAll() will cause hard-to-grok mount errors.
-		cmd := exec.Command("mkdir", "--parents", "--mode", mode, filepath.Dir(b.targetPath))
-		err = cmd.Run()
-		if err != nil {
-			zlog.Error().Msgf("AttachDisk (nvme) - failed to mkdir '%s': %s", b.targetPath, err)
-			return "", err
-		}
-
-		_, err = os.Create("/host/" + b.targetPath)
-		if err != nil {
-			e := fmt.Errorf("AttachDisk (nvme) - failed to create target file %q: %v", b.targetPath, err)
-			zlog.Error().Msgf("%s", e.Error())
-			return "", e
-		}
-
-		nvmeDevicePath = strings.Replace(nvmeDevicePath, "/host", "", 1)
-
-		options = append(options, "bind")
-		options = append(options, mountOptionMode)
-
-		if err := b.mounter.Mount(nvmeDevicePath, b.targetPath, "", options); err != nil {
-			zlog.Error().Msgf("AttachDisk (nvme) - failed to bind mount nvme block volume %s [%s] to %s, error %v", nvmeDevicePath, b.fsType, b.targetPath, err)
-			return "", err
-		}
-		if err := nvme.createNVMEConfigFile(*(b.nvmeDisk), b.stagePath); err != nil {
-			zlog.Error().Msgf("AttachDisk (nvme) - failed to save nvme config with error: %v", err)
-			return "", err
-		}
-		zlog.Debug().Msgf("AttachDisk (nvme) - block volume bind mounted successfully to %s", b.targetPath)
-		return nvmeDevicePath, nil
-	} else {
-		mountPoint := b.targetPath
-
-		zlog.Debug().Msgf("AttachDisk (nvme) - mounting volume %s with filesystem at given path %s", nvmeDevicePath, mountPoint)
-
-		// Create mountPoint if it does not exist.
-		_, err := os.Stat(mountPoint)
-		if os.IsNotExist(err) {
-			zlog.Debug().Msgf("AttachDisk (nvme) - mount point does not exist. creating mount point.")
-			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
-			if err != nil {
-				zlog.Error().Msgf("AttachDisk (nvme) - failed to mkdir '%s': %v", mountPoint, err)
-				return "", err
-			}
-		} else {
-			zlog.Debug().Msgf("AttachDisk (nvme) - mkdir of mountPoint not required. '%s' already exists", mountPoint)
-		}
-
-		options = append(options, mountOptionMode) // BUG: what if user separately specified "rw" option?
-		options = append(options, b.mountOptions...)
-
-		// Persist here so that even if mount fails, the globalmount metadata json
-		// file will contain an mpath to use during clean up.
-		zlog.Debug().Msgf("AttachDisk (nvme) - persist nvme disk config to json file for later use, when detaching the disk")
-		if err = nvme.createNVMEConfigFile(*(b.nvmeDisk), b.stagePath); err != nil {
-			zlog.Error().Msgf("AttachDisk (nvme) - failed to save nvme config with error: %v", err)
-			return "", err
-		}
-
-		if b.fsType == "xfs" {
-			zlog.Debug().Msgf("AttachDisk (nvme) - device %s is of type XFS. Mounting without regard to its XFS UUID.", nvmeDevicePath)
-			options = append(options, "nouuid")
-		}
-
-		zlog.Debug().Msgf("AttachDisk (nvme) - format '%s' (if needed) and mount volume", nvmeDevicePath)
-		err = b.mounter.FormatAndMount(nvmeDevicePath, mountPoint, b.fsType, options)
-		zlog.Debug().Msgf("AttachDisk (nvme) - formatAndMount returned: %+v", err)
-		if err != nil {
-			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			zlog.Debug().Msgf("AttachDisk (nvme) - search error for matches to handle: %+v", err)
-
-			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
-				zlog.Error().Msgf("AttachDisk (nvme) - device %s is already mounted on %s", nvmeDevicePath, mountPoint)
-			} else {
-				zlog.Error().Msgf("AttachDisk (nvme) - failed to mount nvme volume %s [%s] to %s, error %+v", nvmeDevicePath, b.fsType, mountPoint, err)
-				_, _ = mountPathExists(mountPoint)
-				return "", err
-			}
-		}
-	}
 	zlog.Debug().Msgf("AttachDisk (nvme) - mounted volume with device path %s", nvmeDevicePath)
 	return nvmeDevicePath, nil
 }
@@ -516,23 +418,6 @@ func (nvme *nvmestorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 	m.nvmeDisk = nvmeDisk
 
 	return m, nil
-}
-
-func (nvme *nvmestorage) createNVMEConfigFile(conf nvmeDisk, mnt string) error {
-	file := path.Join("/host", mnt, strconv.Itoa(conf.VolumeID)+".json")
-	zlog.Debug().Msgf("createNVMEConfigFile (nvme) - creating nvme config file at path %s", file)
-	fp, err := os.Create(file)
-	if err != nil {
-		zlog.Error().Msgf("%s", err.Error())
-		return err
-	}
-	defer fp.Close()
-	encoder := json.NewEncoder(fp)
-	if err = encoder.Encode(conf); err != nil {
-		zlog.Error().Msgf("%s", err.Error())
-		return err
-	}
-	return nil
 }
 
 func (nvme *nvmestorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {

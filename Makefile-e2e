@@ -9,9 +9,12 @@ endif
 .PHONY: install-e2e-tools
 install-e2e-tools: ## install e2e related binaries
 	@echo -e $(_begin)
+ifeq (,$(wildcard ./$(_E2E_K8S_VERSION)-kubernetes-test-linux-amd64.tar.gz))
 	wget https://dl.k8s.io/$(_E2E_K8S_VERSION)/kubernetes-test-linux-amd64.tar.gz
-	tar --strip-components=3 -zxf kubernetes-test-linux-amd64.tar.gz \
+	mv kubernetes-test-linux-amd64.tar.gz $(_E2E_K8S_VERSION)-kubernetes-test-linux-amd64.tar.gz
+	tar --strip-components=3 -zxf $(_E2E_K8S_VERSION)-kubernetes-test-linux-amd64.tar.gz \
 		kubernetes/test/bin/e2e.test kubernetes/test/bin/ginkgo
+endif
 	@echo -e $(_finish)
 
 .PHONY: install-csi-sanity

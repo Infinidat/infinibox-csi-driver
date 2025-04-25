@@ -14,7 +14,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
@@ -41,12 +40,6 @@ type fcDevice struct {
 	isBlock   bool
 }
 
-type diskInfo struct {
-	MpathDevice string
-	IsBlock     bool
-	VolumeID    int
-}
-
 type FCMounter struct {
 	ReadOnly     bool
 	FsType       string
@@ -60,7 +53,6 @@ type FCMounter struct {
 }
 
 // Global resouce contains a sync.Mutex. Used to serialize FC resource accesses.
-var execFc helper.Exec
 
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
@@ -206,7 +198,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	// load fc disk config from json file
 	zlog.Debug().Msgf("NodeUnstageVolume (fc) - read fc config from staging path - volume ID: %s", req.GetVolumeId())
-	if err := fc.loadFcDiskInfoFromFile(&dskInfo, stagePath); err == nil {
+	if err := loadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
 		zlog.Debug().Msgf("NodeUnstageVolume (fc) - fc config: mpathDevice %s", mpathDevice)
 	} else {
@@ -363,126 +355,18 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("MountFCDisk - called - request %+v devicePath %s", fm, devicePath)
 
-	var mounted bool
-	mntPoints, err := fm.Mounter.List()
+	dskinfo := diskInfo{
+		MpathDevice: devicePath,
+		IsBlock:     fm.fcDisk.isBlock,
+		VolumeID:    fm.fcDisk.connector.VolumeID,
+	}
+	err := mountLogic(dskinfo, fm.TargetPath, devicePath, fm.StagePath, fm.FsType, fm.MountOptions, fm.fcDisk.isBlock, fm.ReadOnly)
 	if err != nil {
-		e := fmt.Errorf("MountFCDisk - fm.Mounter.List error %s", err.Error())
+		e := fmt.Errorf("MountFCDisk - mountLogic() error %s", err.Error())
 		zlog.Error().Msg(e.Error())
 		return status.Error(codes.Internal, e.Error())
 	}
 
-	var chrootPath = "/host" + fm.TargetPath
-	zlog.Debug().Msgf("MountFCDisk - Mount List has %d, looking for %s", len(mntPoints), chrootPath)
-	for i := 0; i < len(mntPoints); i++ {
-		if mntPoints[i].Path == chrootPath {
-			mounted = true
-			break
-		}
-	}
-
-	if mounted {
-		zlog.Debug().Msgf("MountFCDisk path: %s already Mounted", chrootPath)
-		return nil
-	}
-
-	if fm.fcDisk.isBlock {
-		// option A: raw block volume access
-		zlog.Debug().Msgf("MountFCDisk - mounting raw block volume at given path %s", fm.TargetPath)
-		if fm.ReadOnly {
-			e := fmt.Errorf("read only is not supported for Block Volume")
-			zlog.Error().Msg(e.Error())
-			return status.Error(codes.Internal, e.Error())
-		}
-
-		zlog.Debug().Msgf("MountFCDisk: Mount point does not exist. Creating mount point.")
-		zlog.Debug().Msgf("MountFCDisk: Run: mkdir --parents --mode 0750 '%s' ", filepath.Dir(fm.TargetPath))
-		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-		// MkdirAll() will cause hard-to-grok mount errors.
-		cmd := exec.Command("mkdir", "--parents", "--mode", "0750", filepath.Dir(fm.TargetPath))
-		err = cmd.Run()
-		if err != nil {
-			e := fmt.Errorf("MountFCDisk: failed to mkdir '%s': error: %s", fm.TargetPath, err)
-			zlog.Error().Msg(e.Error())
-			return status.Error(codes.Internal, e.Error())
-		}
-
-		zlog.Debug().Msgf("MountFCDisk: creating file: %s", chrootPath)
-		_, err = os.Create(chrootPath)
-		if err != nil {
-			e := fmt.Errorf("MountFCDisk - failed to create target path for raw bind mount: %q, err: %v", fm.TargetPath, err)
-			zlog.Error().Msg(e.Error())
-			return status.Error(codes.Internal, e.Error())
-		}
-		devicePath = strings.Replace(devicePath, "/host", "", 1)
-
-		options := []string{"bind"}
-		if fm.ReadOnly {
-			options = append(options, "ro")
-		} else {
-			options = append(options, "rw")
-		}
-		if err := fm.Mounter.Mount(devicePath, fm.TargetPath, "", options); err != nil {
-			e := fmt.Errorf("MountFCDisk: failed to mount fc volume %s to %s, error %v", devicePath, fm.TargetPath, err)
-			zlog.Error().Msg(e.Error())
-			return e
-		}
-		zlog.Debug().Msgf("MountFCDisk volume mounted successfully")
-	} else {
-		// option B: local filesystem access
-		zlog.Debug().Msgf("MountFCDisk - mounting volume with filesystem at given path %s", fm.TargetPath)
-
-		// Create mountPoint, with prepended /host, if it does not exist.
-		mountPoint := chrootPath
-		_, err := os.Stat(mountPoint)
-		if err != nil {
-			zlog.Error().Msgf("MountFCDisk - stat - error %s", err.Error())
-		}
-		if os.IsNotExist(err) {
-			zlog.Debug().Msgf("MountFCDisk - Mount point does not exist. Creating mount point.")
-			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execFc.Command("mkdir", fmt.Sprintf("--parents --mode 0750 '%s'", fm.TargetPath))
-			if err != nil {
-				e := fmt.Errorf("MountFCDisk - failed to mkdir '%s': %s", fm.TargetPath, err)
-				zlog.Error().Msg(e.Error())
-				return e
-			}
-
-			// // Verify mountPoint exists. If ready a file named 'ready' will appear in mountPoint directory.
-			// util.SetReady(mountPoint)
-			// is_ready := util.IsReady(mountPoint)
-			// zlog.Debug().Msgf("Check that mountPoint is ready: %t", is_ready)
-		} else {
-			zlog.Debug().Msgf("MountFCDisk - mkdir of mountPoint not required. '%s' already exists", mountPoint)
-		}
-
-		options := []string{}
-		if fm.ReadOnly {
-			options = append(options, "ro")
-		} else {
-			options = append(options, "rw")
-		}
-		options = append(options, fm.MountOptions...)
-
-		if fm.FsType == "xfs" {
-			zlog.Debug().Msgf("MountFCDisk - Device %s is of type XFS. Mounting using 'nouuid' option.", devicePath)
-			options = append(options, "nouuid")
-		}
-
-		err = fm.Mounter.FormatAndMount(devicePath, fm.TargetPath, fm.FsType, options)
-		if err != nil {
-			zlog.Error().Msgf("MountFCDisk - FormatAndMount returned an error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", devicePath, fm.TargetPath, fm.FsType, err)
-			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-
-			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
-				zlog.Error().Msgf("MountFCDisk - Device %s is already mounted on %s", devicePath, mountPoint)
-			} else {
-				msg := fmt.Sprintf("MountFCDisk - failed to mount fc volume %s [%s] to %s, err: %v", devicePath, fm.FsType, fm.TargetPath, err)
-				zlog.Error().Msg(msg)
-				return status.Errorf(codes.Internal, "%s", msg)
-			}
-		}
-	}
 	if strings.HasPrefix(devicePath, "/dev/dm-") && !fm.ReadOnly {
 		dskinfo := diskInfo{
 			MpathDevice: devicePath,
@@ -490,7 +374,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			VolumeID:    fm.fcDisk.connector.VolumeID,
 		}
 		zlog.Debug().Msgf("MountFCDisk - attempting to create FC config file dskinfo [%+v] stagePath [%s] targetPath [%s]", dskinfo, fm.StagePath, fm.TargetPath)
-		if err := fc.createFcConfigFile(dskinfo, fm.StagePath); err != nil {
+		if err := createConfigFile(dskinfo, fm.StagePath); err != nil {
 			e := fmt.Errorf("MountFCDisk - failed to save fc config with error: %v", err)
 			zlog.Error().Msg(e.Error())
 			return e
@@ -742,51 +626,4 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	}
 	zlog.Debug().Msgf("searchDisk dm device not found, using raw disk %s", disk)
 	return disk, nil
-}
-
-func (fc *fcstorage) createFcConfigFile(conf diskInfo, mnt string) error {
-	zlog.Debug().Msgf("createFcConfigFile - diskInfo: %v mnt: %s", conf, mnt)
-	file := path.Join("/host", mnt, strconv.Itoa(conf.VolumeID)+".json")
-
-	fp, err := os.Create(file)
-	if err != nil {
-		e := fmt.Errorf("createFcConfigFile: failed creating persist file with error %v file %s", err, file)
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	defer fp.Close()
-	encoder := json.NewEncoder(fp)
-	if err = encoder.Encode(conf); err != nil {
-		e := fmt.Errorf("createFcConfigFile: failed creating persist file with error %v", err)
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	zlog.Debug().Msgf("createFcConfigFile: created persist config file at path %s", file)
-	return nil
-}
-
-func (fc *fcstorage) loadFcDiskInfoFromFile(conf *diskInfo, mnt string) error {
-	file := path.Join("/host", mnt, strconv.Itoa(conf.VolumeID)+".json")
-	zlog.Debug().Msgf("loadFcDiskInfoFromFile file [%s]", file)
-	b, err := os.ReadFile(file)
-	if err != nil {
-		zlog.Error().Msgf("loadFcDiskInfoFromFile error in file read [%s]", err.Error())
-	} else {
-		zlog.Debug().Msgf("loadFcDiskInfoFromFile file content [%s]", string(b))
-	}
-
-	fp, err := os.Open(file)
-	if err != nil {
-		e := fmt.Errorf("loadFcDiskInfoFromFile - Open - file: %s error %s", file, err.Error())
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	defer fp.Close()
-	decoder := json.NewDecoder(fp)
-	if err = decoder.Decode(conf); err != nil {
-		e := fmt.Errorf("loadFcDiskInfoFromFile - Decode - error %s", err.Error())
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	return nil
 }

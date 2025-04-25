@@ -15,7 +15,6 @@ package storage
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/common"
@@ -76,16 +75,17 @@ type iscsiTarget struct {
 }
 
 type iscsiDisk struct {
-	lun            string
-	Iface          string
-	chap_discovery bool
-	chap_session   bool
-	secret         map[string]string
-	InitiatorName  string
-	VolName        string
-	isBlock        bool
-	MpathDevice    string
-	Targets        []iscsiTarget
+	Lun            string            `json:"lun"`
+	Iface          string            `json:"iface"`
+	Chap_discovery bool              `json:"chapdiscovery"`
+	Chap_session   bool              `json:"chapsession"`
+	Secret         map[string]string `json:"secret"`
+	InitiatorName  string            `json:"initiatorname"`
+	VolName        string            `json:"volumename"`
+	VolumeID       int               `json:"volumeid"`
+	IsBlock        bool              `json:"isblock"`
+	MpathDevice    string            `json:"mpathdevice"`
+	Targets        []iscsiTarget     `json:"targets"`
 }
 
 type SessionDetails struct {
@@ -224,7 +224,7 @@ func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	iscsiDisk.Targets = targets
-	zlog.Debug().Msgf("NodePublishVolume (iscsi) - iscsiDisk: vol name %s lun %s", iscsiDisk.VolName, iscsiDisk.lun)
+	zlog.Debug().Msgf("NodePublishVolume (iscsi) - iscsiDisk: vol name %s lun %s", iscsiDisk.VolName, iscsiDisk.Lun)
 
 	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	if err != nil {
@@ -280,11 +280,15 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	zlog.Debug().Msgf("NodeUnstageVolume (iscsi) - staging target path: %s", stagePath)
 
 	// Load iscsi disk config from json file
-	if err := iscsi.loadDiskInfoFromFile(diskUnmounter.iscsiDisk, stagePath); err == nil {
-		zlog.Debug().Msgf("NodeUnstageVolume (iscsi) - successfully loaded disk information from %s", stagePath)
-		mpathDevice = diskUnmounter.iscsiDisk.MpathDevice
+	dskInfo := diskInfo{
+		VolumeID: diskUnmounter.VolumeID,
+	}
+	if err := loadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
+		mpathDevice = dskInfo.MpathDevice
+		zlog.Debug().Msgf("NodeUnstageVolume (iscsi) - successfully loaded disk information from %s, mpath=[%s]", stagePath, mpathDevice)
 	} else {
-		confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
+		//confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
+		confFile := path.Join("/host", stagePath, strconv.Itoa(diskUnmounter.iscsiDisk.VolumeID)+".json")
 		zlog.Debug().Msgf("NodeUnstageVolume (iscsi) - check if config file exists")
 		pathExist, pathErr := iscsi.cs.pathExists(confFile)
 		if pathErr != nil {
@@ -560,7 +564,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		}
 	}
 
-	if !b.chap_session {
+	if !b.Chap_session {
 		zlog.Debug().Msgf("AttachDisk (iscsi) target iqn: %s - Not using CHAP", targets[0].Iqn)
 	} else {
 		// Loop over portals:
@@ -631,9 +635,9 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	// For each host, scan using lun
 
-	wwid, err := rescanDeviceMap(hosts, b.VolName, b.lun)
+	wwid, err := rescanDeviceMap(hosts, b.VolName, b.Lun)
 	if err != nil {
-		e := fmt.Errorf("AttachDisk (iscsi) - rescanDeviceMap failed for volume ID %s and lun %s: %s", b.VolName, b.lun, err)
+		e := fmt.Errorf("AttachDisk (iscsi) - rescanDeviceMap failed for volume ID %s and lun %s: %s", b.VolName, b.Lun, err)
 		zlog.Error().Msg(e.Error())
 		return "", e
 	}
@@ -676,132 +680,25 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	zlog.Debug().Msgf("AttachDisk (iscsi) for [%s] thisMpath is [%s]", trimmedDeviceName, thisMpath)
 
 	// Make sure we use a valid devicepath to find mpio device.
-	mntPath = b.targetPath
+	//mntPath = b.targetPath
 	// Mount device
-	notMnt, err := b.mounter.IsLikelyNotMountPoint(mntPath)
-	if err == nil {
-		if !notMnt {
-			zlog.Debug().Msgf("AttachDisk (iscsi) %s already mounted", mntPath)
-			return "", nil
-		}
-	} else if !os.IsNotExist(err) {
-		e := fmt.Errorf("AttachDisk (iscsi) %s exists but IsLikelyNotMountPoint failed: %v", mntPath, err)
-		zlog.Error().Msg(e.Error())
-		return "", status.Error(codes.Internal, e.Error())
-	}
 
-	devicePath = trimmedDeviceName
-	b.iscsiDisk.MpathDevice = trimmedDeviceName
-
-	mountOptionMode := "rw"
-	mode := "0750" //rwx
 	var options []string
-	if b.readOnly {
-		mountOptionMode = "ro"
-		mode = "0550" //read only
-		zlog.Debug().Msgf("AttachDisk (iscsi) readOnly so setting mountPoint to %s", mode)
+
+	config := diskInfo{
+		VolumeID:    b.VolumeID,
+		MpathDevice: thisMpath,
 	}
 
-	if b.isBlock {
-		// A block volume is a volume that will appear as a block device inside the container.
-		zlog.Debug().Msgf("AttachDisk (iscsi) mounting raw block volume at given path %s", mntPath)
+	devicePath = devMapperDir + thisMpath
 
-		zlog.Debug().Msgf("AttachDisk (iscsi) run: mkdir --parents --mode %s '%s' ", mode, filepath.Dir(mntPath))
-		// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-		// MkdirAll() will cause hard-to-grok mount errors.
-		cmd := exec.Command("mkdir", "--parents", "--mode", mode, filepath.Dir(mntPath))
-		err = cmd.Run()
-		if err != nil {
-			e := fmt.Errorf("AttachDisk (iscsi) failed to mkdir '%s': %s", mntPath, err)
-			zlog.Error().Msg(e.Error())
-			return "", e
-		}
-
-		_, err = os.Create("/host/" + mntPath)
-		if err != nil {
-			e := fmt.Errorf("AttachDisk (iscsi) failed to create target file %q: %v", mntPath, err)
-			zlog.Error().Msg(e.Error())
-			return "", e
-		}
-
-		devicePath = strings.Replace(devicePath, "/host", "", 1)
-
-		// TODO: validate this further, see CSIC-341
-		options = append(options, "bind")
-		options = append(options, mountOptionMode)
-
-		if err := b.mounter.Mount(devicePath, mntPath, "", options); err != nil {
-			e := fmt.Errorf("AttachDisk (iscsi) failed to bind mount iscsi block volume %s [%s] to %s, error %v", devicePath, b.fsType, mntPath, err)
-			zlog.Error().Msg(e.Error())
-			return "", e
-		}
-		if err := iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
-			e := fmt.Errorf("AttachDisk (iscsi) failed to save iscsi config with error: %v", err)
-			zlog.Error().Msg(e.Error())
-			return "", e
-		}
-		zlog.Debug().Msgf("AttachDisk (iscsi) block volume bind mounted successfully to %s", mntPath)
-		return devicePath, nil
-	} else {
-		// A mounted (file) volume is volume that will be mounted using a specified file system
-		// and appear as a directory inside the container.
-		mountPoint := mntPath
-
-		// devicePath at this point is /dev/dm-N
-		zlog.Debug().Msgf("AttachDisk (iscsi) mounting volume %s with filesystem at given path %s", devicePath, mountPoint)
-
-		devicePath = devMapperDir + thisMpath
-
-		// Create mountPoint if it does not exist.
-		_, err := os.Stat(mountPoint)
-		if os.IsNotExist(err) {
-			zlog.Debug().Msgf("AttachDisk (iscsi) mount point does not exist. creating mount point.")
-			// Do not use os.MkdirAll(). This ignores the mount chroot defined in the Dockerfile.
-			// MkdirAll() will cause hard-to-grok mount errors.
-			_, err := execCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
-			if err != nil {
-				e := fmt.Errorf("AttachDisk (iscsi) failed to mkdir '%s': %v", mountPoint, err)
-				zlog.Error().Msg(e.Error())
-				return "", e
-			}
-		} else {
-			zlog.Debug().Msgf("AttachDisk (iscsi) mkdir of mountPoint not required. '%s' already exists", mountPoint)
-		}
-
-		options = append(options, mountOptionMode) // BUG: what if user separately specified "rw" option?
-		options = append(options, b.mountOptions...)
-
-		// Persist here so that even if mount fails, the globalmount metadata json
-		// file will contain an mpath to use during clean up.
-		zlog.Debug().Msgf("AttachDisk (iscsi) persist iscsi disk config to json file for later use, when detaching the disk")
-		if err = iscsi.createISCSIConfigFile(*(b.iscsiDisk), b.stagePath); err != nil {
-			e := fmt.Errorf("AttachDisk (iscsi) failed to save iscsi config with error: %v", err)
-			zlog.Error().Msg(e.Error())
-			return "", e
-		}
-
-		if b.fsType == "xfs" {
-			zlog.Debug().Msgf("AttachDisk (iscsi) device %s is of type XFS. Mounting without regard to its XFS UUID.", devicePath)
-			options = append(options, "nouuid")
-		}
-
-		zlog.Debug().Msgf("AttachDisk (iscsi) format '%s' (if needed) and mount volume", devicePath)
-		err = b.mounter.FormatAndMount(devicePath, mountPoint, b.fsType, options)
-		zlog.Debug().Msgf("formatAndMount returned: %+v", err)
-		if err != nil {
-			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
-			zlog.Debug().Msgf("AttachDisk (iscsi) search error for matches to handle: %+v", err)
-
-			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
-				zlog.Error().Msgf("AttachDisk (iscsi) device %s is already mounted on %s", devicePath, mountPoint)
-			} else {
-				e := fmt.Errorf("AttachDisk (iscsi) failed to mount iscsi volume %s [%s] to %s, error %+v", devicePath, b.fsType, mountPoint, err)
-				zlog.Error().Msg(e.Error())
-				_, _ = mountPathExists(mountPoint)
-				return "", e
-			}
-		}
+	err = mountLogic(config, b.targetPath, devicePath, b.stagePath, b.fsType, options, b.IsBlock, b.readOnly)
+	if err != nil {
+		e := fmt.Errorf("AttachDisk (iscsi) mountLogic() failed, error %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return "", e
 	}
+
 	zlog.Debug().Msgf("AttachDisk (iscsi) mounted volume with device path %s successfully at '%s'", devicePath, mntPath)
 	return devicePath, nil
 }
@@ -861,12 +758,13 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	}
 
 	return &iscsiDisk{
+		VolumeID:       iscsi.cs.VolProto.VolumeID,
 		VolName:        volName,
-		lun:            lun,
+		Lun:            lun,
 		Iface:          "default",
-		chap_discovery: chapDiscovery,
-		chap_session:   chapSession,
-		secret:         secret,
+		Chap_discovery: chapDiscovery,
+		Chap_session:   chapSession,
+		Secret:         secret,
 		InitiatorName:  initiatorName,
 	}, nil
 }
@@ -897,7 +795,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 	// protocol-specific paths below
 	if mountVolCapability != nil && blockVolCapability == nil {
 		// option A. user wants file access to their iSCSI device
-		iscsiDisk.isBlock = false
+		iscsiDisk.IsBlock = false
 
 		m.fsType = mountVolCapability.GetFsType()
 
@@ -911,7 +809,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 
 	} else if mountVolCapability == nil && blockVolCapability != nil {
 		// option B. user wants block access to their iSCSI device
-		iscsiDisk.isBlock = true
+		iscsiDisk.IsBlock = true
 
 		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			zlog.Warn().Msg("getISCSIDiskMounter (iscsi) MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
@@ -935,7 +833,8 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 func (iscsi *iscsistorage) getISCSIDiskUnmounter() *iscsiDiskUnmounter {
 	return &iscsiDiskUnmounter{
 		iscsiDisk: &iscsiDisk{
-			VolName: strconv.Itoa(iscsi.cs.VolProto.VolumeID),
+			VolName:  strconv.Itoa(iscsi.cs.VolProto.VolumeID),
+			VolumeID: iscsi.cs.VolProto.VolumeID,
 		},
 		mounter: mount.NewWithoutSystemd(""),
 		exec:    utilexec.New(),
@@ -970,7 +869,7 @@ func (iscsi *iscsistorage) parseSessionSecret(useChap string, secretParams map[s
 }
 
 func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, portal string) error {
-	if !b.chap_session {
+	if !b.Chap_session {
 		return nil
 	}
 
@@ -983,7 +882,7 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, porta
 	}
 
 	for _, k := range chap_sess {
-		v := b.secret[k]
+		v := b.Secret[k]
 		if len(v) > 0 {
 			zlog.Debug().Msgf("updateISCSINode (iscsi) update node session key/value")
 			out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, k, v))
@@ -993,43 +892,6 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, porta
 				return e
 			}
 		}
-	}
-	return nil
-}
-
-func (iscsi *iscsistorage) createISCSIConfigFile(conf iscsiDisk, mnt string) error {
-	file := path.Join("/host", mnt, conf.VolName+".json")
-	zlog.Debug().Msgf("createISCSIConfigFile (iscsi) creating config file at path %s", file)
-	fp, err := os.Create(file)
-	if err != nil {
-		e := fmt.Errorf("createISCSIConfigFile (iscsi) - Create - %s", err.Error())
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	defer fp.Close()
-	encoder := json.NewEncoder(fp)
-	if err = encoder.Encode(conf); err != nil {
-		e := fmt.Errorf("createISCSIConfigFile (iscsi) - encode - error: %s", err.Error())
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	return nil
-}
-
-func (iscsi *iscsistorage) loadDiskInfoFromFile(conf *iscsiDisk, mnt string) error {
-	file := path.Join("/host", mnt, conf.VolName+".json")
-	fp, err := os.Open(file)
-	if err != nil {
-		e := fmt.Errorf("loadDiskInfoFromFile (iscsi): open: %s error: %s", file, err)
-		zlog.Error().Msg(e.Error())
-		return e
-	}
-	defer fp.Close()
-	decoder := json.NewDecoder(fp)
-	if err = decoder.Decode(conf); err != nil {
-		e := fmt.Errorf("loadDiskInfoFromFile (iscsi) - decode - error: %s", err.Error())
-		zlog.Error().Msg(e.Error())
-		return e
 	}
 	return nil
 }

@@ -13,6 +13,7 @@ limitations under the License.
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
@@ -126,6 +127,54 @@ type nvmestorage struct {
 	storageHelper StorageHelper
 	csi.UnimplementedControllerServer
 	csi.UnimplementedNodeServer
+}
+
+type ShowMultipathOutput struct {
+	MajorVersion int `json:"major_version"`
+	MinorVersion int `json:"minor_version"`
+	Map          struct {
+		Name       string `json:"name"`
+		UUID       string `json:"uuid"`
+		Sysfs      string `json:"sysfs"`
+		Failback   string `json:"failback"`
+		Queueing   string `json:"queueing"`
+		Paths      int    `json:"paths"`
+		WriteProt  string `json:"write_prot"`
+		DmSt       string `json:"dm_st"`
+		Features   string `json:"features"`
+		Hwhandler  string `json:"hwhandler"`
+		Action     string `json:"action"`
+		PathFaults int    `json:"path_faults"`
+		Vend       string `json:"vend"`
+		Prod       string `json:"prod"`
+		Rev        string `json:"rev"`
+		SwitchGrp  int    `json:"switch_grp"`
+		MapLoads   int    `json:"map_loads"`
+		TotalQTime int    `json:"total_q_time"`
+		QTimeouts  int    `json:"q_timeouts"`
+		PathGroups []struct {
+			Selector   string `json:"selector"`
+			Pri        int    `json:"pri"`
+			DmSt       string `json:"dm_st"`
+			MarginalSt string `json:"marginal_st"`
+			Group      int    `json:"group"`
+			Paths      []struct {
+				Dev         string `json:"dev"`
+				DevT        string `json:"dev_t"`
+				DmSt        string `json:"dm_st"`
+				DevSt       string `json:"dev_st"`
+				ChkSt       string `json:"chk_st"`
+				Checker     string `json:"checker"`
+				Pri         int    `json:"pri"`
+				HostWwnn    string `json:"host_wwnn"`
+				TargetWwnn  string `json:"target_wwnn"`
+				HostWwpn    string `json:"host_wwpn"`
+				TargetWwpn  string `json:"target_wwpn"`
+				HostAdapter string `json:"host_adapter"`
+				MarginalSt  string `json:"marginal_st"`
+			} `json:"paths"`
+		} `json:"path_groups"`
+	} `json:"map"`
 }
 
 // NewStorageController : To return specific implementation of storage
@@ -427,7 +476,6 @@ func multipathFlush(mpath string) {
 // Given a device like '/dev/dm-0', find its matching multipath name such as 'mpathab'.
 func findMpathFromDevice(device string) (mpath string, err error) {
 	deviceName := strings.Replace(device, "/dev/", "", 1)
-	//command := fmt.Sprintf("multipath -l | grep --word-regexp %s | awk '{print $1}'", deviceName)
 	wildcards := "\"%n_%d_\""
 	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
@@ -453,33 +501,35 @@ func findMpathFromDevice(device string) (mpath string, err error) {
 	return
 }
 
-func mountPathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		zlog.Debug().Msgf("mountPathExists : Path %s exists", path)
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		zlog.Debug().Msgf("mountPathExists : Path %s does not exist", path)
-		return false, nil
-	}
-	return false, err
-}
-
 func detachMpathDevice(mpathDevice string, protocol string) error {
 	var err error
 	var devices []string
 	dstPath := mpathDevice
+	var mpath string
 	zlog.Debug().Msgf("detachMpathDevice() called with mpathDevice '%s' for protocol '%s'", mpathDevice, protocol)
 	if dstPath != "" {
 		if strings.HasPrefix(dstPath, "/host") {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
 		}
 
-		if strings.HasPrefix(dstPath, "/dev/dm-") {
+		if strings.Contains(dstPath, "mpath") {
+			// getting mpath already passed
+			mpath = mpathDevice
+			devices, err = findDevicesForMpath(mpath)
+			if err != nil {
+				zlog.Error().Msgf("error looking for devices for multipath [%s]", mpath)
+				return err
+			}
+		} else if strings.HasPrefix(dstPath, "/dev/dm-") {
+			// older versions of the driver < 2.21.0 would pass a dm- device here instead of an mpath name
 			devices, err = findSlaveDevicesOnMultipath(dstPath)
 			if err != nil {
 				zlog.Error().Msgf("error looking for slave devices for multipath [%s]", dstPath)
+				return err
+			}
+			mpath, err = findMpathFromDevice(mpathDevice)
+			if err != nil {
+				zlog.Error().Msgf("findMpathFromDevice for mpathDevice %s failed: %s", mpathDevice, err)
 				return err
 			}
 		} else {
@@ -489,11 +539,6 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 
 		helper.PrettyKlogDebug("multipath devices", devices)
 
-		mpath, err := findMpathFromDevice(mpathDevice)
-		if err != nil {
-			zlog.Error().Msgf("findMpathFromDevice for mpathDevice %s failed: %s", mpathDevice, err)
-			return err
-		}
 		zlog.Debug().Msgf("mpath device is %s\n", mpath)
 
 		// 1
@@ -878,4 +923,35 @@ func removeWWIDEntry(mpath string) error {
 		zlog.Debug().Msgf("%s command succeeded: %s", command, out)
 	}
 	return nil
+}
+
+func findDevicesForMpath(mpath string) (devices []string, err error) {
+	command := fmt.Sprintf("multipathd show multipath %s json", mpath)
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+	zlog.Debug().Msgf("command [%s]", command)
+
+	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	if err != nil {
+		e := fmt.Errorf("findDevicesForMpath - cannot findDevicesForMpath: %s, Error: %s", mpath, err)
+		zlog.Error().Msg(e.Error())
+		return devices, e
+	}
+	var mpathOutput ShowMultipathOutput
+	err = json.Unmarshal(out, &mpathOutput)
+	if err != nil {
+		e := fmt.Errorf("findDevicesForMpath - error unmarshalling output: %s, error: %s", string(out), err)
+		zlog.Error().Msg(e.Error())
+		return devices, e
+	}
+
+	pathGroups := mpathOutput.Map.PathGroups
+	for i := 0; i < len(pathGroups); i++ {
+		paths := pathGroups[i]
+		for j := 0; j < len(paths.Paths); j++ {
+			devices = append(devices, "/dev/"+paths.Paths[j].Dev)
+		}
+	}
+
+	zlog.Debug().Msgf("findDevicesForMpath - devices %v for multipath %s", devices, mpath)
+	return devices, nil
 }
