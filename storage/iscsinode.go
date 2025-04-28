@@ -52,9 +52,9 @@ const (
 )
 
 type iscsiDiskUnmounter struct {
-	*iscsiDisk
-	mounter mount.Interface
-	exec    utilexec.Interface // mount.Exec
+	iscsiDiskInfo *iscsiDisk
+	mounter       mount.Interface
+	exec          utilexec.Interface // mount.Exec
 }
 
 type iscsiDiskMounter struct {
@@ -281,14 +281,14 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 	// Load iscsi disk config from json file
 	dskInfo := diskInfo{
-		VolumeID: diskUnmounter.VolumeID,
+		VolumeID: diskUnmounter.iscsiDiskInfo.VolumeID,
 	}
 	if err := loadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
 		zlog.Debug().Msgf("NodeUnstageVolume (iscsi) - successfully loaded disk information from %s, mpath=[%s]", stagePath, mpathDevice)
 	} else {
 		//confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
-		confFile := path.Join("/host", stagePath, strconv.Itoa(diskUnmounter.iscsiDisk.VolumeID)+".json")
+		confFile := path.Join("/host", stagePath, strconv.Itoa(diskUnmounter.iscsiDiskInfo.VolumeID)+".json")
 		zlog.Debug().Msgf("NodeUnstageVolume (iscsi) - check if config file exists")
 		pathExist, pathErr := iscsi.cs.pathExists(confFile)
 		if pathErr != nil {
@@ -738,11 +738,11 @@ func (iscsi *iscsistorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	}
 
 	useChap := volContext[common.SC_USE_CHAP]
-	chapSession := false
+	var chapSession bool
 	if useChap != "none" {
 		chapSession = true
 	}
-	chapDiscovery := false
+	var chapDiscovery bool
 	if volContext["discoveryCHAPAuth"] == "true" {
 		chapDiscovery = true
 	}
@@ -832,7 +832,7 @@ func (iscsi *iscsistorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 
 func (iscsi *iscsistorage) getISCSIDiskUnmounter() *iscsiDiskUnmounter {
 	return &iscsiDiskUnmounter{
-		iscsiDisk: &iscsiDisk{
+		iscsiDiskInfo: &iscsiDisk{
 			VolName:  strconv.Itoa(iscsi.cs.VolProto.VolumeID),
 			VolumeID: iscsi.cs.VolProto.VolumeID,
 		},

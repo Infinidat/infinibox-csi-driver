@@ -55,7 +55,11 @@ func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)

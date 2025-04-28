@@ -183,7 +183,11 @@ func (iboxClient *IboxClient) CreateConsistencyGroup(req CreateConsistencyGroupR
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -223,7 +227,11 @@ func (iboxClient *IboxClient) AddMemberToSnapshotGroup(volumeID, cgID int) error
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -266,7 +274,12 @@ func (iboxClient *IboxClient) GetMembersByCGID(cgID int) (memberInfo []MemberInf
 		if err != nil {
 			return memberInfo, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
+
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return memberInfo, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -308,7 +321,11 @@ func (iboxClient *IboxClient) CreateSnapshotGroup(req CreateSnapshotGroupRequest
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -347,7 +364,11 @@ func (iboxClient *IboxClient) GetConsistencyGroupByName(name string) (cg *Consis
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -388,7 +409,11 @@ func (iboxClient *IboxClient) DeleteConsistencyGroup(cgID int) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("%s - ReadAll -error %w", function, err)
@@ -420,7 +445,11 @@ func (iboxClient *IboxClient) GetConsistencyGroup(cgID int) (cg *ConsistencyGrou
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)

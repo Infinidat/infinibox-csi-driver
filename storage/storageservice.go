@@ -34,7 +34,6 @@ import (
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -258,7 +257,7 @@ func BuildCommonService(config map[string]string, secretMap map[string]string, v
 			Password: secretMap[common.CRED_PASSWORD],
 			Url:      apiHost,
 		}
-		var iboxApiLog logr.Logger = zerologr.New(&zlog)
+		var iboxApiLog = zerologr.New(&zlog)
 
 		iboxapiClient := iboxapi.NewIboxClient(iboxApiLog, creds)
 		commonserv = Commonservice{
@@ -828,7 +827,8 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 func findHosts(protocol string) ([]string, error) {
 	// TODO - Must use portals if supporting more than one target IQN.
 	// Find hosts
-	if protocol == common.PROTOCOL_ISCSI {
+	switch protocol {
+	case common.PROTOCOL_ISCSI:
 		hostIds, err := execCommand.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
 		hosts := strings.Fields(hostIds)
 		if err != nil {
@@ -839,7 +839,7 @@ func findHosts(protocol string) ([]string, error) {
 			zlog.Warn().Msgf("The number of hosts is not %d. hosts: '%v'", mpathDeviceCount, hosts)
 		}
 		return hosts, nil
-	} else if protocol == common.PROTOCOL_FC {
+	case common.PROTOCOL_FC:
 		pathLeader := "/sys/class/fc_host/host"
 		hostsPath := fmt.Sprintf("%s*", pathLeader)
 		foundHosts, err := filepath.Glob(hostsPath)
@@ -848,11 +848,12 @@ func findHosts(protocol string) ([]string, error) {
 		}
 		hosts := []string{}
 		for _, host := range foundHosts {
-			fcHost := strings.Replace(host, pathLeader, "", -1)
+			fcHost := strings.ReplaceAll(host, pathLeader, "")
 			hosts = append(hosts, fcHost)
 		}
 		return hosts, nil
 	}
+
 	err := fmt.Errorf("unsupported protocol: %s", protocol)
 	zlog.Error().Msg(err.Error())
 	return nil, err

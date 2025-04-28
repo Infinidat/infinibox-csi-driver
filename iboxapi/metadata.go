@@ -65,7 +65,11 @@ func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]inte
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -109,7 +113,11 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -150,7 +158,11 @@ func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMeta
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)

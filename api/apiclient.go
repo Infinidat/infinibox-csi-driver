@@ -17,7 +17,6 @@ import (
 	"infinibox-csi-driver/iboxapi"
 	"net/url"
 
-	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 )
 
@@ -59,7 +58,7 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 		Password: hostconfig.Password,
 		Url:      hostconfig.ApiHost,
 	}
-	var iboxApiLog logr.Logger = zerologr.New(&zlog)
+	var iboxApiLog = zerologr.New(&zlog)
 	c.Iboxapi = iboxapi.NewIboxClient(iboxApiLog, creds)
 
 	zlog.Trace().Msg("NewClient Finished")

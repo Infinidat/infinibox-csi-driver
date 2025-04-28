@@ -264,7 +264,11 @@ func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica,
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -306,7 +310,11 @@ func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -346,7 +354,11 @@ func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("%s - ReadAll -error %w", function, err)
@@ -381,7 +393,11 @@ func (iboxClient *IboxClient) GetReplica(id int) (ex *Replica, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)

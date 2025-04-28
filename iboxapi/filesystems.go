@@ -209,7 +209,11 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -248,7 +252,11 @@ func (iboxClient *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err e
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -289,7 +297,11 @@ func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*Fi
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -333,7 +345,11 @@ func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSyst
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -381,7 +397,11 @@ func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -425,7 +445,11 @@ func (iboxClient *IboxClient) DeleteFileSystem(fsID int) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("%s - ReadAll -error %w", function, err)
@@ -463,7 +487,11 @@ func (iboxClient *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSy
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -510,7 +538,11 @@ func (iboxClient *IboxClient) CreateFileSystemSnapshot(snapshotParam FileSystemS
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 

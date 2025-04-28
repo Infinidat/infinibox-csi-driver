@@ -155,7 +155,11 @@ func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, 
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return results, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -195,7 +199,11 @@ func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, er
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -231,7 +239,12 @@ func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolume
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll -error %w", function, err)
@@ -275,7 +288,11 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 		if err != nil {
 			return nil, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -318,7 +335,11 @@ func (iboxClient *IboxClient) GetVolume(volumeID int) (volume *Volume, err error
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -360,7 +381,11 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -406,7 +431,11 @@ func (iboxClient *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeReque
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -449,7 +478,11 @@ func (iboxClient *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volu
 		if err != nil {
 			return volumes, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(TRACE_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return volumes, fmt.Errorf("%s - ReadAll - error %w", function, err)

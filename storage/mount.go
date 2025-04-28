@@ -171,7 +171,12 @@ func createConfigFile(conf diskInfo, mnt string) error {
 		zlog.Error().Msg(e.Error())
 		return e
 	}
-	defer fp.Close()
+	defer func() {
+		if err := fp.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
+
 	encoder := json.NewEncoder(fp)
 	if err = encoder.Encode(conf); err != nil {
 		e := fmt.Errorf("createConfigFile: failed creating persist file with error %v", err)
@@ -198,7 +203,11 @@ func loadDiskInfoFromFile(conf *diskInfo, mnt string) error {
 		zlog.Error().Msg(e.Error())
 		return e
 	}
-	defer fp.Close()
+	defer func() {
+		if err := fp.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 	decoder := json.NewDecoder(fp)
 	if err = decoder.Decode(conf); err != nil {
 		e := fmt.Errorf("loadDiskInfoFromFile - Decode - error %s", err.Error())

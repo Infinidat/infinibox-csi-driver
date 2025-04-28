@@ -84,9 +84,9 @@ func (r *IboxreplicaReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	if !replica.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !replica.DeletionTimestamp.IsZero() {
 		// handle delete and return
-		thislog.Info("cr was deleted", "replica name", req.NamespacedName.Name, "namespace", req.NamespacedName.Namespace, "replica ID", replica.Status.ID)
+		thislog.Info("cr was deleted", "replica name", req.Name, "namespace", req.Namespace, "replica ID", replica.Status.ID)
 		err = r.deleteReplica(replica)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -127,7 +127,7 @@ func (r *IboxreplicaReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *IboxreplicaReconciler) handleFinalizer(ctx context.Context, obj csidriverinfinidatcomv1.Iboxreplica) error {
 	name := "infinidat.com/iboxreplica"
-	if obj.ObjectMeta.DeletionTimestamp.IsZero() {
+	if obj.DeletionTimestamp.IsZero() {
 		// add finalizer in case of create/update
 		if !controllerutil.ContainsFinalizer(&obj, name) {
 			ok := controllerutil.AddFinalizer(&obj, name)

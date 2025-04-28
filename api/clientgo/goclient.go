@@ -141,8 +141,8 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
 	for _, pv := range persistentVolumes.Items {
-		persistentVolumeName := pv.ObjectMeta.GetName()
-		provisionedBy := pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
+		persistentVolumeName := pv.GetName()
+		provisionedBy := pv.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
 		zlog.Trace().Msgf("pv name: %+v\n", persistentVolumeName)
 		if provisionedBy == common.SERVICE_NAME {
 			zlog.Trace().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
@@ -163,7 +163,7 @@ func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error
 	zlog.Debug().Msgf("GetStorageClasses() called")
 	zlog.Debug().Msgf("There are %d storageclasses in the cluster\n", len(storageclasses.Items))
 	for _, sc := range storageclasses.Items {
-		storage_class_name := sc.ObjectMeta.GetName()
+		storage_class_name := sc.GetName()
 		zlog.Debug().Msgf("storageclass name: %+v\n", storage_class_name)
 
 		pool_name := sc.Parameters["pool_name"]

@@ -392,7 +392,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 }
 
 func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
-	permissionFixed := strings.Replace(permission, "'", "\"", -1)
+	permissionFixed := strings.ReplaceAll(permission, "'", "\"")
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
@@ -420,7 +420,11 @@ func IsDirEmpty(name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 
 	_, err = f.Readdirnames(1) // Or f.Readdir(1)
 	if err == io.EOF {
@@ -748,7 +752,9 @@ func (n Service) ValidateIPAddress(ip string, port int) (err error) {
 	d := net.Dialer{Timeout: 2 * time.Second}
 	conn, err := d.Dial("tcp", ipAndPort)
 	if conn != nil {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
 	}
 	elapsed := time.Since(start)
 
@@ -877,7 +883,9 @@ func findMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 		}
 	}
 
-	readFile.Close()
+	if err := readFile.Close(); err != nil {
+		zlog.Error().Msgf("error in Close() %s", err.Error())
+	}
 
 	if device == "" {
 		return "", fmt.Errorf("error finding device from volume in list of mounts - volume %s", volumeName)

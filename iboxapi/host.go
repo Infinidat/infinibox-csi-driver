@@ -157,7 +157,12 @@ func (iboxClient *IboxClient) GetAllHosts() (host []Host, err error) {
 	if err != nil {
 		return host, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return host, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -193,7 +198,12 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -236,7 +246,11 @@ func (iboxClient *IboxClient) CreateHost(hostName string) (host *Host, err error
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -271,7 +285,11 @@ func (iboxClient *IboxClient) DeleteHost(hostID int) (response *Host, err error)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -327,7 +345,11 @@ func (iboxClient *IboxClient) AddHostSecurity(chapCreds map[string]string, hostI
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -375,7 +397,11 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -403,7 +429,11 @@ func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostP
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -459,7 +489,11 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -501,7 +535,11 @@ func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err e
 		if err != nil {
 			return luns, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return luns, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -549,7 +587,11 @@ func (iboxClient *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *Lun
 		if err != nil {
 			return nil, fmt.Errorf("%s - Do - error %w", function, err)
 		}
-		defer resp.Body.Close()
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			}
+		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
@@ -597,7 +639,12 @@ func (iboxClient *IboxClient) UnMapVolumeFromHost(hostID, volumeID int) (unmapRe
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)

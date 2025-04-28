@@ -169,7 +169,11 @@ func getPools(ibox IboxCredentials) (*Pools, error) {
 		return nil, err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {

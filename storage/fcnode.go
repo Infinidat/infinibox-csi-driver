@@ -420,7 +420,7 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	for _, fcnode := range fcNodes {
 		for _, fcport := range fcnode.Ports {
 			if fcport.WWPn != "" {
-				targetList = append(targetList, strings.Replace(fcport.WWPn, ":", "", -1))
+				targetList = append(targetList, strings.ReplaceAll(fcport.WWPn, ":", ""))
 			}
 		}
 	}

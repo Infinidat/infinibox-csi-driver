@@ -11,15 +11,17 @@ import (
 	"infinibox-csi-driver/log"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog"
 )
 
 var version string
 var compileDate string
 var gitHash string
+var zlog zerolog.Logger
 
 func main() {
 
-	var zlog = log.Get() // grab the logger for package use
+	zlog = log.Get() // grab the logger for package use
 
 	zlog.Info().Msgf("infinidat CSI metrics starting")
 	zlog.Info().Msgf("version: %s", version)
@@ -130,5 +132,8 @@ func (h *home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>`
 
-	fmt.Fprintf(w, "%s", msg)
+	n, err := fmt.Fprintf(w, "%s", msg)
+	if err != nil {
+		zlog.Error().Msgf("error in ServeHTTP %s %d", err.Error(), n)
+	}
 }

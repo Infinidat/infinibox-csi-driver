@@ -308,15 +308,15 @@ func CreatePVC(config *TestConfig) (err error) {
 	}
 
 	if config.PVCAnnotations != nil {
-		pvc.ObjectMeta.Annotations = make(map[string]string)
+		pvc.Annotations = make(map[string]string)
 		if config.PVCAnnotations.IboxNetworkSpace != "" {
-			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_NETWORK_SPACE] = config.PVCAnnotations.IboxNetworkSpace
+			pvc.Annotations[common.PVC_ANNOTATION_NETWORK_SPACE] = config.PVCAnnotations.IboxNetworkSpace
 		}
 		if config.PVCAnnotations.IboxSecret != "" {
-			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_IBOX_SECRET] = config.PVCAnnotations.IboxSecret
+			pvc.Annotations[common.PVC_ANNOTATION_IBOX_SECRET] = config.PVCAnnotations.IboxSecret
 		}
 		if config.PVCAnnotations.IboxPool != "" {
-			pvc.ObjectMeta.Annotations[common.PVC_ANNOTATION_POOL_NAME] = config.PVCAnnotations.IboxPool
+			pvc.Annotations[common.PVC_ANNOTATION_POOL_NAME] = config.PVCAnnotations.IboxPool
 		}
 	}
 	if config.UseBlock {
@@ -697,7 +697,6 @@ func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Client
 
 	t.Logf("found image pull secret %s in operator namespace %s\n", IMAGE_PULL_SECRET, "infinidat-csi")
 
-	result.ObjectMeta.Namespace = ns
 	result.Namespace = ns
 	result.ResourceVersion = ""
 

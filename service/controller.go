@@ -680,18 +680,18 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 
 	for _, pv := range pvList.Items {
 		zlog.Info().Msgf("pv capacity : %#v", pv.Spec.Capacity)
-		zlog.Info().Msgf("pv name: %#v", pv.ObjectMeta.GetName())
-		zlog.Info().Msgf("pv anno: %#v", pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"])
-		if pv.ObjectMeta.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.SERVICE_NAME {
+		zlog.Info().Msgf("pv name: %#v", pv.GetName())
+		zlog.Info().Msgf("pv anno: %#v", pv.GetAnnotations()["pv.kubernetes.io/provisioned-by"])
+		if pv.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.SERVICE_NAME {
 			var status csi.ListVolumesResponse_VolumeStatus
-			status.PublishedNodeIds = append(status.PublishedNodeIds, pv.ObjectMeta.GetName())
+			status.PublishedNodeIds = append(status.PublishedNodeIds, pv.GetName())
 			// TODO Handle csi.ListVolumesResponse_VolumeStatus.VolumeCondition?
 			zlog.Info().Msgf("status: %s", status.String())
 
 			var volume csi.Volume
 
 			volume.CapacityBytes = pv.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
-			volume.VolumeId = pv.ObjectMeta.GetName()
+			volume.VolumeId = pv.GetName()
 			volume.VolumeContext = map[string]string{
 				common.SC_NETWORK_SPACE:    pv.Spec.CSI.VolumeAttributes[common.SC_NETWORK_SPACE],
 				common.SC_POOL_NAME:        pv.Spec.CSI.VolumeAttributes[common.SC_POOL_NAME],

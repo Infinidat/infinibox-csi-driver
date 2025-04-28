@@ -34,7 +34,7 @@ import (
 )
 
 type nvmeDiskMounter struct {
-	*nvmeDisk
+	nvmeDiskInfo *nvmeDisk
 	readOnly     bool
 	fsType       string
 	mountOptions []string
@@ -268,8 +268,8 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 
 func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nvmeDevicePath string, err error) {
 
-	zlog.Debug().Msgf("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", b.nvmeDisk.VolumeID, b.nvmeDisk.MpathDevice,
-		b.nvmeDisk.lun, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
+	zlog.Debug().Msgf("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", b.nvmeDiskInfo.VolumeID, b.nvmeDiskInfo.MpathDevice,
+		b.nvmeDiskInfo.lun, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
 
 	if len(targets) == 0 {
 		return "", fmt.Errorf("AttachDisk (nvme) - error no targets")
@@ -300,29 +300,29 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nv
 
 	for i := 0; i < len(devices.Devices); i++ {
 		dev := devices.Devices[i]
-		lunInt, err := strconv.Atoi(b.lun)
+		lunInt, err := strconv.Atoi(b.nvmeDiskInfo.lun)
 		if err != nil {
-			return "", fmt.Errorf("AttachDisk (nvme) - could not convert lun %s to integer - error %s", b.lun, err.Error())
+			return "", fmt.Errorf("AttachDisk (nvme) - could not convert lun %s to integer - error %s", b.nvmeDiskInfo.lun, err.Error())
 		}
 		if dev.NameSpace == lunInt {
 			nvmeDevicePath = dev.DevicePath
-			zlog.Debug().Msgf("AttachDisk (nvme) - found nvme device path %s using lun %s", dev.DevicePath, b.lun)
+			zlog.Debug().Msgf("AttachDisk (nvme) - found nvme device path %s using lun %s", dev.DevicePath, b.nvmeDiskInfo.lun)
 			break
 		}
 	}
 	if nvmeDevicePath == "" {
-		return "", fmt.Errorf("AttachDisk (nvme) - could not find nvme device path using lun %s", b.lun)
+		return "", fmt.Errorf("AttachDisk (nvme) - could not find nvme device path using lun %s", b.nvmeDiskInfo.lun)
 	}
 
 	diskinf := diskInfo{
 		MpathDevice: nvmeDevicePath,
-		VolumeID:    b.nvmeDisk.VolumeID,
-		IsBlock:     b.isBlock,
+		VolumeID:    b.nvmeDiskInfo.VolumeID,
+		IsBlock:     b.nvmeDiskInfo.isBlock,
 	}
 
 	zlog.Debug().Msgf("AttachDisk (nvme) - diskinf %v", diskinf)
 
-	err = mountLogic(diskinf, b.targetPath, nvmeDevicePath, b.stagePath, b.fsType, b.mountOptions, b.isBlock, b.readOnly)
+	err = mountLogic(diskinf, b.targetPath, nvmeDevicePath, b.stagePath, b.fsType, b.mountOptions, b.nvmeDiskInfo.isBlock, b.readOnly)
 	if err != nil {
 		zlog.Error().Msgf("AttachDisk (nvme) - mountLogic() error %s", err.Error())
 		return "", err
@@ -415,7 +415,7 @@ func (nvme *nvmestorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
-	m.nvmeDisk = nvmeDisk
+	m.nvmeDiskInfo = nvmeDisk
 
 	return m, nil
 }

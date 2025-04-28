@@ -135,7 +135,11 @@ func getCollectorData(collectorID int64, ibox IboxCredentials) (*CollectorRespon
 		return nil, err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -232,7 +236,11 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 		return NAScollectorID, SANcollectorID, err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 
 	var sanResponseData []byte
 	sanResponseData, err = io.ReadAll(res.Body)
@@ -281,7 +289,11 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 		return NAScollectorID, SANcollectorID, err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 
 	var nasResponseData []byte
 	nasResponseData, err = io.ReadAll(res.Body)
@@ -343,7 +355,11 @@ func deleteCollector(collectorID int64, ibox IboxCredentials) error {
 		return err
 	}
 
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			zlog.Error().Msgf("error in Close() %s", err.Error())
+		}
+	}()
 
 	type DeleteCollectorResponse struct {
 		Result struct {
@@ -405,11 +421,12 @@ func getCounterAverages(fields []string, data [][]int) (opsAverage int, throughp
 	var throughputIndex int
 	var throughputTotal int
 	for i := 0; i < len(fields); i++ {
-		if fields[i] == FIELD_OPS {
+		switch fields[i] {
+		case FIELD_OPS:
 			opsIndex = i
-		} else if fields[i] == FIELD_LATENCY_NAS || fields[i] == FIELD_LATENCY_SAN {
+		case FIELD_LATENCY_NAS, FIELD_LATENCY_SAN:
 			latencyIndex = i
-		} else if fields[i] == FIELD_THROUGHPUT {
+		case FIELD_THROUGHPUT:
 			throughputIndex = i
 		}
 	}

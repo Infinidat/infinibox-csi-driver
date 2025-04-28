@@ -70,7 +70,11 @@ func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error)
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", function, err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+		}
+	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
