@@ -30,10 +30,12 @@ import (
 
 func (fc *fcstorage) ValidateStorageClass(params map[string]string) error {
 	requiredFCParams := map[string]string{
-		common.SC_POOL_NAME: `\A.*\z`,
+		common.SC_POOL_NAME: `[a-zA-Z]+`, //match all strings except empty string or blank string
 	}
 	optionalFCParams := map[string]string{
 		common.SC_PROVISION_TYPE: `(?i)\A(THICK|THIN)\z`,
+		common.SC_UID:            `^\d+$`,
+		common.SC_GID:            `^\d+$`,
 	}
 
 	// validate required parameters

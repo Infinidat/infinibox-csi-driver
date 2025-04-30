@@ -52,17 +52,46 @@ func TestISCSIControllerSuite(t *testing.T) {
 	suite.Run(t, new(ISCSIControllerSuite))
 }
 
-func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Fail() {
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidProvisionType_Fail() {
+	parameterMap := map[string]string{
+		common.SC_PROVISION_TYPE: "somethinginvalid",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi invalid provision type sc parameter")
+}
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
+	parameterMap := getISCSICreateVolumeParameters()
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.Nil(suite.T(), err, "expected to pass: iscsi valid pool name sc parameter")
+}
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
+	parameterMap := map[string]string{
+		common.SC_POOL_NAME: "",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
+}
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_No_Parameters() {
 	var parameterMap map[string]string
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
 }
 
-func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Fail2() {
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_CHAP() {
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_USE_CHAP)
-	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
+}
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Network_Space() {
+	parameterMap := getISCSICreateVolumeParameters()
+	delete(parameterMap, common.SC_NETWORK_SPACE)
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
+}
+func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Pool() {
+	parameterMap := getISCSICreateVolumeParameters()
+	delete(parameterMap, common.SC_POOL_NAME)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
 }

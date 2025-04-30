@@ -30,11 +30,14 @@ import (
 
 func (iscsi *iscsistorage) ValidateStorageClass(params map[string]string) error {
 	requiredISCSIParams := map[string]string{
+		common.SC_POOL_NAME:     `[a-zA-Z]+`, //match all strings except empty string or blank string
 		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
 		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}
 	optionalISCSIParams := map[string]string{
 		common.SC_PROVISION_TYPE: `(?i)\A(THICK|THIN)\z`,
+		common.SC_UID:            `^\d+$`,
+		common.SC_GID:            `^\d+$`,
 	}
 
 	// validate required parameters

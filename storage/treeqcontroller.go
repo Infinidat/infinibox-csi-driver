@@ -26,11 +26,14 @@ import (
 
 func (treeq *treeqstorage) ValidateStorageClass(params map[string]string) error {
 	requiredParams := map[string]string{
-		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_NETWORK_SPACE: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:     `[a-zA-Z]+`, //match all strings except empty string or blank string
 	}
 	optionalParams := map[string]string{
-		common.SC_MAX_FILESYSTEMS:           `\A\d+\z`,
-		common.SC_MAX_TREEQS_PER_FILESYSTEM: `\A\d+\z`,
+		common.SC_UID:                       `^\d+$`,
+		common.SC_GID:                       `^\d+$`,
+		common.SC_MAX_FILESYSTEMS:           `^\d+$`,
+		common.SC_MAX_TREEQS_PER_FILESYSTEM: `^\d+$`,
 		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
 	}
 

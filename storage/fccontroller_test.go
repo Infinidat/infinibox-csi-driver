@@ -51,6 +51,28 @@ func TestFCControllerSuite(t *testing.T) {
 	suite.Run(t, new(FCControllerSuite))
 }
 
+func (suite *FCControllerSuite) Test_ValidateStorageClass_InvalidProvisionType_Fail() {
+	parameterMap := map[string]string{
+		common.SC_PROVISION_TYPE: "somethinginvalid",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: fc invalid provision type sc parameter")
+}
+func (suite *FCControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
+	parameterMap := map[string]string{
+		common.SC_POOL_NAME: "my-test-pool",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.Nil(suite.T(), err, "expected to pass: fc invalid pool name sc parameter")
+}
+func (suite *FCControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
+	parameterMap := map[string]string{
+		common.SC_POOL_NAME: "",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume invalid parameter")
+}
+
 func (suite *FCControllerSuite) Test_CreateVolume_GetName_fail() {
 	parameterMap := getFCCreateVolumeParameter()
 	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")

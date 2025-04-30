@@ -64,6 +64,62 @@ type TreeqControllerSuite struct {
 	service           treeqstorage
 }
 
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.Nil(suite.T(), err, "expected to pass: treeq valid pool name sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
+	parameterMap := map[string]string{
+		common.SC_POOL_NAME: "  ",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid pool sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidNetworkSpace() {
+	parameterMap := map[string]string{
+		common.SC_NETWORK_SPACE: "  ",
+	}
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid network space sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Pool() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	delete(parameterMap, common.SC_POOL_NAME)
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: treeq missing pool sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Network_Space() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	delete(parameterMap, common.SC_NETWORK_SPACE)
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: treeq missing network space sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_Missing_Max_Filesystems() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	delete(parameterMap, common.SC_MAX_FILESYSTEMS)
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.Nil(suite.T(), err, "expected to pass: treeq missing max filesystems sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_Missing_Max_Treeqs() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	delete(parameterMap, common.SC_MAX_TREEQS_PER_FILESYSTEM)
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.Nil(suite.T(), err, "expected to pass: treeq missing max treeqs sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Invalid_GID() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	parameterMap[common.SC_GID] = "abc"
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid gid sc parameter")
+}
+func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Invalid_UID() {
+	parameterMap := getTreeqCreateVolumeParameters()
+	parameterMap[common.SC_UID] = "abc"
+	err := suite.service.ValidateStorageClass(parameterMap)
+	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid uid sc parameter")
+}
+
 func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	volumeResponse := make(map[string]string)
 	networkSpace := getTreeQTestNetworkSpace()
@@ -238,4 +294,21 @@ func (m *FileSystemInterfaceMock) IsTreeqAlreadyExist(pool_name, network_space, 
 	st, _ := status.Get(0).(map[string]string)
 	err, _ := status.Get(1).(error)
 	return st, err
+}
+
+func getTreeqCreateVolumeParameters() map[string]string {
+	return map[string]string{
+		common.SC_GID:                       "2468",
+		common.SC_MAX_VOLS_PER_HOST:         "19",
+		common.SC_NETWORK_SPACE:             "network_space1",
+		common.SC_POOL_NAME:                 "pool_name1",
+		common.SC_PROVISION_TYPE:            common.SC_THIN_PROVISION_TYPE,
+		common.SC_SSD_ENABLED:               "true",
+		common.SC_STORAGE_PROTOCOL:          "iscsi",
+		common.SC_UID:                       "1234",
+		common.SC_UNIX_PERMISSIONS:          "0777",
+		common.SC_USE_CHAP:                  "none",
+		common.SC_MAX_FILESYSTEMS:           "1234",
+		common.SC_MAX_TREEQS_PER_FILESYSTEM: "1234",
+	}
 }

@@ -31,7 +31,8 @@ import (
 
 func (nvme *nvmestorage) ValidateStorageClass(params map[string]string) error {
 	requiredNVMEParams := map[string]string{
-		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:     `[a-zA-Z]+`, //match all strings except empty string or blank string
+		common.SC_NETWORK_SPACE: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}
 	optionalNVMEParams := map[string]string{}
 

@@ -63,10 +63,14 @@ const (
 
 func (nfs *nfsstorage) ValidateStorageClass(params map[string]string) error {
 	requiredParams := map[string]string{
-		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_NETWORK_SPACE: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.SC_POOL_NAME:     `[a-zA-Z]+`, //match all strings except empty string or blank string
 	}
 
-	optionalParams := map[string]string{}
+	optionalParams := map[string]string{
+		common.SC_UID: `^\d+$`,
+		common.SC_GID: `^\d+$`,
+	}
 
 	suppliedParams := params
 	err := ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, suppliedParams)
