@@ -69,31 +69,31 @@ func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
 		common.SC_POOL_NAME: "",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters invalid parameter")
 }
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_No_Parameters() {
 	var parameterMap map[string]string
 	err := suite.service.ValidateStorageClass(parameterMap)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolume invalid parameter")
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters invalid parameter")
 }
 
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_CHAP() {
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_USE_CHAP)
 	err := suite.service.ValidateStorageClass(parameterMap)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters missing parameter")
 }
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Network_Space() {
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_NETWORK_SPACE)
 	err := suite.service.ValidateStorageClass(parameterMap)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters missing parameter")
 }
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Pool() {
 	parameterMap := getISCSICreateVolumeParameters()
 	delete(parameterMap, common.SC_POOL_NAME)
 	err := suite.service.ValidateStorageClass(parameterMap)
-	assert.NotNil(suite.T(), err, "expected to fail: iscsi CreateVolumevalidate missing parameter")
+	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters missing parameter")
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_GetName_fail() {
@@ -164,7 +164,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_metadataError() {
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolume_Error() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, suite.someError)
@@ -173,7 +173,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
@@ -187,7 +187,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataE
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_Error() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return([]iboxapi.Volume{}, nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
@@ -200,7 +200,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_Error() {
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_success() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
@@ -214,7 +214,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_success() {
 }
 
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_AlreadyDelete() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("volume not found")}
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, notFoundError)
 	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
@@ -487,7 +487,7 @@ func getVolumeArray() []iboxapi.Volume {
 	return volArry
 }
 
-func getISCSIDeleteRequest() *csi.DeleteVolumeRequest {
+func getDeleteRequest() *csi.DeleteVolumeRequest {
 	return &csi.DeleteVolumeRequest{
 		VolumeId: "103",
 	}

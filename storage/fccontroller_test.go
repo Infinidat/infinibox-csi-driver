@@ -136,14 +136,14 @@ func (suite *FCControllerSuite) Test_CreateVolume_metadataError() {
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_GetVolume_Error() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc DeleteVolume GetVolume")
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return(getVolumeArray(), nil)
@@ -154,7 +154,7 @@ func (suite *FCControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataErro
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_Error() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -166,7 +166,7 @@ func (suite *FCControllerSuite) Test_DeleteVolume_Error() {
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_success() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return([]iboxapi.Volume{}, nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
@@ -178,7 +178,7 @@ func (suite *FCControllerSuite) Test_DeleteVolume_success() {
 }
 
 func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
-	createVolReq := getISCSIDeleteRequest()
+	createVolReq := getDeleteRequest()
 
 	notFoundError := &iboxapi.IboxAPIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("volume not found")}
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, notFoundError)

@@ -20,7 +20,6 @@ import (
 	"infinibox-csi-driver/iboxapi"
 
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -179,7 +178,8 @@ func (nvme *nvmestorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolume
 	volproto := nvme.cs.VolProto
 	err = nvme.ValidateDeleteVolume(volproto.VolumeID)
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 			return &csi.DeleteVolumeResponse{}, nil
 		} else {
 			e := fmt.Errorf("DeleteVolume (nvme) - validateDeleteVolume - failed to delete volume: %s", err.Error())
@@ -579,9 +579,10 @@ func (nvme *nvmestorage) ValidateDeleteVolume(volumeID int) (err error) {
 
 	vol, err := nvme.cs.IboxApi.GetVolume(volumeID)
 	if err != nil {
-		if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
+		re, ok := err.(*iboxapi.IboxAPIError)
+		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 			zlog.Debug().Msgf("ValidateDeleteVolume (nvme) - volume: %d is already deleted", volumeID)
-			return status.Error(codes.NotFound, "volume not found")
+			return err
 		}
 		msg := fmt.Sprintf("ValidateDeleteVolume (nvme) - failed to get volume: %d, err: %s", volumeID, err.Error())
 		zlog.Error().Msg(msg)
