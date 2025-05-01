@@ -14,6 +14,7 @@ import (
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -225,4 +226,149 @@ func (suite *NVMEControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(nil, notFoundError)
 	_, err := suite.service.DeleteVolume(context.Background(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: nvme DeleteVolume when already deleted")
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerPublishVolume() {
+	ctrPublishValReq := getNVMEControllerPublishVolumeRequest()
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
+	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
+	lunInfo := getLunInf()
+	suite.iboxapi.On("MapVolumeToHost", mock.Anything, mock.Anything, mock.Anything).Return(&lunInfo, nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
+	assert.Nil(suite.T(), err, "expected to succeed: nvme ControllerPublishVolume")
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatError() {
+	ctrPublishValReq := getNVMEControllerPublishVolumeRequest()
+	ctrPublishValReq.VolumeId = "1$"
+	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: nvme ControllerPublishVolume volume ID format invalid protocol")
+}
+
+func getNVMEControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {
+	return &csi.ControllerPublishVolumeRequest{
+		VolumeId:      "1$$nvme",
+		NodeId:        "10.20.20.50$$nvme",
+		VolumeContext: map[string]string{common.SC_MAX_VOLS_PER_HOST: "10"},
+	}
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerUnpublishVolume_success() {
+	deleteHostResponse := &iboxapi.DeleteHostResponse{
+		Error: iboxapi.Error{},
+	}
+	ctrUnPublishValReq := getNVMEControllerUnpublishVolume()
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(deleteHostResponse, nil)
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	assert.Nil(suite.T(), err, "expected to succeed: nvme ControllerUnpublishVolume")
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
+	ctrUnPublishValReq := getNVMEControllerUnpublishVolume()
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(nil, suite.someError)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: nvme ControllerUnpublishVolume UnMapVolumeFromHost")
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
+	ctrUnPublishValReq := getNVMEControllerUnpublishVolume()
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: nvme ControllerUnpublishVolume DeleteHost")
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerUnpublishVolume_Metadata_Error() {
+	ctrUnPublishValReq := getNVMEControllerUnpublishVolume()
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), errors.New("some error"))
+	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
+	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return([]api.LunInfo{}, nil)
+	suite.iboxapi.On("DeleteHost", mock.Anything).Return(nil, suite.someError)
+	_, err := suite.service.ControllerUnpublishVolume(context.Background(), ctrUnPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: nvme ControllerUnpublishVolume Metadata Error")
+}
+func getNVMEControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
+	return &csi.ControllerUnpublishVolumeRequest{
+		VolumeId: "1$$nvme",
+		NodeId:   "10.20.20.50$$nvme",
+	}
+}
+
+func (suite *NVMEControllerSuite) Test_CreateSnapshot() {
+	ctrUnPublishValReq := getNVMECreateSnapshotRequest()
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), suite.someError)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+
+	_, err := suite.service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
+	assert.NotNil(suite.T(), err, "expected to fail: nvme CreateSnapshot GetVolumeByName")
+}
+
+func (suite *NVMEControllerSuite) Test_CreateSnapshot_already_Created() {
+	suite.cs.VolProto.VolumeID = 1001
+	ctrUnPublishValReq := getNVMECreateSnapshotRequest()
+	ctrUnPublishValReq.SourceVolumeId = "1001$$nvme"
+	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
+
+	_, err := suite.service.CreateSnapshot(context.Background(), ctrUnPublishValReq)
+	assert.Nil(suite.T(), err, "expected to succeed: nvme CreateSnapshot")
+}
+
+func (suite *NVMEControllerSuite) Test_DeleteSnapshot() {
+	ctrdeleteSnapValReq := getNVMEDeleteSnapshotRequest()
+	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetVolumesByParentID", mock.Anything).Return([]iboxapi.Volume{}, nil)
+	suite.iboxapi.On("GetMetadata", mock.Anything).Return(test_helper.GetHostMetadata(), nil)
+	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
+	suite.iboxapi.On("DeleteMetadata", mock.Anything).Return(deleteMetadataResponse, nil)
+	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
+	suite.iboxapi.On("DeleteVolume", mock.Anything).Return(deleteVolumeResponse, nil)
+	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)
+
+	_, err := suite.service.DeleteSnapshot(context.Background(), ctrdeleteSnapValReq)
+	assert.Nil(suite.T(), err, "expected to succeed: nvme DeleteSnapshot")
+}
+
+func getNVMECreateSnapshotRequest() *csi.CreateSnapshotRequest {
+	return &csi.CreateSnapshotRequest{
+		SourceVolumeId: "1$$nvme",
+		Name:           "snapshotName",
+	}
+}
+func getNVMEDeleteSnapshotRequest() *csi.DeleteSnapshotRequest {
+	return &csi.DeleteSnapshotRequest{
+		SnapshotId: "1$$nvme",
+	}
+}
+
+func (suite *NVMEControllerSuite) Test_ControllerExpandVolume() {
+	ctrExpandValReq := getNVMEExpandVolumeRequest()
+	suite.iboxapi.On("UpdateVolume", mock.Anything, mock.Anything).Return(nil, nil)
+	_, err := suite.service.ControllerExpandVolume(context.Background(), ctrExpandValReq)
+	assert.Nil(suite.T(), err, "expected to succeed: nvme ControllerExpandVolume")
+}
+
+func getNVMEExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
+	return &csi.ControllerExpandVolumeRequest{
+		VolumeId: "1",
+	}
 }
