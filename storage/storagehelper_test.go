@@ -188,3 +188,47 @@ func (suite *StorageHelperSuite) Test_Snapshot_Locking_Expression_Validation() {
 	_, err = validateSnapshotLockingParameter(time.Now().UnixMilli(), inParam)
 	assert.NotNil(suite.T(), err, "expected not nil for valid lock_expires parameter")
 }
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Success() {
+	_, err := ValidateVolumeID("1$$iscsi")
+	assert.Nil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail() {
+	_, err := ValidateVolumeID("1$7iscsi")
+	assert.NotNil(suite.T(), err)
+}
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail_NonNumericVolumeID() {
+	_, err := ValidateVolumeID("x$7iscsi")
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail_NoProtocol() {
+	_, err := ValidateVolumeID("1$")
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail_NoVolumeID() {
+	_, err := ValidateVolumeID("$nfs")
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail_TooManyParts() {
+	_, err := ValidateVolumeID("1$nfs$doof")
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail_Empty() {
+	_, err := ValidateVolumeID("")
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Fail_BadTreeq() {
+	_, err := ValidateVolumeID("2942184#200001/nfs_treeq")
+	assert.NotNil(suite.T(), err)
+}
+
+func (suite *StorageHelperSuite) Test_ValidateVolumeID_Success_Treeq() {
+	_, err := ValidateVolumeID("2942184#200001$$nfs_treeq")
+	assert.Nil(suite.T(), err)
+}

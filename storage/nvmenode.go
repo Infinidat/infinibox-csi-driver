@@ -318,6 +318,7 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nv
 		MpathDevice: nvmeDevicePath,
 		VolumeID:    b.nvmeDiskInfo.VolumeID,
 		IsBlock:     b.nvmeDiskInfo.isBlock,
+		RootDir:     common.NODE_ROOT_DIR,
 	}
 
 	zlog.Debug().Msgf("AttachDisk (nvme) - diskinf %v", diskinf)

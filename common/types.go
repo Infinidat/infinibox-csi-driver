@@ -14,6 +14,8 @@ package common
 
 // storage class parameter keys
 const (
+	NODE_ROOT_DIR = "/host"
+
 	FS_TYPE_EXT3 = "ext3"
 	FS_TYPE_EXT4 = "ext4"
 	FS_TYPE_XFS  = "xfs"

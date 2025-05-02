@@ -282,6 +282,7 @@ func (iscsi *iscsistorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Load iscsi disk config from json file
 	dskInfo := diskInfo{
 		VolumeID: diskUnmounter.iscsiDiskInfo.VolumeID,
+		RootDir:  common.NODE_ROOT_DIR,
 	}
 	if err := loadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
@@ -688,6 +689,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 	config := diskInfo{
 		VolumeID:    b.VolumeID,
 		MpathDevice: thisMpath,
+		RootDir:     common.NODE_ROOT_DIR,
 	}
 
 	devicePath = devMapperDir + thisMpath

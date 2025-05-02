@@ -194,6 +194,7 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	dskInfo := diskInfo{
 		VolumeID: fc.cs.VolProto.VolumeID,
+		RootDir:  common.NODE_ROOT_DIR,
 	}
 
 	// load fc disk config from json file
@@ -359,6 +360,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 		MpathDevice: devicePath,
 		IsBlock:     fm.fcDisk.isBlock,
 		VolumeID:    fm.fcDisk.connector.VolumeID,
+		RootDir:     common.NODE_ROOT_DIR,
 	}
 	err := mountLogic(dskinfo, fm.TargetPath, devicePath, fm.StagePath, fm.FsType, fm.MountOptions, fm.fcDisk.isBlock, fm.ReadOnly)
 	if err != nil {
@@ -369,6 +371,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 
 	if strings.HasPrefix(devicePath, "/dev/dm-") && !fm.ReadOnly {
 		dskinfo := diskInfo{
+			RootDir:     common.NODE_ROOT_DIR,
 			MpathDevice: devicePath,
 			IsBlock:     fm.fcDisk.isBlock,
 			VolumeID:    fm.fcDisk.connector.VolumeID,

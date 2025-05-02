@@ -30,6 +30,7 @@ import (
 )
 
 type diskInfo struct {
+	RootDir     string `json:"rootdir"`
 	MpathDevice string `json:"mpathdevice"`
 	IsBlock     bool   `json:"isblock"`
 	VolumeID    int    `json:"volumeid"`
@@ -47,7 +48,7 @@ func mountLogic(config diskInfo, targetPath, devicePath, stagePath, fsType strin
 		return status.Error(codes.Internal, e.Error())
 	}
 
-	var chrootPath = "/host" + targetPath
+	var chrootPath = config.RootDir + targetPath
 	zlog.Debug().Msgf("mountLogic - mounter.List has %d, looking for %s", len(mntPoints), chrootPath)
 	for i := range mntPoints {
 		if mntPoints[i].Path == chrootPath {
@@ -94,7 +95,7 @@ func mountLogic(config diskInfo, targetPath, devicePath, stagePath, fsType strin
 			zlog.Error().Msg(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
-		devicePath = strings.Replace(devicePath, "/host", "", 1)
+		devicePath = strings.Replace(devicePath, config.RootDir, "", 1)
 
 		options = append(options, "bind")
 
@@ -163,7 +164,7 @@ func mountLogic(config diskInfo, targetPath, devicePath, stagePath, fsType strin
 
 func createConfigFile(conf diskInfo, mnt string) error {
 	zlog.Debug().Msgf("createConfigFile - diskInfo: %v mnt: %s", conf, mnt)
-	file := path.Join("/host", mnt, strconv.Itoa(conf.VolumeID)+".json")
+	file := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
 
 	fp, err := os.Create(file)
 	if err != nil {
@@ -188,7 +189,7 @@ func createConfigFile(conf diskInfo, mnt string) error {
 }
 
 func loadDiskInfoFromFile(conf *diskInfo, mnt string) error {
-	file := path.Join("/host", mnt, strconv.Itoa(conf.VolumeID)+".json")
+	file := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
 	zlog.Debug().Msgf("loadDiskInfoFromFile file [%s]", file)
 	b, err := os.ReadFile(file)
 	if err != nil {
