@@ -6,6 +6,7 @@ import (
 	"context"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -448,6 +449,72 @@ func TestNvmeBlockExpand(t *testing.T) {
 		t.Fatalf("error expected expandedSize %d doesnt match resulting size %d", expandedSize, resultingSize)
 	}
 	t.Logf("expected block device size %d matches PVC size", resultingSize)
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+func TestNVMENetworkSpace(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
+	if networkSpace == "" {
+		t.Fatalf("error - _E2E_NETWORK_SPACE env var is required for this test")
+	}
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
+	if iboxSecret == "" {
+		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: networkSpace,
+		IboxPool:         "",
+		IboxSecret:       iboxSecret,
+	}
+
+	testConfig.PVCAnnotations = pvcAnnotations
+
+	e2e.Setup(testConfig)
+
+	t.Logf("testing with ibox_secret %s network_space %s\n", iboxSecret, networkSpace)
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
+}
+func TestNVMEPool(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	pool := os.Getenv("_E2E_POOL")
+	if pool == "" {
+		t.Fatalf("error - _E2E_POOL env var is required for this test")
+	}
+	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
+	if iboxSecret == "" {
+		t.Fatalf("error - ibox_secret env var is required for this test")
+	}
+	pvcAnnotations := &e2e.PVCAnnotations{
+		IboxNetworkSpace: "",
+		IboxPool:         pool,
+		IboxSecret:       iboxSecret,
+	}
+
+	testConfig.PVCAnnotations = pvcAnnotations
+
+	e2e.Setup(testConfig)
 
 	if *e2e.CleanUp {
 		e2e.TearDown(testConfig)
