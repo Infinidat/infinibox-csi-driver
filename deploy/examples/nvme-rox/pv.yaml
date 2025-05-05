@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rox-pv-from-existing
+spec:
+  accessModes:
+  - ReadOnlyMany
+  capacity:
+    storage: 1Gi
+  csi:
+    controllerExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    controllerPublishSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    driver: infinibox-csi-driver
+    fsType: xfs
+    nodePublishSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    nodeStageSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    nodeExpandSecretRef:
+      name: infinibox-creds
+      namespace: infinidat-csi
+    volumeAttributes:
+      readOnly: "false"
+      network_space: "default_nvme_space"
+      storage.kubernetes.io/csiProvisionerIdentity: 1746218276502-6085-infinibox-csi-driver
+      storage_protocol: nvme
+      uid: "3000"
+      gid: "3000"
+      # unix_permissions: 777
+      useCHAP: none
+    volumeHandle: 3048845$$nvme
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ibox-nvme-rox-readers
+  volumeMode: Filesystem

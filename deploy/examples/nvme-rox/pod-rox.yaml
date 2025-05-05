@@ -1,0 +1,25 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nvme-test-rox-reader
+  namespace: infinidat-csi
+spec:
+  imagePullSecrets:
+  - name: private-docker-reg-secret
+  securityContext:
+    seLinuxOptions:
+      type: "spc_t"
+  containers:
+    - name: csitest
+      image: git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimage:latest
+      env:
+      - name: READ_ONLY
+        value: "true"
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: nvme-pvc-rox-readers

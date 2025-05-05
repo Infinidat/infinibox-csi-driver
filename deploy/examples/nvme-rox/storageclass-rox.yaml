@@ -1,0 +1,35 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-nvme-rox-readers
+provisioner: infinibox-csi-driver
+reclaimPolicy: Retain
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
+  csi.storage.k8s.io/fstype: xfs
+
+  # infinibox configuration
+  network_space: $_E2E_NETWORK_SPACE
+  pool_name: $_E2E_POOL
+  storage_protocol: "nvme"
+
+  # optional parameters
+  #max_vols_per_host: "100"
+  #provision_type: "THIN"
+  #ssd_enabled: "false"
+  uid: "3000" # UID of volume
+  gid: "3000" # GID of volume
+  #unix_permissions: "777" # optional volume mount permissions
