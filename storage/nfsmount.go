@@ -26,15 +26,7 @@ const (
 	NFS_VERSION_REGEX = `(nfs){0,1}vers=([0-9]*)`
 )
 
-type StorageHelper interface {
-	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
-	ValidateIPAddress(ipAddress string, port int) (err error)
-	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
-}
-
-type Service struct{}
-
-func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOptions []string, err error) {
+func (n StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOptions []string, err error) {
 	// Get mount options from VolumeCapability - the standard way
 	mountOptions = req.GetVolumeCapability().GetMount().GetMountFlags()
 	if len(mountOptions) == 0 {

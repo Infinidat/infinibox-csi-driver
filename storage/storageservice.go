@@ -181,15 +181,15 @@ func NewStorageController(comnserv Commonservice, capacity int64, storageProtoco
 	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 	switch storageProtocol {
 	case common.PROTOCOL_FC:
-		return &fcstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}}, nil
+		return &fcstorage{capacity: capacity, cs: comnserv, storageHelper: StorageService{}}, nil
 	case common.PROTOCOL_ISCSI:
 		return &iscsistorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_NVME:
 		return &nvmestorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_NFS:
-		return &nfsstorage{capacity: capacity, cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}, nil
+		return &nfsstorage{capacity: capacity, cs: comnserv, storageHelper: StorageService{}, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_TREEQ:
-		nfs := nfsstorage{capacity: capacity, storageClassParameters: make(map[string]string), cs: comnserv, storageHelper: Service{}, osHelper: helper.Service{}}
+		nfs := nfsstorage{capacity: capacity, storageClassParameters: make(map[string]string), cs: comnserv, storageHelper: StorageService{}, osHelper: helper.Service{}}
 		service := &TreeqService{nfsstorage: nfs, cs: comnserv}
 		return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
 	}
@@ -203,16 +203,16 @@ func NewStorageNode(comnserv Commonservice, configparams ...map[string]string) (
 	storageProtocol := volProto.StorageType
 	switch storageProtocol {
 	case common.PROTOCOL_FC:
-		return &fcstorage{cs: comnserv, storageHelper: Service{}}, nil
+		return &fcstorage{cs: comnserv, storageHelper: StorageService{}}, nil
 	case common.PROTOCOL_ISCSI:
-		return &iscsistorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
+		return &iscsistorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: StorageService{}}, nil
 	case common.PROTOCOL_NVME:
-		return &nvmestorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: Service{}}, nil
+		return &nvmestorage{cs: comnserv, osHelper: helper.Service{}, storageHelper: StorageService{}}, nil
 	case common.PROTOCOL_NFS:
-		return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}, nil
+		return &nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: StorageService{}, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_TREEQ:
 		//nfs := nfsstorage{storageClassParameters: make(map[string]string), cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
-		nfs := nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: Service{}, osHelper: helper.Service{}}
+		nfs := nfsstorage{cs: comnserv, mounter: mount.NewWithoutSystemd(""), storageHelper: StorageService{}, osHelper: helper.Service{}}
 		service := &TreeqService{nfsstorage: nfs, cs: comnserv}
 		return &treeqstorage{nfsstorage: nfs, treeqService: service}, nil
 	default:

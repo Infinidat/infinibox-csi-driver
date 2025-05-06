@@ -78,6 +78,15 @@ var protoToServiceMap = map[string]string{
 	common.PROTOCOL_NVME:  common.NS_NVME_SVC,
 }
 
+// these particular storage functions get mocked and used in unit tests
+type StorageHelper interface {
+	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
+	ValidateIPAddress(ipAddress string, port int) (err error)
+	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
+}
+
+type StorageService struct{}
+
 func isMountedByListMethod(targetHostPath string) (bool, error) {
 	// Use List() to search for mount matching targetHostPath
 	// Each mount in the list has this example form:
@@ -389,7 +398,7 @@ func IsDirectory(path string) (bool, error) {
 }
 
 // SetVolumePermissions
-func (n Service) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
+func (n StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
 
 	//fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
 	//fsGroupIsSet := (fsGroup != "")
@@ -577,7 +586,7 @@ func validateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMi
 	return futureTime, nil
 }
 
-func (n Service) ValidateIPAddress(ip string, port int) (err error) {
+func (n StorageService) ValidateIPAddress(ip string, port int) (err error) {
 	start := time.Now()
 
 	ipAndPort := ip + ":" + strconv.Itoa(port)
