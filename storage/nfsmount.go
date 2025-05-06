@@ -15,15 +15,20 @@ package storage
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
 const (
-	NFSv3Port         = "2049"
-	NFSv4Port         = "12049"
-	NFS_VERSION_REGEX = `(nfs){0,1}vers=([0-9]*)`
+	NFS_MOUNT_OPTION_HARD     = "hard"
+	NFS_MOUNT_OPTION_SOFT     = "soft"
+	NFS_MOUNT_OPTION_READONLY = "ro"
+	NFSv3Port                 = "2049"
+	NFSv4Port                 = "12049"
+	NFS_VERSION_REGEX         = `(nfs){0,1}vers=([0-9]*)`
+	StandardMountOptions      = "vers=3,tcp,rsize=262144,wsize=262144"
 )
 
 func (n StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOptions []string, err error) {
@@ -44,7 +49,7 @@ func (n StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (m
 	}
 
 	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		mountOptions = append(mountOptions, "ro")
+		mountOptions = append(mountOptions, NFS_MOUNT_OPTION_READONLY)
 	}
 
 	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
@@ -106,27 +111,28 @@ func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 	}
 
 	// Add option hard if 'soft' not set explicitly.
-	hardInMountOptions := false
-	softInMountOptions := false
+	var hardInMountOptions bool
+	var softInMountOptions bool
 	for _, opt := range mountOptions {
-		if opt == "hard" {
+		switch opt {
+		case NFS_MOUNT_OPTION_HARD:
 			hardInMountOptions = true
-		}
-		if opt == "soft" {
+		case NFS_MOUNT_OPTION_SOFT:
 			softInMountOptions = true
 		}
 	}
 	if !hardInMountOptions && !softInMountOptions {
-		mountOptions = append(mountOptions, "hard")
+		mountOptions = append(mountOptions, NFS_MOUNT_OPTION_HARD)
 	}
 
 	// Support readonly mount option.
 	if req.GetReadonly() {
 		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
-		mountOptions = append(mountOptions, "ro")
+		mountOptions = append(mountOptions, NFS_MOUNT_OPTION_READONLY)
 	}
 
-	// TODO: remove duplicates from this list
+	// remove duplicates from this list
+	mountOptions = slices.Compact(mountOptions)
 
 	return mountOptions, nil
 }

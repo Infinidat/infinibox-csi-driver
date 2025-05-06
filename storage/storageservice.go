@@ -44,6 +44,7 @@ const (
 	Name                  = "infinibox-csi-driver"
 	RESTORE_TYPE_VOLUME   = "Volume"
 	RESTORE_TYPE_SNAPSHOT = "Snapshot"
+	TOBEDELETED           = "host.k8s.to_be_deleted"
 )
 
 const (

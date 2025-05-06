@@ -27,12 +27,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const (
-	// TOBEDELETED status
-	TOBEDELETED          = "host.k8s.to_be_deleted"
-	StandardMountOptions = "vers=3,tcp,rsize=262144,wsize=262144"
-)
-
 // NFSVolumeServiceType servier type
 type NfsVolumeServiceType interface {
 	CreateNFSVolume() (*infinidatVolume, error)
