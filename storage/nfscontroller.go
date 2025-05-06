@@ -508,12 +508,6 @@ func (nfs *nfsstorage) DeleteNFSVolume() (err error) {
 	return nil
 }
 
-type ExportPermission struct {
-	Access         string
-	No_Root_Squash bool
-	Client         string
-}
-
 func (nfs *nfsstorage) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (*csi.ControllerModifyVolumeResponse, error) {
 	return nil, nil
 }
@@ -557,7 +551,7 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 
 	var access string
 	if len(exportPermissionMapArray) > 0 {
-		access = exportPermissionMapArray[0]["access"].(string)
+		access = exportPermissionMapArray[0][NFS_EXPORT_PERM_ACCESS].(string)
 	}
 
 	noRootSquash := true // default value

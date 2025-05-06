@@ -14,7 +14,6 @@ package storage
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"infinibox-csi-driver/api"
@@ -60,9 +59,6 @@ const (
 	// rwMask   = os.FileMode(0660)
 	// roMask   = os.FileMode(0440)
 	// execMask = os.FileMode(0110)
-	NFSv3Port         = "2049"
-	NFSv4Port         = "12049"
-	NFS_VERSION_REGEX = `(nfs){0,1}vers=([0-9]*)`
 )
 
 var zlog = log.Get() // grab the logger for storage package use
@@ -268,34 +264,6 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 	return nil
 }
 
-// uid should be integer >= -1, if set to -1, then it means don't change
-// gid should be integer >= -1, if set to -1, then it means don't change
-// unix_permissions should be valid octal value
-func validateNFSExportPermissions(scParameters map[string]string) error {
-	if scParameters[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
-		// the case when nfs_export_permissions is not set by a user in the SC
-	} else {
-		permissionsMapArray, err := getPermissionMaps(scParameters[common.SC_NFS_EXPORT_PERMISSIONS])
-		if err != nil {
-			zlog.Err(err)
-			return err
-		}
-
-		// validation for uid,gid,unix_permissions
-		if scParameters[common.SC_UID] != "" || scParameters[common.SC_GID] != "" || scParameters[common.SC_UNIX_PERMISSIONS] != "" {
-			if len(permissionsMapArray) > 0 {
-				noRootSquash := permissionsMapArray[0]["no_root_squash"]
-				if noRootSquash == false {
-					e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
-					zlog.Err(e)
-					return e
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
 func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api iboxapi.Client) error {
 
@@ -391,29 +359,6 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 	return volprotoconf, nil
 }
 
-func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
-	permissionFixed := strings.ReplaceAll(permission, "'", "\"")
-	var permissionsMapArray []map[string]interface{}
-	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
-	if err != nil {
-		zlog.Error().Msgf("invalid %s format %v raw [%s] fixed [%s]", common.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
-		return permissionsMapArray, err
-	}
-
-	for _, pass := range permissionsMapArray {
-		no_root_squash_str, ok := pass["no_root_squash"].(string)
-		if ok {
-			rootsq, err := strconv.ParseBool(no_root_squash_str)
-			if err != nil {
-				zlog.Debug().Msgf("failed to cast no_root_squash value in export permission - setting default value 'true'")
-				rootsq = true
-			}
-			pass["no_root_squash"] = rootsq
-		}
-	}
-	return permissionsMapArray, nil
-}
-
 // IsDirEmpty Check if a directory is empty. Return an isEmpty boolean and an error.
 func IsDirEmpty(name string) (bool, error) {
 	f, err := os.Open(name)
@@ -441,119 +386,6 @@ func IsDirectory(path string) (bool, error) {
 	}
 
 	return fileInfo.IsDir(), err
-}
-
-type StorageHelper interface {
-	SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error)
-	ValidateIPAddress(ipAddress string, port int) (err error)
-	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
-}
-
-type Service struct{}
-
-func (n Service) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (mountOptions []string, err error) {
-	// Get mount options from VolumeCapability - the standard way
-	mountOptions = req.GetVolumeCapability().GetMount().GetMountFlags()
-	if len(mountOptions) == 0 {
-		for _, option := range strings.Split(StandardMountOptions, ",") {
-			if option != "" {
-				mountOptions = append(mountOptions, option)
-			}
-		}
-	}
-
-	mountOptions, err = updateNfsMountOptions(mountOptions, req)
-	if err != nil {
-		zlog.Error().Msgf("failed updateNfsMountOptions(): %s", err)
-		return mountOptions, err
-	}
-
-	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		mountOptions = append(mountOptions, "ro")
-	}
-
-	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
-
-	return mountOptions, nil
-}
-
-func GetNFSVersionPort(mountOptions []string) (version, port string) {
-
-	// we will default to nfs v3
-	version = "3"
-	port = NFSv3Port
-
-	for _, opt := range mountOptions {
-		if strings.Contains(opt, "vers") {
-			parts := strings.Split(opt, "=")
-			if len(parts) == 2 {
-				version = parts[1]
-			}
-		}
-		if strings.Contains(opt, "port") {
-			parts := strings.Split(opt, "=")
-			if len(parts) == 2 {
-				port = parts[1]
-			}
-		}
-	}
-	if version == "4" || version == "4.1" {
-		port = NFSv4Port
-	}
-	return version, port
-}
-
-func updateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequest) ([]string, error) {
-	// If vers set to anything but 3 or 4 or 4.1, fail.
-	re := regexp.MustCompile(NFS_VERSION_REGEX)
-	for _, opt := range mountOptions {
-		matches := re.FindStringSubmatch(opt)
-		if len(matches) > 0 {
-			version := matches[2]
-			if version != "3" && version != "4" && version != "4.1" {
-				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS versions 3 and 4 are supported", opt)
-				zlog.Err(e)
-				return nil, e
-			}
-		}
-	}
-
-	// Force vers=3 to be in the mountOptions slice if a vers is not explicitly set in the StorageClass. IBoxes require NFS version 3 or 4.
-	versInMountOptions := false
-	for _, opt := range mountOptions {
-		if opt == "vers=3" || opt == "nfsvers=3" || opt == "vers=4" || opt == "nfsvers=4" || opt == "vers=4.1" || opt == "nfsvers=4.1" {
-			versInMountOptions = true
-			break
-		}
-	}
-	if !versInMountOptions {
-		mountOptions = append(mountOptions, "vers=3")
-	}
-
-	// Add option hard if 'soft' not set explicitly.
-	hardInMountOptions := false
-	softInMountOptions := false
-	for _, opt := range mountOptions {
-		if opt == "hard" {
-			hardInMountOptions = true
-		}
-		if opt == "soft" {
-			softInMountOptions = true
-		}
-	}
-	if !hardInMountOptions && !softInMountOptions {
-		mountOptions = append(mountOptions, "hard")
-	}
-
-	// Support readonly mount option.
-	if req.GetReadonly() {
-		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
-		mountOptions = append(mountOptions, "ro")
-	}
-
-	// TODO: remove duplicates from this list
-
-	return mountOptions, nil
 }
 
 // SetVolumePermissions
