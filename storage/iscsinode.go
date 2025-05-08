@@ -484,7 +484,19 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(string(out)))
 
 	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
-	time.Sleep(time.Second * 5)
+	const defaultResizeDelay = 5
+	resizeDelayForThisExecution := defaultResizeDelay
+	tmp := os.Getenv(RESIZE2FS_DELAY)
+	if tmp != "" {
+		userSpecifiedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", RESIZE2FS_DELAY, defaultResizeDelay)
+		} else {
+			resizeDelayForThisExecution = userSpecifiedValue
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", RESIZE2FS_DELAY, resizeDelayForThisExecution, defaultResizeDelay)
+		}
+	}
+	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
 	command = fmt.Sprintf("resize2fs %s", multipathDevice)
 	out, err = execCommand.Command(command, "")
 	zlog.Debug().Msgf("command is [%s]", command)

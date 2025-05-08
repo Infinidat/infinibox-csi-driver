@@ -339,7 +339,19 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	zlog.Debug().Msgf("multipathd resize map output is [%s]\n", strings.TrimSpace(string(out)))
 
 	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
-	time.Sleep(time.Second * 5)
+	const defaultResizeDelay = 5
+	resizeDelayForThisExecution := defaultResizeDelay
+	tmp := os.Getenv(RESIZE2FS_DELAY)
+	if tmp != "" {
+		userSpecifiedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", RESIZE2FS_DELAY, defaultResizeDelay)
+		} else {
+			resizeDelayForThisExecution = userSpecifiedValue
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", RESIZE2FS_DELAY, resizeDelayForThisExecution, defaultResizeDelay)
+		}
+	}
+	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
 	command = fmt.Sprintf("resize2fs %s", multipathDevice)
 	out, err = execCommand.Command(command, "")
 	if err != nil {
@@ -592,7 +604,19 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	}
 	zlog.Debug().Msgf("searchDisk rescan scsi host wwid is [%s]", wwid)
 
-	tries := 10 //currently this means a max of 10 seconds which is ample
+	const defaultTries = 10
+	tries := defaultTries //currently this means a max of 10 seconds which is ample almost always
+	tmp := os.Getenv(FC_SEARCH_DISK_DELAY)
+	if tmp != "" {
+		userSelectedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", FC_SEARCH_DISK_DELAY, defaultTries)
+		} else {
+			tries = userSelectedValue
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", FC_SEARCH_DISK_DELAY, userSelectedValue, defaultTries)
+		}
+	}
+
 	zlog.Debug().Msgf("searchDisk sleeping up to %d seconds to allow devmapper time to work", tries)
 	// during testing, I found that devmapper would not create the dm-X device quick enough
 	// after the rescan above for the code below to work, instead of seeing a dm-X device

@@ -87,6 +87,14 @@ spec:
               value: {{ .Values.logLevel }}
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
+            - name: MULTIPATH_CLEANUP_DELAY
+              value: "{{ .Values.multipathCleanupDelay }}"
+            - name: MULTIPATH_WAIT
+              value: "{{ .Values.multipathWait }}"
+            - name: FC_SEARCH_DISK_DELAY
+              value: "{{ .Values.fcSearchDiskDelay }}"
+            - name: RESIZE2FS_DELAY
+              value: "{{ .Values.resize2fsDelay }}"
             - name: CSI_DRIVER_NAME
               value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: KUBE_NODE_NAME

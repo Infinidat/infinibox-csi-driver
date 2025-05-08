@@ -47,6 +47,14 @@ const (
 	TOBEDELETED           = "host.k8s.to_be_deleted"
 )
 
+// env vars that let users override various delay times
+const (
+	MULTIPATH_WAIT          = "MULTIPATH_WAIT"
+	MULTIPATH_CLEANUP_DELAY = "MULTIPATH_CLEANUP_DELAY"
+	FC_SEARCH_DISK_DELAY    = "FC_SEARCH_DISK_DELAY"
+	RESIZE2FS_DELAY         = "RESIZE2FS_DELAY"
+)
+
 const (
 	// for size conversion
 	kib int64 = 1024
@@ -544,8 +552,21 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 		// 1
 		multipathFlush(mpath)
 
-		zlog.Debug().Msgf("sleeping in between flush of device and detach of scsi disks")
-		time.Sleep(time.Second * 1) //TODO ideally this would be configurable
+		const defaultSleepAfterFlush = 1
+		sleepAfterFlushThisExecution := defaultSleepAfterFlush
+		tmp := os.Getenv(MULTIPATH_CLEANUP_DELAY)
+		if tmp != "" {
+			userSpecifiedValue, err := strconv.Atoi(tmp)
+			if err != nil {
+				zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", MULTIPATH_CLEANUP_DELAY, defaultSleepAfterFlush)
+			} else {
+				sleepAfterFlushThisExecution = userSpecifiedValue
+				zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", MULTIPATH_CLEANUP_DELAY, sleepAfterFlushThisExecution, defaultSleepAfterFlush)
+			}
+		}
+		zlog.Debug().Msgf("sleeping in between flush of device and detach of scsi disks for %d seconds", sleepAfterFlushThisExecution)
+		time.Sleep(time.Second * time.Duration(sleepAfterFlushThisExecution))
+		zlog.Debug().Msg("after sleep")
 
 		// Warn if there are not exactly mpathDeviceCount devices
 		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
@@ -770,16 +791,28 @@ func waitForOneDeviceState(hostId string, channel string, target string, lun str
 
 func waitForMultipath(hostId string, lun string) error {
 	defer helper.TimeTrack(zlog, time.Now())
-	var sleepCount time.Duration = 250
+	const defaultMultipathWait = 250
+	var sleepCount time.Duration
+	sleepCount = time.Duration(defaultMultipathWait)
+	tmp := os.Getenv(MULTIPATH_WAIT)
+	if tmp != "" {
+		userSpecifiedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			zlog.Error().Msgf("error converting user specified env var %s, using default value of %d instead", MULTIPATH_WAIT, defaultMultipathWait)
+		} else {
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", MULTIPATH_WAIT, userSpecifiedValue, defaultMultipathWait)
+			sleepCount = time.Duration(userSpecifiedValue)
+		}
+	}
 	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:*:*:%s/device/block/*/holders/*/slaves/*", hostId, lun)
 	loopCount := 40
 	for i := 1; i <= loopCount; i++ {
 		zlog.Trace().Msgf("looping in waitForMultipath host %s lun %s", hostId, lun)
 		devices, err := filepath.Glob(masterPath)
 		if err != nil {
-			zlog.Debug().Msgf("Failed to Glob devices using path '%s': %+v", masterPath, err)
+			zlog.Debug().Msgf("failed to glob devices using path '%s': %+v", masterPath, err)
 		} else {
-			zlog.Trace().Msgf("Glob devices '%s'", devices)
+			zlog.Trace().Msgf("glob devices '%s'", devices)
 		}
 
 		if err != nil || len(devices) < mpathDeviceCount {
@@ -793,7 +826,7 @@ func waitForMultipath(hostId string, lun string) error {
 		}
 	}
 
-	zlog.Debug().Msgf("Multipath device is online for host ID %s and lun '%s'", hostId, lun)
+	zlog.Debug().Msgf("multipath device is online for host ID %s and lun '%s'", hostId, lun)
 	return nil
 }
 

@@ -253,6 +253,20 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 		return nil, e
 	}
 
+	const defaultResizeDelay = 5
+	resizeDelayForThisExecution := defaultResizeDelay
+	tmp := os.Getenv(RESIZE2FS_DELAY)
+	if tmp != "" {
+		userSpecifiedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", RESIZE2FS_DELAY, defaultResizeDelay)
+		} else {
+			resizeDelayForThisExecution = userSpecifiedValue
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", RESIZE2FS_DELAY, resizeDelayForThisExecution, defaultResizeDelay)
+		}
+	}
+	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
+
 	// run resize2fs /dev/nvme0n2
 	command := fmt.Sprintf("resize2fs %s", multipathDevice)
 	out, err := execCommand.Command(command, "")

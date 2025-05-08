@@ -31,6 +31,27 @@ removeDomainName: "false"
 # the default is "true" when not set
 #createEvents: "false"
 
+## tuning parameters related to multipath operations (iscsi/fc protocols)
+## WARNING:  you almost never need to change these unless you are experiencing timeouts on heavily
+## loaded nodes
+#
+# set to override default values for multipath cleanup, default is 1 second between a multipath flush
+# and removal of associated scsi devices, on very slow systems you might need a longer delay
+#multipathCleanupDelay: "1"
+
+# set to override default values for multipath devices to show up when being created
+# default is 250, this value is in milliseconds, it represents a duration of time to delay between
+# interations
+#multipathWait: "250"
+
+# set to override default values for multipath search disk, default is 10 seconds to search for devicemapper
+# devices to show up as part of publishing a new volume on a node
+#fcSearchDiskDelay: "10"
+
+# set to override default values for resize2fs commands to execute when a volume is being expanded
+# default it 5 seconds
+#resize2fsDelay: "5"
+
 # set cpu and memory limits for the CSI servers
 nodeserver:
   resources:
