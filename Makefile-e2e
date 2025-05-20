@@ -10,11 +10,14 @@ endif
 install-e2e-tools: ## install e2e related binaries
 	@echo -e $(_begin)
 ifeq (,$(wildcard ./$(_E2E_K8S_VERSION)-kubernetes-test-linux-amd64.tar.gz))
+	echo "downloading the e2e test suite for $(_E2E_K8S_VERSION) ..."
 	wget https://dl.k8s.io/$(_E2E_K8S_VERSION)/kubernetes-test-linux-amd64.tar.gz
 	mv kubernetes-test-linux-amd64.tar.gz $(_E2E_K8S_VERSION)-kubernetes-test-linux-amd64.tar.gz
+else
+	echo "extracting the already downloaded e2e test suite for $(_E2E_K8S_VERSION) ..."
+endif
 	tar --strip-components=3 -zxf $(_E2E_K8S_VERSION)-kubernetes-test-linux-amd64.tar.gz \
 		kubernetes/test/bin/e2e.test kubernetes/test/bin/ginkgo
-endif
 	@echo -e $(_finish)
 
 .PHONY: install-csi-sanity
@@ -30,13 +33,42 @@ e2e-grpc:  ## run the infinidat developed grpc e2e test
 	$(_GOTEST) -v ./e2e/grpc -tags e2e
 	@echo -e $(_finish)
 
-.PHONY: external-e2e
-external-e2e:  ## run the upstream e2e sanity tests for a particular suite of tests
+.PHONY: external-e2e-nfs
+external-e2e-nfs:  ## run the upstream e2e sanity tests for a particular suite of tests
 	@echo -e $(_begin)
 	export _E2E_NAMESPACE=$(_E2E_NAMESPACE) \
 		_E2E_POOL=$(_E2E_POOL) \
-		_E2E_PROTOCOL=$(_E2E_PROTOCOL) \
-		_E2E_NETWORK_SPACE=$(_E2E_NETWORK_SPACE) \
+		_E2E_PROTOCOL=nfs \
+		_E2E_NETWORK_SPACE=$(_E2E_NAS_NETWORK_SPACE) \
+		&& ./e2e/external-e2e/run.sh
+	@echo -e $(_finish)
+
+.PHONY: external-e2e-iscsi
+external-e2e-iscsi:  ## run the upstream e2e sanity tests for a particular suite of tests
+	@echo -e $(_begin)
+	export _E2E_NAMESPACE=$(_E2E_NAMESPACE) \
+		_E2E_POOL=$(_E2E_POOL) \
+		_E2E_PROTOCOL=iscsi \
+		_E2E_NETWORK_SPACE=$(_E2E_ISCSI_NETWORK_SPACE) \
+		&& ./e2e/external-e2e/run.sh
+	@echo -e $(_finish)
+
+.PHONY: external-e2e-fc
+external-e2e-fc:  ## run the upstream e2e sanity tests for a particular suite of tests
+	@echo -e $(_begin)
+	export _E2E_NAMESPACE=$(_E2E_NAMESPACE) \
+		_E2E_POOL=$(_E2E_POOL) \
+		_E2E_PROTOCOL=fc \
+		&& ./e2e/external-e2e/run.sh
+	@echo -e $(_finish)
+
+.PHONY: external-e2e-nvme
+external-e2e-nvme:  ## run the upstream e2e sanity tests for a particular suite of tests
+	@echo -e $(_begin)
+	export _E2E_NAMESPACE=$(_E2E_NAMESPACE) \
+		_E2E_POOL=$(_E2E_POOL) \
+		_E2E_PROTOCOL=nvme \
+		_E2E_NETWORK_SPACE=$(_E2E_NVME_NETWORK_SPACE) \
 		&& ./e2e/external-e2e/run.sh
 	@echo -e $(_finish)
 

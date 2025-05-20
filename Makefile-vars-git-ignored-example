@@ -13,6 +13,11 @@ _E2E_TEST_BLOCK_IMAGE=infinidat/csitestimageblock:latest
 
 _E2E_NAMESPACE=infinidat-csi
 _E2E_POOL=csitesting
+
+_E2E_NAS_NETWORK_SPACE=default_nas_space
+_E2E_ISCSI_NETWORK_SPACE=default_iscsi_space
+_E2E_NVME_NETWORK_SPACE=default_nvme_space
+
 _E2E_PROTOCOL=nfs
 _E2E_NETWORK_SPACE=NAS
 _E2E_NETWORK_SPACE2=

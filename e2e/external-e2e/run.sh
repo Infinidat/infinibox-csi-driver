@@ -8,8 +8,16 @@ if [[ -z "$_E2E_POOL" ]]; then
     echo "Must provide _E2E_POOL in environment" 1>&2
     exit 1
 fi
-if [[ -z "$_E2E_NETWORK_SPACE" ]]; then
-    echo "Must provide _E2E_NETWORK_SPACE in environment" 1>&2
+if [[ -z "$_E2E_NAS_NETWORK_SPACE" ]]; then
+    echo "Must provide _E2E_NAS_NETWORK_SPACE in environment" 1>&2
+    exit 1
+fi
+if [[ -z "$_E2E_NVME_NETWORK_SPACE" ]]; then
+    echo "Must provide _E2E_NVME_NETWORK_SPACE in environment" 1>&2
+    exit 1
+fi
+if [[ -z "$_E2E_ISCSI_NETWORK_SPACE" ]]; then
+    echo "Must provide _E2E_ISCSI_NETWORK_SPACE in environment" 1>&2
     exit 1
 fi
 if [[ -z "$_E2E_IBOX_SECRET" ]]; then
