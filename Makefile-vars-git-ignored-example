@@ -24,6 +24,7 @@ _E2E_IBOX_USERNAME=someusername
 _E2E_IBOX_PASSWORD=somepassword
 _E2E_IBOX_HOSTNAME=somehost
 _E2E_USE_NFS_V4=false
+_E2E_CLEANUP=true
 _E2E_STRESS_ITERATIONS=2
 _E2E_STRESS_SLEEP_SECONDS=10
 # comment out pull secret env var if running on openshift, use global pull secret instead

@@ -33,7 +33,7 @@ const (
 	ENV_IBOX_SECRET                  = "_E2E_IBOX_SECRET"
 	ENV_IBOX_SECRET2                 = "_E2E_IBOX_SECRET2"
 	ENV_NAMESPACE                    = "_E2E_NAMESPACE"
-	ENV_CLEANUP                      = "CLEANUP"
+	ENV_CLEANUP                      = "_E2E_CLEANUP"
 	ENV_TEST_IMAGE                   = "_E2E_TEST_IMAGE"
 	ENV_TEST_BLOCK_IMAGE             = "_E2E_TEST_BLOCK_IMAGE"
 	ENV_IBOX_LINK_REMOTE_SYSTEM_NAME = "_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME"
