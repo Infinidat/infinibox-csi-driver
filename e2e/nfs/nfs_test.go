@@ -160,6 +160,7 @@ func TestNfsROX(t *testing.T) {
 
 	testConfig.AccessMode = v1.ReadOnlyMany
 	testConfig.ReadOnlyPod = true
+	testConfig.ReadOnlyPodVolume = true
 
 	e2e.Setup(testConfig)
 

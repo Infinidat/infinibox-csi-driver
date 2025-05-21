@@ -265,9 +265,11 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	allowExpand := true
 	sc.AllowVolumeExpansion = &allowExpand
 
+	protocol := os.Getenv(ENV_PROTOCOL)
+
 	nfsV4 := os.Getenv(ENV_USE_NFS_V4)
 	if nfsV4 != "" {
-		if nfsV4 == "true" {
+		if nfsV4 == "true" && protocol == common.PROTOCOL_NFS {
 			sc.MountOptions = append(sc.MountOptions, "nfsvers=4.1")
 			sc.MountOptions = append(sc.MountOptions, "port=12049")
 			sc.MountOptions = append(sc.MountOptions, "rsize=262144")

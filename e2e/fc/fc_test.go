@@ -392,6 +392,7 @@ func TestROX(t *testing.T) {
 	// create the ROX PVC using the PV from above as the volumeName
 	testConfig.AccessMode = v1.ReadOnlyMany
 	testConfig.ReadOnlyPod = true
+	testConfig.ReadOnlyPodVolume = true
 	testConfig.UsePVCVolumeRef = true
 	testConfig.TestNames.PVName = pvName
 
