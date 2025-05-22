@@ -16,7 +16,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func XTestNvmeSnapshotLocking(t *testing.T) {
+func TestNvmeSnapshotLocking(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -63,7 +63,7 @@ func XTestNvmeSnapshotLocking(t *testing.T) {
 
 }
 
-func XTestNvmeSnapshot(t *testing.T) {
+func TestNvmeSnapshot(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -96,7 +96,7 @@ func XTestNvmeSnapshot(t *testing.T) {
 
 }
 
-func XTestNvme(t *testing.T) {
+func TestNvme(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -113,7 +113,7 @@ func XTestNvme(t *testing.T) {
 
 }
 
-func XTestNvmeFsGroup(t *testing.T) {
+func TestNvmeFsGroup(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -157,7 +157,7 @@ func XTestNvmeFsGroup(t *testing.T) {
 
 }
 
-func XTestNvmeBlock(t *testing.T) {
+func TestNvmeBlock(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -273,7 +273,7 @@ func TestNvmeROX(t *testing.T) {
 
 }
 
-func XTestNvmeRO(t *testing.T) {
+func TestNvmeRO(t *testing.T) {
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
@@ -331,7 +331,7 @@ func XTestNvmeRO(t *testing.T) {
 
 }
 
-func XTestNvmeClone(t *testing.T) {
+func TestNvmeClone(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -379,7 +379,7 @@ func XTestNvmeClone(t *testing.T) {
 
 }
 
-func XTestNvmeExpand(t *testing.T) {
+func TestNvmeExpand(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -416,7 +416,7 @@ func XTestNvmeExpand(t *testing.T) {
 
 }
 
-func XTestNvmeBlockExpand(t *testing.T) {
+func TestNvmeBlockExpand(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -458,7 +458,7 @@ func XTestNvmeBlockExpand(t *testing.T) {
 	}
 
 }
-func XTestNVMENetworkSpace(t *testing.T) {
+func TestNVMENetworkSpace(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
@@ -492,7 +492,7 @@ func XTestNVMENetworkSpace(t *testing.T) {
 	}
 
 }
-func XTestNVMEPool(t *testing.T) {
+func TestNVMEPool(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
