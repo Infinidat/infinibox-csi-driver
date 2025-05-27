@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: pod-with-block-volume
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:
   - name: $_E2E_IMAGE_PULL_SECRET

@@ -14,22 +14,22 @@ mountOptions: # optional: defaults shown below, be sure to include vers=3 if you
 parameters:
     # reference secret with InfiniBox credentials
     csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
     fstype: ext4
 
     # InfiniBox configuration
     storage_protocol: nfs
-    network_space: $_E2E_NETWORK_SPACE # InfiniBox network space name
+    network_space: $_E2E_NAS_NETWORK_SPACE # InfiniBox network space name
     pool_name: $_E2E_POOL
 
     # optional parameters

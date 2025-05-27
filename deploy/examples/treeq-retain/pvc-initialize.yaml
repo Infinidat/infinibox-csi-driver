@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: sticky-treeq-pv
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   accessModes:
   - ReadWriteOnce

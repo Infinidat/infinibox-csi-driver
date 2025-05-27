@@ -8,7 +8,7 @@ include ../../../Makefile-help
 setup:  devEnv teardown 
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
-	$(_CLIN) create -f ./pvc-block-rwx.yaml
+	envsubst < ./pvc-block-rwx.yaml | $(_CLIN) create -f -
 	envsubst < ./pod-block-node1.yaml | $(_CLIN) create -f -
 	envsubst < ./pod-block-node2.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
@@ -18,6 +18,6 @@ teardown:  devEnv
 	@echo -e $(_begin)
 	envsubst < ./pod-block-node1.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ./pod-block-node2.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-block-rwx.yaml
-	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	envsubst < ./pod-block-rwx.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
+	envsubst < ./storageclass.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -
 	@echo -e $(_finish)

@@ -2,7 +2,7 @@ apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
   name: fc-snapshot
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   volumeSnapshotClassName: ibox-snapshotclass
   source:

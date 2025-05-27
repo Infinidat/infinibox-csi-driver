@@ -2,7 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: user1-app
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:
   - name: $_E2E_IMAGE_PULL_SECRET

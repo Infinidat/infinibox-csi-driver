@@ -16,11 +16,10 @@ _E2E_POOL=csitesting
 
 _E2E_NAS_NETWORK_SPACE=default_nas_space
 _E2E_ISCSI_NETWORK_SPACE=default_iscsi_space
+_E2E_ISCSI_NETWORK_SPACE2=default_iscsi_space
 _E2E_NVME_NETWORK_SPACE=default_nvme_space
 
 _E2E_PROTOCOL=nfs
-_E2E_NETWORK_SPACE=NAS
-_E2E_NETWORK_SPACE2=
 _E2E_IBOX_SECRET=infinibox-creds
 _E2E_IBOX_SECRET2=
 _E2E_K8S_VERSION=v1.30.1

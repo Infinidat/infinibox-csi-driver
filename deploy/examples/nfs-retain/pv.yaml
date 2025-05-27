@@ -12,20 +12,20 @@ spec:
   csi:
     controllerExpandSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     controllerPublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     driver: infinibox-csi-driver
     nodePublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodeStageSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodeExpandSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     volumeAttributes:
       exportID: "450732"
       ipAddress: "172.31.32.158"

@@ -10,21 +10,21 @@ spec:
   csi:
     controllerExpandSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     controllerPublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     driver: infinibox-csi-driver
     fsType: ext4
     nodePublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodeStageSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodeExpandSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     volumeAttributes:
       storage.kubernetes.io/csiProvisionerIdentity: 1585396938065-8081-infinibox-csi-driver
       storage_protocol: fc

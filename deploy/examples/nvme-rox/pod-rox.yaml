@@ -2,7 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: nvme-test-rox-reader
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:
   - name: private-docker-reg-secret
@@ -11,7 +11,7 @@ spec:
       type: "spc_t"
   containers:
     - name: csitest
-      image: git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimage:latest
+      image: git.infinidat.com:4567/host-opensource/$_E2E_NAMESPACE-driver/csitestimage:latest
       env:
       - name: READ_ONLY
         value: "true"

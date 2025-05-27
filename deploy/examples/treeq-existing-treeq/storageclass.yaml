@@ -26,7 +26,7 @@ parameters:
 
     # infinibox configuration
     pool_name: $_E2E_POOL
-    network_space: $_E2E_NETWORK_SPACE
+    network_space: $_E2E_NAS_NETWORK_SPACE
     storage_protocol: nfs_treeq
     fs_prefix: csit_
 

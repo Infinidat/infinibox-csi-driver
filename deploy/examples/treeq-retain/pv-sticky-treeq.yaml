@@ -12,16 +12,16 @@ spec:
   csi:
     controllerExpandSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     controllerPublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodePublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodeStageSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     driver: infinibox-csi-driver
     volumeAttributes:
       ipAddress: 172.31.32.158

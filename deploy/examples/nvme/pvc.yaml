@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nvme-pvc
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   accessModes:
   - ReadWriteOnce

@@ -2,7 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: nvme-block-node1
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
   labels:
     security: s1
 spec:

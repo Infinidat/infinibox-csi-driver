@@ -8,7 +8,7 @@ include ../../../Makefile-help
 setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
-	$(_CLIN) create -f ./pvc.yaml
+	envsubst < ./pvc.yaml | $(_CLIN) create -f -
 	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
@@ -16,15 +16,15 @@ setup:  devEnv teardown
 .PHONY: teardown
 teardown: devEnv
 	@echo -e $(_begin)
-	envsubst < ./pod.yaml | $(_CLIN) delete --wait --ignore-not-found=true --force -f - 
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc.yaml
-	$(_CLINnn) delete --wait --ignore-not-found=true -f ./storageclass.yaml
+	envsubst < ./pod.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f - 
+	envsubst < ./pvc.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f - 
+	envsubst < ./storageclass.yaml | $(_CLI) delete --wait --ignore-not-found=true -f - 
 	@echo -e $(_finish)
 
 .PHONY: setup-clone
 setup-clone: devEnv  teardown-clone 
 	@echo -e $(_begin)
-	$(_CLIN) create -f ./pvc-clone.yaml
+	envsubst < ./pvc-clone.yaml | $(_CLIN) create -f -
 	envsubst < ./pod-clone.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
@@ -32,6 +32,6 @@ setup-clone: devEnv  teardown-clone
 .PHONY: teardown-clone
 teardown-clone: devEnv  
 	@echo -e $(_begin)
-	envsubst < ./pod-clone.yaml | $(_CLIN) delete --wait --ignore-not-found=true --force -f -
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-clone.yaml
+	envsubst < ./pod-clone.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
+	envsubst < ./pvc-clone.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	@echo -e $(_finish)

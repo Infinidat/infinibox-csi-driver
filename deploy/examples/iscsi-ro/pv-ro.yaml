@@ -10,18 +10,18 @@ spec:
   csi:
     controllerExpandSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     controllerPublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     driver: infinibox-csi-driver
     fsType: xfs
     nodePublishSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     nodeStageSecretRef:
       name: infinibox-creds
-      namespace: infinidat-csi
+      namespace: $_E2E_NAMESPACE
     volumeAttributes:
       iqn: iqn.2009-11.com.infinidat:storage:infinibox-sn-3005
       portals: 172.00.00.1,172.00.00.2,172.00.00.3,172.00.00.4,172.00.00.5,172.00.00.6

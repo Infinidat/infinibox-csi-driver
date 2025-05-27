@@ -19,24 +19,24 @@ mountOptions: # optional: defaults shown below, be sure to include vers=3 if you
 parameters:
     # reference secret with InfiniBox credentials
     csi.storage.k8s.io/controller-expand-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
-    csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/controller-publish-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
-    csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-publish-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
-    csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-stage-secret-name: ${pvc.annotations['infinidat.com/ibox_secret']}
-    csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
 
     #  NOTE:  the following 2 csi parameters are commented out specifically to avoid errors in the external-provisioner
     #  on DeleteVolume() calls, the CSI driver instead removes the PV based on its pvc annotation logic
     #csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
-    #csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+    #csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
 
     # InfiniBox configuration
     storage_protocol: nfs
-    network_space: $_E2E_NETWORK_SPACE # InfiniBox network space name
+    network_space: $_E2E_NAS_NETWORK_SPACE # InfiniBox network space name
     pool_name: $_E2E_POOL
 
     # optional parameters

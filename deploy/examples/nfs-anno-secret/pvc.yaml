@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: nfs-pvc-anno-secret
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
   annotations:
     infinidat.com/ibox_secret: infinibox-creds2
 spec:

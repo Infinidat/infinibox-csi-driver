@@ -2,7 +2,7 @@ kind: Pod
 apiVersion: v1
 metadata:
   name: iscsi-test-using-restore
-  namespace: infinidat-csi
+  namespace: $_E2E_NAMESPACE
 spec:
   containers:
     - name: csitest

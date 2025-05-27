@@ -21,7 +21,7 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
   storage_protocol: iscsi
-  network_space: "$_E2E_NETWORK_SPACE"
+  network_space: "$_E2E_ISCSI_NETWORK_SPACE"
   pool_name: "$_E2E_POOL"
   useCHAP: "none" # none / chap / mutual_chap
   uid: "3000" # UID of volume

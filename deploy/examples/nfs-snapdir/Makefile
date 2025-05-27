@@ -5,20 +5,20 @@ include ../../../Makefile-help
 
 _purpose = an example of nfs specifying snapdirvisible parameter
 
-.PHONY: setup-fsgroup
-setup-fsgroup:  devEnv teardown-fsgroup
+.PHONY: setup
+setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass-fsgroup.yaml | $(_CLI) create -f -
-	$(_CLIN) create -f ./pvc-fsgroup.yaml
+	envsubst < ./pvc-fsgroup.yaml | $(_CLIN) create -f -
 	envsubst < ./pod-fsgroup.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 
-.PHONY: teardown-fsgroup
-teardown-fsgroup:  devEnv
+.PHONY: teardown
+teardown:  devEnv
 	@echo -e $(_begin)
 	envsubst < ./pod-fsgroup.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
-	$(_CLIN) delete --wait --ignore-not-found=true -f ./pvc-fsgroup.yaml
-	$(_CLI) delete --wait --ignore-not-found=true -f ./storageclass-fsgroup.yaml
+	envsubst < ./pvc-fsgroup.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
+	envsubst < ./storageclass-fsgroup.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -
 	@echo -e $(_finish)
 

@@ -12,21 +12,21 @@ mountOptions:
   - wsize=1048576
 parameters: 
     csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/provisioner-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/controller-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-stage-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-publish-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/controller-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
     csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
-    csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
+    csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
 
     # infinibox configuration
     pool_name: $_E2E_POOL
-    network_space: $_E2E_NETWORK_SPACE
+    network_space: $_E2E_NAS_NETWORK_SPACE
     storage_protocol: nfs_treeq
     fs_prefix: csit_
 
