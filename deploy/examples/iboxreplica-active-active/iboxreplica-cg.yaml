@@ -1,0 +1,16 @@
+apiVersion: csidriver.infinidat.com/v1
+kind: Iboxreplica
+metadata:
+  annotations:
+    infinidat.com/secret_name: infinibox-creds
+    infinidat.com/secret_namespace: infinidat-csi
+  name: iboxreplica-aa-cg-sample
+spec:
+  is_preferred: true                      # set only for ACTIVE_ACTIVE, true = local system, false = remote system
+  description: "aa-cg-iboxreplica-test"   # user defined description
+  entity_type: "CONSISTENCY_GROUP"        # valid values can be VOLUME or CONSISTENCY_GROUP
+  local_entity_name: $_E2E_IBOXREPLICA_CG # this is the volume name to be replicated
+  replication_type: "ACTIVE_ACTIVE"       # valid values can be ACTIVE_ACTIVE or ASYNC
+  base_action: "NEW"                      # valid value is NEW
+  link_remote_system_name: $_E2E_IBOXREPLICA_REMOTE_SYSTEM # the replication link name
+  remote_pool_id: $_E2E_IBOXREPLICA_REMOTE_POOL_ID # the pool ID on the remote ibox

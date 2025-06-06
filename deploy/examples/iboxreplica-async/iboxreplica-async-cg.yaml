@@ -1,0 +1,18 @@
+apiVersion: csidriver.infinidat.com/v1
+kind: Iboxreplica
+metadata:
+  annotations:
+    infinidat.com/secret_name: infinibox-creds
+    infinidat.com/secret_namespace: infinidat-csi
+  name: iboxreplica-async-cg
+spec:
+  sync_interval: 240000                     # defaults to 240000
+  description: "async-cg-iboxreplica-test"  # user defined description
+  entity_type: "CONSISTENCY_GROUP"          # valid values are VOLUME, CONSISTENCY_GROUP, FILESYSTEM
+  local_entity_name: $_E2E_IBOXREPLICA_CG   # the volume name of the volume to be replicated
+  replication_type: "ASYNC"                 # valid values can be ASYNC or ACTIVE_ACTIVE
+  base_action: "NEW"                        # value value is NEW
+  link_remote_system_name: $_E2E_IBOXREPLICA_REMOTE_SYSTEM # the replication link name on the ibox
+  rpo_value: 300000                         # defaults to 300000
+  remote_pool_id: $_E2E_IBOXREPLICA_REMOTE_POOL_ID # the pool ID on the remote ibox
+

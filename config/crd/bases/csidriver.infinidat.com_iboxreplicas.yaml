@@ -45,6 +45,8 @@ spec:
                 type: string
               entity_type:
                 type: string
+              is_preferred:
+                type: boolean
               link_remote_system_name:
                 type: string
               local_entity_name:

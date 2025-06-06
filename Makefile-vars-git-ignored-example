@@ -1,5 +1,5 @@
 _GITLAB_USER=host-opensource
-_IMAGE_TAG = v2.21.0
+_IMAGE_TAG = v2.22.0
 _IMAGE_NAMES = "infinidat-csi-driver infinidat-csi-metrics infinidat-csi-operator"
 
 _TEST_ONE_THING_DIR=storage
@@ -18,6 +18,12 @@ _E2E_NAS_NETWORK_SPACE=default_nas_space
 _E2E_ISCSI_NETWORK_SPACE=default_iscsi_space
 _E2E_ISCSI_NETWORK_SPACE2=default_iscsi_space
 _E2E_NVME_NETWORK_SPACE=default_nvme_space
+
+_E2E_IBOXREPLICA_CG=example-cg
+_E2E_IBOXREPLICA_VOLUME=example-1234
+_E2E_IBOXREPLICA_REMOTE_SYSTEM=example-remote-ibox-01
+_E2E_IBOXREPLICA_REMOTE_POOL_ID=12345
+_E2E_IBOXREPLICA_FILESYSTEM=example-filesystem-01
 
 _E2E_PROTOCOL=nfs
 _E2E_IBOX_SECRET=infinibox-creds

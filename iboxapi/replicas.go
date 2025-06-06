@@ -198,7 +198,7 @@ type Replica struct {
 	AsyncMode                any    `json:"async_mode"`
 	Latency                  any    `json:"latency"`
 	MobilitySource           any    `json:"mobility_source"`
-	IsPreferred              any    `json:"is_preferred"`
+	IsPreferred              any    `json:"is_preferred,omitempty"`
 	SuspendedFromLocal       any    `json:"suspended_from_local"`
 	LinkID                   int    `json:"link_id"`
 	AssignedRemoteIP         string `json:"_assigned_remote_ip"`
@@ -206,15 +206,20 @@ type Replica struct {
 	LocalCgID                int    `json:"local_cg_id"`
 }
 
+// is_preferred is applicable when ACTIVE_ACTIVE, it is a pointer to a bool
+// to allow for the field to not be marshalled when the pointer is nil which
+// we want when not specifying ACTIVE_ACTIVE (e.g. when we specify ASYNC)
+// sync_interval and rpo_value is applicable when ASYNC, not ACTIVE_ACTIVE
 type CreateReplicaRequest struct {
-	SyncInterval    int    `json:"sync_interval"`
+	IsPreferred     *bool  `json:"is_preferred,omitempty"`
+	SyncInterval    int    `json:"sync_interval,omitempty"`
 	Description     string `json:"description"`
 	EntityType      string `json:"entity_type"`
 	LocalEntityID   int    `json:"local_entity_id"`
 	ReplicationType string `json:"replication_type"`
 	BaseAction      string `json:"base_action"`
 	LinkID          int    `json:"link_id"`
-	RpoValue        int    `json:"rpo_value"`
+	RpoValue        int    `json:"rpo_value,omitempty"`
 	RemotePoolID    int    `json:"remote_pool_id"`
 }
 
@@ -242,7 +247,12 @@ type GetReplicasResponse struct {
 func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
 	const function = "CreateReplica"
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/replicas")
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "request", req)
+	iboxClient.Log.V(DEBUG_LEVEL).Info(function, "URL", url, "request", req)
+
+	if req.IsPreferred == nil {
+		iboxClient.Log.V(DEBUG_LEVEL).Info(function, "is_preferred", "says its nil")
+	}
+	iboxClient.Log.V(DEBUG_LEVEL).Info(function, "is_preferred", req.IsPreferred)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {

@@ -28,6 +28,7 @@ type IboxreplicaSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
+	IsPreferred          *bool  `json:"is_preferred,omitempty"`
 	SyncInterval         int    `json:"sync_interval,omitempty"`
 	Description          string `json:"description,omitempty"`
 	EntityType           string `json:"entity_type,omitempty"`
