@@ -36,6 +36,9 @@ type ExportPathRef struct {
 	Permissions        []Permissions `json:"permissions,omitempty"`
 	SnapdirVisible     bool          `json:"snapdir_visible"`
 }
+type UpdateExportPathRef struct {
+	Permissions []Permissions `json:"permissions,omitempty"`
+}
 
 type Permissions struct {
 	Access       string `json:"access,omitempty"`
@@ -286,13 +289,21 @@ func (iboxClient *IboxClient) CreateExport(req CreateExportRequest) (*Export, er
 
 func (iboxClient *IboxClient) UpdateExport(ex Export, exportPathRef ExportPathRef) (resp *Export, err error) {
 	const function = "UpdateExport"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports/", ex.ID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", ex.ID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "export ID", ex.ID, "exportPathRef", exportPathRef)
 
-	jsonBytes, err := json.Marshal(exportPathRef)
+	// the ibox only allows a single field of the export rule to be updated, in this
+	// case we want to only update the Permissions of an existing export rule, this is
+	// needed when a Pod moves from one node to another node, requiring the new node's ip address to be
+	// covered by an export permission
+	onlyPermissionsField := UpdateExportPathRef{
+		Permissions: exportPathRef.Permissions,
+	}
+	jsonBytes, err := json.Marshal(onlyPermissionsField)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", function, err)
 	}
+	iboxClient.Log.V(DEBUG_LEVEL).Info(function, "URL", url, "update export json", string(jsonBytes))
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)

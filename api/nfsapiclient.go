@@ -38,7 +38,7 @@ func compareClientIP(permissionIP, ip string) bool {
 // AddNodeInExport : Export should be updated in case of node addition in k8s cluster
 func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
 	zlog.Trace().Msgf("AddNodeInExport() called")
-	zlog.Trace().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ip, id, access)
+	zlog.Debug().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ip, id, access)
 	flag := false
 
 	ex, err := c.Iboxapi.GetExportByID(id)
@@ -47,18 +47,18 @@ func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool
 		return nil, err
 	}
 
-	zlog.Trace().Msgf("Current export with export ID %d. export: %v", ex.ID, ex)
+	zlog.Debug().Msgf("Current export with export ID %d. export: %v", ex.ID, ex)
 
 	index := -1
 	permissionList := ex.Permissions
 	for i, permission := range permissionList {
 		if compareClientIP(permission.Client, ip) {
 			flag = true
-			zlog.Trace().Msgf("Node IP address %s already added in export rule with ID %d", ip, ex.ID)
+			zlog.Debug().Msgf("Node IP address %s already added in export rule with ID %d", ip, ex.ID)
 		} else if permission.Client == "*" {
 			index = i
 			flag = true
-			zlog.Trace().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ip, ex.ID)
+			zlog.Debug().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ip, ex.ID)
 		}
 	}
 	if index != -1 {
@@ -72,20 +72,20 @@ func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool
 		}
 		permissionList = append(permissionList, newPermission)
 
-		zlog.Trace().Msgf("Setting export with ID %d permissions to %+v", ex.ID, permissionList)
+		zlog.Debug().Msgf("Setting export with ID %d permissions to %+v", ex.ID, permissionList)
 
 		exportPathRef := iboxapi.ExportPathRef{
 			Permissions: permissionList,
 		}
 		ex, err = c.Iboxapi.UpdateExport(*ex, exportPathRef)
 		if err != nil {
-			zlog.Error().Msgf("Error occurred while updating export rule for export with ID %d: %s", ex.ID, err)
+			zlog.Error().Msgf("Error: updating export rule for export with ID: %d access: %s noRootSquash: %t ip:%s error: %s", id, access, noRootSquash, ip, err)
 			return nil, err
 		} else {
-			zlog.Trace().Msgf("Updated export rule for export with ID %d, export Response %v", ex.ID, ex)
+			zlog.Debug().Msgf("Updated export rule for export with ID %d, export Response %v", ex.ID, ex)
 		}
 	}
-	zlog.Trace().Msgf("Completed adding node %s to export with export ID %d: %+v", ip, ex.ID, ex)
+	zlog.Debug().Msgf("Completed adding node %s to export with export ID %d: %+v", ip, ex.ID, ex)
 	return ex, nil
 }
 

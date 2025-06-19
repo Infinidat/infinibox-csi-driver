@@ -328,3 +328,23 @@ func TestNfsExpand(t *testing.T) {
 		t.Log("not cleaning up namespace")
 	}
 }
+
+func TestNfsIpRangePermissions(t *testing.T) {
+
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	if err != nil {
+		t.Fatalf("error getting TestConfig %s\n", err.Error())
+	}
+
+	// override the nfs storageclass permissions with something that a real node ip address will
+	// not be within, this will test the driver's ability to add an export rule for the specific
+	// node ip address.
+	testConfig.NFSPermissions = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]"
+	e2e.Setup(testConfig)
+
+	if *e2e.CleanUp {
+		e2e.TearDown(testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+}

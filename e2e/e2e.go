@@ -28,8 +28,12 @@ const (
 	ENV_IBOX_PASSWORD                = "_E2E_IBOX_PASSWORD"
 	ENV_PROTOCOL                     = "_E2E_PROTOCOL"
 	ENV_POOL                         = "_E2E_POOL"
-	ENV_NETWORK_SPACE                = "_E2E_NETWORK_SPACE"
-	ENV_NETWORK_SPACE2               = "_E2E_NETWORK_SPACE2"
+	ENV_NETWORK_SPACE                = "_E2E_NETWORK_SPACE" // for backward compat, don't use for new stuff
+	ENV_NAS_NETWORK_SPACE            = "_E2E_NAS_NETWORK_SPACE"
+	ENV_NVME_NETWORK_SPACE           = "_E2E_NVME_NETWORK_SPACE"
+	ENV_ISCSI_NETWORK_SPACE          = "_E2E_ISCSI_NETWORK_SPACE"
+	ENV_NETWORK_SPACE2               = "_E2E_NETWORK_SPACE2" // for backward compat, don't use for new stuff
+	ENV_ISCSI_NETWORK_SPACE2         = "_E2E_ISCSI_NETWORK_SPACE2"
 	ENV_IBOX_SECRET                  = "_E2E_IBOX_SECRET"
 	ENV_IBOX_SECRET2                 = "_E2E_IBOX_SECRET2"
 	ENV_NAMESPACE                    = "_E2E_NAMESPACE"
@@ -46,6 +50,9 @@ const (
 )
 
 type TestConfig struct {
+	NetworkSpaceToUse     string
+	NetworkSpaceToUse2    string
+	NFSPermissions        string
 	Protocol              string
 	Testt                 *testing.T
 	ClientSet             *kubernetes.Clientset

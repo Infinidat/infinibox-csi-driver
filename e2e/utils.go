@@ -226,13 +226,16 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 		return err
 	}
 
+	if testConfig.NFSPermissions != "" {
+		sc.Parameters[common.SC_NFS_EXPORT_PERMISSIONS] = testConfig.NFSPermissions
+	}
 	poolToUse := os.Getenv(ENV_POOL)
 	if poolToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
-	networkSpaceToUse := os.Getenv(ENV_NETWORK_SPACE)
+	networkSpaceToUse := testConfig.NetworkSpaceToUse
 	if networkSpaceToUse == "" {
-		return fmt.Errorf("%s env var is not set and is required", ENV_NETWORK_SPACE)
+		return fmt.Errorf("network space env var is not set and is required")
 	}
 	secretToUse := os.Getenv(ENV_IBOX_SECRET)
 	if secretToUse == "" {
@@ -943,6 +946,10 @@ func GetEnvVars() string {
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_POOL, os.Getenv(ENV_POOL)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_PROTOCOL, os.Getenv(ENV_PROTOCOL)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE, os.Getenv(ENV_NETWORK_SPACE)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NAS_NETWORK_SPACE, os.Getenv(ENV_NAS_NETWORK_SPACE)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NVME_NETWORK_SPACE, os.Getenv(ENV_NVME_NETWORK_SPACE)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_ISCSI_NETWORK_SPACE, os.Getenv(ENV_ISCSI_NETWORK_SPACE)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_ISCSI_NETWORK_SPACE2, os.Getenv(ENV_ISCSI_NETWORK_SPACE2)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE2, os.Getenv(ENV_NETWORK_SPACE2)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_SECRET, os.Getenv(ENV_IBOX_SECRET)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_K8S_VERSION, os.Getenv(ENV_K8S_VERSION)))

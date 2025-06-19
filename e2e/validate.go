@@ -57,23 +57,47 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 		return fmt.Errorf("%s env var value not recognized [%s], must be a valid protocol [%s,%s,%s,%s,%s]", ENV_PROTOCOL, protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME)
 	}
 
+	var nsEnvVar string
+
+	switch protocol {
+	case common.PROTOCOL_FC:
+	case common.PROTOCOL_ISCSI:
+		nsEnvVar = ENV_ISCSI_NETWORK_SPACE
+		testConfig.NetworkSpaceToUse = os.Getenv(ENV_ISCSI_NETWORK_SPACE)
+	case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
+		nsEnvVar = ENV_NAS_NETWORK_SPACE
+		testConfig.NetworkSpaceToUse = os.Getenv(ENV_NAS_NETWORK_SPACE)
+	case common.PROTOCOL_NVME:
+		nsEnvVar = ENV_NVME_NETWORK_SPACE
+		testConfig.NetworkSpaceToUse = os.Getenv(ENV_NVME_NETWORK_SPACE)
+	}
+
+	// for backward compat only
+	if protocol != common.PROTOCOL_FC && testConfig.NetworkSpaceToUse == "" {
+		nsEnvVar = ENV_NETWORK_SPACE
+		testConfig.NetworkSpaceToUse = os.Getenv(ENV_NETWORK_SPACE)
+	}
+
 	if protocol != common.PROTOCOL_FC {
-		networkSpaceToUse := os.Getenv(ENV_NETWORK_SPACE)
-		if networkSpaceToUse == "" {
-			return fmt.Errorf("%s env var is not set and is required", ENV_NETWORK_SPACE)
+		if testConfig.NetworkSpaceToUse == "" {
+			return fmt.Errorf("%s env var is not set and is required", nsEnvVar)
 		}
-		_, err = testConfig.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpaceToUse)
+		_, err = testConfig.ClientService.Iboxapi.GetNetworkSpaceByName(testConfig.NetworkSpaceToUse)
 		if err != nil {
-			return fmt.Errorf("error getting network space by name %s %w", networkSpaceToUse, err)
+			return fmt.Errorf("error getting network space by name %s %w", testConfig.NetworkSpaceToUse, err)
 		}
 	}
 
 	// validate network space 2 on the ibox if set
-	networkSpace2ToUse := os.Getenv(ENV_NETWORK_SPACE2)
-	if networkSpace2ToUse != "" {
-		_, err = testConfig.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpace2ToUse)
+	testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_ISCSI_NETWORK_SPACE2)
+	if testConfig.NetworkSpaceToUse2 == "" {
+		// for backward compat only
+		testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_NETWORK_SPACE2)
+	}
+	if testConfig.NetworkSpaceToUse2 != "" {
+		_, err = testConfig.ClientService.Iboxapi.GetNetworkSpaceByName(testConfig.NetworkSpaceToUse2)
 		if err != nil {
-			return fmt.Errorf("error getting network space by name 2 %s %w", networkSpace2ToUse, err)
+			return fmt.Errorf("error getting network space by name 2 %s %w", testConfig.NetworkSpaceToUse2, err)
 		}
 	}
 
