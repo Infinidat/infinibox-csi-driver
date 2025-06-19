@@ -21,8 +21,8 @@ parameters:
   csi.storage.k8s.io/node-expand-secret-namespace: infinidat-csi
   csi.storage.k8s.io/fstype: ext4
   storage_protocol: nvme
-  network_space: "$_E2E_NETWORK_SPACE"
-  pool_name: "$_E2E_POOL"
+  network_space: $_E2E_NVME_NETWORK_SPACE
+  pool_name: $_E2E_POOL
   uid: "3000" # UID of volume
   gid: "3000" # GID of volume
   # unix_permissions: 777 # chmod -R of volume

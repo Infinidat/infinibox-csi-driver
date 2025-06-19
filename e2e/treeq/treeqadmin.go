@@ -43,9 +43,12 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 	fileSystemName := "e2e-treeq-admin" + config.TestNames.UniqueSuffix
 
 	// get ip address for network space
-	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
+	networkSpace := os.Getenv(e2e.ENV_NAS_NETWORK_SPACE)
 	if networkSpace == "" {
-		return 0, fmt.Errorf("_E2E_NETWORK_SPACE env var not set, required")
+		networkSpace = os.Getenv(e2e.ENV_NETWORK_SPACE)
+		if networkSpace == "" {
+			return 0, fmt.Errorf("%s or %s env vars not set, one is required", e2e.ENV_NETWORK_SPACE, e2e.ENV_NAS_NETWORK_SPACE)
+		}
 	}
 	networkSpaceResponse, err := config.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpace)
 	if err != nil {

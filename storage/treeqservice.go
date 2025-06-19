@@ -73,7 +73,11 @@ func (ts *TreeqService) checkTreeqName(FileSystems []iboxapi.FileSystem, pVName 
 			var it item
 			defer wg.Done()
 			it.treeq, it.err = ts.cs.IboxApi.GetTreeqByName(f.ID, pVName)
-			itmArry = append(itmArry, it)
+			if it.err != nil {
+				zlog.Error().Msgf("checkTreeqName error %s", it.err.Error())
+			} else {
+				itmArry = append(itmArry, it)
+			}
 		}(f)
 	}
 	wg.Wait()
