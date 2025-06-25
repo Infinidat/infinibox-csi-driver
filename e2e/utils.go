@@ -603,7 +603,9 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				Containers: []v1.Container{container},
 				Volumes:    []v1.Volume{volume},
 				SecurityContext: &v1.PodSecurityContext{
-					FSGroup: &podFSGroup,
+					FSGroup:    &podFSGroup,
+					RunAsUser:  &podFSGroup,
+					RunAsGroup: &podFSGroup,
 				},
 			},
 		}
@@ -622,7 +624,9 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				Containers: []v1.Container{container},
 				Volumes:    []v1.Volume{volume},
 				SecurityContext: &v1.PodSecurityContext{
-					FSGroup: &podFSGroup,
+					FSGroup:    &podFSGroup,
+					RunAsUser:  &podFSGroup,
+					RunAsGroup: &podFSGroup,
 				},
 			},
 		}
