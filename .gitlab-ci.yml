@@ -46,7 +46,7 @@ lint:
     except:
       - tags
     script:
-      - golangci-lint -v --timeout=5m run
+      - golangci-lint -v --timeout=55m run
 
 unit_test:
   image:
