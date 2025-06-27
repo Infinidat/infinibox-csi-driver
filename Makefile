@@ -151,7 +151,7 @@ image: build lint test ## Build and tag CSI driver docker image.
 	export BLAME_USER=$${USER}; \
 	export BLAME_BUILD_TIME="$$(date)"; \
 	echo "Building CSI driver image [$(_IMAGE_TAG)] from commit [$$HEAD] at [$$BLAME_BUILD_TIME]"; \
-	docker build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG)" \
+	docker buildx build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG)" \
 		--build-arg IMAGE_TAG="$(_IMAGE_TAG)" \
 		--build-arg VCS_REF="$$HEAD" \
 		--build-arg BLAME_MACHINE="$$BLAME_MACHINE" \

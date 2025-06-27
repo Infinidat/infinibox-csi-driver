@@ -129,10 +129,10 @@ build-image:
   tags:
     - docker-build
   image:
-    name: docker:20.10.16
+    name: docker:27.5.1
     pull_policy: if-not-present
   services:
-    - name: docker:20.10.16-dind
+    - name: docker:27.5.1-dind
       alias: dockerhost
   variables:
     DOCKER_HOST: tcp://dockerhost:2375/
@@ -143,7 +143,7 @@ build-image:
    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - > 
-      docker build --pull 
+      docker buildx build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
       --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
@@ -157,10 +157,10 @@ build-metrics-image:
   tags:
     - docker-build
   image:
-    name: docker:20.10.16
+    name: docker:27.5.1
     pull_policy: if-not-present
   services:
-    - name: docker:20.10.16-dind
+    - name: docker:27.5.1-dind
       alias: dockerhost
   variables:
     DOCKER_HOST: tcp://dockerhost:2375/
@@ -171,7 +171,7 @@ build-metrics-image:
    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - > 
-      docker build --pull 
+      docker buildx build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
       --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
@@ -188,10 +188,10 @@ test-merge-image-build:
   only:
     - merge_request
   image:
-    name: docker:20.10.16
+    name: docker:27.5.1
     pull_policy: if-not-present
   services:
-    - name: docker:20.10.16-dind
+    - name: docker:27.5.1-dind
       alias: dockerhost
   variables:
     DOCKER_HOST: tcp://dockerhost:2375/
@@ -203,7 +203,7 @@ test-merge-image-build:
   script:
     - docker pull $DEV_IMAGE || true
     - > 
-      docker build --pull 
+      docker buildx build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
       --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
@@ -220,10 +220,10 @@ copyimages:
   tags:
     - copyimages
   image:
-    name: docker:20.10.16
+    name: docker:27.5.1
     pull_policy: if-not-present
   services:
-    - name: docker:20.10.16-dind
+    - name: docker:27.5.1-dind
       alias: dockerhost
   variables:
     DOCKER_HOST: tcp://dockerhost:2375/
