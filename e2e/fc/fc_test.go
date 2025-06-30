@@ -15,7 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func XTestFcSnapshotLocking(t *testing.T) {
+func TestFcSnapshotLocking(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -62,7 +62,7 @@ func XTestFcSnapshotLocking(t *testing.T) {
 
 }
 
-func XTestFcSnapshot(t *testing.T) {
+func TestFcSnapshot(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -95,7 +95,7 @@ func XTestFcSnapshot(t *testing.T) {
 
 }
 
-func XTestFc(t *testing.T) {
+func TestFc(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -112,7 +112,7 @@ func XTestFc(t *testing.T) {
 
 }
 
-func XTestFsGroupFc(t *testing.T) {
+func TestFsGroupFc(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -156,7 +156,7 @@ func XTestFsGroupFc(t *testing.T) {
 
 }
 
-func XTestFcBlock(t *testing.T) {
+func TestFcBlock(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -175,7 +175,7 @@ func XTestFcBlock(t *testing.T) {
 
 }
 
-func XTestFcClone(t *testing.T) {
+func TestFcClone(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -223,7 +223,7 @@ func XTestFcClone(t *testing.T) {
 
 }
 
-func XTestFcExpand(t *testing.T) {
+func TestFcExpand(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -260,7 +260,7 @@ func XTestFcExpand(t *testing.T) {
 
 }
 
-func XTestFcBlockExpand(t *testing.T) {
+func TestFcBlockExpand(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
@@ -304,7 +304,7 @@ func XTestFcBlockExpand(t *testing.T) {
 
 }
 
-func XTestFcBlockRWX(t *testing.T) {
+func TestFcBlockRWX(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
 	if err != nil {
