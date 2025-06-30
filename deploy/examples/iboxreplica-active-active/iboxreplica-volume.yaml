@@ -2,8 +2,8 @@ apiVersion: csidriver.infinidat.com/v1
 kind: Iboxreplica
 metadata:
   annotations:
-    infinidat.com/secret_name: infinibox-creds
-    infinidat.com/secret_namespace: infinidat-csi
+    infinidat.com/secret_name: $_E2E_IBOX_SECRET
+    infinidat.com/secret_namespace: $_E2E_NAMESPACE
   name: iboxreplica-aa-volume-sample
 spec:
   is_preferred: true                        # set only for ACTIVE_ACTIVE, true = local system, false = the remote system
@@ -11,6 +11,6 @@ spec:
   entity_type: "VOLUME"                     # valid values can be VOLUME or CG
   local_entity_name: $_E2E_IBOXREPLICA_VOLUME # this is the volume name to be replicated
   replication_type: "ACTIVE_ACTIVE"         # valid values can be ACTIVE_ACTIVE or ASYNC
-  link_remote_system_name: $_E2E_IBOXREPLICA_REMOTE_SYSTEM #the replication link name
+  link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME #the replication link name
   remote_pool_id: $_E2E_IBOXREPLICA_REMOTE_POOL_ID        # the pool ID on the remote ibox
 

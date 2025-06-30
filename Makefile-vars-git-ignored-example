@@ -19,11 +19,13 @@ _E2E_ISCSI_NETWORK_SPACE=default_iscsi_space
 _E2E_ISCSI_NETWORK_SPACE2=default_iscsi_space
 _E2E_NVME_NETWORK_SPACE=default_nvme_space
 
+# for replication testing
 _E2E_IBOXREPLICA_CG=example-cg
 _E2E_IBOXREPLICA_VOLUME=example-1234
-_E2E_IBOXREPLICA_REMOTE_SYSTEM=example-remote-ibox-01
-_E2E_IBOXREPLICA_REMOTE_POOL_ID=12345
 _E2E_IBOXREPLICA_FILESYSTEM=example-filesystem-01
+_E2E_IBOXREPLICA_REMOTE_POOL_ID=12345
+_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME=some-ibox-01
+
 
 _E2E_PROTOCOL=nfs
 _E2E_IBOX_SECRET=infinibox-creds
@@ -41,8 +43,3 @@ _E2E_STRESS_SLEEP_SECONDS=10
 _E2E_IMAGE_PULL_SECRET=private-docker-reg-secret
 _CLI=kubectl
 _CLIN=$(_CLI) -n $(_E2E_NAMESPACE)
-
-# for replication testing
-#_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME=your-test-ibox-name
-#_E2E_IBOX_REMOTE_POOL_ID=123456
-

@@ -234,7 +234,7 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
 	networkSpaceToUse := testConfig.NetworkSpaceToUse
-	if networkSpaceToUse == "" {
+	if networkSpaceToUse == "" && testConfig.Protocol != common.PROTOCOL_FC {
 		return fmt.Errorf("network space env var is not set and is required")
 	}
 	secretToUse := os.Getenv(ENV_IBOX_SECRET)
@@ -243,7 +243,9 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	}
 	sc.Name = testConfig.TestNames.SCName
 	sc.Parameters[common.SC_POOL_NAME] = poolToUse
-	sc.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
+	if testConfig.Protocol != common.PROTOCOL_FC {
+		sc.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
+	}
 	sc.Parameters[common.SC_PROVISIONER_SECRET_NAME] = secretToUse
 	sc.Parameters[common.SC_CONTROLLER_PUBLISH_SECRET_NAME] = secretToUse
 	sc.Parameters[common.SC_NODE_STAGE_SECRET_NAME] = secretToUse
