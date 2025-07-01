@@ -14,7 +14,6 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
@@ -59,27 +58,6 @@ type nvmeDisk struct {
 	MpathDevice string
 	Targets     []nvmeTarget
 }
-
-// for NVMEDevices, note that UsedBytes, MaximumLBA, and PhysicalSize are different types (either int/int64 or string) depending
-// on the version of nvme used, that is why they specify 'any' as the type.
-// Ubuntu and RHEL return int/int64 for those whereas Suse returns strings.
-// Currently these fields are unused so there is no need to check the type that was set in the JSON.
-type NVMEDevices struct {
-	Devices []struct {
-		NameSpace    int    `json:"NameSpace"`
-		DevicePath   string `json:"DevicePath"`
-		Firmware     string `json:"Firmware"`
-		Index        int    `json:"Index"`
-		ModelNumber  string `json:"ModelNumber"`
-		SerialNumber string `json:"SerialNumber"`
-		UsedBytes    any    `json:"UsedBytes"`
-		MaximumLBA   any    `json:"MaximumLBA"`
-		PhysicalSize any    `json:"PhysicalSize"`
-		SectorSize   int    `json:"SectorSize"`
-	} `json:"Devices"`
-}
-
-const NVME_DISCOVERY_PORT = 8009
 
 func (nvme *nvmestorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s", req.GetPublishContext())
@@ -484,83 +462,3 @@ func (nvme *nvmestorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 	}
 	return targets, nil
 }
-
-func getHostNQN() (string, error) {
-
-	fileContent, err := os.ReadFile("/host/etc/nvme/hostnqn")
-	if err != nil {
-		zlog.Error().Msgf("getHostNQN (nvme) - failed to read hostnqn file %s", err.Error())
-		return "", err
-	}
-	hostnqn := string(fileContent)
-	hostnqn = strings.TrimSuffix(hostnqn, "\n")
-	zlog.Debug().Msgf("getHostNQN (nvme) - host nqn %s ", hostnqn)
-	return hostnqn, nil
-}
-
-func getNVMENamespaces() (devices NVMEDevices, err error) {
-	cmd := "nvme list -o json"
-	rawOutput, err := execCommand.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("getHostNQN (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
-		return devices, err
-	}
-	zlog.Trace().Msgf("getHostNQN (nvme) - %s raw output %s", cmd, rawOutput)
-
-	err = json.Unmarshal([]byte(rawOutput), &devices)
-	if err != nil {
-		zlog.Error().Msgf("getHostNQN (nvme) - error unmarshalling %s output - error %s", cmd, err.Error())
-		return devices, err
-	}
-	return devices, nil
-}
-
-// nvme connect-all -t tcp -a 172.20.51.170
-func nvmeConnectAll(ipAddress string) (err error) {
-	cmd := fmt.Sprintf("nvme connect-all -t tcp -a %s", ipAddress)
-	rawOutput, err := execCommand.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("nvmeConnectAll (nvme) - %s failed, ip: %s err: %v, %s", cmd, ipAddress, err, rawOutput)
-		return err
-	}
-	zlog.Debug().Msgf("nvmeConnectAll (nvme) - %s raw output %s", cmd, rawOutput)
-
-	return nil
-}
-
-// nvme discover -t tcp -a 172.20.51.170 -s 8009
-func nvmeDiscover(ipAddress string) (err error) {
-	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVME_DISCOVERY_PORT)
-	rawOutput, err := execCommand.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("nvmeDiscover (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
-		return err
-	}
-	zlog.Trace().Msgf("nvmeDiscover (nvme) - %s - raw output %s", cmd, rawOutput)
-
-	return nil
-}
-
-func disconnectNVMEConnections() error {
-	cmd := "nvme disconnect-all"
-	rawOutput, err := execCommand.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("disconnectNVMEConnections (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
-		return err
-	}
-	zlog.Debug().Msg(cmd)
-	return nil
-}
-
-/**
-// not used for now, but useful for debugging
-func getConnectionDetails() (results string, err error) {
-	cmd := "nvme list-subsys"
-	results, err = execScsi.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("%s failed, err: %v", cmd, err)
-		return results, err
-	}
-	return results, nil
-}
-*/
