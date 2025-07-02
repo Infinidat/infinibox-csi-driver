@@ -5,6 +5,7 @@ go 1.24
 toolchain go1.24.2
 
 require (
+	github.com/blang/semver/v4 v4.0.0
 	github.com/container-storage-interface/spec v1.11.0
 	github.com/containerd/containerd v1.7.27
 	github.com/go-logr/logr v1.4.2
@@ -22,12 +23,12 @@ require (
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.32.4
-	k8s.io/apimachinery v0.32.4
-	k8s.io/client-go v0.32.4
+	k8s.io/api v0.32.6
+	k8s.io/apimachinery v0.32.6
+	k8s.io/client-go v0.32.6
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kubernetes v1.32.4
-	k8s.io/mount-utils v0.32.4
+	k8s.io/kubernetes v1.32.6
+	k8s.io/mount-utils v0.32.6
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
 	sigs.k8s.io/controller-runtime v0.20.4
 )
@@ -37,7 +38,6 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
