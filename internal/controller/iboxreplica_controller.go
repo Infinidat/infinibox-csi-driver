@@ -38,8 +38,6 @@ import (
 const (
 	IBOXREPLICA_SYNC_INTERVAL_DEFAULT        = 240000
 	IBOXREPLICA_BASE_ACTION_NEW              = "NEW"
-	IBOXREPLICA_REPLICA_TYPE_ASYNC           = "ASYNC"
-	IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE   = "ACTIVE_ACTIVE"
 	IBOXREPLICA_RPO_VALUE_DEFAULT            = 300000
 	IBOXREPLICA_LINK_STATE_UP                = "UP"
 	IBOXREPLICA_LINK_WITNESS_RESILIENCY_MODE = "WITNESS"
@@ -153,13 +151,13 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	// set defaults for optional CR fields
 	// we only support ASYNC and ACTIVE_ACTIVE for replication types
 	switch replica.Spec.ReplicationType {
-	case IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE:
-	case IBOXREPLICA_REPLICA_TYPE_ASYNC:
+	case common.IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE:
+	case common.IBOXREPLICA_REPLICA_TYPE_ASYNC:
 		replica.Spec.IsPreferred = nil
 		thislog.Info("creating replica", "setting is_preferred to nil", replica.Name)
 	default:
 		err := fmt.Errorf("error invalid ReplicationType in CR %s", replica.Spec.ReplicationType)
-		thislog.Error(err, fmt.Sprintf("supported values include %s and %s", IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE, IBOXREPLICA_REPLICA_TYPE_ASYNC))
+		thislog.Error(err, fmt.Sprintf("supported values include %s and %s", common.IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE, common.IBOXREPLICA_REPLICA_TYPE_ASYNC))
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
@@ -187,7 +185,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	}
 
 	// rpo_value and sync_interval are 0 for AA replication type so they should be left as 0 values
-	if replica.Spec.ReplicationType == IBOXREPLICA_REPLICA_TYPE_ASYNC {
+	if replica.Spec.ReplicationType == common.IBOXREPLICA_REPLICA_TYPE_ASYNC {
 		if replica.Spec.RpoValue == 0 {
 			replica.Spec.RpoValue = IBOXREPLICA_RPO_VALUE_DEFAULT
 		}

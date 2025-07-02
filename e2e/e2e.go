@@ -22,31 +22,31 @@ import (
 )
 
 const (
-	SOCAT_SERVICE_PORT               = "30007"
-	ENV_IBOX_HOSTNAME                = "_E2E_IBOX_HOSTNAME"
-	ENV_IBOX_USERNAME                = "_E2E_IBOX_USERNAME"
-	ENV_IBOX_PASSWORD                = "_E2E_IBOX_PASSWORD"
-	ENV_PROTOCOL                     = "_E2E_PROTOCOL"
-	ENV_POOL                         = "_E2E_POOL"
-	ENV_NETWORK_SPACE                = "_E2E_NETWORK_SPACE" // for backward compat, don't use for new stuff
-	ENV_NAS_NETWORK_SPACE            = "_E2E_NAS_NETWORK_SPACE"
-	ENV_NVME_NETWORK_SPACE           = "_E2E_NVME_NETWORK_SPACE"
-	ENV_ISCSI_NETWORK_SPACE          = "_E2E_ISCSI_NETWORK_SPACE"
-	ENV_NETWORK_SPACE2               = "_E2E_NETWORK_SPACE2" // for backward compat, don't use for new stuff
-	ENV_ISCSI_NETWORK_SPACE2         = "_E2E_ISCSI_NETWORK_SPACE2"
-	ENV_IBOX_SECRET                  = "_E2E_IBOX_SECRET"
-	ENV_IBOX_SECRET2                 = "_E2E_IBOX_SECRET2"
-	ENV_NAMESPACE                    = "_E2E_NAMESPACE"
-	ENV_CLEANUP                      = "_E2E_CLEANUP"
-	ENV_TEST_IMAGE                   = "_E2E_TEST_IMAGE"
-	ENV_TEST_BLOCK_IMAGE             = "_E2E_TEST_BLOCK_IMAGE"
-	ENV_IBOX_LINK_REMOTE_SYSTEM_NAME = "_E2E_IBOX_LINK_REMOTE_SYSTEM_NAME"
-	ENV_IBOX_REMOTE_POOL_ID          = "_E2E_IBOX_REMOTE_POOL_ID"
-	ENV_K8S_VERSION                  = "_E2E_K8S_VERSION"
-	ENV_OCP_VERSION                  = "_E2E_OCP_VERSION"
-	ENV_USE_NFS_V4                   = "_E2E_USE_NFS_V4"
-	ENV_STRESS_ITERATIONS            = "_E2E_STRESS_ITERATIONS"
-	ENV_STRESS_SLEEP_SECONDS         = "_E2E_STRESS_SLEEP_SECONDS"
+	SOCAT_SERVICE_PORT                      = "30007"
+	ENV_IBOX_HOSTNAME                       = "_E2E_IBOX_HOSTNAME"
+	ENV_IBOX_USERNAME                       = "_E2E_IBOX_USERNAME"
+	ENV_IBOX_PASSWORD                       = "_E2E_IBOX_PASSWORD"
+	ENV_PROTOCOL                            = "_E2E_PROTOCOL"
+	ENV_POOL                                = "_E2E_POOL"
+	ENV_NETWORK_SPACE                       = "_E2E_NETWORK_SPACE" // for backward compat, don't use for new stuff
+	ENV_NAS_NETWORK_SPACE                   = "_E2E_NAS_NETWORK_SPACE"
+	ENV_NVME_NETWORK_SPACE                  = "_E2E_NVME_NETWORK_SPACE"
+	ENV_ISCSI_NETWORK_SPACE                 = "_E2E_ISCSI_NETWORK_SPACE"
+	ENV_NETWORK_SPACE2                      = "_E2E_NETWORK_SPACE2" // for backward compat, don't use for new stuff
+	ENV_ISCSI_NETWORK_SPACE2                = "_E2E_ISCSI_NETWORK_SPACE2"
+	ENV_IBOX_SECRET                         = "_E2E_IBOX_SECRET"
+	ENV_IBOX_SECRET2                        = "_E2E_IBOX_SECRET2"
+	ENV_NAMESPACE                           = "_E2E_NAMESPACE"
+	ENV_CLEANUP                             = "_E2E_CLEANUP"
+	ENV_TEST_IMAGE                          = "_E2E_TEST_IMAGE"
+	ENV_TEST_BLOCK_IMAGE                    = "_E2E_TEST_BLOCK_IMAGE"
+	ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME = "_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME"
+	ENV_IBOXREPLICA_REMOTE_POOL_ID          = "_E2E_IBOXREPLICA_REMOTE_POOL_ID"
+	ENV_K8S_VERSION                         = "_E2E_K8S_VERSION"
+	ENV_OCP_VERSION                         = "_E2E_OCP_VERSION"
+	ENV_USE_NFS_V4                          = "_E2E_USE_NFS_V4"
+	ENV_STRESS_ITERATIONS                   = "_E2E_STRESS_ITERATIONS"
+	ENV_STRESS_SLEEP_SECONDS                = "_E2E_STRESS_SLEEP_SECONDS"
 )
 
 type TestConfig struct {
