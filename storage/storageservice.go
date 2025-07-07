@@ -471,7 +471,7 @@ func multipathFlush(mpath string) {
 	zlog.Debug().Msgf("multipathFlush - Running multipath -f '%s'", mpath)
 
 	isToLogOutput := true
-	if out, err := execCommand.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput); err != nil {
+	if out, err := execCommand.Command("multipath", fmt.Sprintf("-f %s 2> /dev/null", mpath), isToLogOutput); err != nil {
 		zlog.Error().Msgf("multipathFlush - multipath -f '%s' failed - ignored: %s", mpath, err)
 	} else {
 		zlog.Debug().Msgf("multipathFlush - multipath -f '%s' succeeded: %s", mpath, out)
@@ -485,11 +485,12 @@ func multipathFlush(mpath string) {
 func findMpathFromDevice(device string) (mpath string, err error) {
 	deviceName := strings.Replace(device, "/dev/", "", 1)
 	wildcards := "\"%n_%d_\""
-	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
+	command := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceName)
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
 	zlog.Debug().Msgf("command [%s]", command)
 
-	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
+	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
 		e := fmt.Errorf("findMpathFromDevice - cannot findMpathFromDevice: %s, Error: %s: %v", device, mpath, err)
 		zlog.Error().Msg(e.Error())
@@ -934,7 +935,10 @@ func removeMultipathDevices(devices []string) error {
 		command := fmt.Sprintf("multipathd del path %s", device)
 		pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
 
-		out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+		//out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+
+		// we only care about the stdout, you can get stderr output from multipath.conf (invalid and deprecated lines)
+		out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 		if err != nil {
 			zlog.Error().Msgf("%s command failed %s", command, err.Error())
 		} else {
@@ -951,7 +955,8 @@ func removeWWIDEntry(mpath string) error {
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
 	zlog.Debug().Msgf("command [%s]", command)
 
-	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
+	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
 		zlog.Error().Msgf("%s command failed %s", command, err.Error())
 	} else {
@@ -965,7 +970,8 @@ func findDevicesForMpath(mpath string) (devices []string, err error) {
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
 	zlog.Debug().Msgf("command [%s]", command)
 
-	out, err := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
+	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
 		e := fmt.Errorf("findDevicesForMpath - cannot findDevicesForMpath: %s, Error: %s", mpath, err)
 		zlog.Error().Msg(e.Error())

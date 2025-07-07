@@ -87,7 +87,7 @@ func blockExpandVolume(volumePath string) error {
 
 	//multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
 	wildcards := "\"%n_/%d_\""
-	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceNameParts[0]+"_")
+	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceNameParts[0]+"_")
 	zlog.Debug().Msgf("command is [%s]", multipathCommand)
 	out, err = execCommand.Command(multipathCommand, "")
 	if err != nil {
@@ -106,7 +106,7 @@ func blockExpandVolume(volumePath string) error {
 	zlog.Debug().Msgf("user friendly name [%s]", userFriendlyName)
 
 	format := "\"%m,%d\""
-	multipathdCommand := fmt.Sprintf("multipathd show paths format %s | grep %s", format, "\""+userFriendlyName+" \"")
+	multipathdCommand := fmt.Sprintf("multipathd show paths format %s 2> /dev/null | grep %s", format, "\""+userFriendlyName+" \"")
 	out, err = execCommand.Command(multipathdCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd command name %s - %s", multipathdCommand, err.Error())
@@ -138,7 +138,7 @@ func blockExpandVolume(volumePath string) error {
 		}
 		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
 	}
-	resizeCommand := fmt.Sprintf("multipathd resize map %s", userFriendlyName)
+	resizeCommand := fmt.Sprintf("multipathd resize map %s 2> /dev/null", userFriendlyName)
 	out, err = execCommand.Command(resizeCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd resize map command %s - %s", resizeCommand, err.Error())

@@ -277,7 +277,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
 	commandWildcards := "%m_%d_"
-	command := fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
+	command := fmt.Sprintf("multipathd show paths raw format \"%s\" 2> /dev/null | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("command is [%s]", command)
 	out, err := execCommand.Command(command, "")
 	if err != nil {
@@ -329,14 +329,14 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
+	command = fmt.Sprintf("multipathd resize map %s 2> /dev/null", mpathPart[1])
 	out, err = execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume (fc) - command: %s -  error multipathd resize map multipath devices %s", command, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	zlog.Debug().Msgf("multipathd resize map output is [%s]\n", strings.TrimSpace(string(out)))
+	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(string(out)))
 
 	// 5 - run resize2fs /dev/mapper/mpathwi, this appears to work for both FC and iSCSI
 	const defaultResizeDelay = 5
