@@ -395,7 +395,7 @@ func (m *MockApiService) GetReplica(id int) (*Replica, error) {
 	return &resp, err
 }
 
-func (m *MockApiService) UpdateExport(export Export, exportPathRef ExportPathRef) (*Export, error) {
+func (m *MockApiService) UpdateExportPermissions(export Export, exportPathRef ExportPathRef) (*Export, error) {
 	args := m.Called(export, exportPathRef)
 	res, _ := args.Get(0).(Export)
 	err, _ := args.Get(1).(error)

@@ -140,7 +140,7 @@ type Client interface {
 	GetExportsByFileSystemID(filesystemID int) ([]Export, error)
 	DeleteExport(exportID int) (*Export, error)
 	CreateExport(request CreateExportRequest) (*Export, error)
-	UpdateExport(export Export, exportPathRef ExportPathRef) (*Export, error)
+	UpdateExportPermissions(export Export, exportPathRef ExportPathRef) (*Export, error)
 
 	// metadata
 	PutMetadata(objectID int, metadata map[string]interface{}) (*PutMetadataResponse, error)

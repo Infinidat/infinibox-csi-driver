@@ -77,7 +77,7 @@ func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool
 		exportPathRef := iboxapi.ExportPathRef{
 			Permissions: permissionList,
 		}
-		ex, err = c.Iboxapi.UpdateExport(*ex, exportPathRef)
+		ex, err = c.Iboxapi.UpdateExportPermissions(*ex, exportPathRef)
 		if err != nil {
 			zlog.Error().Msgf("Error: updating export rule for export with ID: %d access: %s noRootSquash: %t ip:%s error: %s", id, access, noRootSquash, ip, err)
 			return nil, err
@@ -140,7 +140,7 @@ func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, access strin
 		exportPathRef.Permissions = permissionList
 
 		var err error
-		exportResponse, err = c.Iboxapi.UpdateExport(export, exportPathRef)
+		exportResponse, err = c.Iboxapi.UpdateExportPermissions(export, exportPathRef)
 		if err != nil {
 			zlog.Error().Msgf("Error occured while updating permission : %s", err)
 			return nil, err

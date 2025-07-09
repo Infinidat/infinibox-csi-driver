@@ -287,7 +287,7 @@ func (iboxClient *IboxClient) CreateExport(req CreateExportRequest) (*Export, er
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) UpdateExport(ex Export, exportPathRef ExportPathRef) (resp *Export, err error) {
+func (iboxClient *IboxClient) UpdateExportPermissions(ex Export, exportPathRef ExportPathRef) (resp *Export, err error) {
 	const function = "UpdateExport"
 	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", ex.ID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "export ID", ex.ID, "exportPathRef", exportPathRef)

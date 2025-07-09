@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"infinibox-csi-driver/common"
+	"infinibox-csi-driver/iboxapi"
 	"strconv"
 	"strings"
 )
@@ -47,6 +48,20 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 		}
 	}
 	return permissionsMapArray, nil
+}
+
+// convertToExportRulePermissions converts the permissions from the JSON marshalled format to
+// the iboxapi.Permissions, to be used later for updating the permissions with
+// the iboxapi
+func convertToExportRulePermissions(permissionsMapArray []map[string]interface{}) (apiPermissions []iboxapi.Permissions) {
+	for _, pass := range permissionsMapArray {
+		ap := iboxapi.Permissions{}
+		ap.NoRootSquash = pass[NFS_EXPORT_PERM_NO_ROOT_SQUASH].(bool)
+		ap.Access = pass[NFS_EXPORT_PERM_ACCESS].(string)
+		ap.Client = pass[NFS_EXPORT_PERM_CLIENT].(string)
+		apiPermissions = append(apiPermissions, ap)
+	}
+	return apiPermissions
 }
 
 // uid should be integer >= -1, if set to -1, then it means don't change

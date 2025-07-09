@@ -214,35 +214,49 @@ func (nfs *nfsstorage) updateExport(filesystemId int, exportPerms string) (err e
 		zlog.Error().Msg(e.Error())
 		return e
 	}
+	updatePerms := convertToExportRulePermissions(permissionsMapArray)
+	zlog.Debug().Msgf("updateExport (nfs) updatePermissions len(%d) %+v", len(updatePerms), updatePerms)
 
-	// remove an existing export if it exists, this occurs when a pod restarts
-	resp, err := nfs.cs.IboxApi.GetExportsByFileSystemID(filesystemId)
+	existingExports, err := nfs.cs.IboxApi.GetExportsByFileSystemID(filesystemId)
 	if err != nil {
 		e := fmt.Errorf("updateExport (nfs) - error from GetExportByFileSystem filesystemId %d %v", filesystemId, err)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
-	zlog.Trace().Msgf("updateExport (nfs) - GetExportByFileSystem response =%+v", resp)
-	if resp != nil {
-		responses := resp
-		for i := 0; i < len(responses); i++ {
-			r := responses[i]
-			if r.ExportPath == exportFileSystem.Export_path {
-				zlog.Debug().Msgf("updateExport (nfs) - export path was found to already exist %s with snapDirVisible %t", r.ExportPath, r.SnapdirVisible)
-				exportFileSystem.SnapdirVisible = r.SnapdirVisible // use an existing export's snapDirVisible value instead of SC value
-				// here is where we would delete the existing export
-				deleteResp, err := nfs.cs.IboxApi.DeleteExport(r.ID)
-				if err != nil {
-					e := fmt.Errorf("updateExport (nfs) - error from DeleteExportPath ID %d filesystemId %d %v", r.ID, filesystemId, err)
-					zlog.Error().Msg(e.Error())
-					return e
+	zlog.Debug().Msgf("updateExport (nfs) - GetExportByFileSystem response =%+v", existingExports)
+	for _, existingExport := range existingExports {
+		if existingExport.ExportPath == exportFileSystem.Export_path {
+			zlog.Debug().Msgf("updateExport (nfs) - export path was found to already exist %s with snapDirVisible %t", existingExport.ExportPath, existingExport.SnapdirVisible)
+
+			// look at all existing permissions, see if the client IP already is used, do nothing if that is the case
+			for _, p := range existingExport.Permissions {
+				for _, newP := range updatePerms {
+					if newP.Client == p.Client {
+						zlog.Debug().Msgf("updateExport (nfs) - client IP was found to already exist %s, skipping adding it or updating existing perms", newP.Client)
+						return nil
+					}
 				}
-				zlog.Trace().Msgf("updateExport (nfs) - delete export path response %+v\n", deleteResp)
 			}
+
+			// update the existing filesystem export with the new permissions
+			zlog.Debug().Msgf("updateExport (nfs) - updating  export ID %d old perms %+v plus new perms %+v", existingExport.ID, existingExport.Permissions, updatePerms)
+			exportPathRef := iboxapi.ExportPathRef{
+				Permissions: append(existingExport.Permissions, updatePerms...),
+			}
+			_, err = nfs.cs.IboxApi.UpdateExportPermissions(existingExport, exportPathRef)
+			if err != nil {
+				e := fmt.Errorf("updateExport (nfs) - error from UpdateExport ID %d filesystemId %d %v", existingExport.ID, filesystemId, err)
+				zlog.Error().Msg(e.Error())
+				return e
+			}
+			nfs.exportID = existingExport.ID
+			nfs.exportBlock = existingExport.ExportPath
+			nfs.snapdirVisible = existingExport.SnapdirVisible
+			return nil
 		}
 	}
 
-	// create the export rule
+	// create the export rule if it didn't already exist
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	zlog.Debug().Msgf("updateExport (nfs) - exportFileSystem =%+v", exportFileSystem)
 	exportResp, err := nfs.cs.IboxApi.CreateExport(exportFileSystem)

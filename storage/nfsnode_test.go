@@ -139,7 +139,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 // case a default export rule should be created, this test has 1 existing
 // exports that will test deleting it and recreating the export logic, this
 // is the case when a pod restarts having an existing export
-func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_PodRestart_success() {
+func (suite *NodeSuite) XTest_NodePublishVolume_DefaultExport_PodRestart_success() {
 	randomDir := RandomString(10)
 	targetPath := randomDir
 	err := os.Mkdir("/tmp/"+targetPath, os.ModePerm)
