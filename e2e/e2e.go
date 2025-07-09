@@ -45,6 +45,7 @@ const (
 	ENV_K8S_VERSION                         = "_E2E_K8S_VERSION"
 	ENV_OCP_VERSION                         = "_E2E_OCP_VERSION"
 	ENV_USE_NFS_V4                          = "_E2E_USE_NFS_V4"
+	ENV_NFS_EXPORT_PERMISSION               = "_E2E_NFS_EXPORT_PERMISSION"
 	ENV_STRESS_ITERATIONS                   = "_E2E_STRESS_ITERATIONS"
 	ENV_STRESS_SLEEP_SECONDS                = "_E2E_STRESS_SLEEP_SECONDS"
 )

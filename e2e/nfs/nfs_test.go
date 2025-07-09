@@ -6,6 +6,7 @@ import (
 	"context"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -339,7 +340,15 @@ func TestNfsIpRangePermissions(t *testing.T) {
 	// override the nfs storageclass permissions with something that a real node ip address will
 	// not be within, this will test the driver's ability to add an export rule for the specific
 	// node ip address.
+
+	// set a default permission rule in case the env var is not set
 	testConfig.NFSPermissions = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]"
+	nfsPermission := os.Getenv(e2e.ENV_NFS_EXPORT_PERMISSION)
+	if nfsPermission == "" {
+		testConfig.NFSPermissions = nfsPermission
+		t.Logf("using nfs ip range permission from env var %s", nfsPermission)
+	}
+
 	e2e.Setup(testConfig)
 
 	if *e2e.CleanUp {

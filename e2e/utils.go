@@ -961,6 +961,7 @@ func GetEnvVars() string {
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_K8S_VERSION, os.Getenv(ENV_K8S_VERSION)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_OCP_VERSION, os.Getenv(ENV_OCP_VERSION)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_CLEANUP, os.Getenv(ENV_CLEANUP)))
+	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NFS_EXPORT_PERMISSION, os.Getenv(ENV_NFS_EXPORT_PERMISSION)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_USERNAME, os.Getenv(ENV_IBOX_USERNAME)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_PASSWORD, os.Getenv(ENV_IBOX_PASSWORD)))
 	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_HOSTNAME, os.Getenv(ENV_IBOX_HOSTNAME)))
