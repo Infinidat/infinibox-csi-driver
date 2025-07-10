@@ -42,6 +42,13 @@ _E2E_STRESS_SLEEP_SECONDS=10
 
 # used for testing nfs ip ranges for export rule permissions
 _E2E_NFS_EXPORT_PERMISSION="[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]"
+# used for testing nfs ip ranges for export rule permissions
+#_E2E_NFS_EXPORT_PERMISSION="[{'access':'RW','client':'172.20.65.31-172.20.84.246','no_root_squash':true}]"
+# this is for testing nfs ip ranges that are invalid
+#_E2E_NFS_EXPORT_PERMISSION="[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]"
+# this is for testing nfs dual exports example
+#_E2E_NFS_EXPORT_PERMISSION="[{'access':'RW','client':'172.20.65.31','no_root_squash':true},{'access':'RW','client':'172.20.84.246','no_root_squash':true}]"
+#_E2E_NFS_EXPORT_PERMISSION="[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true},{'access':'RW','client':'172.20.84.246','no_root_squash':true}]"
 
 # comment out pull secret env var if running on openshift, use global pull secret instead
 _E2E_IMAGE_PULL_SECRET=private-docker-reg-secret

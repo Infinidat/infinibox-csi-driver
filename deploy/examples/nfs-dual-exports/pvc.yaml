@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-dual-exports
+  namespace: $_E2E_NAMESPACE
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ibox-nfs-dual-exports
+  # volumeName: <<pv name>> #need to uncomment if want to use an existing pv
