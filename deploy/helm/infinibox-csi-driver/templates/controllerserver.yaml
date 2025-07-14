@@ -116,13 +116,13 @@ spec:
         - name: iboxreplica
           ports:
             - containerPort: 8081
-              name: healthz
+              name: healthz1
               protocol: TCP
           livenessProbe:
             failureThreshold: 5
             httpGet:
               path: /healthz
-              port: healthz
+              port: healthz1
             initialDelaySeconds: 10
             timeoutSeconds: 3
             periodSeconds: 2
