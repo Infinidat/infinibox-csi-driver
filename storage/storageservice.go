@@ -471,7 +471,7 @@ func multipathFlush(mpath string) {
 	zlog.Debug().Msgf("multipathFlush - Running multipath -f '%s'", mpath)
 
 	isToLogOutput := true
-	if out, err := execCommand.Command("multipath", fmt.Sprintf("-f %s 2> /dev/null", mpath), isToLogOutput); err != nil {
+	if out, _, err := execCommand.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput); err != nil {
 		zlog.Error().Msgf("multipathFlush - multipath -f '%s' failed - ignored: %s", mpath, err)
 	} else {
 		zlog.Debug().Msgf("multipathFlush - multipath -f '%s' succeeded: %s", mpath, out)
@@ -485,17 +485,15 @@ func multipathFlush(mpath string) {
 func findMpathFromDevice(device string) (mpath string, err error) {
 	deviceName := strings.Replace(device, "/dev/", "", 1)
 	wildcards := "\"%n_%d_\""
-	command := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceName)
-	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
+	out, _, err := execCommand.Command(command, "")
+	if err != nil {
+		e := fmt.Errorf("findMpathFromDevice (fc) - command: %s error: %s", command, err.Error())
+		zlog.Error().Msg(e.Error())
+		return "", e
+	}
 	zlog.Debug().Msgf("command [%s]", command)
 
-	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
-	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
-	if err != nil {
-		e := fmt.Errorf("findMpathFromDevice - cannot findMpathFromDevice: %s, Error: %s: %v", device, mpath, err)
-		zlog.Error().Msg(e.Error())
-		return mpath, e
-	}
 	outParts := strings.Split(string(out), "_")
 	if len(outParts) < 1 {
 		e := fmt.Errorf("findMpathFromDevice - cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
@@ -621,7 +619,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	for i := 1; i <= 5; i++ {
 		// Get state of device
 		zlog.Debug().Msgf("Checking device state of %s", statePath)
-		output, err = execCommand.Command("cat", statePath)
+		output, _, err = execCommand.Command("cat", statePath)
 		if err != nil {
 			zlog.Error().Msgf("Failed: Cannot check state of %s", statePath)
 			return
@@ -641,7 +639,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	}
 
 	// Echo 1 to delete device
-	output, err = execCommand.Command("echo", fmt.Sprintf("1 > %s", deletePath))
+	output, _, err = execCommand.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if err != nil {
 		zlog.Error().Msgf("Failed to delete device '%s' with output '%s' and error '%v'", deletePath, output, err.Error())
 		return
@@ -761,14 +759,14 @@ func waitForOneDeviceState(hostId string, channel string, target string, lun str
 	zlog.Debug().Msgf("Checking device state within %s", hostPath)
 	for i := 1; i <= 5; i++ {
 		// Get state of device
-		hostOutput, err := execCommand.Command("cat", hostPath)
+		hostOutput, _, err := execCommand.Command("cat", hostPath)
 		if err != nil {
 			zlog.Warn().Msgf("Failed (%d): Cannot check state of device file %s: %s", i, hostPath, err)
 		}
 		deviceState := strings.TrimSpace(string(hostOutput))
 
 		// Get wwid of device
-		wwidOutput, err := execCommand.Command("cat", wwidPath)
+		wwidOutput, _, err := execCommand.Command("cat", wwidPath)
 		if err != nil {
 			zlog.Warn().Msgf("Failed (%d): Cannot get wwid of wwid file %s: %s", i, wwidPath, err)
 		} else {
@@ -864,7 +862,7 @@ func findHosts(protocol string) ([]string, error) {
 	// Find hosts
 	switch protocol {
 	case common.PROTOCOL_ISCSI:
-		hostIds, err := execCommand.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
+		hostIds, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
 		hosts := strings.Fields(hostIds)
 		if err != nil {
 			zlog.Error().Msgf("Finding hosts failed: %s", err)

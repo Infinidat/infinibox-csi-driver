@@ -427,7 +427,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	command := fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("NodeExpandVolume (iscsi) - command is [%s]", command)
 
-	out, err := execCommand.Command(command, "")
+	out, _, err := execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume (iscsi) - Command %s - error: %s", command, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -457,7 +457,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 			zlog.Debug().Msgf("device is [%s]\n", blockDevice)
 			rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
-			out, err := execCommand.Command(command, "")
+			out, _, err := execCommand.Command(command, "")
 			if err != nil {
 				e := fmt.Errorf("NodeExpandVolume (iscsi) - Command %s - error writing rescan on multipath devices %s", command, err.Error())
 				zlog.Error().Msg(e.Error())
@@ -475,7 +475,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	zlog.Debug().Msgf("command is [%s]", command)
-	out, err = execCommand.Command(command, "")
+	out, _, err = execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume  (iscsi)- error multipathd resize map multipath devices %s", err.Error())
 		zlog.Error().Msg(e.Error())
@@ -498,7 +498,7 @@ func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	}
 	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
 	command = fmt.Sprintf("resize2fs %s", multipathDevice)
-	out, err = execCommand.Command(command, "")
+	out, _, err = execCommand.Command(command, "")
 	zlog.Debug().Msgf("command is [%s]", command)
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume  (iscsi)- Command %s - error: %s", command, err.Error())
@@ -519,7 +519,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 
 	zlog.Debug().Msgf("check that provided interface '%s' is available", b.Iface)
 	isToLogOutput := false
-	out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface), isToLogOutput)
+	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface), isToLogOutput)
 	if err != nil {
 		e := fmt.Errorf("AttachDisk (iscsi) cannot read interface: %s output: %s error: %v", b.Iface, string(out), err)
 		zlog.Error().Msg(e.Error())
@@ -546,7 +546,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 			newIface := targets[i].Portals[0] // Do not append ':$volume_id'
 			zlog.Debug().Msgf("AttachDisk (iscsi) required iface name: '%s'", newIface)
 			isToLogOutput := false
-			_, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
+			_, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
 			if err != nil {
 				zlog.Debug().Msgf("AttachDisk (iscsi) creating new iface (clone) and copying parameters from pre-configured iface to it")
 				err = iscsi.cloneIface(b, newIface)
@@ -568,7 +568,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		for p := range targets[i].Portals {
 			zlog.Debug().Msgf("AttachDisk (iscsi) Discover targets at portal '%s'", targets[i].Portals[p])
 			// Discover all targets associated with a portal.
-			_, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", targets[i].Portals[p]))
+			_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", targets[i].Portals[p]))
 			if err != nil {
 				e := fmt.Errorf("AttachDisk (iscsi) failed to discover targets at portal '%s': %v ", out, err)
 				zlog.Error().Msgf("%s", e.Error())
@@ -612,7 +612,7 @@ func (iscsi *iscsistorage) AttachDisk(b iscsiDiskMounter) (mntPath string, err e
 		if !iqnFound {
 			for p := range targets[i].Portals {
 				zlog.Debug().Msgf("AttachDisk (iscsi) - login to iscsi target iqn %s at all portals using interface %s", targets[i].Iqn, targets[i].Portals[p])
-				_, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[i].Iqn, targets[i].Portals[p]))
+				_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[i].Iqn, targets[i].Portals[p]))
 				if err != nil {
 					zlog.Error().Msg(err.Error())
 					if status.Code(err) != codes.AlreadyExists {
@@ -888,7 +888,7 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, porta
 	}
 
 	zlog.Debug().Msgf("updateISCSINode (iscsi) update node with CHAP")
-	out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
+	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
 	if err != nil {
 		e := fmt.Errorf("updateISCSINode (iscsi): failed to update node with CHAP, output: %v", string(out))
 		zlog.Error().Msg(e.Error())
@@ -899,7 +899,7 @@ func (iscsi *iscsistorage) updateISCSINode(b iscsiDiskMounter, iqn string, porta
 		v := b.Secret[k]
 		if len(v) > 0 {
 			zlog.Debug().Msgf("updateISCSINode (iscsi) update node session key/value")
-			out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, k, v))
+			out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, k, v))
 			if err != nil {
 				e := fmt.Errorf("updateISCSINode (iscsi): failed to update node session key %q with value %q error: %v", k, v, string(out))
 				zlog.Error().Msg(e.Error())
@@ -949,7 +949,7 @@ func (iscsi *iscsistorage) parseIscsiadmShow(output string) (map[string]string, 
 func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error {
 	var lastErr error
 	zlog.Debug().Msgf("cloneIface (iscsi) - find pre-configured iface records")
-	out, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface))
+	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", b.Iface))
 	if err != nil {
 		zlog.Error().Msgf("%s", err.Error())
 		lastErr = fmt.Errorf("cloneIface (iscsi): failed to show iface records: %s (%v)", string(out), err)
@@ -968,7 +968,7 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	params["iface.initiatorname"] = b.InitiatorName
 
 	zlog.Debug().Msgf("cloneIface (iscsi) - create new interface")
-	out, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op new", newIface))
+	out, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op new", newIface))
 	if err != nil {
 		lastErr = fmt.Errorf("cloneIface (iscsi): failed to create new iface: %s (%v)", string(out), err)
 		return lastErr
@@ -977,10 +977,10 @@ func (iscsi *iscsistorage) cloneIface(b iscsiDiskMounter, newIface string) error
 	// update new iface records
 	for key, val := range params {
 		zlog.Debug().Msgf("cloneIface (iscsi) - update records of interface '%s'", newIface)
-		_, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op update --name %q --value %q", newIface, key, val))
+		_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op update --name %q --value %q", newIface, key, val))
 		if err != nil {
 			zlog.Error().Msgf("%s", err.Error())
-			_, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op delete", newIface))
+			_, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op delete", newIface))
 			if err != nil {
 				lastErr = fmt.Errorf("cloneIface (iscsi) - failed to delete iface '%s': %s ", newIface, err)
 				return lastErr
@@ -1045,7 +1045,7 @@ func (iscsi *iscsistorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 }
 
 func getSessionDetails() (results []SessionDetails) {
-	rawOutput, err := execCommand.Command("iscsiadm", "--mode session")
+	rawOutput, _, err := execCommand.Command("iscsiadm", "--mode session")
 	if err != nil {
 		zlog.Error().Msgf("getISCSITargets (iscsi) - session list failed, error: %v", err)
 		return results
@@ -1112,7 +1112,7 @@ func logoutAllSessions() (err error) {
 }
 
 func getHostIDs() (hosts []string, err error) {
-	rawOutput, err := execCommand.Command("iscsiadm", "-m host -P0")
+	rawOutput, _, err := execCommand.Command("iscsiadm", "-m host -P0")
 	if err != nil {
 		e := fmt.Errorf("getHostIDs (iscsi) - finding hosts failed: %s", err)
 		zlog.Error().Msg(e.Error())

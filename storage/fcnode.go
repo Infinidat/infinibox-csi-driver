@@ -277,9 +277,9 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
 	commandWildcards := "%m_%d_"
-	command := fmt.Sprintf("multipathd show paths raw format \"%s\" 2> /dev/null | grep %s", commandWildcards, multipathDeviceBase+"_")
+	command := fmt.Sprintf("multipathd show paths raw format \"%s\" | grep %s", commandWildcards, multipathDeviceBase+"_")
 	zlog.Debug().Msgf("command is [%s]", command)
-	out, err := execCommand.Command(command, "")
+	out, _, err := execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume (fc) - command: %s error: %s", command, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -309,7 +309,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 			zlog.Debug().Msgf("device is [%s]\n", blockDevice)
 			rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", blockDevice)
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
-			out, err := execCommand.Command(command, "")
+			out, _, err := execCommand.Command(command, "")
 			if err != nil {
 				e := fmt.Errorf("NodeExpandVolume (fc) - Command %s - error writing rescan on multipath devices %s", command, err.Error())
 				zlog.Error().Msg(e.Error())
@@ -329,8 +329,8 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	command = fmt.Sprintf("multipathd resize map %s 2> /dev/null", mpathPart[1])
-	out, err = execCommand.Command(command, "")
+	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
+	out, _, err = execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume (fc) - command: %s -  error multipathd resize map multipath devices %s", command, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -353,7 +353,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	}
 	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
 	command = fmt.Sprintf("resize2fs %s", multipathDevice)
-	out, err = execCommand.Command(command, "")
+	out, _, err = execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume (fc) - command: %s  error resize2fs %s", command, err.Error())
 		zlog.Error().Msg(e.Error())

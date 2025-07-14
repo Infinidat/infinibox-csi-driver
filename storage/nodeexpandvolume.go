@@ -63,7 +63,7 @@ func blockExpandVolume(volumePath string) error {
 	findmntCommand := fmt.Sprintf("findmnt --noheadings -l -o SOURCE --target %s", volumePath)
 	zlog.Debug().Msgf("%s", findmntCommand)
 
-	out, err := execCommand.Command(findmntCommand, "")
+	out, _, err := execCommand.Command(findmntCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running findmnt command name %s - %s", findmntCommand, err.Error())
 	}
@@ -89,7 +89,7 @@ func blockExpandVolume(volumePath string) error {
 	wildcards := "\"%n_/%d_\""
 	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceNameParts[0]+"_")
 	zlog.Debug().Msgf("command is [%s]", multipathCommand)
-	out, err = execCommand.Command(multipathCommand, "")
+	out, _, err = execCommand.Command(multipathCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipath command name %s - %s", multipathCommand, err.Error())
 	}
@@ -107,7 +107,7 @@ func blockExpandVolume(volumePath string) error {
 
 	format := "\"%m,%d\""
 	multipathdCommand := fmt.Sprintf("multipathd show paths format %s 2> /dev/null | grep %s", format, "\""+userFriendlyName+" \"")
-	out, err = execCommand.Command(multipathdCommand, "")
+	out, _, err = execCommand.Command(multipathdCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd command name %s - %s", multipathdCommand, err.Error())
 	}
@@ -132,14 +132,14 @@ func blockExpandVolume(volumePath string) error {
 		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", devices[i])
 		echoCommand := fmt.Sprintf("echo 1 > %s", rescanPath)
 		zlog.Debug().Msgf("%s", echoCommand)
-		out, err := execCommand.Command(echoCommand, "")
+		out, _, err := execCommand.Command(echoCommand, "")
 		if err != nil {
 			return fmt.Errorf("error writing rescan on multipath devices %s", err.Error())
 		}
 		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
 	}
 	resizeCommand := fmt.Sprintf("multipathd resize map %s 2> /dev/null", userFriendlyName)
-	out, err = execCommand.Command(resizeCommand, "")
+	out, _, err = execCommand.Command(resizeCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd resize map command %s - %s", resizeCommand, err.Error())
 	}

@@ -40,13 +40,12 @@ func TestExecCommand(t *testing.T) {
 			// Test line feeds and tabs in output are returned.
 			{"echo", "-e 'foo\nbar\tblah'", "foo\nbar\tblah", ""},
 
-			// Test failure with writing to stderr
-			{"echo", "stderr >&2", "stderr", ""},
-			{"echo", "stdout; >&2 echo stderr", "stdout\nstderr", ""},
+			// test that stderr is not being combined into stdout
+			{"echo", "stderr >&2", "", ""},
 		}
 
 		for _, test := range tests {
-			answer, err := exec.Command(test.cmd, test.args)
+			answer, _, err := exec.Command(test.cmd, test.args)
 			if !ErrorContains(err, test.wanterr) {
 				t.Errorf(`ExecCommand("%s") has err: '%s' != '%s'`, test.cmd, err, test.wanterr)
 			}
@@ -72,7 +71,7 @@ func TestExecCommand(t *testing.T) {
 				r := fmt.Sprintf("%d", rand.Int())
 				cmd := "echo"
 				args := fmt.Sprintf("'%s' > %s && cat %s", r, sharedFile, sharedFile)
-				answer, err := execScsi.Command(cmd, args)
+				answer, _, err := execScsi.Command(cmd, args)
 				if err != nil {
 					t.Errorf(`ExecCommand("%s") has err: '%s'`, cmd, err)
 				}

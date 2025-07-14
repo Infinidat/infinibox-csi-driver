@@ -14,6 +14,7 @@ limitations under the License.
 */
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -39,15 +40,13 @@ type Exec struct {
 //	cmd - Command to run with pipefail set.
 //	args - arguments for the command, can be an empty string
 //	isToLogOutput - Optional boolean array. Defaults to allow logging of output. Set to false to suppress logging. Output is always returned.
-func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (out string, err error) {
+func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, stdErr string, err error) {
 	s.mu.Lock()
 	defer func() {
-		out = strings.TrimSpace(out)
+		stdOut = strings.TrimSpace(stdOut)
 		s.mu.Unlock()
 		zlog.Trace().Msgf("%s", follower)
 	}()
-
-	var result []byte
 
 	// Prepend pipefail to cmd
 	cmd = strings.TrimSpace(cmd)
@@ -59,12 +58,23 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (out stri
 
 	zlog.Debug().Msgf("%s %s", leader, pipefailCmd)
 
-	result, cmdErr := exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
+	cmdToRun := exec.Command("bash", "-c", pipefailCmd)
+	var stdOutBytes, stdErrBytes bytes.Buffer
+	cmdToRun.Stdout = &stdOutBytes
+	cmdToRun.Stderr = &stdErrBytes
+	cmdErr := cmdToRun.Run()
+	stdErr = stdErrBytes.String()
 
+	// for now, we will log stderr if it shows up in any command, stderr could show up
+	// for errors in commands or even if multipath.conf has deprecation warnings
+	if stdErr != "" {
+		zlog.Warn().Msgf("command %s stderr [%s]", pipefailCmd, stdErr)
+	}
 	if cmdErr != nil {
 		if nativeError, nativeGetOK := cmdErr.(*exec.ExitError); nativeGetOK {
 			var errCode codes.Code
 			exitCode := nativeError.ExitCode()
+			stdErr = string(nativeError.Stderr)
 			//zlog.Debug().Msgf("Command %s had exit code %s", cmd, exitCode)
 			if cmd == "iscsiadm" {
 				switch exitCode {
@@ -81,23 +91,21 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (out stri
 				}
 				err = status.Error(errCode, fmt.Sprintf("iscsiadm error: %d, %s", exitCode, cmdErr))
 			} else {
-				err = status.Error(codes.Unknown, fmt.Sprintf("error: %s result: %s", cmdErr, string(result)))
+				err = status.Error(codes.Unknown, fmt.Sprintf("error: %s result: %s", cmdErr, stdOutBytes.String()))
 			}
 		} else {
-			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s, result: %s", cmd, cmdErr, string(result)))
+			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s, result: %s", cmd, cmdErr, stdOutBytes.String()))
 		}
-		zlog.Error().Msgf("'%s' failed: %s result: %s", pipefailCmd, err, string(result))
-		return "", err
+		zlog.Error().Msgf("'%s' failed: %s result: %s stderr: %s", pipefailCmd, err, stdOutBytes.String(), stdErrBytes.String())
+		return "", string(stdErr), err
 	}
-
-	out = string(result)
 
 	// Logging is optional, defaults to logged
 	if len(isToLogOutput) == 0 || isToLogOutput[0] {
-		if len(out) != 0 {
-			zlog.Trace().Msgf("Output:\n%s", out)
+		if len(stdOut) != 0 {
+			zlog.Trace().Msgf("Output:\n%s", stdOutBytes.String())
 		}
 	}
 
-	return out, nil
+	return stdOutBytes.String(), stdErrBytes.String(), nil
 }

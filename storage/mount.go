@@ -121,7 +121,7 @@ func mountLogic(config diskInfo, targetPath, devicePath, stagePath, fsType strin
 		}
 		if os.IsNotExist(err) {
 			zlog.Debug().Msgf("mountLogic - mount point %s does not exist, creating mount point.", mountPoint)
-			_, err := execCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
+			_, _, err := execCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
 			if err != nil {
 				zlog.Error().Msgf("mountLogic - failed to mkdir '%s': %v", mountPoint, err)
 				return err

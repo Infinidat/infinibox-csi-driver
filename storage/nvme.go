@@ -109,7 +109,7 @@ func getHostNQN() (string, error) {
 
 func getNVMENamespaces() (devices NVMEDevices, err error) {
 	cmd := "nvme list -o json"
-	rawOutput, err := execCommand.Command(cmd, "")
+	rawOutput, _, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("getNVMENamespaces (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return devices, err
@@ -144,7 +144,7 @@ func getNVMENamespaces() (devices NVMEDevices, err error) {
 // nvme connect-all -t tcp -a 172.20.51.170
 func nvmeConnectAll(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme connect-all -t tcp -a %s", ipAddress)
-	rawOutput, err := execCommand.Command(cmd, "")
+	rawOutput, _, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("nvmeConnectAll (nvme) - %s failed, ip: %s err: %v, %s", cmd, ipAddress, err, rawOutput)
 		return err
@@ -157,7 +157,7 @@ func nvmeConnectAll(ipAddress string) (err error) {
 // nvme discover -t tcp -a 172.20.51.170 -s 8009
 func nvmeDiscover(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVME_DISCOVERY_PORT)
-	rawOutput, err := execCommand.Command(cmd, "")
+	rawOutput, _, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("nvmeDiscover (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return err
@@ -169,7 +169,7 @@ func nvmeDiscover(ipAddress string) (err error) {
 
 func disconnectNVMEConnections() error {
 	cmd := "nvme disconnect-all"
-	rawOutput, err := execCommand.Command(cmd, "")
+	rawOutput, _, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("disconnectNVMEConnections (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return err
@@ -194,7 +194,7 @@ func getConnectionDetails() (results string, err error) {
 // parse the NVME version using semver formatting and comparison
 func getNVMEVersion() (version string, err error) {
 	cmd := "nvme version"
-	rawOutput, err := execCommand.Command(cmd, "")
+	rawOutput, _, err := execCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("getNVMEVersion - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return "", err

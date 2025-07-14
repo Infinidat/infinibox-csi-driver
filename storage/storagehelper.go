@@ -666,7 +666,7 @@ func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 	for _, host := range hosts {
 		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
 		zlog.Debug().Msgf("Rescanning host path at '%s' for disk ID '%s' and lun '%s'", scsiHostPath, diskid, lun)
-		_, err := execCommand.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
+		_, _, err := execCommand.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
 			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, diskid, lun, err)
 			return "", err

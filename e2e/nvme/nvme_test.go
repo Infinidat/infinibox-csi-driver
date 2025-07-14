@@ -465,13 +465,13 @@ func TestNVMENetworkSpace(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
+	networkSpace := os.Getenv(e2e.ENV_NVME_NETWORK_SPACE)
 	if networkSpace == "" {
-		t.Fatalf("error - _E2E_NETWORK_SPACE env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_NVME_NETWORK_SPACE)
 	}
-	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
+	iboxSecret := os.Getenv(e2e.ENV_IBOX_SECRET)
 	if iboxSecret == "" {
-		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_IBOX_SECRET)
 	}
 	pvcAnnotations := &e2e.PVCAnnotations{
 		IboxNetworkSpace: networkSpace,
@@ -499,13 +499,13 @@ func TestNVMEPool(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	pool := os.Getenv("_E2E_POOL")
+	pool := os.Getenv(e2e.ENV_POOL)
 	if pool == "" {
-		t.Fatalf("error - _E2E_POOL env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_POOL)
 	}
-	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
+	iboxSecret := os.Getenv(e2e.ENV_IBOX_SECRET)
 	if iboxSecret == "" {
-		t.Fatalf("error - ibox_secret env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_IBOX_SECRET)
 	}
 	pvcAnnotations := &e2e.PVCAnnotations{
 		IboxNetworkSpace: "",

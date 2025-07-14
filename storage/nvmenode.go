@@ -247,7 +247,7 @@ func (nvme *nvmestorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 
 	// run resize2fs /dev/nvme0n2
 	command := fmt.Sprintf("resize2fs %s", multipathDevice)
-	out, err := execCommand.Command(command, "")
+	out, _, err := execCommand.Command(command, "")
 	if err != nil {
 		e := fmt.Errorf("NodeExpandVolume (nvme) - Command - command: %s  error: %s", command, err.Error())
 		zlog.Error().Msg(e.Error())
