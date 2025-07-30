@@ -380,7 +380,7 @@ func GetMpathDevicePath(clientSet *kubernetes.Clientset, config *restclient.Conf
 
 func MpathExists(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, mpath string) (bool, error) {
 
-	multipathCommand := "multipathd show multipaths | grep " + mpath + " | wc -l"
+	multipathCommand := "multipathd show multipaths 2> /dev/null | grep " + mpath + " | wc -l"
 
 	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, multipathCommand, "driver")
 	if err != nil {
