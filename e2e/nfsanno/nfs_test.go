@@ -19,17 +19,17 @@ func TestNfs(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	iboxSecret := os.Getenv("_E2E_IBOX_SECRET")
+	iboxSecret := os.Getenv(e2e.ENV_IBOX_SECRET)
 	if iboxSecret == "" {
-		t.Fatalf("error - _E2E_IBOX_SECRET env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_IBOX_SECRET)
 	}
-	networkSpace := os.Getenv("_E2E_NETWORK_SPACE")
+	networkSpace := os.Getenv(e2e.ENV_NAS_NETWORK_SPACE)
 	if networkSpace == "" {
-		t.Fatalf("error - _E2E_NETWORK_SPACE env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_NAS_NETWORK_SPACE)
 	}
-	poolName := os.Getenv("_E2E_POOL")
+	poolName := os.Getenv(e2e.ENV_POOL)
 	if poolName == "" {
-		t.Fatalf("error - _E2E_POOL env var is required for this test")
+		t.Fatalf("error - %s env var is required for this test", e2e.ENV_POOL)
 	}
 
 	pvcAnnotations := &e2e.PVCAnnotations{
