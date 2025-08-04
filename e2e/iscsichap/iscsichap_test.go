@@ -17,26 +17,15 @@ func TestIscsi(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
-	/**
-	time.Sleep(time.Second * 5)
-
-	err = e2e.CreateSnapshot(testNames.PVCName, testNames.SnapshotClassName, testNames.NSName, snapshotClient)
-	if err != nil {
-		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
-	}
-
-	time.Sleep(time.Second * 5)
-
-	err = e2e.WaitForSnapshot(t, e2e.SNAPSHOT_NAME, testNames.NSName, snapshotClient)
-	if err != nil {
-		t.Fatalf("error waiting for volumesnapshot %s", err.Error())
-	}
-	*/
-
 	if *e2e.CleanUp {
 		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }

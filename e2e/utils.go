@@ -19,7 +19,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	snapshotapi "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
@@ -201,8 +201,8 @@ func UpdatePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientse
 	}
 
 	pv.Spec.ClaimRef = nil
-	pv.Spec.AccessModes = make([]v1.PersistentVolumeAccessMode, 1)
-	pv.Spec.AccessModes[0] = v1.ReadOnlyMany
+	pv.Spec.AccessModes = make([]corev1.PersistentVolumeAccessMode, 1)
+	pv.Spec.AccessModes[0] = corev1.ReadOnlyMany
 
 	_, err = clientSet.CoreV1().PersistentVolumes().Update(ctx, pv, metav1.UpdateOptions{})
 	if err != nil {
@@ -261,7 +261,7 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	sc.Parameters[common.SC_SNAPDIR_VISIBLE] = strconv.FormatBool(testConfig.UseSnapdirVisible)
 
 	if testConfig.UseRetainStorageClass {
-		rp := v1.PersistentVolumeReclaimRetain
+		rp := corev1.PersistentVolumeReclaimRetain
 		sc.ReclaimPolicy = &rp
 	}
 
@@ -291,23 +291,23 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 }
 
 func CreatePVC(config *TestConfig) (err error) {
-	rList := make(map[v1.ResourceName]resource.Quantity)
-	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
+	rList := make(map[corev1.ResourceName]resource.Quantity)
+	rList[corev1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
 		return err
 	}
-	requirements := v1.VolumeResourceRequirements{
+	requirements := corev1.VolumeResourceRequirements{
 		Requests: rList,
 	}
 
-	accessModes := []v1.PersistentVolumeAccessMode{config.AccessMode}
+	accessModes := []corev1.PersistentVolumeAccessMode{config.AccessMode}
 
-	pvc := &v1.PersistentVolumeClaim{
+	pvc := &corev1.PersistentVolumeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      config.TestNames.PVCName,
 			Namespace: config.TestNames.NSName,
 		},
-		Spec: v1.PersistentVolumeClaimSpec{
+		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes:      accessModes,
 			Resources:        requirements,
 			StorageClassName: &config.TestNames.SCName,
@@ -327,7 +327,7 @@ func CreatePVC(config *TestConfig) (err error) {
 		}
 	}
 	if config.UseBlock {
-		mode := v1.PersistentVolumeBlock
+		mode := corev1.PersistentVolumeBlock
 		pvc.Spec.VolumeMode = &mode
 	}
 
@@ -350,7 +350,7 @@ func CreateNamespace(ctx context.Context, uniqueName string, clientset *kubernet
 			"pod-security.kubernetes.io/enforce": "privileged",
 		},
 	}
-	ns := &v1.Namespace{
+	ns := &corev1.Namespace{
 		ObjectMeta: m,
 	}
 	_, err = clientset.CoreV1().Namespaces().Create(ctx, ns, createOptions)
@@ -495,8 +495,8 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 		}
 	}
 
-	volumeMounts := make([]v1.VolumeMount, 0)
-	volumeDevices := make([]v1.VolumeDevice, 0)
+	volumeMounts := make([]corev1.VolumeMount, 0)
+	volumeDevices := make([]corev1.VolumeDevice, 0)
 	privileged := false
 	allowPrivilegeEscalation := false
 	runAsNonRoot := true
@@ -511,29 +511,29 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 		if alternateImage != "" {
 			image = alternateImage
 		}
-		device := v1.VolumeDevice{
+		device := corev1.VolumeDevice{
 			Name:       "ibox-csi-volume",
 			DevicePath: "/dev/xvda",
 		}
 		volumeDevices = append(volumeDevices, device)
 	} else {
-		volumeMount := v1.VolumeMount{
+		volumeMount := corev1.VolumeMount{
 			MountPath: MOUNT_PATH,
 			Name:      "ibox-csi-volume",
 		}
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
-	container := v1.Container{
+	container := corev1.Container{
 		Name:            "e2e-test",
 		Image:           image,
-		ImagePullPolicy: v1.PullAlways,
+		ImagePullPolicy: corev1.PullAlways,
 		VolumeMounts:    volumeMounts,
 		VolumeDevices:   volumeDevices,
-		Env: []v1.EnvVar{
+		Env: []corev1.EnvVar{
 			{
 				Name: "KUBE_NODE_NAME",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
 						FieldPath: "spec.nodeName",
 					},
 				},
@@ -543,12 +543,12 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				Value: strconv.FormatBool(testConfig.ReadOnlyPod),
 			},
 		},
-		SecurityContext: &v1.SecurityContext{
+		SecurityContext: &corev1.SecurityContext{
 			Privileged:               &privileged,
 			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 			RunAsNonRoot:             &runAsNonRoot,
-			SeccompProfile: &v1.SeccompProfile{
-				Type: v1.SeccompProfileTypeRuntimeDefault,
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
 			},
 			/**
 			Capabilities: &v1.Capabilities{
@@ -559,26 +559,26 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	}
 
 	if testConfig.UseSELinux {
-		container.SecurityContext.SELinuxOptions = &v1.SELinuxOptions{
+		container.SecurityContext.SELinuxOptions = &corev1.SELinuxOptions{
 			Type: "spc_t",
 		}
 	}
 
-	volume := v1.Volume{
+	volume := corev1.Volume{
 		Name: "ibox-csi-volume",
-		VolumeSource: v1.VolumeSource{
-			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
 				ClaimName: pvcName,
 				ReadOnly:  testConfig.ReadOnlyPodVolume,
 			},
 		},
 	}
 
-	var pod v1.Pod
+	var pod corev1.Pod
 
-	podAntiAffinity := v1.Affinity{
-		PodAntiAffinity: &v1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+	podAntiAffinity := corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
 				{
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
@@ -594,17 +594,17 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	// determine which affinity for pod here, so correct one is assigned below.
 
 	if testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
-		pod = v1.Pod{
+		pod = corev1.Pod{
 			ObjectMeta: m,
-			Spec: v1.PodSpec{
-				ImagePullSecrets: []v1.LocalObjectReference{
+			Spec: corev1.PodSpec{
+				ImagePullSecrets: []corev1.LocalObjectReference{
 					{
 						Name: IMAGE_PULL_SECRET,
 					},
 				},
-				Containers: []v1.Container{container},
-				Volumes:    []v1.Volume{volume},
-				SecurityContext: &v1.PodSecurityContext{
+				Containers: []corev1.Container{container},
+				Volumes:    []corev1.Volume{volume},
+				SecurityContext: &corev1.PodSecurityContext{
 					FSGroup:    &podFSGroup,
 					RunAsUser:  &podFSGroup,
 					RunAsGroup: &podFSGroup,
@@ -614,18 +614,18 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 
 	} else if testConfig.UseFsGroup && testConfig.UseAntiAffinity {
 
-		pod = v1.Pod{
+		pod = corev1.Pod{
 			ObjectMeta: m,
-			Spec: v1.PodSpec{
+			Spec: corev1.PodSpec{
 				Affinity: &podAntiAffinity,
-				ImagePullSecrets: []v1.LocalObjectReference{
+				ImagePullSecrets: []corev1.LocalObjectReference{
 					{
 						Name: IMAGE_PULL_SECRET,
 					},
 				},
-				Containers: []v1.Container{container},
-				Volumes:    []v1.Volume{volume},
-				SecurityContext: &v1.PodSecurityContext{
+				Containers: []corev1.Container{container},
+				Volumes:    []corev1.Volume{volume},
+				SecurityContext: &corev1.PodSecurityContext{
 					FSGroup:    &podFSGroup,
 					RunAsUser:  &podFSGroup,
 					RunAsGroup: &podFSGroup,
@@ -634,31 +634,31 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 		}
 
 	} else if !testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
-		pod = v1.Pod{
+		pod = corev1.Pod{
 			ObjectMeta: m,
-			Spec: v1.PodSpec{
-				ImagePullSecrets: []v1.LocalObjectReference{
+			Spec: corev1.PodSpec{
+				ImagePullSecrets: []corev1.LocalObjectReference{
 					{
 						Name: IMAGE_PULL_SECRET,
 					},
 				},
-				Containers: []v1.Container{container},
-				Volumes:    []v1.Volume{volume},
+				Containers: []corev1.Container{container},
+				Volumes:    []corev1.Volume{volume},
 			},
 		}
 
 	} else if !testConfig.UseFsGroup && testConfig.UseAntiAffinity {
-		pod = v1.Pod{
+		pod = corev1.Pod{
 			ObjectMeta: m,
-			Spec: v1.PodSpec{
+			Spec: corev1.PodSpec{
 				Affinity: &podAntiAffinity,
-				ImagePullSecrets: []v1.LocalObjectReference{
+				ImagePullSecrets: []corev1.LocalObjectReference{
 					{
 						Name: IMAGE_PULL_SECRET,
 					},
 				},
-				Containers: []v1.Container{container},
-				Volumes:    []v1.Volume{volume},
+				Containers: []corev1.Container{container},
+				Volumes:    []corev1.Volume{volume},
 			},
 		}
 
@@ -774,7 +774,7 @@ func Setup(testConfig *TestConfig) {
 	testConfig.TestNames.PVCName = pvcName
 
 	if testConfig.UseAntiAffinity {
-		testConfig.AccessMode = v1.ReadWriteMany
+		testConfig.AccessMode = corev1.ReadWriteMany
 	}
 	err = CreatePVC(testConfig)
 
@@ -839,6 +839,13 @@ func Setup(testConfig *TestConfig) {
 		testConfig.Testt.Logf("✓ Pod %s is running\n", ANTI_AF_POD_NAME)
 	}
 
+	// get node name that pod is running on
+	p, err := testConfig.ClientSet.CoreV1().Pods(testConfig.TestNames.NSName).Get(context.TODO(), POD_NAME, metav1.GetOptions{})
+	if err != nil {
+		testConfig.Testt.Fatalf("error getting pod for nodeName %s\n", err.Error())
+	}
+	testConfig.NodeName = p.Spec.NodeName
+	testConfig.Testt.Logf("running on node %s\n", p.Spec.NodeName)
 	testConfig.Testt.Log("SETUP ENDS")
 }
 
@@ -930,7 +937,7 @@ func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
 	var readyNodes int
 	for _, item := range nodes.Items {
 		for _, cond := range item.Status.Conditions {
-			if cond.Type == v1.NodeReady && cond.Status == "True" {
+			if cond.Type == corev1.NodeReady && cond.Status == "True" {
 				readyNodes++
 				t.Logf("node %s is Ready", item.Name)
 			}
@@ -989,7 +996,7 @@ func WaitForPVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.C
 		}
 
 		if p != nil {
-			if p.Status.Phase == v1.ClaimBound {
+			if p.Status.Phase == corev1.ClaimBound {
 
 				t.Logf("✓ PVC %s is created and bound\n", pvcName)
 				return true, nil
@@ -1088,13 +1095,13 @@ func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
 		return 0, 0, fmt.Errorf("error getting existing PVC %s", err.Error())
 	}
 
-	existingResourceQuantity := existingPVC.Spec.Resources.Requests[v1.ResourceStorage]
+	existingResourceQuantity := existingPVC.Spec.Resources.Requests[corev1.ResourceStorage]
 	size, _ := existingResourceQuantity.AsInt64()
 	t.Logf("existing PVC size is %+d\n", size)
 	existingResourceQuantity.Mul(2)
 	doubledsize, _ := existingResourceQuantity.AsInt64()
 	t.Logf("double PVC size is %+d\n", doubledsize)
-	existingPVC.Spec.Resources.Requests[v1.ResourceStorage] = existingResourceQuantity
+	existingPVC.Spec.Resources.Requests[corev1.ResourceStorage] = existingResourceQuantity
 	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Update(context.TODO(), existingPVC, metav1.UpdateOptions{})
 	if err != nil {
 		return 0, 0, fmt.Errorf("error updating existing PVC %s", err.Error())
@@ -1108,7 +1115,7 @@ func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
 		return 0, 0, fmt.Errorf("error getting existing PVC for verify %s", err.Error())
 	}
 
-	updatedexistingResourceQuantity := existingPVC.Spec.Resources.Requests[v1.ResourceStorage]
+	updatedexistingResourceQuantity := existingPVC.Spec.Resources.Requests[corev1.ResourceStorage]
 	updatedsize, _ := updatedexistingResourceQuantity.AsInt64()
 	if updatedsize != doubledsize {
 		return 0, 0, fmt.Errorf("error updated pvc size  %d did not match expected size %d", updatedsize, doubledsize)

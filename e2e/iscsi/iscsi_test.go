@@ -60,6 +60,11 @@ func TestIscsiSnapshotLocking(t *testing.T) {
 		t.Log("not cleaning up namespace")
 	}
 
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
+
 }
 
 func TestIscsiSnapshot(t *testing.T) {
@@ -92,6 +97,10 @@ func TestIscsiSnapshot(t *testing.T) {
 	} else {
 		t.Log("not cleaning up namespace")
 	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
 
 }
 
@@ -108,6 +117,10 @@ func TestIscsi(t *testing.T) {
 		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -153,6 +166,10 @@ func TestIscsiFsGroup(t *testing.T) {
 	} else {
 		t.Log("not cleaning up namespace")
 	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
 
 }
 
@@ -170,6 +187,10 @@ func TestIscsiBlock(t *testing.T) {
 		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -270,6 +291,10 @@ func TestIscsiROX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error deleting StorageClass %s\n", err.Error())
 	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
 
 }
 
@@ -327,6 +352,10 @@ func TestIscsiRO(t *testing.T) {
 		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -402,6 +431,10 @@ func TestIscsiBrokenLink(t *testing.T) {
 	} else {
 		t.Log("not cleaning up namespace")
 	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
 
 }
 
@@ -450,6 +483,10 @@ func TestIscsiClone(t *testing.T) {
 	} else {
 		t.Log("not cleaning up namespace")
 	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
 
 }
 
@@ -486,6 +523,10 @@ func TestIscsiExpand(t *testing.T) {
 		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -529,6 +570,10 @@ func TestIscsiBlockExpand(t *testing.T) {
 		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }

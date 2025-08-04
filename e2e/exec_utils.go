@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
@@ -401,5 +403,70 @@ func MpathExists(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 		return true, nil
 	}
 	return false, nil
+
+}
+
+func CleanISCI(testConfig TestConfig) error {
+	// find the csi driver node pod
+	ns := os.Getenv("_E2E_NAMESPACE")
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
+	labelSelector := "app=infinidat-csi-driver-node"
+	listOptions := metav1.ListOptions{
+		FieldSelector: fieldSelector,
+		LabelSelector: labelSelector,
+	}
+	csiPods, err := testConfig.ClientSet.CoreV1().Pods(ns).List(context.TODO(), listOptions)
+	if err != nil {
+		return fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
+	}
+
+	for _, pod := range csiPods.Items {
+		fmt.Printf("csi pod that matches is %s\n", pod.Name)
+		iscsiLogoutCommand := "iscsiadm --mode node --logoutall=all"
+		stdOut, stdErr, err := execCmdInPod(testConfig.ClientSet, testConfig.RestConfig, pod.Name, ns, iscsiLogoutCommand, "driver")
+		if err != nil {
+			fmt.Printf("%s command stdOut %s stdErr %s\n", iscsiLogoutCommand, stdOut, stdErr)
+			return err
+		}
+
+		// wait a bit to give iscsid a chance to work
+		time.Sleep(time.Second * 5)
+		iscsiNodeListCommand := "iscsiadm --mode node"
+		stdOut, stdErr, err = execCmdInPod(testConfig.ClientSet, testConfig.RestConfig, pod.Name, ns, iscsiNodeListCommand, "driver")
+		if err != nil {
+			fmt.Printf("%s command stdErr %s\n", iscsiNodeListCommand, stdErr)
+			return err
+		}
+
+		nodeLines := strings.SplitSeq(stdOut, "\n")
+
+		for line := range nodeLines {
+			//fmt.Printf("line=[%s]\n", line)
+			if line == "" {
+				continue
+			}
+
+			ipAddressParts := strings.Split(line, ",")
+			if len(ipAddressParts) != 2 {
+				return fmt.Errorf("ip address parts did not parse correctly %d", len(ipAddressParts))
+			}
+			//fmt.Printf("ip [%s]\n", ipAddressParts[0])
+			iqnParts := strings.Fields(ipAddressParts[1])
+			if len(iqnParts) != 2 {
+				return fmt.Errorf("iqn address parts did not parse correctly %d", len(iqnParts))
+			}
+			//fmt.Printf("iqn [%s]\n", iqnParts[1])
+			cmdBase := fmt.Sprintf("iscsiadm -m node -o delete -T %s -p %s", iqnParts[1], ipAddressParts[0])
+			fmt.Printf("%s\n", cmdBase)
+			stdOut, stdErr, err = execCmdInPod(testConfig.ClientSet, testConfig.RestConfig, pod.Name, ns, cmdBase, "driver")
+			if err != nil {
+				fmt.Printf("error cleaning ISCSI for pod %s on node %s -  %s command stdErr %s stdOut %s\n", pod.Name, testConfig.NodeName, cmdBase, stdErr, stdOut)
+				return err
+			}
+		}
+
+	}
+
+	return nil
 
 }

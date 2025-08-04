@@ -118,6 +118,11 @@ func TestIscsiReplica(t *testing.T) {
 		t.Log("not cleaning up namespace")
 	}
 
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
+
 }
 
 func TestIscsiActiveActiveReplica(t *testing.T) {
@@ -221,6 +226,10 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 		}
 	} else {
 		t.Log("not cleaning up namespace")
+	}
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }

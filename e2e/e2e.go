@@ -55,6 +55,7 @@ type TestConfig struct {
 	NetworkSpaceToUse2    string
 	NFSPermissions        string
 	Protocol              string
+	NodeName              string
 	Testt                 *testing.T
 	ClientSet             *kubernetes.Clientset
 	DynamicClient         *dynamic.DynamicClient
