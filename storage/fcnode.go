@@ -73,7 +73,14 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Debug().Msgf("NodeStagetVolume (fc) - Publishing volume to host with host ID: %d", hostID)
+	fcOnline := validateFCIsOnline()
+	if !fcOnline {
+		e := fmt.Errorf("error - all FC ports on worker are offline")
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+
+	zlog.Debug().Msgf("NodeStagetVolume (fc) - Publishing volume to host with host ID: %d port state: %t", hostID, fcOnline)
 
 	for _, fcp := range fcPorts {
 		zlog.Debug().Msgf("NodeStageVolume (fc) - comparing %s with %s", ports, fcp)
@@ -416,6 +423,50 @@ func getPortName() []string {
 	}
 	zlog.Debug().Msgf("fc ports found %v ", ports)
 	return ports
+}
+
+// ValidateFCIsOnline checks all FC port_state files that might exist
+// and returns true if it finds one that is Online
+// multipath should work even with a single Online port,
+// other ports (if any) can be down
+func validateFCIsOnline() bool {
+	// we append /host because this code works against the mounted host directly
+	// instead of via a chroot command
+	const fcHostPath = "/host/sys/class/fc_host"
+
+	// example for a FC port_state path is:
+	// /host/sys/class/fc_host/host33/port_state
+
+	entries, err := os.ReadDir(fcHostPath)
+	if err != nil {
+		zlog.Error().Msgf("error reading fc directory: %s", err)
+		return false
+	}
+
+	const FC_ONLINE = "Online"
+
+	zlog.Debug().Msgf("searching for FC port_state in %s:", fcHostPath)
+	for _, entry := range entries {
+		filePath := fcHostPath + "/" + entry.Name() + "/port_state"
+		zlog.Debug().Msgf("reading - %s ", filePath)
+		portStateBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				zlog.Debug().Msgf("file not exist %s", err.Error())
+			} else {
+				zlog.Error().Msgf("error reading port_state file %s", err.Error())
+			}
+		} else {
+			portState := strings.TrimSpace(string(portStateBytes))
+			if portState == FC_ONLINE {
+				zlog.Debug().Msgf("%s/port_state %s is ONLINE", entry.Name(), portState)
+				return true
+			} else {
+				zlog.Debug().Msgf("%s/port_state %s is NOT ONLINE", entry.Name(), portState)
+			}
+		}
+	}
+	return false
 }
 
 func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDevice, error) {
