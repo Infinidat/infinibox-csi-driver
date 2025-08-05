@@ -433,6 +433,9 @@ func getPortName() []string {
 // NOTE:  multipath should work even with a single Online port,
 // other ports (if any) can be down
 func validateFCIsOnline() bool {
+
+	const FC_ONLINE = "Online"
+
 	// we append /host because this code works against the mounted host directly
 	// instead of via a chroot command
 	const fcHostPath = "/host/sys/class/fc_host"
@@ -445,8 +448,6 @@ func validateFCIsOnline() bool {
 		zlog.Error().Msgf("error reading fc directory: %s", err)
 		return false
 	}
-
-	const FC_ONLINE = "Online"
 
 	zlog.Debug().Msgf("searching for FC port_state in %s:", fcHostPath)
 	for _, entry := range entries {
