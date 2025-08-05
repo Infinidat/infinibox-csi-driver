@@ -425,9 +425,12 @@ func getPortName() []string {
 	return ports
 }
 
-// ValidateFCIsOnline checks all FC port_state files that might exist
+// validateFCIsOnline returns true if a FC port is found to be Online
+//
+// the check is performed by looking for FC port_state files that might exist
 // and returns true if it finds one that is Online
-// multipath should work even with a single Online port,
+//
+// NOTE:  multipath should work even with a single Online port,
 // other ports (if any) can be down
 func validateFCIsOnline() bool {
 	// we append /host because this code works against the mounted host directly
@@ -459,10 +462,10 @@ func validateFCIsOnline() bool {
 		} else {
 			portState := strings.TrimSpace(string(portStateBytes))
 			if portState == FC_ONLINE {
-				zlog.Debug().Msgf("%s/port_state %s is ONLINE", entry.Name(), portState)
+				zlog.Debug().Msgf("%s/port_state %s is %s", entry.Name(), portState, FC_ONLINE)
 				return true
 			} else {
-				zlog.Debug().Msgf("%s/port_state %s is NOT ONLINE", entry.Name(), portState)
+				zlog.Debug().Msgf("%s/port_state %s is NOT %s", entry.Name(), portState, FC_ONLINE)
 			}
 		}
 	}
