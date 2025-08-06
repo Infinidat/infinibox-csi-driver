@@ -3,7 +3,7 @@
 package helper
 
 import (
-	"infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/common"
 	"testing"
 )
 

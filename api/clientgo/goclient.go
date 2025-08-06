@@ -14,9 +14,9 @@ package clientgo
 
 import (
 	"context"
-	"infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/common"
 
-	"infinibox-csi-driver/log"
+	"github.com/amitosw15/infinibox-csi-driver/log"
 
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"

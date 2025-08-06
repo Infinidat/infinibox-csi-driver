@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/log"
+	"github.com/amitosw15/infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/log"
 
 	"k8s.io/apimachinery/pkg/util/yaml"
 )

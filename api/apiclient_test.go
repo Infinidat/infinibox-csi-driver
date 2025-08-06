@@ -15,7 +15,7 @@ limitations under the License.
 package api
 
 import (
-	"infinibox-csi-driver/iboxapi"
+	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
 	"testing"
 
 	"github.com/stretchr/testify/suite"

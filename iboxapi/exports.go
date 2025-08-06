@@ -16,7 +16,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/common"
 	"io"
 	"net/http"
 	"strconv"

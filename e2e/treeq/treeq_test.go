@@ -4,7 +4,7 @@ package treeq
 
 import (
 	"context"
-	"infinibox-csi-driver/e2e"
+	"github.com/amitosw15/infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
 	"time"

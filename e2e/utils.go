@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/common"
 	"math/rand"
 	"os"
 	"strconv"

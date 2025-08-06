@@ -2,13 +2,13 @@ package main
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api/clientgo"
-	metric "infinibox-csi-driver/metrics"
+	"github.com/amitosw15/infinibox-csi-driver/api/clientgo"
+	metric "github.com/amitosw15/infinibox-csi-driver/metrics"
 	"net/http"
 	"os"
 	"time"
 
-	"infinibox-csi-driver/log"
+	"github.com/amitosw15/infinibox-csi-driver/log"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"

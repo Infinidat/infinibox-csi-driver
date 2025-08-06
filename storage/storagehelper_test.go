@@ -4,10 +4,10 @@ package storage
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/iboxapi"
+	"github.com/amitosw15/infinibox-csi-driver/api"
+	"github.com/amitosw15/infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/helper"
+	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
 	"testing"
 	"time"
 

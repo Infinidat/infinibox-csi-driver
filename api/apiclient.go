@@ -14,7 +14,7 @@ package api
 
 import (
 	"errors"
-	"infinibox-csi-driver/iboxapi"
+	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
 	"net/url"
 
 	"github.com/go-logr/zerologr"

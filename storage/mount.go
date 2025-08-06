@@ -15,7 +15,7 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/common"
 	"os"
 	"os/exec"
 	"path"

@@ -3,8 +3,8 @@
 package iscsianno
 
 import (
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
+	"github.com/amitosw15/infinibox-csi-driver/common"
+	"github.com/amitosw15/infinibox-csi-driver/e2e"
 	"os"
 	"testing"
 )

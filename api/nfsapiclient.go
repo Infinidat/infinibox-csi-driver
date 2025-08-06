@@ -14,7 +14,7 @@ package api
 
 import (
 	"bytes"
-	"infinibox-csi-driver/iboxapi"
+	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
 	"net"
 	"strings"
 )

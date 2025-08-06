@@ -3,7 +3,7 @@
 package nfsanno
 
 import (
-	"infinibox-csi-driver/e2e"
+	"github.com/amitosw15/infinibox-csi-driver/e2e"
 	"os"
 	"testing"
 )

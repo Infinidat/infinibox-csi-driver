@@ -13,7 +13,7 @@ limitations under the License.
 package service
 
 import (
-	"infinibox-csi-driver/helper"
+	"github.com/amitosw15/infinibox-csi-driver/helper"
 	"runtime"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
