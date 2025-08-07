@@ -246,6 +246,9 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	if testConfig.Protocol != common.PROTOCOL_FC {
 		sc.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
 	}
+	if testConfig.FSType != "" {
+		sc.Parameters[common.SC_FSTYPE] = testConfig.FSType
+	}
 	sc.Parameters[common.SC_PROVISIONER_SECRET_NAME] = secretToUse
 	sc.Parameters[common.SC_CONTROLLER_PUBLISH_SECRET_NAME] = secretToUse
 	sc.Parameters[common.SC_NODE_STAGE_SECRET_NAME] = secretToUse

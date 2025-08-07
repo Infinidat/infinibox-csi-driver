@@ -72,6 +72,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/whoami \
     && ln -s /ibox/host-chroot.sh /ibox/resize2fs \
     && ln -s /ibox/host-chroot.sh /ibox/xfs_admin \
+    && ln -s /ibox/host-chroot.sh /ibox/xfs_growfs \
     && ln -s /ibox/host-chroot.sh /ibox/xfs_db
 
 ENV PATH="/ibox:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

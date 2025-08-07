@@ -381,37 +381,42 @@ func TestNvmeClone(t *testing.T) {
 
 func TestNvmeExpand(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
-	if err != nil {
-		t.Fatalf("error getting TestConfig %s\n", err.Error())
-	}
+	supportedFileSystems := []string{common.FS_TYPE_EXT3, common.FS_TYPE_EXT4, common.FS_TYPE_XFS}
+	for _, fsType := range supportedFileSystems {
+		testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+		if err != nil {
+			t.Fatalf("error getting TestConfig %s\n", err.Error())
+		}
 
-	e2e.Setup(testConfig)
+		t.Logf("testing expand with fs type %s", fsType)
+		testConfig.FSType = fsType
+		e2e.Setup(testConfig)
 
-	var originalSize int64
-	originalSize, _, err = e2e.ExpandPVC(t, testConfig)
-	if err != nil {
-		t.Fatalf("error expanding existing PVC %s", err.Error())
-	}
+		var originalSize int64
+		originalSize, _, err = e2e.ExpandPVC(t, testConfig)
+		if err != nil {
+			t.Fatalf("error expanding existing PVC %s", err.Error())
+		}
 
-	// wait an undetermined amount of time for the filesystem to be expanded inside the running pod
-	time.Sleep(time.Second * 90)
+		// wait an undetermined amount of time for the filesystem to be expanded inside the running pod
+		time.Sleep(time.Second * 90)
 
-	mountSize, err := e2e.GetMountSize(common.PROTOCOL_NVME, testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
-	if err != nil {
-		t.Fatalf("error execing into pod %s", err.Error())
-	}
+		mountSize, err := e2e.GetMountSize(common.PROTOCOL_NVME, testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+		if err != nil {
+			t.Fatalf("error execing into pod %s", err.Error())
+		}
 
-	if mountSize <= originalSize {
-		t.Logf("error expected updates size %d to have been expanded beyond original size %d in pod", mountSize, originalSize)
-		t.FailNow()
-	}
-	t.Logf("volume was expanded in pod size matches %d ", mountSize)
+		if mountSize <= originalSize {
+			t.Logf("error expected updates size %d to have been expanded beyond original size %d in pod", mountSize, originalSize)
+			t.FailNow()
+		}
+		t.Logf("volume was expanded in pod size matches %d ", mountSize)
 
-	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
-	} else {
-		t.Log("not cleaning up namespace")
+		if *e2e.CleanUp {
+			e2e.TearDown(testConfig)
+		} else {
+			t.Log("not cleaning up namespace")
+		}
 	}
 
 }

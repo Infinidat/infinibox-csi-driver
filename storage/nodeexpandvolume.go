@@ -14,7 +14,11 @@ package storage
 
 import (
 	"fmt"
+	"infinibox-csi-driver/common"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 /*
@@ -146,4 +150,36 @@ func blockExpandVolume(volumePath string) error {
 	zlog.Debug().Msgf("resize output is [%s]\n", strings.TrimSpace(string(out)))
 
 	return nil
+}
+
+func expandFileSystem(multipathDevice string, fsType string) error {
+	const defaultResizeDelay = 5
+	resizeDelayForThisExecution := defaultResizeDelay
+	tmp := os.Getenv(RESIZE2FS_DELAY)
+	if tmp != "" {
+		userSpecifiedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", RESIZE2FS_DELAY, defaultResizeDelay)
+		} else {
+			resizeDelayForThisExecution = userSpecifiedValue
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", RESIZE2FS_DELAY, resizeDelayForThisExecution, defaultResizeDelay)
+		}
+	}
+	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
+
+	command := fmt.Sprintf("resize2fs %s", multipathDevice)
+	zlog.Debug().Msgf("ExpandFileSystem - volume fsType is %s", fsType)
+	if fsType == common.FS_TYPE_XFS {
+		command = fmt.Sprintf("xfs_growfs %s", multipathDevice)
+	}
+	out, _, err := execCommand.Command(command, "")
+	zlog.Debug().Msgf("command is [%s]", command)
+	if err != nil {
+		e := fmt.Errorf("ExpandFileSystem - Command %s - error: %s", command, err.Error())
+		zlog.Error().Msg(e.Error())
+		return e
+	}
+	zlog.Debug().Msgf("command output is [%s]\n", strings.TrimSpace(string(out)))
+	return nil
+
 }
