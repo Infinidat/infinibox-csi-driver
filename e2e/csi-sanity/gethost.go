@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/e2e"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 	"os"
 )
 

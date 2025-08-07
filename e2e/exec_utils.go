@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"math"
 	"strconv"
 	"strings"

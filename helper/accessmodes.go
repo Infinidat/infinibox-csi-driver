@@ -14,8 +14,8 @@ package helper
 
 import (
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"

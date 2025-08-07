@@ -15,9 +15,9 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/helper"
-	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	"math"
 	"path"
 	"strconv"

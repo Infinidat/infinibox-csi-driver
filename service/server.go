@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/helper"
 	"net"
 	"os"
 	"strings"

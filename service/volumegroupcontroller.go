@@ -15,8 +15,8 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
-	"github.com/amitosw15/infinibox-csi-driver/storage"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/storage"
 	"strconv"
 	"strings"
 	"time"

@@ -4,8 +4,8 @@ package iscsi
 
 import (
 	"context"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/e2e"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
 	"time"

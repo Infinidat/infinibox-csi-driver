@@ -15,7 +15,7 @@ package storage
 import (
 	"context"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"os"
 	"strconv"
 

@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/amitosw15/infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/log"
 
 	"github.com/stretchr/testify/mock"
 )

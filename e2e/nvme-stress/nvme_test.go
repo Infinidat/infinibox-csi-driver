@@ -5,8 +5,8 @@ package nvme
 import (
 	"context"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/e2e"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 	"testing"
 	"time"
 )

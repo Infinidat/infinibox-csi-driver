@@ -17,10 +17,10 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/api"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/helper"
-	"github.com/amitosw15/infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"

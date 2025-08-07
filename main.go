@@ -17,10 +17,10 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/amitosw15/infinibox-csi-driver/api/clientgo"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/log"
-	"github.com/amitosw15/infinibox-csi-driver/service"
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/service"
 
 	v1 "k8s.io/api/core/v1"
 )

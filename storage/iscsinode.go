@@ -17,8 +17,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
 	"strconv"
 
 	"os"

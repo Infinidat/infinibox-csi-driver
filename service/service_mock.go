@@ -13,7 +13,7 @@ limitations under the License.
 package service
 
 import (
-	"github.com/amitosw15/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/api"
 
 	"github.com/stretchr/testify/mock"
 )

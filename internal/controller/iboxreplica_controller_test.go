@@ -29,7 +29,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	csidriverinfinidatcomv1 "github.com/amitosw15/infinibox-csi-driver/api/v1"
+	csidriverinfinidatcomv1 "github.com/infinidat/infinibox-csi-driver/api/v1"
 )
 
 var _ = Describe("Iboxreplica Controller", func() {

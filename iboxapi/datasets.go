@@ -15,7 +15,7 @@ limitations under the License.
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/amitosw15/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"io"
 	"net/http"
 	"strconv"

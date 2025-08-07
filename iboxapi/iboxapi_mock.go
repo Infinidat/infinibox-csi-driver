@@ -14,7 +14,7 @@ package iboxapi
 
 import (
 
-	//	"github.com/amitosw15/infinibox-csi-driver/api/client"
+	//	"github.com/infinidat/infinibox-csi-driver/api/client"
 
 	"github.com/stretchr/testify/mock"
 )

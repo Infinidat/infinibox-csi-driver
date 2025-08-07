@@ -4,11 +4,11 @@ package iscsireplica
 
 import (
 	"context"
-	"github.com/amitosw15/infinibox-csi-driver/api/clientgo"
-	v1 "github.com/amitosw15/infinibox-csi-driver/api/v1"
-	"github.com/amitosw15/infinibox-csi-driver/common"
-	"github.com/amitosw15/infinibox-csi-driver/e2e"
-	"github.com/amitosw15/infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
+	"github.com/infinidat/infinibox-csi-driver/log"
 	"os"
 	"strconv"
 	"testing"
