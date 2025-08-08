@@ -499,6 +499,9 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	volproto.NodeID = req.GetNodeId()
 
 	if volproto.StorageType != common.PROTOCOL_NFS && volproto.StorageType != common.PROTOCOL_TREEQ {
+		if volproto.StorageType == common.PROTOCOL_NVME {
+			hostName = hostName + storage.NVME_HOST_SUFFIX
+		}
 		volproto.Host, err = comnserv.IboxApi.GetHostByName(hostName)
 		if err != nil {
 			re, ok := err.(*iboxapi.IboxAPIError)

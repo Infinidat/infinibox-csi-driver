@@ -28,6 +28,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+const NVME_HOST_SUFFIX = "-nvme"
+
 func (nvme *nvmestorage) ValidateStorageClass(params map[string]string) error {
 	requiredNVMEParams := map[string]string{
 		common.SC_POOL_NAME:     `[a-zA-Z]+`, //match all strings except empty string or blank string
@@ -325,6 +327,8 @@ func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		return nil, e
 	}
 
+	// only nvme protocol uses a hostname suffix like this
+	hostName = hostName + NVME_HOST_SUFFIX
 	host, err := nvme.cs.validateHost(hostName)
 	if err != nil {
 		e := fmt.Errorf("ControllerPublishVolume (nvme) - - validateHost - error: %s", err.Error())
@@ -434,7 +438,7 @@ func (nvme *nvmestorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 		zlog.Error().Msgf("ControllerUnpublishVolume (nvme) - failed to get LUNs for host with ID %d. Error: %v", host.ID, err)
 	}
 	if len(luns) == 0 {
-		err = hostCleanup(nvme.cs.IboxApi, host.ID, host.Name)
+		err = hostCleanup(nvme.cs.IboxApi, host.ID, host.Name+NVME_HOST_SUFFIX)
 		if err != nil {
 			e := fmt.Errorf("ControllerUnpublishVolume (nvme) - hostCleanup - failed to perform hostCleanup for host ID %d. Error: %s", host.ID, err.Error())
 			zlog.Err(e)
