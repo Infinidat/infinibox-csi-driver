@@ -47,7 +47,6 @@ var zlog = log.Get() // grab the logger for package use
 
 // CreateVolume method create the volume
 func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
-
 	zlog.Info().Msgf("CreateVolume Start - Name: %s", req.GetName())
 
 	volName := req.GetName()
@@ -164,6 +163,11 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			zlog.Debug().Msgf("CreateVolume requested bytes %d will be rounded up to %d bytes", capacity, roundUpBytes)
 			capacity = roundUpBytes
 		}
+	}
+
+	err = validateSecret("CreateVolume", "", common.SC_PROVISIONER_SECRET_NAME, common.SC_PROVISIONER_SECRET_NAMESPACE, req.GetSecrets())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	comnserv, err := storage.BuildCommonService(configparams, secretsToUse, nil)
@@ -419,6 +423,11 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 
 	config := make(map[string]string)
+
+	err = validateSecret("ControllerPublishVolume", req.GetVolumeId(), common.SC_CONTROLLER_PUBLISH_SECRET_NAME, common.SC_CONTROLLER_PUBLISH_SECRET_NAMESPACE, req.GetSecrets())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
@@ -1010,6 +1019,11 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
 
+	err = validateSecret("ControllerExpandVolume", req.GetVolumeId(), common.SC_CONTROLLER_EXPAND_SECRET_NAME, common.SC_CONTROLLER_EXPAND_SECRET_NAMESPACE, req.GetSecrets())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	comnserv, err := storage.BuildCommonService(configparams, req.GetSecrets(), &volproto)
 	if err != nil {
 		e := fmt.Errorf("ControllerExpandVolume - BuildCommonService - volume ID: %s error: %v", req.GetVolumeId(), err)
@@ -1142,5 +1156,19 @@ func validateCommonStorageClassParameters(comnserv storage.Commonservice, scPara
 		}
 	}
 
+	return nil
+}
+
+func validateSecret(functionName, volumeID, secretName, secretNamespace string, secrets map[string]string) error {
+	// the storageclass is required to specify various secrets as CSI parameters,this will cause
+	// the secret values (hostname, password, username) to be passed down to the various CSI workflow functions
+	u := secrets[common.CRED_USERNAME]
+	p := secrets[common.CRED_PASSWORD]
+	h := secrets[common.CRED_HOSTNAME]
+	if u == "" || p == "" || h == "" {
+		e := fmt.Errorf("%s - volumeID - %s - hostname/username/password secrets are not found and are required - verify your StorageClass has the %s and %s parameters", functionName, volumeID, secretName, secretNamespace)
+		zlog.Error().Msg(e.Error())
+		return status.Error(codes.InvalidArgument, e.Error())
+	}
 	return nil
 }

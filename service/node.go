@@ -91,6 +91,13 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
+	// the storageclass is required to specify node-publish secrets as a parameter,this will cause
+	// the secret values (hostname, password, username) to be passed down to the NodePublishVolume function
+	err = validateSecret("NodePublishVolume", req.GetVolumeId(), common.SC_NODE_PUBLISH_SECRET_NAME, common.SC_NODE_PUBLISH_SECRET_NAMESPACE, req.GetSecrets())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
 		e := fmt.Errorf("NodePublishVolume - BuildCommonService volume ID: %s error: %s", req.GetVolumeId(), err.Error())
@@ -239,6 +246,7 @@ func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	volumeId := req.GetVolumeId()
 	zlog.Info().Msgf("NodeStageVolume Started - ID: '%s'", volumeId)
+	zlog.Debug().Msgf("NodeStageVolume jeff secrets %v", req.GetSecrets())
 
 	if volumeId == "" {
 		e := fmt.Errorf("NodeStageVolume -  error volumeId parameter was empty")
@@ -291,6 +299,12 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	}
 
 	zlog.Debug().Msgf("NodeStageVolume volumeContext %+v storageProtocol is %s", req.GetVolumeContext(), storageProtocol)
+
+	err = validateSecret("NodeStageVolume", req.GetVolumeId(), common.SC_NODE_STAGE_SECRET_NAME, common.SC_NODE_STAGE_SECRET_NAMESPACE, req.GetSecrets())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
 		e := fmt.Errorf("NodeStageVolume - BuildCommonService volume ID %s - error: %s", volumeId, err)
@@ -372,6 +386,7 @@ func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	volumeId := req.GetVolumeId()
 	zlog.Info().Msgf("NodeExpandVolume Started - volume ID: '%s'", volumeId)
+	zlog.Debug().Msgf("NodeExpandVolume jeff secrets %v", req.GetSecrets())
 
 	if volumeId == "" {
 		e := fmt.Errorf("NodeExpandVolume - error volumeId parameter was empty")
@@ -401,6 +416,13 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("NodeExpandVolume  - ValidateVolumeID -  volume ID: %s - error: %s", req.GetVolumeId(), err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	// the storageclass is required to specify node-expand secrets as a parameter,this will cause
+	// the secret values (hostname, password, username) to be passed down to the NodeExpandVolume function
+	err = validateSecret("NodeExpandVolume", req.GetVolumeId(), common.SC_NODE_EXPAND_SECRET_NAME, common.SC_NODE_EXPAND_SECRET_NAMESPACE, req.GetSecrets())
+	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 

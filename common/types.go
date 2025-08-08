@@ -94,14 +94,20 @@ const (
 )
 
 const (
-	SC_FSTYPE                         = "csi.storage.k8s.io/fstype"
-	SC_PROVISIONER_SECRET_NAME        = "csi.storage.k8s.io/provisioner-secret-name"
-	SC_CONTROLLER_PUBLISH_SECRET_NAME = "csi.storage.k8s.io/controller-publish-secret-name"
-	SC_NODE_STAGE_SECRET_NAME         = "csi.storage.k8s.io/node-stage-secret-name"
-	SC_NODE_PUBLISH_SECRET_NAME       = "csi.storage.k8s.io/node-publish-secret-name"
-	SC_CONTROLLER_EXPAND_SECRET_NAME  = "csi.storage.k8s.io/controller-expand-secret-name"
-	SC_NODE_EXPAND_SECRET_NAME        = "csi.storage.k8s.io/node-expand-secret-name"
-	VOLUME_SNAPSHOT_CLASS_SECRET_NAME = "csi.storage.k8s.io/snapshotter-secret-name"
+	SC_FSTYPE                              = "csi.storage.k8s.io/fstype"
+	SC_PROVISIONER_SECRET_NAME             = "csi.storage.k8s.io/provisioner-secret-name"
+	SC_PROVISIONER_SECRET_NAMESPACE        = "csi.storage.k8s.io/provisioner-secret-namespace"
+	SC_CONTROLLER_PUBLISH_SECRET_NAME      = "csi.storage.k8s.io/controller-publish-secret-name"
+	SC_CONTROLLER_PUBLISH_SECRET_NAMESPACE = "csi.storage.k8s.io/controller-publish-secret-namespace"
+	SC_NODE_STAGE_SECRET_NAME              = "csi.storage.k8s.io/node-stage-secret-name"
+	SC_NODE_STAGE_SECRET_NAMESPACE         = "csi.storage.k8s.io/node-stage-secret-namespace"
+	SC_NODE_PUBLISH_SECRET_NAME            = "csi.storage.k8s.io/node-publish-secret-name"
+	SC_NODE_PUBLISH_SECRET_NAMESPACE       = "csi.storage.k8s.io/node-publish-secret-namespace"
+	SC_CONTROLLER_EXPAND_SECRET_NAME       = "csi.storage.k8s.io/controller-expand-secret-name"
+	SC_CONTROLLER_EXPAND_SECRET_NAMESPACE  = "csi.storage.k8s.io/controller-expand-secret-namespace"
+	SC_NODE_EXPAND_SECRET_NAME             = "csi.storage.k8s.io/node-expand-secret-name"
+	SC_NODE_EXPAND_SECRET_NAMESPACE        = "csi.storage.k8s.io/node-expand-secret-namespace"
+	VOLUME_SNAPSHOT_CLASS_SECRET_NAME      = "csi.storage.k8s.io/snapshotter-secret-name"
 )
 
 const (
