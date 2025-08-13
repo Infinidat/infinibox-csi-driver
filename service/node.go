@@ -19,13 +19,14 @@ import (
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/iboxapi"
 	"infinibox-csi-driver/storage"
+	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/mount-utils"
 )
 
@@ -246,7 +247,6 @@ func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	volumeId := req.GetVolumeId()
 	zlog.Info().Msgf("NodeStageVolume Started - ID: '%s'", volumeId)
-	zlog.Debug().Msgf("NodeStageVolume jeff secrets %v", req.GetSecrets())
 
 	if volumeId == "" {
 		e := fmt.Errorf("NodeStageVolume -  error volumeId parameter was empty")
@@ -380,13 +380,75 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 }
 
 func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, time.Now().String())
+	volumeID := req.GetVolumeId()
+	volumePath := "/host" + req.GetVolumePath()
+
+	zlog.Trace().Msgf("NodeGetVolumeStats volumeID [%s] volume path [%s]", volumeID, volumePath)
+
+	if req.GetVolumeId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "NodeGetVolumeStatus - volumeID empty")
+	}
+
+	if _, err := os.Lstat(volumePath); err != nil {
+		if os.IsNotExist(err) {
+			return nil, status.Errorf(codes.NotFound, "path %s does not exist", volumePath)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to stat file %s: %v", volumePath, err)
+	}
+
+	volumeMetrics, err := volume.NewMetricsStatFS(volumePath).GetMetrics()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get metrics: %v", err)
+	}
+
+	available, ok := volumeMetrics.Available.AsInt64()
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "failed to transform volume available size(%v)", volumeMetrics.Available)
+	}
+	capacity, ok := volumeMetrics.Capacity.AsInt64()
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "failed to transform volume capacity size(%v)", volumeMetrics.Capacity)
+	}
+	used, ok := volumeMetrics.Used.AsInt64()
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "failed to transform volume used size(%v)", volumeMetrics.Used)
+	}
+
+	inodesFree, ok := volumeMetrics.InodesFree.AsInt64()
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes free(%v)", volumeMetrics.InodesFree)
+	}
+	inodes, ok := volumeMetrics.Inodes.AsInt64()
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes(%v)", volumeMetrics.Inodes)
+	}
+	inodesUsed, ok := volumeMetrics.InodesUsed.AsInt64()
+	if !ok {
+		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes used(%v)", volumeMetrics.InodesUsed)
+	}
+
+	resp := &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Unit:      csi.VolumeUsage_BYTES,
+				Available: available,
+				Total:     capacity,
+				Used:      used,
+			},
+			{
+				Unit:      csi.VolumeUsage_INODES,
+				Available: inodesFree,
+				Total:     inodes,
+				Used:      inodesUsed,
+			},
+		},
+	}
+	return resp, nil
 }
 
 func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	volumeId := req.GetVolumeId()
 	zlog.Info().Msgf("NodeExpandVolume Started - volume ID: '%s'", volumeId)
-	zlog.Debug().Msgf("NodeExpandVolume jeff secrets %v", req.GetSecrets())
 
 	if volumeId == "" {
 		e := fmt.Errorf("NodeExpandVolume - error volumeId parameter was empty")
