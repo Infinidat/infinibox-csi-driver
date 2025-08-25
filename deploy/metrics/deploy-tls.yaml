@@ -28,17 +28,23 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: TLS_LISTEN
-            value: "false"
+            value: "true"
           - name: APP_LOG_LEVEL
             value: trace
         volumeMounts:
           - name: config-volume
             readOnly: true
             mountPath: /tmp/infinidat-csi-metrics-config
+          - name: tls-volume
+            mountPath: /tmp # Path where the certificate will be mounted
+            readOnly: true
       volumes:
         - name: config-volume
           configMap:
             name: infinidat-csi-metrics-config
+        - name: tls-volume
+          secret:
+            secretName: my-tls-secret
 ---
 apiVersion: v1
 kind: Service

@@ -206,3 +206,27 @@ view the configured targets, you should see one for infinidat-csi:
 curl localhost:11007/targets
 ```
 
+## TLS Server
+You can have the metrics server run listening using TLS.
+
+To enable TLS, you create the Deployment using deploy-tls.yaml, this sets the TLS_LISTEN env var to "true".
+
+You can generate self-signed certificate and key using the following command:
+```
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/CN=example.com"
+```
+
+You can then create a Kubernetes TLS Secret using the following command:
+```
+kubectl create secret tls my-tls-secret --cert=tls.crt --key=tls.key
+```
+
+That will create the correctly named secret that is specified in the deploy.yaml file under volume mounts.
+
+You can test that the metrics server is using TLS by looking at it's log output, it should say TLS_ENABLED=true
+if it is listening via TLS.
+
+You can test the TLS connection by the following command:
+```
+curl --insecure https://localhost:11007/targets
+```

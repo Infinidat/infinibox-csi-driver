@@ -1,11 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"infinibox-csi-driver/api/clientgo"
 	metric "infinibox-csi-driver/metrics"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"infinibox-csi-driver/log"
@@ -18,6 +20,11 @@ var version string
 var compileDate string
 var gitHash string
 var zlog zerolog.Logger
+
+const (
+	CertFilePath = "/tmp/tls.crt"
+	KeyFilePath  = "/tmp/tls.key"
+)
 
 func main() {
 
@@ -66,8 +73,35 @@ func main() {
 	http.Handle("/", &home{})
 	http.Handle("/metrics", promhttp.Handler())
 	//_ = http.ListenAndServe(":"+*metric.PortFlag, nil)
+	// load tls certificates
+	tlsListenEnvVar := os.Getenv("TLS_LISTEN")
+	zlog.Info().Msgf("TLS_LISTEN=%s", tlsListenEnvVar)
+	tlsEnabled := false
+	if tlsListenEnvVar != "" {
+		tlsEnabled, err = strconv.ParseBool(tlsListenEnvVar)
+		if err != nil {
+			zlog.Error().Msg("env var TLS_LISTEN was set, but value was not a boolean")
+			os.Exit(1)
+		}
+	}
+	zlog.Info().Msgf("tlsEnabled=%t", tlsEnabled)
+	var tlsConfig *tls.Config
+
+	if tlsEnabled {
+		serverTLSCert, err := tls.LoadX509KeyPair(CertFilePath, KeyFilePath)
+		if err != nil {
+			zlog.Error().Msgf("Error loading certificate and key file: %v", err)
+			os.Exit(1)
+		}
+
+		tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{serverTLSCert},
+		}
+	}
+
 	srv := &http.Server{
-		Addr: ":" + *metric.PortFlag,
+		TLSConfig: tlsConfig,
+		Addr:      ":" + *metric.PortFlag,
 		// ReadHeaderTimeout is the amount of time allowed to read
 		// request headers. The connection's read deadline is reset
 		// after reading the headers and the Handler can decide what
@@ -99,6 +133,14 @@ func main() {
 		// zero, there is no timeout.
 		IdleTimeout: 30 * time.Second,
 	}
+
+	if tlsEnabled {
+		if err := srv.ListenAndServeTLS("", ""); err != nil {
+			zlog.Info().Msgf("fatal error on srv.ListenAndServeTLS %s", err.Error())
+			os.Exit(1)
+		}
+	}
+
 	if err := srv.ListenAndServe(); err != nil {
 		zlog.Info().Msgf("fatal error on srv.ListenAndServe %s", err.Error())
 		os.Exit(1)
