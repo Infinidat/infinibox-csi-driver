@@ -8,6 +8,7 @@ import (
 	"infinibox-csi-driver/e2e"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -344,7 +345,8 @@ func TestNfsIpRangePermissions(t *testing.T) {
 	// set a default permission rule in case the env var is not set
 	testConfig.NFSPermissions = "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':true}]"
 	nfsPermission := os.Getenv(e2e.ENV_NFS_EXPORT_PERMISSION)
-	if nfsPermission == "" {
+	if nfsPermission != "" { // check if the nfs env variable is NOT empty!
+		nfsPermission = strings.Trim(nfsPermission, `"`) // trim the string from leading & trailing double quote
 		testConfig.NFSPermissions = nfsPermission
 		t.Logf("using nfs ip range permission from env var %s", nfsPermission)
 	}
