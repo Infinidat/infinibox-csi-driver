@@ -57,44 +57,45 @@ type FCMounter struct {
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
 	var err error
-	zlog.Debug().Msgf("NodeStageVolume (fc) called with PublishContext: volume ID: %s details: %+v", req.GetVolumeId(), req.GetPublishContext())
+	const function = "NodeStageVolume"
+	zlog.Debug().Msgf("%s (fc) called with PublishContext: volume ID: %s details: %+v", function, req.GetVolumeId(), req.GetPublishContext())
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
-		e := fmt.Errorf("NodeStageVolume (fc) - validatePublishContext - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s (fc) - validatePublishContext - volume ID: %s error: %s", function, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	fcPorts := getPortName()
 	if len(fcPorts) == 0 {
-		e := fmt.Errorf("NodeStageVolume (fc) - port name not found on worker")
+		e := fmt.Errorf("%s (fc) - port name not found on worker", function)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	fcOnline := validateFCIsOnline()
 	if !fcOnline {
-		e := fmt.Errorf("error - all FC ports on worker are offline")
+		e := fmt.Errorf("%s (fc) - error - all FC ports on worker are offline", function)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Debug().Msgf("NodeStagetVolume (fc) - Publishing volume to host with host ID: %d port state: %t", hostID, fcOnline)
+	zlog.Debug().Msgf("%s (fc) - Publishing volume to host with host ID: %d port state: %t", function, hostID, fcOnline)
 
 	for _, fcp := range fcPorts {
-		zlog.Debug().Msgf("NodeStageVolume (fc) - comparing %s with %s", ports, fcp)
+		zlog.Debug().Msgf("%s (fc) - comparing %s with %s", function, ports, fcp)
 		if !strings.Contains(ports, fcp) {
-			zlog.Debug().Msgf("NodeStageVolume (fc) - host port %s is not created, creating it", fcp)
+			zlog.Debug().Msgf("%s (fc) - host port %s is not created, creating it", function, fcp)
 			err = fc.cs.AddPortForHost(hostID, "FC", fcp)
 			if err != nil {
-				e := fmt.Errorf("NodeStageVolume (fc) - AddPortForHost - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+				e := fmt.Errorf("%s (fc) - AddPortForHost - volume ID: %s error: %s", function, req.GetVolumeId(), err.Error())
 				zlog.Error().Msg(e.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
 			_, err := fc.cs.IboxApi.GetHostPort(hostID, fcp)
 			if err != nil {
-				e := fmt.Errorf("NodeStageVolume (fc) - GetHostPort host port %s - volume ID: %s error: %s", fcp, req.GetVolumeId(), err.Error())
+				e := fmt.Errorf("%s (fc) - GetHostPort host port %s - volume ID: %s error: %s", function, fcp, req.GetVolumeId(), err.Error())
 				zlog.Error().Msg(e.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
@@ -107,27 +108,28 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
 	var err error
+	const function = "NodePublishVolume"
 	defer func() {
 		if err == nil {
-			zlog.Debug().Msgf("NodePublishVolume (fc) succeeded - volume ID: %s", req.GetVolumeId())
+			zlog.Debug().Msgf("%s (fc) succeeded - volume ID: %s", function, req.GetVolumeId())
 		} else {
-			zlog.Debug().Msgf("NodePublishVolume (fc) failed - volume ID: %s: error: %+v", req.GetVolumeId(), err)
+			zlog.Debug().Msgf("%s (fc) failed - volume ID: %s: error: %+v", function, req.GetVolumeId(), err)
 		}
 	}()
 
-	zlog.Debug().Msgf("NodePublishVolume (fc) volume ID: %s volumecontext %v", req.GetVolumeId(), req.GetVolumeContext())
-	zlog.Debug().Msgf("NodePublishVolume (fc) uid: %s gid: %s unix_perm: %s", req.GetVolumeContext()[common.SC_UID], req.GetVolumeContext()[common.SC_GID], req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS])
+	zlog.Debug().Msgf("%s (fc) volume ID: %s volumecontext %v", function, req.GetVolumeId(), req.GetVolumeContext())
+	zlog.Debug().Msgf("%s (fc) uid: %s gid: %s unix_perm: %s", function, req.GetVolumeContext()[common.SC_UID], req.GetVolumeContext()[common.SC_GID], req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS])
 
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume (fc) - getFCDiskDetails - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s (fc) - getFCDiskDetails - volume ID: %s error: %s", function, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	devicePath, err := fc.searchDisk(*fcDetails.connector)
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume (fc) - searchDisk -  volume ID: %s error: Unable to find disk given WWNN or WWIDs: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s (fc) - searchDisk -  volume ID: %s error: Unable to find disk given WWNN or WWIDs: %s", function, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -138,29 +140,29 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume (fc) - getFCDiskMounter - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s (fc) - getFCDiskMounter - volume ID: %s error: %s", function, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	err = fc.MountFCDisk(*diskMounter, devicePath)
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume (fc) - MountFCDisk - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s (fc) - MountFCDisk - volume ID: %s error: %s", function, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	// set volume permissions based on uid/uid/unix_permissions
-	zlog.Debug().Msgf("NodePublishVolume (fc) - volume ID: %s after mount targetPath %s, devicePath %s ", req.GetVolumeId(), diskMounter.TargetPath, devicePath)
+	zlog.Debug().Msgf("%s (fc) - volume ID: %s after mount targetPath %s, devicePath %s ", function, req.GetVolumeId(), diskMounter.TargetPath, devicePath)
 	// print out the target permissions
 	logPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
 	logPermissions("after mount devicePath ", "/host"+devicePath)
 	if diskMounter.ReadOnly {
-		zlog.Debug().Msgf("NodePublishVolume (fc) - skipping chown-chmod since this is readOnly volume")
+		zlog.Debug().Msgf("%s (fc) - skipping chown-chmod since this is readOnly volume", function)
 	} else {
 		err = fc.storageHelper.SetVolumePermissions(req)
 		if err != nil {
-			e := fmt.Errorf("NodePublishVolume (fc) - SetVolumePermissions - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+			e := fmt.Errorf("%s (fc) - SetVolumePermissions - volume ID: %s error: %s", function, req.GetVolumeId(), err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -171,14 +173,15 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	var err error
+	const function = "NodeUnpublishVolume"
 	defer helper.TimeTrack(zlog, time.Now())
 
 	targetPath := req.GetTargetPath()
-	zlog.Debug().Msgf("NodeUnpublishVolume (fc) called - volume ID: %d targetPath: %s", fc.cs.VolProto.VolumeID, targetPath)
+	zlog.Debug().Msgf("%s (fc) called - volume ID: %d targetPath: %s", function, fc.cs.VolProto.VolumeID, targetPath)
 
 	err = unmountAndCleanUp(targetPath)
 	if err != nil {
-		e := fmt.Errorf("NodeUnpublishVolume (fc) - unmountAndCleanup  volume ID: %s target path: %s error: %s", req.GetVolumeId(), targetPath, err.Error())
+		e := fmt.Errorf("%s (fc) - unmountAndCleanup  volume ID: %s target path: %s error: %s", function, req.GetVolumeId(), targetPath, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -186,9 +189,10 @@ func (fc *fcstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 }
 
 func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+	const function = "NodeUnstageVolume"
 	defer helper.TimeTrack(zlog, time.Now())
 	stagePath := req.GetStagingTargetPath()
-	zlog.Debug().Msgf("NodeUnstageVolume (fc) - FC called - stagePath: %s", stagePath)
+	zlog.Debug().Msgf("%s (fc) - FC called - stagePath: %s", function, stagePath)
 	cmd := exec.Command("ls", "/host/"+stagePath)
 	out, err2 := cmd.Output()
 
@@ -205,39 +209,39 @@ func (fc *fcstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	}
 
 	// load fc disk config from json file
-	zlog.Debug().Msgf("NodeUnstageVolume (fc) - read fc config from staging path - volume ID: %s", req.GetVolumeId())
+	zlog.Debug().Msgf("%s (fc) - read fc config from staging path - volume ID: %s", function, req.GetVolumeId())
 	if err := loadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
-		zlog.Debug().Msgf("NodeUnstageVolume (fc) - fc config: mpathDevice %s", mpathDevice)
+		zlog.Debug().Msgf("%s (fc) - fc config: mpathDevice %s", function, mpathDevice)
 	} else {
-		zlog.Debug().Msgf("NodeUnstageVolume (fc) - fc config not existing at staging path")
+		zlog.Debug().Msgf("%s (fc) - fc config not existing at staging path", function)
 		confFile := path.Join("/host", stagePath, strconv.Itoa(fc.cs.VolProto.VolumeID)+".json")
-		zlog.Debug().Msgf("NodeUnstageVolume (fc) - check if fc config file exists")
+		zlog.Debug().Msgf("%s (fc) - check if fc config file exists", function)
 		pathExist, pathErr := fc.cs.pathExists(confFile)
 		if pathErr == nil {
 			if !pathExist {
-				zlog.Debug().Msgf("NodeUnstageVolume (fc) - config file not found at %s", confFile)
+				zlog.Debug().Msgf("%s (fc) - config file not found at %s", function, confFile)
 				if err := os.RemoveAll(stagePath); err != nil {
-					e := fmt.Errorf("NodeUnstageVolume (fc) - RemoveAll - Failed to remove mount path Error: %v", err)
+					e := fmt.Errorf("%s (fc) - RemoveAll - Failed to remove mount path Error: %v", function, err)
 					zlog.Error().Msg(e.Error())
 					return nil, e
 				}
-				zlog.Debug().Msgf("NodeUnstageVolume (fc) - Removed stage path at %s", stagePath)
+				zlog.Debug().Msgf("%s (fc) - Removed stage path at %s", function, stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
-		zlog.Warn().Msgf("NodeUnstageVolume (fc) - fc detach disk: failed to get fc config from path %s Error: %v", stagePath, err)
+		zlog.Warn().Msgf("%s (fc) - fc detach disk: failed to get fc config from path %s Error: %v", function, stagePath, err)
 	}
 
 	// remove multipath device
 	err := detachMpathDevice(mpathDevice, common.PROTOCOL_FC)
 	if err != nil {
-		zlog.Error().Msgf("NodeUnstageVolume (fc) - detachMpathDevice - error: %s", err.Error())
-		zlog.Warn().Msgf("NodeUnstageVolume (fc) -  cannot detach volume with ID %s: %+v", req.GetVolumeId(), err)
+		zlog.Error().Msgf("%s (fc) - detachMpathDevice - error: %s", function, err.Error())
+		zlog.Warn().Msgf("%s (fc) -  cannot detach volume with ID %s: %+v", function, req.GetVolumeId(), err)
 	}
 
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
-		e := fmt.Errorf("NodeUnstageVolume (fc) - RemoveAll - failed to remove mount path error: %s", err.Error())
+		e := fmt.Errorf("%s (fc) - RemoveAll - failed to remove mount path error: %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -257,15 +261,16 @@ func (fc *fcstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 }
 
 func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	const function = "NodeExpandVolume"
 	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("NodeExpandVolume (fc) - called - request %s", req.GetVolumeId())
+	zlog.Debug().Msgf("%s (fc) - called - request %s", function, req.GetVolumeId())
 
 	response := csi.NodeExpandVolumeResponse{}
 
 	if req.GetVolumeCapability().GetBlock() != nil {
 		err := blockExpandVolume(req.GetVolumePath())
 		if err != nil {
-			e := fmt.Errorf("NodeExpandVolume (fc) - blockExpandVolume - volume path: %s error: %s", req.GetVolumePath(), err.Error())
+			e := fmt.Errorf("%s (fc) - blockExpandVolume - volume path: %s error: %s", function, req.GetVolumePath(), err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
@@ -275,11 +280,11 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 1 - find the multipath device name (e.g. /dev/mapper/mpathwi) from the list of mounts
 	multipathDevice, err := findMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		e := fmt.Errorf("NodeExpandVolume (fc) - findMultipathDeviceFromVolumePath - error: %s", err.Error())
+		e := fmt.Errorf("%s (fc) - findMultipathDeviceFromVolumePath - error: %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	zlog.Debug().Msgf("NodeExpandVolume (fc) - multipathDevice=[%s]", multipathDevice)
+	zlog.Debug().Msgf("%s (fc) - multipathDevice=[%s]", function, multipathDevice)
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
@@ -288,13 +293,13 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	zlog.Debug().Msgf("command is [%s]", command)
 	out, _, err := execCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("NodeExpandVolume (fc) - command: %s error: %s", command, err.Error())
+		e := fmt.Errorf("%s (fc) - command: %s error: %s", function, command, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
 
 	if out == "" {
-		e := fmt.Errorf("NodeExpandVolume (fc) - error getting multipath device name %s, command output was empty", multipathDevice)
+		e := fmt.Errorf("%s (fc) - error getting multipath device name %s, command output was empty", function, multipathDevice)
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -309,7 +314,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		if outputParts[i] != "" {
 			line := strings.Split(outputParts[i], "_")
 			if len(line) < 2 {
-				zlog.Error().Msgf("NodeExpandVolume (fc) - error getting multipath blockDevice from output %v", line)
+				zlog.Error().Msgf("%s (fc) - error getting multipath blockDevice from output %v", function, line)
 				continue
 			}
 			blockDevice := line[1]
@@ -318,7 +323,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
 			out, _, err := execCommand.Command(command, "")
 			if err != nil {
-				e := fmt.Errorf("NodeExpandVolume (fc) - Command %s - error writing rescan on multipath devices %s", command, err.Error())
+				e := fmt.Errorf("%s (fc) - Command %s - error writing rescan on multipath devices %s", function, command, err.Error())
 				zlog.Error().Msg(e.Error())
 				return nil, e
 			}
@@ -332,14 +337,14 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// we need to strip off the /dev/mapper/ path prefix
 	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
 	if len(mpathPart) < 2 {
-		e := fmt.Errorf("NodeExpandVolume (fc) - error getting mpathPart from %+v", mpathPart)
+		e := fmt.Errorf("%s (fc) - error getting mpathPart from %+v", function, mpathPart)
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	out, _, err = execCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("NodeExpandVolume (fc) - command: %s -  error multipathd resize map multipath devices %s", command, err.Error())
+		e := fmt.Errorf("%s (fc) - command: %s -  error multipathd resize map multipath devices %s", function, command, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -349,7 +354,7 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	fsType := req.GetVolumeCapability().GetMount().FsType
 	err = expandFileSystem(multipathDevice, fsType)
 	if err != nil {
-		e := fmt.Errorf("NodeExpandVolume (fc)- error: %s", err.Error())
+		e := fmt.Errorf("%s (fc)- error: %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -358,8 +363,9 @@ func (fc *fcstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 }
 
 func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
+	const function = "MountFCDisk"
 	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("MountFCDisk - called - request %+v devicePath %s", fm, devicePath)
+	zlog.Debug().Msgf("%s - called - request %+v devicePath %s", function, fm, devicePath)
 
 	dskinfo := diskInfo{
 		MpathDevice: devicePath,
@@ -369,7 +375,7 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	}
 	err := mountLogic(dskinfo, fm.TargetPath, devicePath, fm.StagePath, fm.FsType, fm.MountOptions, fm.fcDisk.isBlock, fm.ReadOnly)
 	if err != nil {
-		e := fmt.Errorf("MountFCDisk - mountLogic() error %s", err.Error())
+		e := fmt.Errorf("%s - mountLogic() error %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return status.Error(codes.Internal, e.Error())
 	}
@@ -381,15 +387,15 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 			IsBlock:     fm.fcDisk.isBlock,
 			VolumeID:    fm.fcDisk.connector.VolumeID,
 		}
-		zlog.Debug().Msgf("MountFCDisk - attempting to create FC config file dskinfo [%+v] stagePath [%s] targetPath [%s]", dskinfo, fm.StagePath, fm.TargetPath)
+		zlog.Debug().Msgf("%s - attempting to create FC config file dskinfo [%+v] stagePath [%s] targetPath [%s]", function, dskinfo, fm.StagePath, fm.TargetPath)
 		if err := createConfigFile(dskinfo, fm.StagePath); err != nil {
-			e := fmt.Errorf("MountFCDisk - failed to save fc config with error: %v", err)
+			e := fmt.Errorf("%s - failed to save fc config with error: %v", function, err)
 			zlog.Error().Msg(e.Error())
 			return e
 		}
-		zlog.Debug().Msgf("MountFCDisk - created FC config file at [%s]", fm.StagePath)
+		zlog.Debug().Msgf("%s - created FC config file at [%s]", function, fm.StagePath)
 	}
-	zlog.Debug().Msgf("MountFCDisk - FormatAndMount succeeded. devicePath: %s, targetPath: %s, fsType: %s", devicePath, fm.TargetPath, fm.FsType)
+	zlog.Debug().Msgf("%s - FormatAndMount succeeded. devicePath: %s, targetPath: %s, fsType: %s", function, devicePath, fm.TargetPath, fm.FsType)
 	return nil
 }
 
@@ -460,18 +466,19 @@ func validateFCIsOnline() bool {
 }
 
 func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDevice, error) {
+	const function = "getFCDiskDetails"
 	lun := req.GetPublishContext()["lun"]
 	wwids := req.GetVolumeContext()["WWIDs"]
 	wwidList := strings.Split(wwids, ",")
 	targetList := []string{}
 	fcNodes, err := fc.cs.IboxApi.GetFCPorts()
 	if err != nil {
-		e := fmt.Errorf("getFCDiskDetails - error getting fc details - error %s", err.Error())
+		e := fmt.Errorf("%s - error getting fc details - error %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
 	if len(fcNodes) == 0 {
-		return nil, fmt.Errorf("getFCDiskDetails - error getting fiber channel details, zero fc ports found")
+		return nil, fmt.Errorf("%s - error getting fiber channel details, zero fc ports found", function)
 	}
 	for _, fcnode := range fcNodes {
 		for _, fcport := range fcnode.Ports {
@@ -482,7 +489,7 @@ func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	}
 	zlog.Debug().Msgf("lun %s , targetList %v , wwidList %v", lun, targetList, wwidList)
 	if lun == "" || (len(targetList) == 0 && len(wwidList) == 0) {
-		e := fmt.Errorf("getFCDiskDetails - FC target information is missing")
+		e := fmt.Errorf("%s - FC target information is missing", function)
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -612,8 +619,9 @@ func (handler *OSioHandler) WriteFile(filename string, data []byte, perm os.File
 }
 
 func (fc *fcstorage) searchDisk(c Connector) (string, error) {
+	const function = "searchDisk"
 	defer helper.TimeTrack(zlog, time.Now())
-	zlog.Debug().Msgf("searchDisk - targetWWNs=[%+v] wwids=[%v]", c.TargetWWNs, c.WWIDs)
+	zlog.Debug().Msgf("%s - targetWWNs=[%+v] wwids=[%v]", function, c.TargetWWNs, c.WWIDs)
 	var diskIds []string // target wwns
 	var disk string
 	var dm string
@@ -626,7 +634,7 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 
 	fcHosts, err := findHosts("fc")
 	if err != nil {
-		e := fmt.Errorf("searchDisk - findHosts - error %s", err.Error())
+		e := fmt.Errorf("%s - findHosts - error %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return "", e
 	}
@@ -634,16 +642,16 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	zlog.Debug().Msgf("Rescan hosts fcHosts [%v]", fcHosts)
 	wwid, err := rescanDeviceMap(fcHosts, diskIds[0], c.Lun)
 	if err != nil {
-		e := fmt.Errorf("searchDisk rescan error %s", err.Error())
+		e := fmt.Errorf("%s rescan error %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
 		return "", e
 	}
 	if wwid == "" {
-		e := fmt.Errorf("searchDisk rescan error wwid not found")
+		e := fmt.Errorf("%s rescan error wwid not found", function)
 		zlog.Error().Msg(e.Error())
 		return "", e
 	}
-	zlog.Debug().Msgf("searchDisk rescan scsi host wwid is [%s]", wwid)
+	zlog.Debug().Msgf("%s rescan scsi host wwid is [%s]", function, wwid)
 
 	const defaultTries = 10
 	tries := defaultTries //currently this means a max of 10 seconds which is ample almost always
@@ -658,7 +666,7 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 		}
 	}
 
-	zlog.Debug().Msgf("searchDisk sleeping up to %d seconds to allow devmapper time to work", tries)
+	zlog.Debug().Msgf("%s sleeping up to %d seconds to allow devmapper time to work", function, tries)
 	// during testing, I found that devmapper would not create the dm-X device quick enough
 	// after the rescan above for the code below to work, instead of seeing a dm-X device
 	// the path would be /dev/sdaX whic is not what we want, sleeping a bit gives devmapper
@@ -671,12 +679,12 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 				dm = getDMDevicePath(wwid)
 			}
 			if dm != "" {
-				zlog.Debug().Msgf("searchDisk found disk '%s' and dm '%s' diskID '%s'", disk, dm, diskID)
+				zlog.Debug().Msgf("%s found disk '%s' and dm '%s' diskID '%s'", function, disk, dm, diskID)
 				break
 			}
 		}
 		if dm != "" && strings.Contains(dm, "dm-") {
-			zlog.Debug().Msgf("searchDisk found a valid dm device [%s] iteration %d", dm, i)
+			zlog.Debug().Msgf("%s found a valid dm device [%s] iteration %d", function, dm, i)
 			break
 		}
 		time.Sleep(time.Second * 1)
@@ -689,9 +697,9 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 
 	// if multipath devicemapper device is found, use it; otherwise use raw disk
 	if dm != "" {
-		zlog.Debug().Msgf("searchDisk dm device found disk [%s] dm [%s]", disk, dm)
+		zlog.Debug().Msgf("%s dm device found disk [%s] dm [%s]", function, disk, dm)
 		return dm, nil
 	}
-	zlog.Debug().Msgf("searchDisk dm device not found, using raw disk %s", disk)
+	zlog.Debug().Msgf("%s dm device not found, using raw disk %s", function, disk)
 	return disk, nil
 }
