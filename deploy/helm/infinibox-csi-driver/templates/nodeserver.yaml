@@ -87,6 +87,8 @@ spec:
               value: {{ .Values.logLevel }}
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
+            - name: CLEANUP_NFS_PERMS
+              value: "{{ .Values.cleanupNFSPerms }}"
             - name: MULTIPATH_CLEANUP_DELAY
               value: "{{ .Values.multipathCleanupDelay }}"
             - name: MULTIPATH_WAIT

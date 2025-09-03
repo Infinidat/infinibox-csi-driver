@@ -30,6 +30,11 @@ removeDomainName: "false"
 # set to false to prevent events from being created on the ibox for CSI related events
 # the default is "true" when not set
 #createEvents: "false"
+#
+# set to false to not attempt NFS ip address cleanup when there are no mounts
+# on the node left for a given filesystem
+# the default is "false" when not set
+#cleanupNFSPerms: "false"
 
 ## tuning parameters related to multipath operations (iscsi/fc protocols)
 ## WARNING:  you almost never need to change these unless you are experiencing timeouts on heavily

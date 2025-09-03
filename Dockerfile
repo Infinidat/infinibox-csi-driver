@@ -64,6 +64,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/mount \
     && ln -s /ibox/host-chroot.sh /ibox/multipath \
     && ln -s /ibox/host-chroot.sh /ibox/multipathd \
+    && ln -s /ibox/host-chroot.sh /ibox/nfsstat \
     && ln -s /ibox/host-chroot.sh /ibox/nvme \
     && ln -s /ibox/host-chroot.sh /ibox/rescan-scsi-bus.sh \
     && ln -s /ibox/host-chroot.sh /ibox/rmdir \

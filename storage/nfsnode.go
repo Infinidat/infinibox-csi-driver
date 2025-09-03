@@ -159,7 +159,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	targetPath := req.GetTargetPath()
-	zlog.Debug().Msgf("NodeUnpublishVolume (nfs) - targetPath %s", targetPath)
+	zlog.Debug().Msgf("NodeUnpublishVolume (nfs) - targetPath %s volume ID %s", targetPath, req.GetVolumeId())
 	err := unmountAndCleanUp(targetPath)
 	if err != nil {
 		e := fmt.Errorf("NodeUnpublishVolume (nfs) - unmountAndCleanup - error: %s", err.Error())
@@ -167,6 +167,9 @@ func (nfs *nfsstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 		return nil, e
 	}
 
+	if isCleanupNFSPermsSet() {
+		cleanupNFSPerms(nfs.cs.VolProto.VolumeID)
+	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

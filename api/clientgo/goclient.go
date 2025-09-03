@@ -14,6 +14,7 @@ package clientgo
 
 import (
 	"context"
+	"fmt"
 	"infinibox-csi-driver/common"
 
 	"infinibox-csi-driver/log"
@@ -178,6 +179,27 @@ func (kc *kubeclient) GetNodes() (nodes []v1.Node, err error) {
 		return nodes, err
 	}
 	return nodeList.Items, nil
+}
+func (kc *kubeclient) GetPV(name string) (pv *v1.PersistentVolume, err error) {
+	pv, err = kc.client.CoreV1().PersistentVolumes().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return pv, nil
+}
+
+func (kc *kubeclient) GetPVByVolumeID(volumeID int, protocol string) (pv *v1.PersistentVolume, err error) {
+	volumeHandle := fmt.Sprintf("%d$$%s", volumeID, protocol)
+	pvList, err := kc.client.CoreV1().PersistentVolumes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range pvList.Items {
+		if v.Spec.CSI.VolumeHandle == volumeHandle {
+			return &v, nil
+		}
+	}
+	return nil, fmt.Errorf("no PV found for volumeHandle %d$$nfs", volumeID)
 }
 
 func (kc *kubeclient) GetClusterVerion() (string, error) {
