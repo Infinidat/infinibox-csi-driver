@@ -138,6 +138,8 @@ spec:
               value: "true"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: PROTOCOL_SECRET
+              value: {{ .Values.protocolSecret }}
             - name: NODE_IP
               valueFrom:
                 fieldRef:
@@ -182,6 +184,8 @@ spec:
         {{- end }}
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
+            - name: PROTOCOL_SECRET
+              value: {{ .Values.protocolSecret }}
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: CSI_DRIVER_NAME

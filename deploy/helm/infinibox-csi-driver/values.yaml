@@ -18,7 +18,7 @@ logLevel: "info"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "2.22.0"
+csiDriverVersion: "2.23.0"
 
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
@@ -35,6 +35,22 @@ removeDomainName: "false"
 # on the node left for a given filesystem
 # the default is "false" when not set
 #cleanupNFSPerms: "false"
+#
+# protocol secret, if set, this secret will hold protocol secret info
+# installed into the same namespace as the driver
+#protocolSecret: "infinibox-protocol-secret"
+Infinibox_Protocol_Secrets:
+  - SecretName: "infinibox-protocol-secret"
+    preferred_auto_order: "fc,nvme,iscsi"
+    storage_protocol: "fc"
+    nfs:
+      network_space: "default_nas_space"
+      nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]"
+    iscsi:
+      network_space: "default_iscsi_space"
+      useCHAP: "none"
+    nvme:
+      network_space: "default_nvme_space"
 
 ## tuning parameters related to multipath operations (iscsi/fc protocols)
 ## WARNING:  you almost never need to change these unless you are experiencing timeouts on heavily
@@ -83,7 +99,7 @@ images:
   attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:47ab8aebebdc59316004ba8d51a903637d808f4e62a6d0f599ed3c2483cea901" # v4.7.0
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.22.0"
+  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.23.0"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
@@ -119,6 +135,7 @@ images:
   livenesssidecar_pull_policy: "IfNotPresent"
 
   #imagePullSecret: "private-docker-reg-secret"
+
 Infinibox_Cred:
   - SecretName: "infinibox-creds"
     username: "someiboxusername"

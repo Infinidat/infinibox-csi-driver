@@ -41,13 +41,13 @@ type GetFCPortsResponse struct {
 }
 
 func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
-	const function = "GetFCPorts"
+	const FN = "GetFCPorts"
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/components/nodes")
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url)
+	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - NewRequest - error %w", function, err)
+		return nodes, fmt.Errorf("%s - NewRequest - error %w", FN, err)
 	}
 
 	values := req.URL.Query()
@@ -58,25 +58,25 @@ func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 
 	resp, err := iboxClient.HttpClient.Do(req)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - Do - error %w", function, err)
+		return nodes, fmt.Errorf("%s - Do - error %w", FN, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - ReadAll - error %w", function, err)
+		return nodes, fmt.Errorf("%s - ReadAll - error %w", FN, err)
 	}
 	var responseObject GetFCPortsResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - Unmarshal - error %w", function, err)
+		return nodes, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nodes, fmt.Errorf("%s - ibox API - error code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
+		return nodes, fmt.Errorf("%s - ibox API - error code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	return responseObject.Result, nil

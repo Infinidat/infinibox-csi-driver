@@ -49,6 +49,8 @@ const (
 	SC_MAX_TREEQS_PER_FILESYSTEM = "max_treeqs_per_filesystem"
 	SC_MAX_FILESYSTEMS           = "max_filesystems"
 	SC_MAX_FILESYSTEM_SIZE       = "max_filesystem_size"
+
+	SC_PROTOCOL_SECRET_AUTO_ORDER = "preferred_auto_order" // a comma separated list of protocols
 )
 
 // storage protocols
@@ -58,6 +60,7 @@ const (
 	PROTOCOL_ISCSI = "iscsi"
 	PROTOCOL_FC    = "fc"
 	PROTOCOL_NVME  = "nvme"
+	PROTOCOL_AUTO  = "auto" // either fc, iscsi, or nvme - heuristically determined
 )
 
 // Service name in
@@ -116,6 +119,13 @@ const (
 	ENV_VAR_OS_VERSION         = "OS_VERSION"
 	ENV_VAR_KUBE_VERSION       = "KUBE_VERSION"
 	ENV_VAR_NODE_COUNT         = "NODE_COUNT"
+
+	ENV_VAR_PROTOCOL_SECRET    = "PROTOCOL_SECRET"
+	ENV_VAR_POD_NAMESPACE      = "POD_NAMESPACE"
+	ENV_VAR_CLEANUP_NFS_PERMS  = "CLEANUP_NFS_PERMS"
+	ENV_VAR_KUBE_NODE_NAME     = "KUBE_NODE_NAME"
+	ENV_VAR_NODE_IP            = "NODE_IP"
+	ENV_VAR_REMOVE_DOMAIN_NAME = "REMOVE_DOMAIN_NAME"
 )
 
 const (

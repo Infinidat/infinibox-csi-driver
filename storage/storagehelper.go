@@ -276,6 +276,11 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
 func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api iboxapi.Client) error {
 
+	if protocol == common.PROTOCOL_AUTO {
+		zlog.Debug().Msg("ValidateProtocolToNetworkSpace -skipping validation because protocol is auto")
+		return nil
+	}
+
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
 		zlog.Err(err)
@@ -617,7 +622,7 @@ func DetermineHostName(nodeID string) (hostName string, err error) {
 	}
 	hostName = nodeNameIP[0]
 
-	removeDomainName := os.Getenv("REMOVE_DOMAIN_NAME")
+	removeDomainName := os.Getenv(common.ENV_VAR_REMOVE_DOMAIN_NAME)
 	if removeDomainName == "true" {
 		shortName := strings.Split(hostName, ".")
 		if len(shortName) > 0 {

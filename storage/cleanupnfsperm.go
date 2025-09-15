@@ -19,8 +19,8 @@ func cleanupNFSPerms(volumeID int) {
 	const FN = "cleanupNFSPerms"
 
 	// get the node name and IP which we'l use for identifying this node
-	nodeName := os.Getenv("KUBE_NODE_NAME")
-	nodeIP := os.Getenv("NODE_IP")
+	nodeName := os.Getenv(common.ENV_VAR_KUBE_NODE_NAME)
+	nodeIP := os.Getenv(common.ENV_VAR_NODE_IP)
 	zlog.Debug().Msgf("%s - volumeID %d node %s node IP %s", FN, volumeID, nodeName, nodeIP)
 
 	// get a connection to the kube api
@@ -136,7 +136,7 @@ func cleanupNFSPerms(volumeID int) {
 					// by updating the export with updated permissions list
 					if foundNodeIP {
 						zlog.Debug().Msgf("%s - originalPerms [%v]", FN, ex.Permissions)
-						updatedPerms := slices.Delete(ex.Permissions, foundNodeIPIndex, len(ex.Permissions))
+						updatedPerms := slices.Delete(ex.Permissions, foundNodeIPIndex, foundNodeIPIndex+1)
 						zlog.Debug().Msgf("%s - updatedPerms [%v]", FN, updatedPerms)
 						exportPathRef := iboxapi.ExportPathRef{
 							Permissions: updatedPerms,
@@ -175,7 +175,7 @@ func isVolumeMounted(nfsstatOutput string, fsName string) bool {
 // determine if the installation has enabled the
 // cleanup NFS perms feature
 func isCleanupNFSPermsSet() bool {
-	envVarText := os.Getenv("CLEANUP_NFS_PERMS")
+	envVarText := os.Getenv(common.ENV_VAR_CLEANUP_NFS_PERMS)
 	if envVarText == "" {
 		return false
 	}

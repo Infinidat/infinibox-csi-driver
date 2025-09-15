@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: ps-pvc-clone
+    namespace: $_E2E_NAMESPACE
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ibox-ps
+  resources:
+    requests:
+      storage: 1Gi
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: ps-pvc
