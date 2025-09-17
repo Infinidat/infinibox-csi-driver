@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/iboxapi"
 	"infinibox-csi-driver/storage"
 	"os"
 	"os/exec"
@@ -139,48 +138,16 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	eventData := make([]iboxapi.EventRequestData, 0)
-	protocolData := iboxapi.EventRequestData{
-		Name:  "protocol",
-		Type:  "String",
-		Value: volProto.StorageType,
-	}
-	eventData = append(eventData, protocolData)
-
-	volumeIDData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_VOLUME_ID,
-		Type:  "String",
-		Value: req.GetVolumeId(),
-	}
-	eventData = append(eventData, volumeIDData)
-
-	actionData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_ACTION,
-		Type:  "String",
-		Value: "Mounted Volume",
-	}
-	eventData = append(eventData, actionData)
-
 	if storageProtocol == common.PROTOCOL_NFS {
 		mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
 		nfsVersion, nfsPort := storage.GetNFSVersionPort(mountOptions)
 		zlog.Debug().Msgf("%s - nfs mount options are [%v], nfs version [%s] port [%s]", FN, mountOptions, nfsVersion, nfsPort)
-		actionData := iboxapi.EventRequestData{
-			Name:  common.CUSTOM_EVENT_NFS_VERSION,
-			Type:  "String",
-			Value: nfsVersion,
-		}
-		eventData = append(eventData, actionData)
-
+		helper.EventNFSVersions[nfsVersion]++
 	}
 
-	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, fmt.Sprintf("CSI - Mounted Volume: volume ID %s", req.GetVolumeId()), eventData)
-	if eventErr != nil {
-		zlog.Error().Msgf("%s - CreateEvent - error %s", FN, eventErr.Error())
-		// only log errors since older ibox versions don't support this event code
-	} else {
-		zlog.Debug().Msgf("%s - created external event %+v", FN, eventData)
-	}
+	helper.EventAPIClient = comnserv.Api
+	helper.EventIboxAPIClient = comnserv.IboxApi
+	helper.EventPublishedVolumes[volProto.StorageType]++
 
 	return response, nil
 }

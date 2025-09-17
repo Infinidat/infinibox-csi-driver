@@ -23,12 +23,12 @@ require (
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.32.6
-	k8s.io/apimachinery v0.32.6
-	k8s.io/client-go v0.32.6
+	k8s.io/api v0.32.8
+	k8s.io/apimachinery v0.32.8
+	k8s.io/client-go v0.32.8
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kubernetes v1.32.6
-	k8s.io/mount-utils v0.32.6
+	k8s.io/kubernetes v1.32.8
+	k8s.io/mount-utils v0.32.8
 	k8s.io/utils v0.0.0-20250321185631-1f6e0b77f77e
 	sigs.k8s.io/controller-runtime v0.20.4
 )

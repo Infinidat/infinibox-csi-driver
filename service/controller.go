@@ -135,7 +135,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	var summary string
 	summary, err = validateCapabilities(reqCapabilities)
 	if err != nil {
-		e := fmt.Errorf("%s - validateCapabilities - error %s", FN, err.Error())
+		e := fmt.Errorf("%s - validateCapabilities - error %s summary %s", FN, err.Error(), summary)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -266,57 +266,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageProtocol
 
-	eventData := make([]iboxapi.EventRequestData, 0)
-	protocolData := iboxapi.EventRequestData{
-		Name:  common.SC_STORAGE_PROTOCOL,
-		Type:  "String",
-		Value: storageProtocol,
-	}
-	eventData = append(eventData, protocolData)
-
-	capacityData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_CAPACITY,
-		Type:  "String",
-		Value: strconv.FormatInt(capacity, 10),
-	}
-	eventData = append(eventData, capacityData)
-
-	volumeCapsData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_VOLUME_CAPS,
-		Type:  "String",
-		Value: summary,
-	}
-	eventData = append(eventData, volumeCapsData)
-
-	volumeIDData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_VOLUME_ID,
-		Type:  "String",
-		Value: createVolResp.Volume.VolumeId,
-	}
-	eventData = append(eventData, volumeIDData)
-
-	volumeNameData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_VOLUME_NAME,
-		Type:  "String",
-		Value: volName,
-	}
-	eventData = append(eventData, volumeNameData)
-
-	actionData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_ACTION,
-		Type:  "String",
-		Value: "Create Volume",
-	}
-	eventData = append(eventData, actionData)
-
-	eventDesc := fmt.Sprintf("CSI - Create Volume: id %s name %s", createVolResp.Volume.VolumeId, volName)
-	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, eventDesc, eventData)
-	if eventErr != nil {
-		zlog.Error().Msgf("%s - CreateEvent - error %s", FN, eventErr.Error())
-		// only log errors if custom event fails
-	} else {
-		zlog.Debug().Msgf("%s - created external event %+v", FN, eventData)
-	}
+	helper.EventAPIClient = comnserv.Api
+	helper.EventIboxAPIClient = comnserv.IboxApi
+	helper.EventCreatedVolumes++
 
 	zlog.Info().Msgf("%s Finish - Name: %s volume ID: %s", FN, volName, createVolResp.Volume.VolumeId)
 	return createVolResp, nil
@@ -955,52 +907,9 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	eventData := make([]iboxapi.EventRequestData, 0)
-	locking := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
-	if locking != "" {
-		lockingData := iboxapi.EventRequestData{
-			Name:  common.LOCK_EXPIRES_AT_PARAMETER,
-			Type:  "String",
-			Value: locking,
-		}
-		eventData = append(eventData, lockingData)
-	}
-	protocolData := iboxapi.EventRequestData{
-		Name:  common.SC_STORAGE_PROTOCOL,
-		Type:  "String",
-		Value: volproto.StorageType,
-	}
-	eventData = append(eventData, protocolData)
-
-	volumeNameData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_VOLUME_NAME,
-		Type:  "String",
-		Value: req.GetName(),
-	}
-	eventData = append(eventData, volumeNameData)
-
-	volumeIDData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_VOLUME_ID,
-		Type:  "String",
-		Value: req.GetSourceVolumeId(),
-	}
-	eventData = append(eventData, volumeIDData)
-
-	actionData := iboxapi.EventRequestData{
-		Name:  common.CUSTOM_EVENT_ACTION,
-		Type:  "String",
-		Value: "Create Snapshot",
-	}
-	eventData = append(eventData, actionData)
-
-	eventDesc := fmt.Sprintf("CSI - Create Snapshot - snapshot name: %s source volume ID: %s", req.GetName(), req.GetSourceVolumeId())
-	eventErr := helper.CreateEvent(comnserv.Api, comnserv.IboxApi, eventDesc, eventData)
-	if eventErr != nil {
-		zlog.Error().Msgf("%s - CreateEvent - snapshot name: %s source volume ID: %s error %s", FN, req.GetName(), req.GetSourceVolumeId(), eventErr.Error())
-		// only log errors if custom event fails
-	} else {
-		zlog.Debug().Msgf("%s - created external event %+v", FN, eventData)
-	}
+	helper.EventAPIClient = comnserv.Api
+	helper.EventIboxAPIClient = comnserv.IboxApi
+	helper.EventCreatedSnapshots++
 
 	return createSnapshotResp, nil
 }
