@@ -795,7 +795,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			t := tspb.New(tt)
 
 			var parentName string
-			zlog.Debug().Msgf("snapshot datasettype %s", snapshots[i].DatasetType)
+			zlog.Trace().Msgf("snapshot datasettype %s", snapshots[i].DatasetType)
 			switch snapshots[i].DatasetType {
 			case "VOLUME":
 				_, err := clientsvc.Iboxapi.GetVolume(snapshots[i].ParentId)
@@ -829,7 +829,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				Snapshot: snapshot,
 			}
 
-			zlog.Info().Msgf("SourceVolumeId = %s SnapshotId = %s", req.SourceVolumeId, req.SnapshotId)
+			zlog.Trace().Msgf("SourceVolumeId = %s SnapshotId = %s", req.SourceVolumeId, req.SnapshotId)
 
 			if req.SourceVolumeId != "" {
 				volProto, err := storage.ValidateVolumeID(req.SourceVolumeId)
@@ -838,17 +838,17 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 					zlog.Error().Msg(e.Error())
 					return nil, status.Error(codes.InvalidArgument, e.Error())
 				} else {
-					zlog.Debug().Msgf("comparing %d to %s %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
+					zlog.Trace().Msgf("comparing %d to %s %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
 					if strconv.Itoa(volProto.VolumeID) == entry.Snapshot.SourceVolumeId {
-						zlog.Debug().Msgf("matches!")
+						zlog.Trace().Msgf("matches!")
 						entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs
 						res.Entries = append(res.Entries, &entry)
 					}
 				}
 			} else if req.SnapshotId != "" {
-				zlog.Debug().Msgf("comparing %d to %d", iValue, snapshots[i].ID)
+				zlog.Trace().Msgf("comparing %d to %d", iValue, snapshots[i].ID)
 				if iValue == snapshots[i].ID {
-					zlog.Debug().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
+					zlog.Trace().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
 					entry.Snapshot.SnapshotId = req.SnapshotId
 					res.Entries = append(res.Entries, &entry)
 				}
