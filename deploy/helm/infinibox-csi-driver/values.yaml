@@ -45,7 +45,7 @@ Infinibox_Protocol_Secrets:
     storage_protocol: "fc"
     nfs:
       network_space: "default_nas_space"
-      nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]"
+      nfs_export_permissions : ""
     iscsi:
       network_space: "default_iscsi_space"
       useCHAP: "none"
