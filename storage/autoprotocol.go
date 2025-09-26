@@ -2,8 +2,10 @@ package storage
 
 import (
 	"fmt"
+	"infinibox-csi-driver/api/clientgo"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
+	"os"
 	"strings"
 )
 
@@ -29,10 +31,78 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 		zlog.Debug().Msgf("%s user preferred auto order %v", FN, preferredOrder)
 	}
 
-	fcEnabled := isFC()
-	nvmeEnabled := isNVME()
-	iscsiEnabled := isISCSI()
-	zlog.Debug().Msgf("%s heuristics [%s=%t] [%s=%t] [%s=%t]", FN, common.PROTOCOL_FC, fcEnabled, common.PROTOCOL_NVME, nvmeEnabled, common.PROTOCOL_ISCSI, iscsiEnabled)
+	cl, err := clientgo.BuildClient()
+	if err != nil {
+		e := fmt.Errorf("%s  - BuildClient - error: %s", FN, err.Error())
+		zlog.Error().Msg(e.Error())
+		return "", protocolSecret, e
+	}
+
+	ns := os.Getenv("POD_NAMESPACE")
+	zlog.Debug().Msgf("POD_NAMESPACE=%s", ns)
+	if ns == "" {
+		e := fmt.Errorf("%s - env var POD_NAMESPACE was not set, this is a required env var", FN)
+		zlog.Error().Msg(e.Error())
+		return "", protocolSecret, e
+	}
+
+	pods, err := cl.GetRunningDriverNodePods(ns)
+	if err != nil {
+		e := fmt.Errorf("%s - GetRunningDriverNodePods - error: %s", FN, err.Error())
+		zlog.Error().Msg(e.Error())
+		return "", protocolSecret, e
+	}
+
+	zlog.Debug().Msgf("%s found %d driver node pods", FN, len(pods))
+
+	// we only need to test with a single driver node pod since they are required
+	// to be configured the same wrt protocol configurations
+	podToTest := pods[0].Name
+
+	command := "cat /sys/class/fc_host/ho*/port_state"
+	containerName := "driver"
+	fcOutput, fcStderr, err := cl.ExecCmdInPod(podToTest, ns, command, containerName)
+	zlog.Debug().Msgf("%s fc command stdout [%s] stderr [%s]", FN, fcOutput, fcStderr)
+	var fcEnabled bool
+	if err != nil {
+		zlog.Debug().Msgf("%s fcEnabled set to false due to error %s - stderr %s", FN, err.Error(), fcStderr)
+	} else {
+		if fcStderr != "" {
+			zlog.Debug().Msgf("%s fcEnabled stderr %s , setting to fcEnabled to false", FN, fcStderr)
+		} else {
+			fcEnabled = isFC(fcOutput)
+		}
+	}
+
+	var nvmeEnabled bool
+	command = "nvme list"
+	nvmeOutput, nvmeStderr, err := cl.ExecCmdInPod(podToTest, ns, command, containerName)
+	zlog.Debug().Msgf("%s nvme command stdout [%s] stderr [%s]", FN, nvmeOutput, nvmeStderr)
+	if err != nil {
+		zlog.Debug().Msgf("%s nvmeEnabled set to false due to error %s - stderr %s", FN, err.Error(), nvmeStderr)
+	} else {
+		if nvmeStderr != "" {
+			zlog.Debug().Msgf("%s nvmeEnabled stderr %s , setting to nvmeEnabled to false", FN, nvmeStderr)
+		} else {
+			nvmeEnabled = isNVME(nvmeOutput)
+		}
+	}
+
+	//command = "cat /etc/iscsi/initiatorname.iscsi"
+	command = "pgrep iscsid"
+	var iscsiEnabled bool
+	iscsiOutput, iscsiStderr, err := cl.ExecCmdInPod(podToTest, ns, command, containerName)
+	zlog.Debug().Msgf("%s iscsi command stdout [%s] stderr [%s]", FN, iscsiOutput, iscsiStderr)
+	if err != nil {
+		zlog.Debug().Msgf("%s iscsiEnabled set to false due to error %s - stderr %s", FN, err.Error(), iscsiStderr)
+	} else {
+		if iscsiStderr != "" {
+			zlog.Debug().Msgf("%s iscsiEnabled stderr %s , setting to iscsiEnabled to false", FN, iscsiStderr)
+		} else {
+			iscsiEnabled = isISCSI(iscsiOutput)
+		}
+	}
+	zlog.Debug().Msgf("%s protocol test results [%s=%t] [%s=%t] [%s=%t]", FN, common.PROTOCOL_FC, fcEnabled, common.PROTOCOL_NVME, nvmeEnabled, common.PROTOCOL_ISCSI, iscsiEnabled)
 
 	for _, v := range preferredOrder {
 		switch v {
@@ -56,40 +126,20 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 	return common.PROTOCOL_FC, protocolSecret, nil
 }
 
-func isFC() bool {
+func isFC(output string) bool {
 	//read /sys/class/fc_host/host*/port_state and treat Online as usable
-	if validateFCIsOnline() {
-		return true
-	}
-	return false
+	//kubectl exec -it infinidat-csi-driver-node-z5hb6 -c driver -- sh -c "cat /sys/class/fc_host/ho*/port_state"
+	// if the word Online is in the output then we assume fc is enabled
+	return strings.Contains(output, "Online")
 }
 
-func isISCSI() bool {
+func isISCSI(output string) bool {
 	// read /etc/iscsi/initiatorname.iscsi
 	// pgrep iscsid should return a PID if iscsid is running
-	stdOut, stdErr, err := execCommand.Command("cat", "/etc/iscsi/initiatorname.iscsi")
-	if err != nil {
-		zlog.Error().Msgf("isISCSI read command error stdout %s stderr %s", stdOut, stdErr)
-		return false
-	}
-	stdOut, stdErr, err = execCommand.Command("pgrep", "iscsid")
-	if err != nil {
-		zlog.Error().Msgf("isISCSI pgrep command error stdout %s stderr %s", stdOut, stdErr)
-		return false
-	}
-	return true
+	trimmed := strings.TrimSpace(output)
+	return trimmed != ""
 }
 
-func isNVME() bool {
-	stdOut, stdErr, err := execCommand.Command("cat", "/etc/nvme/hostnqn")
-	if err != nil {
-		zlog.Error().Msgf("isNVME read command error stdout %s stderr %s", stdOut, stdErr)
-		return false
-	}
-	stdOut, stdErr, err = execCommand.Command("nvme", "list")
-	if err != nil {
-		zlog.Error().Msgf("isNVME nvme list command error stdout %s stderr %s", stdOut, stdErr)
-		return false
-	}
-	return true
+func isNVME(output string) bool {
+	return output != ""
 }

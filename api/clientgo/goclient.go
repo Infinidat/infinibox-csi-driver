@@ -13,6 +13,7 @@ limitations under the License.
 package clientgo
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"infinibox-csi-driver/common"
@@ -23,8 +24,10 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 var zlog = log.Get() // grab the logger for package use
@@ -239,4 +242,74 @@ func (kc *kubeclient) GetPVCAnnotations(pvcName, pvcNamespace string) (annotatio
 		return annotations, err
 	}
 	return pvc.Annotations, nil
+}
+
+// get the CSI Driver pods that would be created by the driver's Daemonset
+func (kc *kubeclient) GetRunningDriverNodePods(namespace string) (pods []v1.Pod, err error) {
+	options := metav1.ListOptions{
+		LabelSelector: "part-of=infiniboxcsidriver-node",
+	}
+	podList, err := kc.client.CoreV1().Pods(namespace).List(context.TODO(), options)
+	if err != nil {
+		zlog.Error().Msgf("Error Getting Driver Node Pods Error: %v ", err)
+		return pods, err
+	}
+	for _, pod := range podList.Items {
+		if pod.Status.Phase == "Running" {
+			pods = append(pods, pod)
+		}
+	}
+	if len(pods) == 0 {
+		e := fmt.Errorf("no CSI driver node pods are in running status")
+		zlog.Error().Msg(e.Error())
+		return pods, e
+	}
+
+	return pods, nil
+}
+
+// ExecCmdInPod - exec command on specific pod and wait the command's output.
+func (kc *kubeclient) ExecCmdInPod(podName string, nameSpace string, command string, containerName string) (string, string, error) {
+
+	stdOut := &bytes.Buffer{}
+	stdErr := &bytes.Buffer{}
+
+	cmd := []string{
+		"/bin/sh",
+		"-c",
+		command,
+	}
+	req := kc.client.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(nameSpace).
+		SubResource("exec")
+	// need container name?
+
+	req.VersionedParams(
+		&v1.PodExecOptions{
+			Container: containerName,
+			Command:   cmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		},
+		scheme.ParameterCodec,
+	)
+
+	//fmt.Printf("execCmdInPod - Running command: %s\n", command)
+
+	exec, err := remotecommand.NewSPDYExecutor(kc.restConfig, "POST", req.URL())
+	if err != nil {
+		return stdOut.String(), stdErr.String(), err
+	}
+	err = exec.StreamWithContext(context.Background(),
+		remotecommand.StreamOptions{
+			Stdin:  nil,
+			Stdout: stdOut,
+			Stderr: stdErr,
+		})
+
+	return stdOut.String(), stdErr.String(), err
 }

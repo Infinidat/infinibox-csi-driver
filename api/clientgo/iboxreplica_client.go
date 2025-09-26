@@ -24,11 +24,11 @@ import (
 )
 
 var (
-	scheme = runtime.NewScheme()
+	schemeForReplica = runtime.NewScheme()
 )
 
 func init() {
-	utilruntime.Must(v1.AddToScheme(scheme))
+	utilruntime.Must(v1.AddToScheme(schemeForReplica))
 	//+kubebuilder:scaffold:scheme
 
 	zlog = log.Get()
@@ -38,7 +38,7 @@ func init() {
 func (kc *kubeclient) GetIboxreplicas() (v1.IboxreplicaList, error) {
 	zlog.Info().Msgf("GetIboxreplicas called")
 	replicas := v1.IboxreplicaList{}
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: scheme})
+	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return replicas, err
 	}
@@ -52,7 +52,7 @@ func (kc *kubeclient) GetIboxreplicas() (v1.IboxreplicaList, error) {
 func (kc *kubeclient) GetIboxreplica(name string) (v1.Iboxreplica, error) {
 	zlog.Debug().Msgf("GetIboxreplica %s called", name)
 	replica := v1.Iboxreplica{}
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: scheme})
+	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return replica, err
 	}
@@ -68,7 +68,7 @@ func (kc *kubeclient) GetIboxreplica(name string) (v1.Iboxreplica, error) {
 
 func (kc *kubeclient) CreateIboxreplica(replica v1.Iboxreplica) error {
 	zlog.Debug().Msgf("CreateIboxreplica %v called", replica)
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: scheme})
+	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (kc *kubeclient) CreateIboxreplica(replica v1.Iboxreplica) error {
 
 func (kc *kubeclient) DeleteIboxreplica(replica v1.Iboxreplica) error {
 	zlog.Debug().Msgf("DeleteIboxreplica %v called", replica)
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: scheme})
+	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
 	}

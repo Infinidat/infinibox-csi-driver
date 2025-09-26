@@ -195,9 +195,6 @@ func NewStorageController(comnserv Commonservice, capacity int64, storageProtoco
 		return &iscsistorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_NVME:
 		return &nvmestorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
-	case common.PROTOCOL_AUTO:
-		// use nvme for auto just to create the volume if necessary
-		return &nvmestorage{capacity: capacity, cs: comnserv, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_NFS:
 		return &nfsstorage{capacity: capacity, cs: comnserv, storageHelper: StorageService{}, osHelper: helper.Service{}}, nil
 	case common.PROTOCOL_TREEQ:

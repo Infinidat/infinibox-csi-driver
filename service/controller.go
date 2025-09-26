@@ -69,38 +69,44 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	storageProtocol := reqParameters[common.SC_STORAGE_PROTOCOL]
 	networkSpace := reqParameters[common.SC_NETWORK_SPACE]
 
-	// protocol secret only applies to block volumes (fc, nvme, iscsi)
-	//if storageProtocol != common.PROTOCOL_NFS && storageProtocol != common.PROTOCOL_TREEQ {
-	protocolSecretMap, protocolSecretInUse, err := helper.GetProtocolSecret()
-	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
+	// if the user supplies a storage_protocol in the StorageClass, then use that instead of the protocol secret
 
-	if protocolSecretInUse {
-
-		storageProtocol = protocolSecretMap[common.SC_STORAGE_PROTOCOL]
-
-		var useChap, nfsExportPerms string
-		switch protocolSecretMap[common.SC_STORAGE_PROTOCOL] {
-		case common.PROTOCOL_AUTO:
-			networkSpace = common.PROTOCOL_AUTO
-		case common.PROTOCOL_ISCSI:
-			useChap = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_USE_CHAP]
-			networkSpace = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_NETWORK_SPACE]
-		case common.PROTOCOL_NVME:
-			networkSpace = protocolSecretMap[common.PROTOCOL_NVME+"."+common.SC_NETWORK_SPACE]
-		case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
-			networkSpace = protocolSecretMap[common.PROTOCOL_NFS+"."+common.SC_NETWORK_SPACE]
-			nfsExportPerms = protocolSecretMap[common.PROTOCOL_NFS+"."+common.SC_NFS_EXPORT_PERMISSIONS]
-		default:
+	if storageProtocol == "" {
+		protocolSecretMap, protocolSecretInUse, err := helper.GetProtocolSecret()
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
-		zlog.Debug().Msgf("%s - protocol secret %s:%s %s:%s %s:%s %s:%s", FN, common.SC_STORAGE_PROTOCOL, storageProtocol, common.SC_NETWORK_SPACE, networkSpace, common.SC_USE_CHAP, useChap, common.SC_NFS_EXPORT_PERMISSIONS, nfsExportPerms)
-		reqParameters[common.SC_NETWORK_SPACE] = networkSpace
-		reqParameters[common.SC_USE_CHAP] = useChap
-		reqParameters[common.SC_NFS_EXPORT_PERMISSIONS] = nfsExportPerms
+		if protocolSecretInUse {
+
+			storageProtocol = protocolSecretMap[common.SC_STORAGE_PROTOCOL]
+			if storageProtocol == common.PROTOCOL_AUTO {
+				sp, _, err := storage.DetermineProtocol()
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				storageProtocol = sp
+			}
+
+			var useChap, nfsExportPerms string
+			switch storageProtocol {
+			case common.PROTOCOL_ISCSI:
+				useChap = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_USE_CHAP]
+				networkSpace = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_NETWORK_SPACE]
+			case common.PROTOCOL_NVME:
+				networkSpace = protocolSecretMap[common.PROTOCOL_NVME+"."+common.SC_NETWORK_SPACE]
+			case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
+				networkSpace = protocolSecretMap[common.PROTOCOL_NFS+"."+common.SC_NETWORK_SPACE]
+				nfsExportPerms = protocolSecretMap[common.PROTOCOL_NFS+"."+common.SC_NFS_EXPORT_PERMISSIONS]
+			default:
+			}
+
+			zlog.Debug().Msgf("%s - protocol secret %s:%s %s:%s %s:%s %s:%s", FN, common.SC_STORAGE_PROTOCOL, storageProtocol, common.SC_NETWORK_SPACE, networkSpace, common.SC_USE_CHAP, useChap, common.SC_NFS_EXPORT_PERMISSIONS, nfsExportPerms)
+			reqParameters[common.SC_NETWORK_SPACE] = networkSpace
+			reqParameters[common.SC_USE_CHAP] = useChap
+			reqParameters[common.SC_NFS_EXPORT_PERMISSIONS] = nfsExportPerms
+		}
 	}
-	//}
 
 	reqCapabilities := req.GetVolumeCapabilities()
 
@@ -389,6 +395,23 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
+	}
+
+	if volproto.StorageType == common.PROTOCOL_AUTO {
+		zlog.Debug().Msgf("%s protocol auto detected", FN)
+		sp, protocolSecret, err := storage.DetermineProtocol()
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if sp == common.PROTOCOL_ISCSI {
+			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["iscsi.network_space"]
+		}
+		if sp == common.PROTOCOL_NVME {
+			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["nvme.network_space"]
+		}
+		// need to determine the protocol based on user defined protocol order
+		// need to look up the network_space for this protocol as defined in the protocol secret
+		volproto.StorageType = sp
 	}
 
 	if req.GetNodeId() == "" {
@@ -1045,25 +1068,22 @@ func validateCommonStorageClassParameters(comnserv storage.Commonservice, scPara
 		return err
 	}
 
-	// skip validation of network space when AUTO
-	if protocol != common.PROTOCOL_AUTO {
-		// skip validation of network space when FC
-		if protocol != common.PROTOCOL_FC {
-			networkspace := scParameters[common.SC_NETWORK_SPACE]
-			arrayofNetworkSpaces := strings.Split(networkspace, ",")
+	// skip validation of network space when FC
+	if protocol != common.PROTOCOL_FC {
+		networkspace := scParameters[common.SC_NETWORK_SPACE]
+		arrayofNetworkSpaces := strings.Split(networkspace, ",")
 
-			for _, name := range arrayofNetworkSpaces {
-				_, err := comnserv.IboxApi.GetNetworkSpaceByName(name)
-				if err != nil {
-					zlog.Error().Msgf("network space: %s is not found on the ibox", name)
-					return err
-				}
-			}
-			// validate network protocol / networkspace compatability
-			if err := storage.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.IboxApi); err != nil {
-				zlog.Err(err)
+		for _, name := range arrayofNetworkSpaces {
+			_, err := comnserv.IboxApi.GetNetworkSpaceByName(name)
+			if err != nil {
+				zlog.Error().Msgf("network space: %s is not found on the ibox", name)
 				return err
 			}
+		}
+		// validate network protocol / networkspace compatability
+		if err := storage.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.IboxApi); err != nil {
+			zlog.Err(err)
+			return err
 		}
 	}
 

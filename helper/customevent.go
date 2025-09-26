@@ -44,7 +44,6 @@ func init() {
 	EventRandomHour = rand.Intn(max-min+1) + min
 
 	EventPublishedVolumes = map[string]int{
-		common.PROTOCOL_AUTO:  0,
 		common.PROTOCOL_FC:    0,
 		common.PROTOCOL_NFS:   0,
 		common.PROTOCOL_TREEQ: 0,
@@ -116,12 +115,12 @@ func ProcessEventCounters() {
 				}
 			}
 
-			pubCount := EventPublishedVolumes[common.PROTOCOL_AUTO] +
+			pubCount :=
 				EventPublishedVolumes[common.PROTOCOL_NFS] +
-				EventPublishedVolumes[common.PROTOCOL_TREEQ] +
-				EventPublishedVolumes[common.PROTOCOL_ISCSI] +
-				EventPublishedVolumes[common.PROTOCOL_FC] +
-				EventPublishedVolumes[common.PROTOCOL_NVME]
+					EventPublishedVolumes[common.PROTOCOL_TREEQ] +
+					EventPublishedVolumes[common.PROTOCOL_ISCSI] +
+					EventPublishedVolumes[common.PROTOCOL_FC] +
+					EventPublishedVolumes[common.PROTOCOL_NVME]
 
 			if pubCount > 0 {
 				eventData = make([]iboxapi.EventRequestData, 0)
@@ -132,14 +131,12 @@ func ProcessEventCounters() {
 				}
 				eventData = append(eventData, actionData)
 
-				eventDesc = fmt.Sprintf("CSI - Published [%s,%s,%s,%s,%s,%s] [%d,%d,%d,%d,%d,%d] Volumes",
-					common.PROTOCOL_AUTO,
+				eventDesc = fmt.Sprintf("CSI - Published [%s,%s,%s,%s,%s] [%d,%d,%d,%d,%d] Volumes",
 					common.PROTOCOL_NFS,
 					common.PROTOCOL_TREEQ,
 					common.PROTOCOL_ISCSI,
 					common.PROTOCOL_FC,
 					common.PROTOCOL_NVME,
-					EventPublishedVolumes[common.PROTOCOL_AUTO],
 					EventPublishedVolumes[common.PROTOCOL_NFS],
 					EventPublishedVolumes[common.PROTOCOL_TREEQ],
 					EventPublishedVolumes[common.PROTOCOL_ISCSI],
@@ -175,7 +172,6 @@ func ProcessEventCounters() {
 
 			EventCreatedVolumes = 0
 			EventCreatedSnapshots = 0
-			EventPublishedVolumes[common.PROTOCOL_AUTO] = 0
 			EventPublishedVolumes[common.PROTOCOL_NFS] = 0
 			EventPublishedVolumes[common.PROTOCOL_TREEQ] = 0
 			EventPublishedVolumes[common.PROTOCOL_ISCSI] = 0

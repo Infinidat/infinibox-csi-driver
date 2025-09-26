@@ -92,22 +92,6 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	if volProto.StorageType == common.PROTOCOL_AUTO {
-		sp, protocolSecret, err := storage.DetermineProtocol()
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		if sp == common.PROTOCOL_ISCSI {
-			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["iscsi.network_space"]
-		}
-		if sp == common.PROTOCOL_NVME {
-			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["nvme.network_space"]
-		}
-		// need to determine the protocol based on user defined protocol order
-		// need to look up the network_space for this protocol as defined in the protocol secret
-		volProto.StorageType = sp
-	}
-
 	// the storageclass is required to specify node-publish secrets as a parameter,this will cause
 	// the secret values (hostname, password, username) to be passed down to the NodePublishVolume function
 	err = validateSecret("NodePublishVolume", req.GetVolumeId(), common.SC_NODE_PUBLISH_SECRET_NAME, common.SC_NODE_PUBLISH_SECRET_NAMESPACE, req.GetSecrets())
@@ -184,17 +168,6 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	if volProto.StorageType == common.PROTOCOL_AUTO {
-		sp, protocolSecret, err := storage.DetermineProtocol()
-		if err != nil {
-			e := fmt.Errorf("%s - DetermineProtocol -  volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
-			zlog.Error().Msg(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
-		}
-		volProto.StorageType = sp
-		zlog.Debug().Msgf("%s setting auto to %s storageProtocol  protocolSecret %v", FN, volProto.StorageType, protocolSecret)
 	}
 
 	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{VolProto: &volProto}, nil, nil)
@@ -298,17 +271,6 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	if volProto.StorageType == common.PROTOCOL_AUTO {
-		sp, protocolSecret, err := storage.DetermineProtocol()
-		if err != nil {
-			e := fmt.Errorf("%s - DetermineProtocol -  volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
-			zlog.Error().Msg(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
-		}
-		volProto.StorageType = sp
-		zlog.Debug().Msgf("%s setting auto to %s storageProtocol  protocolSecret %v", FN, volProto.StorageType, protocolSecret)
-	}
-
 	zlog.Debug().Msgf("%s volumeContext %+v storageProtocol is %s", FN, req.GetVolumeContext(), volProto.StorageType)
 
 	err = validateSecret("NodeStageVolume", req.GetVolumeId(), common.SC_NODE_STAGE_SECRET_NAME, common.SC_NODE_STAGE_SECRET_NAMESPACE, req.GetSecrets())
@@ -374,16 +336,6 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	if volProto.StorageType == common.PROTOCOL_AUTO {
-		sp, protocolSecret, err := storage.DetermineProtocol()
-		if err != nil {
-			e := fmt.Errorf("%s - DetermineProtocol -  volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
-			zlog.Error().Msg(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
-		}
-		volProto.StorageType = sp
-		zlog.Debug().Msgf("%s setting auto to %s storageProtocol  protocolSecret %v", FN, volProto.StorageType, protocolSecret)
-	}
 	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", FN, volumeId, err.Error())
