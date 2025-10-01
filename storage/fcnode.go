@@ -67,14 +67,26 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	fcPorts := getPortName()
+	portInfo := getPortInfo()
+	fcPorts := []string{}
+	for _, p := range portInfo {
+		fcPorts = append(fcPorts, p.PortName)
+	}
+	//fcPorts := getPortName()
 	if len(fcPorts) == 0 {
 		e := fmt.Errorf("%s (fc) - port name not found on worker", FN)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
+	zlog.Debug().Msgf("%s (fc) getPortName output %v", FN, fcPorts)
 
-	fcOnline := validateFCIsOnline()
+	var fcOnline bool
+	for _, p := range portInfo {
+		if p.PortState == "Online" {
+			fcOnline = true
+		}
+	}
+	//fcOnline := validateFCIsOnline()
 	if !fcOnline {
 		e := fmt.Errorf("%s (fc) - error - all FC ports on worker are offline", FN)
 		zlog.Error().Msg(e.Error())
@@ -399,72 +411,6 @@ func (fc *fcstorage) MountFCDisk(fm FCMounter, devicePath string) error {
 	return nil
 }
 
-func getPortName() []string {
-	ports := []string{}
-	cmd := "cat /sys/class/fc_host/host*/port_name"
-	out, err := exec.Command("bash", "-c", cmd).Output()
-	if err != nil {
-		zlog.Error().Msgf("Failed to get port name using command '%s': %v", cmd, err)
-		return ports
-	}
-	portName := string(out)
-	if portName != "" {
-		for _, port := range strings.Split(strings.TrimSuffix(portName, "\n"), "\n") {
-			ports = append(ports, strings.Replace(port, "0x", "", 1))
-		}
-	}
-	zlog.Debug().Msgf("fc ports found %v ", ports)
-	return ports
-}
-
-// validateFCIsOnline returns true if a FC port is found to be Online
-//
-// the check is performed by looking for FC port_state files that might exist
-// and returns true if it finds one that is Online
-//
-// NOTE:  multipath should work even with a single Online port,
-// other ports (if any) can be down
-func validateFCIsOnline() bool {
-
-	const FC_ONLINE = "Online"
-
-	// we append /host because this code works against the mounted host directly
-	// instead of via a chroot command
-	const fcHostPath = "/host/sys/class/fc_host"
-
-	// example for a FC port_state path is:
-	// /host/sys/class/fc_host/host33/port_state
-
-	entries, err := os.ReadDir(fcHostPath)
-	if err != nil {
-		zlog.Error().Msgf("error reading fc directory: %s", err)
-		return false
-	}
-
-	zlog.Debug().Msgf("searching for FC port_state in %s:", fcHostPath)
-	for _, entry := range entries {
-		filePath := fcHostPath + "/" + entry.Name() + "/port_state"
-		zlog.Debug().Msgf("reading - %s ", filePath)
-		portStateBytes, err := os.ReadFile(filePath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				zlog.Debug().Msgf("file not exist %s", err.Error())
-			} else {
-				zlog.Error().Msgf("error reading port_state file %s", err.Error())
-			}
-		} else {
-			portState := strings.TrimSpace(string(portStateBytes))
-			if portState == FC_ONLINE {
-				zlog.Debug().Msgf("%s/port_state %s is %s", entry.Name(), portState, FC_ONLINE)
-				return true
-			} else {
-				zlog.Debug().Msgf("%s/port_state %s is NOT %s", entry.Name(), portState, FC_ONLINE)
-			}
-		}
-	}
-	return false
-}
-
 func (fc *fcstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDevice, error) {
 	const FN = "getFCDiskDetails"
 	lun := req.GetPublishContext()["lun"]
@@ -632,11 +578,10 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 		diskIds = c.WWIDs
 	}
 
-	fcHosts, err := findHosts("fc")
-	if err != nil {
-		e := fmt.Errorf("%s - findHosts - error %s", FN, err.Error())
-		zlog.Error().Msg(e.Error())
-		return "", e
+	fcHosts := []string{}
+	portInfo := getPortInfo()
+	for _, p := range portInfo {
+		fcHosts = append(fcHosts, p.HostID)
 	}
 
 	zlog.Debug().Msgf("Rescan hosts fcHosts [%v]", fcHosts)

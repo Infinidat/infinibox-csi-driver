@@ -681,6 +681,10 @@ func rescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 			zlog.Error().Msgf("waitForDeviceState hosts failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
 			return "", err
 		}
+		// wwid that is not empty string means we found a wwid and dont need to look at other devices
+		if wwid != "" {
+			break
+		}
 	}
 
 	for _, host := range hosts {

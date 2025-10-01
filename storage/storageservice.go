@@ -65,6 +65,12 @@ const (
 	// tib100 int64 = tib * 100
 )
 
+type PortInfo struct {
+	HostID    string
+	PortName  string
+	PortState string
+}
+
 type Storageoperations interface {
 	csi.ControllerServer
 	csi.NodeServer
@@ -869,40 +875,40 @@ func findSlaveDevicesOnMultipath(dm string) ([]string, error) {
 	return devices, nil
 }
 
-func findHosts(protocol string) ([]string, error) {
-	const FN = "findHosts"
-	// TODO - Must use portals if supporting more than one target IQN.
-	// Find hosts
-	switch protocol {
-	case common.PROTOCOL_ISCSI:
-		hostIds, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("-m session -P3 | awk '{ if (NF > 3 && $1 == \"Host\" && $2 == \"Number:\") printf(\"%%s \", $3) }'"))
-		hosts := strings.Fields(hostIds)
-		if err != nil {
-			zlog.Error().Msgf("%s - finding hosts failed: %s", FN, err)
-			return hosts, err
-		}
-		if len(hosts) != mpathDeviceCount {
-			zlog.Warn().Msgf("%s - the number of hosts is not %d. hosts: '%v'", FN, mpathDeviceCount, hosts)
-		}
-		return hosts, nil
-	case common.PROTOCOL_FC:
-		pathLeader := "/sys/class/fc_host/host"
-		hostsPath := fmt.Sprintf("%s*", pathLeader)
-		foundHosts, err := filepath.Glob(hostsPath)
-		if err != nil || len(foundHosts) == 0 {
-			zlog.Error().Msgf("%s - no fc hosts found at path %s", FN, hostsPath)
-		}
-		hosts := []string{}
-		for _, host := range foundHosts {
-			fcHost := strings.ReplaceAll(host, pathLeader, "")
-			hosts = append(hosts, fcHost)
-		}
-		return hosts, nil
+func getPortInfo() (ports []PortInfo) {
+	const FN = "getPortInfo"
+	leadPart := "/sys/class/fc_host/host"
+	goFiles, err := filepath.Glob("/sys/class/fc_host/host*")
+	if err != nil {
+		fmt.Printf("%s - failed. error: %s", FN, err.Error())
+		return ports
 	}
+	for _, file := range goFiles {
+		fmt.Println(file)
+		data, err := os.ReadFile(file + "/port_name")
+		if err != nil {
+			fmt.Printf("%s - unable to read port_name file. error: %s", FN, err.Error())
+			continue
+		}
 
-	err := fmt.Errorf("%s - unsupported protocol: %s", FN, protocol)
-	zlog.Error().Msg(err.Error())
-	return nil, err
+		hostID := strings.Replace(file, leadPart, "", 1)
+		portName := strings.TrimSpace(string(data))
+		portName = strings.Replace(portName, "0x", "", 1)
+
+		data, err = os.ReadFile(file + "/port_state")
+		if err != nil {
+			fmt.Printf("%s - getPortName unable to read port_state file. error: %s", FN, err.Error())
+			continue
+		}
+		portState := strings.TrimSpace(string(data))
+		pi := PortInfo{
+			HostID:    hostID,
+			PortName:  portName,
+			PortState: portState,
+		}
+		ports = append(ports, pi) // test, add both Online and other Ports
+	}
+	return ports
 }
 
 func (cs *Commonservice) pathExists(path string) (bool, error) {
