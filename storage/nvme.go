@@ -114,7 +114,7 @@ func getNVMENamespaces() (devices NVMEDevices, err error) {
 		zlog.Error().Msgf("getNVMENamespaces (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return devices, err
 	}
-	zlog.Debug().Msgf("getNVMENamespaces (nvme) - %s raw output %s", cmd, rawOutput)
+	zlog.Trace().Msgf("getNVMENamespaces (nvme) - %s raw output %s", cmd, rawOutput)
 
 	version, err := getNVMEVersion()
 	if err != nil {
