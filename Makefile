@@ -90,9 +90,7 @@ rebuild: clean ## Rebuild source (all packages)
 
 .PHONY: test
 test: build  ## Unit test source.
-	@echo -e $(_begin)
 	$(_GOTEST) -v ./... -tags unit
-	@echo -e $(_finish)
 
 .PHONY: test-one-thing
 test-one-thing: build lint  ## Unit test source, but just run one test.
@@ -113,15 +111,11 @@ test-find-fails:  ## Find and summarize failing tests.
 
 .PHONY: lint
 lint: build  ## Lint source.
-	@echo -e $(_begin)
 	@$(_GOLINT) run
-	@echo -e $(_finish)
 
 .PHONY: fmt
 fmt: build  ## Format and simplify source.
-	@echo -e $(_begin)
 	$(_GOFMT) -s -w .
-	@echo -e $(_finish)
 
 .PHONY: modverify
 modverify:  ## Verify dependencies have expected content.
