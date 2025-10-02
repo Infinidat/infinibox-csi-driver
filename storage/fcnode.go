@@ -581,7 +581,9 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	fcHosts := []string{}
 	portInfo := getPortInfo()
 	for _, p := range portInfo {
-		fcHosts = append(fcHosts, p.HostID)
+		if p.PortState == "Online" {
+			fcHosts = append(fcHosts, p.HostID)
+		}
 	}
 
 	zlog.Debug().Msgf("Rescan hosts fcHosts [%v]", fcHosts)
