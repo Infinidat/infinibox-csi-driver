@@ -114,7 +114,7 @@ func getNVMENamespaces() (devices NVMEDevices, err error) {
 		zlog.Error().Msgf("getNVMENamespaces (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return devices, err
 	}
-	zlog.Trace().Msgf("getNVMENamespaces (nvme) - %s raw output %s", cmd, rawOutput)
+	zlog.Debug().Msgf("getNVMENamespaces (nvme) - %s raw output %s", cmd, rawOutput)
 
 	version, err := getNVMEVersion()
 	if err != nil {
@@ -167,6 +167,9 @@ func nvmeDiscover(ipAddress string) (err error) {
 	return nil
 }
 
+/**
+// currently no good way to know when to disconnect and really
+// no good reason to disconnect on real systems with real workloads
 func disconnectNVMEConnections() error {
 	cmd := "nvme disconnect-all"
 	rawOutput, _, err := execCommand.Command(cmd, "")
@@ -177,6 +180,7 @@ func disconnectNVMEConnections() error {
 	zlog.Debug().Msg(cmd)
 	return nil
 }
+*/
 
 /**
 // not used for now, but useful for debugging

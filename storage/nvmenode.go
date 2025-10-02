@@ -186,6 +186,9 @@ func (nvme *nvmestorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 	}
 
 	// logout all nvme connections if there are zero devices
+	// currently no real way to know if you have zero devices, there is too
+	// much latency and no real reason to disconnect on a real system
+	/**
 	devices, err := getNVMENamespaces()
 	if err != nil {
 		zlog.Error().Msgf("NodeUnstageVolume (nvme) - getNVMENamespaces - error getting nvme devices %s", err.Error())
@@ -199,6 +202,7 @@ func (nvme *nvmestorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 			}
 		}
 	}
+	*/
 
 	return &csi.NodeUnstageVolumeResponse{}, nil
 }
@@ -251,20 +255,22 @@ func (nvme *nvmestorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nv
 	if len(targets) == 0 {
 		return "", fmt.Errorf("AttachDisk (nvme) - error no targets")
 	}
-	if len(targets[0].Portals) == 0 {
-		return "", fmt.Errorf("AttachDisk (nvme) - error target has no portals %v", targets)
-	}
+	for _, target := range targets {
+		if len(target.Portals) == 0 {
+			return "", fmt.Errorf("AttachDisk (nvme) - error target has no portals %v", target)
+		}
 
-	ipAddressOnly := strings.Split(targets[0].Portals[0], ":")
-	err = nvmeDiscover(ipAddressOnly[0])
-	if err != nil {
-		zlog.Error().Msgf("AttachDisk (nvme) - error nvme discover %s", err.Error())
-		return "", err
-	}
+		ipAddressOnly := strings.Split(target.Portals[0], ":")
+		err = nvmeDiscover(ipAddressOnly[0])
+		if err != nil {
+			zlog.Error().Msgf("AttachDisk (nvme) - error nvme discover %s", err.Error())
+			return "", err
+		}
 
-	err = nvmeConnectAll(ipAddressOnly[0])
-	if err != nil {
-		return "", err
+		err = nvmeConnectAll(ipAddressOnly[0])
+		if err != nil {
+			return "", err
+		}
 	}
 
 	devices, err := getNVMENamespaces()
