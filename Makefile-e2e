@@ -108,126 +108,126 @@ e2emetrics:  ## test the metrics deployment on openshift
 e2etreeq:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/treeq -tags e2e
+	_E2E_PROTOCOL=nfs_treeq && $(_GOTEST) -count=1 -v ./e2e/treeq -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2etreeqanno
 e2etreeqanno:  ## run the infinidat developed e2e treeq tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=20m -count=1 -v ./e2e/treeqanno -tags e2e
+	_E2E_PROTOCOL=nfs_treeq && $(_GOTEST) -timeout=20m -count=1 -v ./e2e/treeqanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfsstressout
 e2enfsstressout:  ## create a bunch of nfs filesystems
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nfs-stress -tags e2e
+	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nfs-stress -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfs
 e2enfs:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=30m -count=1 -v ./e2e/nfs -tags e2e
+	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=30m -count=1 -v ./e2e/nfs -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfsanno
 e2enfsanno:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=20m -count=1 -v ./e2e/nfsanno -tags e2e
+	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=20m -count=1 -v ./e2e/nfsanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsi
 e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi -tags e2e
 	@echo -e $(_finish)
 .PHONY: e2eiscsireplica
 
 e2eiscsireplica:  ## run the infinidat developed e2e iscsi replica tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-replica -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-replica -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsivolumegroup
 e2eiscsivolumegroup:  ## VolumeGroupSnapshot test using iscsi volume
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/iscsi-volumegroup -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -count=1 -v ./e2e/iscsi-volumegroup -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsianno
 e2eiscsianno:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -count=1 -v ./e2e/iscsianno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsichap
 e2eiscsichap:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/iscsichap -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -count=1 -v ./e2e/iscsichap -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsimutualchap
 e2eiscsimutualchap:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/iscsimutualchap -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -count=1 -v ./e2e/iscsimutualchap -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsicleanup
 e2eiscsicleanup:  ## this tests if iscsi performs a device cleanup
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsicleanup -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsicleanup -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efc
 e2efc:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc -tags e2e
+	_E2E_PROTOCOL=fc && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efcrwx
 e2efcrwx:  ## run the infinidat developed e2e fc rwx tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fcrwx -tags e2e
+	_E2E_PROTOCOL=fc && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/fcrwx -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efccleanup
 e2efccleanup:  ## this tests if fc performs a device cleanup
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fccleanup -tags e2e
+	_E2E_PROTOCOL=fc && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/fccleanup -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efcstressout
 e2efcstressout:  ## create a bunch of fc volumes
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc-stress -tags e2e
+	_E2E_PROTOCOL=fc && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc-stress -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsistressout
 e2eiscsistressout:  ## create a bunch of iscsi volumes
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-stress -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-stress -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efcanno
 e2efcanno:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -count=1 -v ./e2e/fcanno -tags e2e
+	_E2E_PROTOCOL=fc && $(_GOTEST) -count=1 -v ./e2e/fcanno -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: csitestimage
@@ -257,12 +257,12 @@ csitestimageblock-push:
 e2envme:  ## run the infinidat developed e2e nvme tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme -tags e2e
+	_E2E_PROTOCOL=nvme && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2envmestressout
 e2envmestressout:  ## create a bunch of nvme volumes
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	$(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme-stress -tags e2e
+	_E2E_PROTOCOL=nvme && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme-stress -tags e2e
 	@echo -e $(_finish)

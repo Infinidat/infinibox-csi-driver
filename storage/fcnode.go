@@ -52,6 +52,8 @@ type FCMounter struct {
 	fcDisk       fcDevice
 }
 
+const FC_PORT_ONLINE = "Online"
+
 // Global resouce contains a sync.Mutex. Used to serialize FC resource accesses.
 
 func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
@@ -72,7 +74,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	for _, p := range portInfo {
 		fcPorts = append(fcPorts, p.PortName)
 	}
-	//fcPorts := getPortName()
+
 	if len(fcPorts) == 0 {
 		e := fmt.Errorf("%s (fc) - port name not found on worker", FN)
 		zlog.Error().Msg(e.Error())
@@ -82,11 +84,11 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	var fcOnline bool
 	for _, p := range portInfo {
-		if p.PortState == "Online" {
+		if p.PortState == FC_PORT_ONLINE {
 			fcOnline = true
 		}
 	}
-	//fcOnline := validateFCIsOnline()
+
 	if !fcOnline {
 		e := fmt.Errorf("%s (fc) - error - all FC ports on worker are offline", FN)
 		zlog.Error().Msg(e.Error())
@@ -581,7 +583,7 @@ func (fc *fcstorage) searchDisk(c Connector) (string, error) {
 	fcHosts := []string{}
 	portInfo := getPortInfo()
 	for _, p := range portInfo {
-		if p.PortState == "Online" {
+		if p.PortState == FC_PORT_ONLINE {
 			fcHosts = append(fcHosts, p.HostID)
 		}
 	}
