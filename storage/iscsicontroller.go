@@ -53,7 +53,8 @@ func (iscsi *iscsistorage) ValidateStorageClass(params map[string]string) error 
 func (iscsi *iscsistorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	const FN = "CreateVolume"
 	params := req.GetParameters()
-	zlog.Debug().Msgf("%s (iscsi) volume: %s of size: %d bytes params: %v", FN, req.GetName(), iscsi.capacity, params)
+	zlog.Debug().Msgf("%s (iscsi) volume: %s of size: %d bytes params: %v %s", FN, req.GetName(), iscsi.capacity, params,
+		GetHostInfo(req.GetSecrets(), iscsi.cs.IboxApi))
 
 	// Volume name to be created - already verified earlier
 	name := req.GetName()
@@ -310,7 +311,8 @@ func (iscsi *iscsistorage) ControllerModifyVolume(ctx context.Context, req *csi.
 
 func (iscsi *iscsistorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	const FN = "ControllerPublishVolume"
-	zlog.Debug().Msgf("%s (iscsi) node ID: %s volume ID: %s", FN, req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("%s (iscsi) node ID: %s volume ID: %s %s", FN, req.GetNodeId(), req.GetVolumeId(),
+		GetHostInfo(req.GetSecrets(), iscsi.cs.IboxApi))
 
 	volIdStr := req.GetVolumeId()
 	volproto, err := ValidateVolumeID(volIdStr)

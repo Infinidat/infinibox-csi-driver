@@ -60,7 +60,7 @@ func (fc *fcstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	defer helper.TimeTrack(zlog, time.Now())
 	var err error
 	const FN = "NodeStageVolume"
-	zlog.Debug().Msgf("%s (fc) called with PublishContext: volume ID: %s details: %+v", FN, req.GetVolumeId(), req.GetPublishContext())
+	zlog.Debug().Msgf("%s (fc) called with PublishContext: volume ID: %s details: %+v %s", FN, req.GetVolumeId(), req.GetPublishContext(), GetHostInfo(req.GetSecrets(), fc.cs.IboxApi))
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -131,7 +131,8 @@ func (fc *fcstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		}
 	}()
 
-	zlog.Debug().Msgf("%s (fc) volume ID: %s volumecontext %v", FN, req.GetVolumeId(), req.GetVolumeContext())
+	zlog.Debug().Msgf("%s (fc) volume ID: %s volumecontext %v %s", FN, req.GetVolumeId(), req.GetVolumeContext(),
+		GetHostInfo(req.GetSecrets(), fc.cs.IboxApi))
 	zlog.Debug().Msgf("%s (fc) uid: %s gid: %s unix_perm: %s", FN, req.GetVolumeContext()[common.SC_UID], req.GetVolumeContext()[common.SC_GID], req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS])
 
 	fcDetails, err := fc.getFCDiskDetails(req)

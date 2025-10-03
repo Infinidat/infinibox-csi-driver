@@ -55,7 +55,8 @@ func (treeq *treeqstorage) ValidateStorageClass(params map[string]string) error 
 }
 
 func (treeq *treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
-	zlog.Debug().Msgf("CreateVolume (treeq) - called pvName %s parameters %v", req.GetName(), req.GetParameters())
+	zlog.Debug().Msgf("CreateVolume (treeq) - called pvName %s parameters %v - %s", req.GetName(), req.GetParameters(),
+		GetHostInfo(req.GetSecrets(), treeq.nfsstorage.cs.IboxApi))
 
 	params := req.GetParameters()
 

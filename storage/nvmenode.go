@@ -60,7 +60,7 @@ type nvmeDisk struct {
 }
 
 func (nvme *nvmestorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s", req.GetPublishContext())
+	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s %s", req.GetPublishContext(), GetHostInfo(req.GetSecrets(), nvme.cs.IboxApi))
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -91,7 +91,8 @@ func (nvme *nvmestorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 func (nvme *nvmestorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 
-	zlog.Debug().Msgf("NodePublishVolume (nvme) - volume ID %s, network_space %s mode %s readOnly %t", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly)
+	zlog.Debug().Msgf("NodePublishVolume (nvme) - volume ID %s, network_space %s mode %s readOnly %t %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
+		GetHostInfo(req.GetSecrets(), nvme.cs.IboxApi))
 
 	targets, err := nvme.getNVMETargets(req)
 	if err != nil {

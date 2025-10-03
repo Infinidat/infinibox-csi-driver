@@ -54,9 +54,8 @@ func (fc *fcstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	const FN = "CreateVolume"
 	params := req.GetParameters()
 	fc.configmap = params
-	zlog.Debug().Msgf("%s (fc) - requested volume parameters are %v", FN, params)
-
-	zlog.Debug().Msgf("%s (fc) - requested size in bytes is %d ", FN, fc.capacity)
+	zlog.Debug().Msgf("%s (fc) - requested volume parameters are %v - requested size %d %s", FN, params, fc.capacity,
+		GetHostInfo(req.GetSecrets(), fc.cs.IboxApi))
 
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
@@ -303,7 +302,8 @@ func (fc *fcstorage) ControllerModifyVolume(ctx context.Context, req *csi.Contro
 
 func (fc *fcstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
 	const FN = "ControllerPublishVolume"
-	zlog.Debug().Msgf("%s (fc) nodeID: %s volumeId: %s", FN, req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("%s (fc) nodeID: %s volumeId: %s %s", FN, req.GetNodeId(), req.GetVolumeId(),
+		GetHostInfo(req.GetSecrets(), fc.cs.IboxApi))
 	volproto, err := ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Sprintf("%s (fc) - ValidateVolumeID - error: %s", FN, err.Error())

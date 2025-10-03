@@ -83,6 +83,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
@@ -116,6 +117,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
 	exportResp := getExportResponse()
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
@@ -182,6 +184,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 	mountErr := errors.New("mount error")
 	suite.iboxapi.On("CreateExport", mock.Anything).Return(getExportResponseValue(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	exportResp := getExportResponse()
 	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)

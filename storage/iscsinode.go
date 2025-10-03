@@ -127,7 +127,8 @@ type GlobFunc func(string) ([]string, error)
 
 func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	const FN = "NodeStageVolume"
-	zlog.Debug().Msgf("%s (iscsi) called with publish context: %s", FN, req.GetPublishContext())
+	zlog.Debug().Msgf("%s (iscsi) called with publish context: %s %s", FN, req.GetPublishContext(),
+		GetHostInfo(req.GetSecrets(), iscsi.cs.IboxApi))
 
 	hostID, ports, err := validatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -208,7 +209,8 @@ func (iscsi *iscsistorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 func (iscsi *iscsistorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	const FN = "NodePublishVolume"
-	zlog.Debug().Msgf("%s (iscsi) - volume ID %s, network_space %s mode %s readOnly %t", FN, req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly)
+	zlog.Debug().Msgf("%s (iscsi) - volume ID %s, network_space %s mode %s readOnly %t %s", FN, req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
+		GetHostInfo(req.GetSecrets(), iscsi.cs.IboxApi))
 
 	targets, err := iscsi.getISCSITargets(req)
 	if err != nil {
@@ -400,7 +402,8 @@ func (iscsi *iscsistorage) NodeGetVolumeStats(ctx context.Context, req *csi.Node
 
 func (iscsi *iscsistorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	const FN = "NodeExpandVolume"
-	zlog.Info().Msgf("%s (iscsi) called request volume ID %s path %s\n", FN, req.GetVolumeId(), req.GetVolumePath())
+	zlog.Info().Msgf("%s (iscsi) called request volume ID %s path %s %s", FN, req.GetVolumeId(), req.GetVolumePath(),
+		GetHostInfo(req.GetSecrets(), iscsi.cs.IboxApi))
 	response := csi.NodeExpandVolumeResponse{}
 
 	// the block volume case

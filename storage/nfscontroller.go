@@ -122,8 +122,9 @@ func (nfs *nfsstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	params := req.GetParameters()
 	pvName := req.GetName()
 
-	zlog.Debug().Msgf("%s (nfs) - csi request name %s, parameters %v, caps %+v, privport %t snapdir %t",
-		function, req.Name, params, req.VolumeCapabilities, nfs.usePrivilegedPorts, nfs.snapdirVisible)
+	zlog.Debug().Msgf("%s (nfs) - csi request name %s, parameters %v, caps %+v, privport %t snapdir %t %s",
+		function, req.Name, params, req.VolumeCapabilities, nfs.usePrivilegedPorts, nfs.snapdirVisible,
+		GetHostInfo(req.GetSecrets(), nfs.cs.IboxApi))
 
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
@@ -520,8 +521,9 @@ func (nfs *nfsstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	volumeID := req.GetVolumeId()
 	exportID := req.GetVolumeContext()["exportID"]
 
-	zlog.Debug().Msgf("%s (nfs) - nodeId %s volumeID %s exportID %s nfs_export_permissions %s",
-		function, req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+	zlog.Debug().Msgf("%s (nfs) - nodeId %s volumeID %s exportID %s nfs_export_permissions %s %s",
+		function, req.GetNodeId(), volumeID, exportID, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS],
+		GetHostInfo(req.GetSecrets(), nfs.cs.IboxApi))
 
 	kubeNodeID := req.GetNodeId()
 	if kubeNodeID == "" {

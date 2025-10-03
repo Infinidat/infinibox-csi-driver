@@ -51,7 +51,7 @@ func (nvme *nvmestorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 
 	params := req.GetParameters()
 
-	zlog.Debug().Msgf("CreateVolume (nvme) - volume: %s of size: %d bytes, params: %v", req.GetName(), nvme.capacity, params)
+	zlog.Debug().Msgf("CreateVolume (nvme) - volume: %s of size: %d bytes, params: %v %s", req.GetName(), nvme.capacity, params, GetHostInfo(req.GetSecrets(), nvme.cs.IboxApi))
 
 	// Volume name to be created - already verified earlier
 	name := req.GetName()
@@ -295,12 +295,12 @@ func (nvme *nvmestorage) ControllerModifyVolume(ctx context.Context, req *csi.Co
 }
 
 func (nvme *nvmestorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	zlog.Debug().Msgf("ControllerPublishVolume (nvme) - node ID: %s volume ID: %s", req.GetNodeId(), req.GetVolumeId())
+	zlog.Debug().Msgf("ControllerPublishVolume (nvme) - node ID: %s volume ID: %s %s", req.GetNodeId(), req.GetVolumeId(), GetHostInfo(req.GetSecrets(), nvme.cs.IboxApi))
 
 	volIdStr := req.GetVolumeId()
 	volproto, err := ValidateVolumeID(volIdStr)
 	if err != nil {
-		e := fmt.Errorf("ControllerPublishVolume (nvme) - - ValidateVolumeID - failed to validate storage type for volume ID: %s, err: %v", volIdStr, err)
+		e := fmt.Errorf("ControllerPublishVolume (nvme) - ValidateVolumeID - failed to validate storage type for volume ID: %s, err: %v", volIdStr, err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}

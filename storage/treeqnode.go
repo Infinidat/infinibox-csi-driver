@@ -27,7 +27,7 @@ import (
 const DEFAULT_HOST_MOUNT_POINT = "/host/"
 
 func (treeq *treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	zlog.Debug().Msg("NodePublishVolume (treeq) - started")
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - started %s", GetHostInfo(req.GetSecrets(), treeq.nfsstorage.cs.IboxApi))
 
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]

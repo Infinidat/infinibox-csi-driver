@@ -835,3 +835,12 @@ func hostCleanup(iboxClient iboxapi.Client, hostID int, hostName string) error {
 	}
 	return nil
 }
+
+func GetHostInfo(secrets map[string]string, client iboxapi.Client) (iboxInfo string) {
+	sys, _ := client.GetSystem()
+	var serialNumber int
+	if sys != nil {
+		serialNumber = sys.SerialNumber
+	}
+	return fmt.Sprintf(" - ibox %s (%d)", secrets[common.CRED_HOSTNAME], serialNumber)
+}

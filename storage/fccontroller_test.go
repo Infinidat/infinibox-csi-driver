@@ -78,6 +78,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_GetName_fail() {
 	createVolReq := tests.GetCreateVolumeRequest("PVName", parameterMap, "")
 
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), suite.someError)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume GetVolumeByName")
@@ -89,6 +90,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_fail() {
 
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
@@ -110,6 +112,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_success() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.iboxapi.On("CreateVolume", mock.Anything).Return(getIboxapiCreateVolumeResponse(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 
@@ -127,6 +130,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_metadataError() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.iboxapi.On("CreateVolume", mock.Anything).Return(getIboxapiCreateVolumeResponse(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, suite.someError)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
@@ -192,6 +196,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
 	createVolReq := tests.GetCreateVolumeRequest("volumeName", parameterMap, "1$$fc")
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
@@ -209,6 +214,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_AttachMetadataToObject
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.iboxapi.On("CreateSnapshotVolume", mock.Anything).Return(getSnapshotResp(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -221,6 +227,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_success() {
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
@@ -235,6 +242,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatError
 	ctrPublishValReq := getISCSIControllerPublishVolumeRequest()
 	ctrPublishValReq.VolumeId = "1$"
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerPublishVolume volume ID format invalid protocol")
 }
@@ -245,6 +253,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
@@ -257,6 +266,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)

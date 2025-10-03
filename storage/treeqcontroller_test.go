@@ -34,6 +34,7 @@ func (suite *TreeqControllerSuite) SetupTest() {
 	suite.nfsMountMock = new(MockNfsMounter)
 	suite.storageHelperMock = new(MockStorageHelper)
 	suite.osHelperMock = new(helper.MockOsHelper)
+	suite.iboxapi = new(iboxapi.MockApiService)
 	suite.filesystem = new(FileSystemInterfaceMock)
 	suite.api = new(api.MockApiService)
 	host := &iboxapi.Host{
@@ -46,7 +47,7 @@ func (suite *TreeqControllerSuite) SetupTest() {
 		NodeID:   "node1",
 		TreeqID:  1,
 	}
-	suite.cs = &Commonservice{Api: suite.api, VolProto: volProto}
+	suite.cs = &Commonservice{Api: suite.api, VolProto: volProto, IboxApi: suite.iboxapi}
 	suite.someError = errors.New("some error")
 	nfs := nfsstorage{storageHelper: suite.storageHelperMock, cs: *suite.cs, mounter: suite.nfsMountMock, osHelper: suite.osHelperMock}
 	suite.service = treeqstorage{treeqService: suite.filesystem, nfsstorage: nfs}
@@ -57,6 +58,7 @@ type TreeqControllerSuite struct {
 	osHelperMock      *helper.MockOsHelper
 	filesystem        *FileSystemInterfaceMock
 	api               *api.MockApiService
+	iboxapi           *iboxapi.MockApiService
 	cs                *Commonservice
 	storageHelperMock *MockStorageHelper
 	nfsMountMock      *MockNfsMounter
@@ -126,6 +128,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Error() {
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
+	suite.iboxapi.On("GetSystem").Return(getSystem(), nil)
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, suite.someError)
 	_, err := suite.service.CreateVolume(context.Background(), getCreateVolumeRequest())
@@ -143,6 +146,7 @@ func (suite *TreeqControllerSuite) Test_CreateVolume_Success() {
 	}
 	networkSpace := getTreeQTestNetworkSpace()
 
+	suite.iboxapi.On("GetSystem").Return(getSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.filesystem.On("IsTreeqAlreadyExist", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(volumeResponseMap, nil)
 	suite.filesystem.On("CreateTreeqVolume", mock.Anything, mock.Anything, mock.Anything).Return(volumeResponse, nil)

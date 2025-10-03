@@ -109,6 +109,7 @@ func (suite *NVMEControllerSuite) Test_CreateVolume_GetName_fail() {
 
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), suite.someError)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme CreateVolume GetVolumeByName")
@@ -125,6 +126,7 @@ func (suite *NVMEControllerSuite) Test_CreateVolume_fail() {
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(nil, suite.someError)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 
 	_, err := suite.service.CreateVolume(context.Background(), createVolReq)
@@ -137,6 +139,7 @@ func (suite *NVMEControllerSuite) Test_CreateVolume_success() {
 	createVolReq := tests.GetCreateVolumeRequest("pvname", parameterMap, "")
 
 	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, nil)
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 
@@ -161,6 +164,7 @@ func (suite *NVMEControllerSuite) Test_CreateVolume_metadataError() {
 	suite.iboxapi.On("GetVolumeByName", mock.Anything).Return(getVolume(), nil)
 
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(getNetworkspace(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.api.On("CreateVolume", mock.Anything, mock.Anything).Return(getVolume(), nil)
 	suite.api.On("OneTimeValidation", mock.Anything, mock.Anything).Return("", nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(getVolume(), nil)
@@ -234,6 +238,7 @@ func (suite *NVMEControllerSuite) Test_ControllerPublishVolume() {
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(getHostByName(), nil)
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	suite.iboxapi.On("GetHostByName", mock.Anything).Return(getHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", mock.Anything).Return(getLunInfoArry(), nil)
 	lunInfo := getLunInf()
@@ -246,6 +251,7 @@ func (suite *NVMEControllerSuite) Test_ControllerPublishVolume() {
 func (suite *NVMEControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatError() {
 	ctrPublishValReq := getNVMEControllerPublishVolumeRequest()
 	ctrPublishValReq.VolumeId = "1$"
+	suite.iboxapi.On("GetSystem", mock.Anything).Return(getSystem(), nil)
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme ControllerPublishVolume volume ID format invalid protocol")
 }

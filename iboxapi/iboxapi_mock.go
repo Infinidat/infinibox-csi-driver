@@ -50,6 +50,13 @@ func (m *MockApiService) GetHostByName(name string) (*Host, error) {
 	return resp, err
 }
 
+func (m *MockApiService) GetSystem() (*SystemDetails, error) {
+	args := m.Called()
+	resp, _ := args.Get(0).(*SystemDetails)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
 // DeleteHost mock
 func (m *MockApiService) DeleteHost(hostID int) (*Host, error) {
 	args := m.Called(hostID)

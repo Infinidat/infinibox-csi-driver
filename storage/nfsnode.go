@@ -43,7 +43,7 @@ func (nfs *nfsstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s ", function, nfs.cs.VolProto.VolumeID, hostTargetPath)
+	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s %s", function, nfs.cs.VolProto.VolumeID, hostTargetPath, GetHostInfo(req.GetSecrets(), nfs.cs.IboxApi))
 	fileSystemId := nfs.cs.VolProto.VolumeID
 
 	nfs.snapdirVisible = false
