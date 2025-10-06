@@ -132,6 +132,13 @@ e2enfs:  ## run the infinidat developed e2e nfs tests
 	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=30m -count=1 -v ./e2e/nfs -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2enfspermsfeature
+e2enfspermsfeature:  ## run the infinidat developed e2e nfs tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=30m -count=1 -v ./e2e/nfs-perms-feature -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2enfsanno
 e2enfsanno:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
