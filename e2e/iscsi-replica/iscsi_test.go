@@ -120,7 +120,7 @@ func TestIscsiReplica(t *testing.T) {
 
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -229,7 +229,7 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }

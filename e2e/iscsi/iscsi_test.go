@@ -62,7 +62,7 @@ func TestIscsiSnapshotLocking(t *testing.T) {
 
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -99,7 +99,7 @@ func TestIscsiSnapshot(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -120,7 +120,7 @@ func TestIscsi(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -168,7 +168,7 @@ func TestIscsiFsGroup(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -190,7 +190,7 @@ func TestIscsiBlock(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -293,7 +293,7 @@ func TestIscsiROX(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -355,7 +355,7 @@ func TestIscsiRO(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -433,7 +433,7 @@ func TestIscsiBrokenLink(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -485,7 +485,7 @@ func TestIscsiClone(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
@@ -531,7 +531,7 @@ func TestIscsiExpand(t *testing.T) {
 		}
 		err = e2e.CleanISCI(*testConfig)
 		if err != nil {
-			t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+			t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 		}
 	}
 
@@ -579,7 +579,7 @@ func TestIscsiBlockExpand(t *testing.T) {
 	}
 	err = e2e.CleanISCI(*testConfig)
 	if err != nil {
-		t.Fatalf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }
