@@ -271,7 +271,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 
 func GetMountSize(protocol string, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
 
-	catFileCmd := "df /tmp/csitesting"
+	catFileCmd := "df -P /tmp/csitesting"
 
 	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {

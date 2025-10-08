@@ -501,7 +501,7 @@ func findMpathFromDevice(device string) (mpath string, err error) {
 	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
 	out, _, err := execCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("%s (fc) - command: %s error: %s", FN, command, err.Error())
+		e := fmt.Errorf("%s - command: %s error: %s", FN, command, err.Error())
 		zlog.Error().Msg(e.Error())
 		return "", e
 	}
@@ -533,15 +533,7 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
 		}
 
-		if strings.Contains(dstPath, "mpath") {
-			// getting mpath already passed
-			mpath = mpathDevice
-			devices, err = findDevicesForMpath(mpath)
-			if err != nil {
-				zlog.Error().Msgf("%s - error looking for devices for multipath [%s]", FN, mpath)
-				return err
-			}
-		} else if strings.HasPrefix(dstPath, "/dev/dm-") {
+		if strings.HasPrefix(dstPath, "/dev/dm-") {
 			// older versions of the driver < 2.21.0 would pass a dm- device here instead of an mpath name
 			devices, err = findSlaveDevicesOnMultipath(dstPath)
 			if err != nil {
@@ -554,8 +546,12 @@ func detachMpathDevice(mpathDevice string, protocol string) error {
 				return err
 			}
 		} else {
-			// Add single targetPath to devices
-			devices = append(devices, dstPath)
+			mpath = mpathDevice
+			devices, err = findDevicesForMpath(mpath)
+			if err != nil {
+				zlog.Error().Msgf("%s - error looking for devices for multipath [%s]", FN, mpath)
+				return err
+			}
 		}
 
 		helper.PrettyKlogDebug("multipath devices", devices)

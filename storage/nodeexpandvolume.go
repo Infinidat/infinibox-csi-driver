@@ -110,7 +110,7 @@ func blockExpandVolume(volumePath string) error {
 	zlog.Debug().Msgf("user friendly name [%s]", userFriendlyName)
 
 	format := "\"%m,%d\""
-	multipathdCommand := fmt.Sprintf("multipathd show paths format %s 2> /dev/null | grep %s", format, "\""+userFriendlyName+" \"")
+	multipathdCommand := fmt.Sprintf("multipathd show paths format %s 2> /dev/null | grep %s", format, "\""+userFriendlyName+"\"")
 	out, _, err = execCommand.Command(multipathdCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd command name %s - %s", multipathdCommand, err.Error())
