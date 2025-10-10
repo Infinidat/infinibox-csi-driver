@@ -1,0 +1,35 @@
+replicaCount: 1
+
+instanceCount: 1
+
+# log level of driver
+logLevel: "info"
+openshift: false
+tls:
+  enabled: false
+  certificate: |
+    -----BEGIN CERTIFICATE-----
+    MIIDezCCAmOgAwIBAgIUB15k...
+    -----END CERTIFICATE-----
+  privateKey: |
+    -----BEGIN PRIVATE KEY-----
+    MIIEvQIBADANBgkqhkiG9w0B...
+    -----END PRIVATE KEY-----
+
+# set cpu and memory limits for the CSI servers
+metricsserver:
+  resources:
+    requests:
+      cpu: "0.1"
+      memory: "150Mi"
+    limits:
+      cpu: "0.5"
+      memory: "450Mi"
+
+# Image paths
+images:
+  metricsimage: "docker.io/infinidat/infinidat-csi-metrics:v2.23.0"
+  metricsimage_pull_policy: "Always"
+
+imagePullSecret: "private-docker-reg-secret"
+

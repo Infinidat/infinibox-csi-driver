@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  {{- $files := .Files }}
+  {{- range $path, $_ := .Files.Glob "config_files/config.yaml" }}
+  {{ base $path }}: |-
+    {{ $files.Get $path | nindent 4 }}
+  {{- end }}
