@@ -18,6 +18,8 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	"infinibox-csi-driver/storage"
+	storagecommon "infinibox-csi-driver/storage/common"
+	"infinibox-csi-driver/storage/nfs"
 	"os"
 	"os/exec"
 	"strings"
@@ -85,7 +87,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	config := make(map[string]string)
 
-	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
+	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -99,7 +101,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
+	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
 		e := fmt.Errorf("%s - BuildCommonService volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -124,7 +126,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	if storageProtocol == common.PROTOCOL_NFS {
 		mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
-		nfsVersion, nfsPort := storage.GetNFSVersionPort(mountOptions)
+		nfsVersion, nfsPort := nfs.GetNFSVersionPort(mountOptions)
 		zlog.Debug().Msgf("%s - nfs mount options are [%v], nfs version [%s] port [%s]", FN, mountOptions, nfsVersion, nfsPort)
 		helper.EventNFSVersions[nfsVersion]++
 	}
@@ -163,14 +165,14 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	zlog.Debug().Msgf("%s called with volume ID %s", FN, req.GetVolumeId())
 	zlog.Trace().Msgf("%s called with req %+v", FN, req)
-	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
+	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{VolProto: &volProto}, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -264,7 +266,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	zlog.Debug().Msgf("VolumeMountGroup: %s", fsGroup)
 	config := make(map[string]string)
 
-	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
+	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID -  volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -278,7 +280,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
+	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
 		e := fmt.Errorf("%s - BuildCommonService volume ID %s - error: %s", FN, volumeId, err)
 		zlog.Error().Msg(e.Error())
@@ -329,14 +331,14 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
 
-	volProto, err := storage.ValidateVolumeID(volumeId)
+	volProto, err := storagecommon.ValidateVolumeID(volumeId)
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s - error: %s", FN, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storage.Commonservice{VolProto: &volProto}, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", FN, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -453,7 +455,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	config := make(map[string]string)
 
-	volProto, err := storage.ValidateVolumeID(req.GetVolumeId())
+	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("%s  - ValidateVolumeID -  volume ID: %s - error: %s", FN, req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -466,7 +468,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storage.BuildCommonService(config, req.GetSecrets(), &volProto)
+	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
 		e := fmt.Errorf("%s  - BuildCommonService volume ID: %s - error: %s", FN, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())

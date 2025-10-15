@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"math"
 	"os"
 	"strconv"
@@ -269,7 +268,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 
 }
 
-func GetMountSize(protocol string, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
+func GetMountSize(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
 
 	catFileCmd := "df -P /tmp/csitesting"
 
@@ -295,25 +294,12 @@ func GetMountSize(protocol string, clientSet *kubernetes.Clientset, config *rest
 
 	var blocksString string
 	contentLine := mountLines[1]
-	if protocol == common.PROTOCOL_NFS {
-		contentLine = mountLines[2]
-
-		fmt.Printf("line to parse =[%s]\n", contentLine)
-		parts := strings.Split(strings.Trim(contentLine, " "), " ")
-		if len(parts) < 1 {
-			return 0, fmt.Errorf("could not parse content line %s", contentLine)
-		}
-		fmt.Printf("len %d parts 0 %+s\n", len(parts), parts[0])
-		blocksString = parts[0]
-	} else {
-		// fc and iscsi
-		fields := strings.Fields(contentLine)
-		fmt.Printf("fields %+v\n", fields)
-		if len(fields) < 2 {
-			fmt.Printf("error in splitting df output into expected fields %+v\n", fields)
-		}
-		blocksString = fields[1]
+	fields := strings.Fields(contentLine)
+	fmt.Printf("fields %+v\n", fields)
+	if len(fields) < 2 {
+		fmt.Printf("error in splitting df output into expected fields %+v\n", fields)
 	}
+	blocksString = fields[1]
 	raw, err := strconv.Atoi(blocksString)
 	if err != nil {
 		fmt.Printf("error converting raw size into int %s\n", err.Error())

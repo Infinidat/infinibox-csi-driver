@@ -19,7 +19,7 @@ import (
 	"infinibox-csi-driver/api"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/storage"
+	storagecommon "infinibox-csi-driver/storage/common"
 	tests "infinibox-csi-driver/test_helper"
 	"testing"
 
@@ -32,7 +32,7 @@ type ControllerTestSuite struct {
 	suite.Suite
 	api            *api.MockApiService
 	accessMock     *helper.MockAccessModesHelper
-	cs             *storage.Commonservice
+	cs             *storagecommon.Commonservice
 	mockController *ControllerMock
 }
 
@@ -41,7 +41,7 @@ func (suite *ControllerTestSuite) SetupTest() {
 	x := new(api.MockApiService)
 	suite.api = x
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &storage.Commonservice{
+	suite.cs = &storagecommon.Commonservice{
 		Api:               x,
 		AccessModesHelper: suite.accessMock,
 	}
@@ -113,10 +113,6 @@ func (suite *ControllerTestSuite) Test_CreateVolume_VolumeCapabilities_MultiNode
 	createVolumeReq.VolumeCapabilities = arr
 	_, err := suite.mockController.CreateVolume(context.Background(), createVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume VolumeCapabilities with MULTI_NODE_READER access")
-}
-func getNetworkSpace() api.NetworkSpace {
-	portalArry := []api.Portal{{IpAdress: "10.20.20.50"}}
-	return api.NetworkSpace{Portals: portalArry, Service: common.NS_NFS_SVC}
 }
 
 func (suite *ControllerTestSuite) Test_CreateVolume_success() {

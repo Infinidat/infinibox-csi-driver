@@ -16,7 +16,7 @@ import (
 	"context"
 	"errors"
 	"infinibox-csi-driver/iboxapi"
-	"infinibox-csi-driver/storage"
+	storagecommon "infinibox-csi-driver/storage/common"
 	"strconv"
 	"strings"
 	"time"
@@ -39,7 +39,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 
 	zlog.Debug().Msgf("parameters are %v", req.GetParameters())
 
-	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets, nil)
+	cs, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
 		zlog.Error().Msgf("%s - BuildCommonService - error: %s", function, err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
@@ -219,7 +219,7 @@ func (s *VolumeGroupServer) DeleteVolumeGroupSnapshot(ctx context.Context, req *
 		zlog.Debug().Msgf("Snap Group %s has snapshot ID %s", req.GroupSnapshotId, s)
 	}
 
-	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets, nil)
+	cs, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
 		zlog.Error().Msgf("%s - BuildCommonService - error: %s", function, err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
@@ -253,7 +253,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 	zlog.Debug().Msgf("req.SnapshotIds=%v", req.SnapshotIds)
 	//zlog.Debug().Msgf("req.Secrets=%v", req.Secrets)
 
-	cs, err := storage.BuildCommonService(make(map[string]string), req.Secrets, nil)
+	cs, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
 		zlog.Error().Msgf("%s - BuildCommonService - error: %s", function, err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)

@@ -313,7 +313,7 @@ func TestNfsExpand(t *testing.T) {
 	// wait an undetermined amount of time for the filesystem to be expanded inside the running pod
 	time.Sleep(time.Second * 5)
 
-	mountSize, err := e2e.GetMountSize(common.PROTOCOL_NFS, testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	mountSize, err := e2e.GetMountSize(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Fatalf("error execing into pod %s", err.Error())
 	}
