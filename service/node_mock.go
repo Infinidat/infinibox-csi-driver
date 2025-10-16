@@ -10,7 +10,7 @@ import (
 
 type NodeMock struct {
 	mock.Mock
-	storage.Storageoperations
+	storage.StorageOperations
 }
 
 func (m *NodeMock) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {

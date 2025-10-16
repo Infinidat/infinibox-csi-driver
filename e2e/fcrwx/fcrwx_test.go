@@ -30,7 +30,7 @@ func TestFcBlockRWX(t *testing.T) {
 
 	e2e.Setup(testConfig)
 
-	time.Sleep(10)
+	time.Sleep(time.Second * 10)
 
 	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {

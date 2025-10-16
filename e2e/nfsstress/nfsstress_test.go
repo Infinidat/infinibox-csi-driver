@@ -1,6 +1,6 @@
 //go:build e2e
 
-package nfs
+package nfsstress
 
 import (
 	"context"

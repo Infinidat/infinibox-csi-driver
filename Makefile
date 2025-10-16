@@ -71,17 +71,25 @@ build:  ## Build source.
 build-e2e:  ## Build e2e source.
 	@echo -e $(_begin)
 	go test -c ./e2e/fc/fc_test.go -o /tmp/e2e -v
-	go test -c ./e2e/fcanno/fc_test.go -o /tmp/e2e -v
-	#go test -c ./e2e/grpc/listvolumes_test.go -o /tmp/e2e -v
+	go test -c ./e2e/fcanno/fcanno_test.go -o /tmp/e2e -v
+	go test -c ./e2e/fccleanup/fccleanup_test.go -o /tmp/e2e -v
+	go test -c ./e2e/fcrwx/fcrwx_test.go -o /tmp/e2e -v
+	go test -c ./e2e/fcstress/fcstress_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsi/iscsi_test.go -o /tmp/e2e -v
-	go test -c ./e2e/iscsianno/iscsi_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsireplica/iscsireplica_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsistress/iscsistress_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsivolumegroup/iscsivolumegroup_test.go -o /tmp/e2e -v
+	go test -c ./e2e/iscsianno/iscsianno_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsichap/iscsichap_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsimutualchap/iscsimutualchap_test.go -o /tmp/e2e -v
 	go test -c ./e2e/metrics/metrics_test.go -o /tmp/e2e -v
 	go test -c ./e2e/nfs/nfs_test.go -o /tmp/e2e -v
-	go test -c ./e2e/nfsanno/nfs_test.go -o /tmp/e2e -v
+	go test -c ./e2e/nfsanno/nfsanno_test.go -o /tmp/e2e -v
+	go test -c ./e2e/nfspermsfeature/nfspermsfeature_test.go -o /tmp/e2e -v
 	go test -c ./e2e/treeq/*.go -o /tmp/e2e -v
-	go test -c ./e2e/treeqanno/treeq_test.go -o /tmp/e2e -v
+	go test -c ./e2e/treeqanno/treeqanno_test.go -o /tmp/e2e -v
+	go test -c ./e2e/nvme/nvme_test.go -o /tmp/e2e -v
+	go test -c ./e2e/nvmestress/nvmestress_test.go -o /tmp/e2e -v
 	@echo -e $(_finish)
 
 .PHONY: rebuild

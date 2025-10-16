@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2enfs
+package iscsimutualchap
 
 import (
 	"infinibox-csi-driver/common"

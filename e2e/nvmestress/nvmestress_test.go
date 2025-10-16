@@ -1,8 +1,9 @@
 //go:build e2e
 
-package fc
+package nvmestress
 
 import (
+	"context"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/e2e"
@@ -10,43 +11,45 @@ import (
 	"time"
 )
 
-func TestIscsi(t *testing.T) {
+func TestNvme(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
 	e2e.Setup(testConfig)
 
-	volumesToCreate := 157
+	t.Logf("creating %d nvme volumes", testConfig.StressIterations)
 
 	originalPVCName := testConfig.TestNames.PVCName
 
 	testConfig.UseFsGroup = true
 
-	for i := 0; i < volumesToCreate; i++ {
+	for i := range testConfig.StressIterations {
 		testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)
+		t.Logf("creating nvme pvc %s", testConfig.TestNames.PVCName)
 		e2e.CreatePVC(testConfig)
 		podName := testConfig.TestNames.PVCName
+		t.Logf("creating nvme pod %s", podName)
 		e2e.CreatePod(testConfig, testConfig.TestNames.NSName, podName)
-		time.Sleep(time.Second * 15)
-		t.Logf("creating volume %d", i)
+		time.Sleep(time.Second * time.Duration(testConfig.StressSleepSeconds))
 	}
 
-	/**
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
 		ctx := context.Background()
-		for i := 0; i < volumesToCreate; i++ {
+		for i := range testConfig.StressIterations {
 			testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", testConfig.TestNames.PVCName, i)
-			e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
+			t.Logf("deleting pod %s", testConfig.TestNames.PVCName)
 			e2e.DeletePod(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
+			t.Logf("deleting pvc %s", testConfig.TestNames.PVCName)
+			e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)
 			time.Sleep(time.Second * 5)
 		}
+		testConfig.TestNames.PVCName = originalPVCName
+		e2e.TearDown(testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
-	*/
 
 }

@@ -418,21 +418,6 @@ func (suite *ISCSIControllerSuite) Test_GetCapacity() {
 	assert.Nil(suite.T(), err, "expected to succeed: iscsi GetCapacity")
 }
 
-func getISCSIValidateVolumeCapabilitiesRequest(parameterMap map[string]string) *csi.ValidateVolumeCapabilitiesRequest {
-	capa := csi.VolumeCapability{
-		AccessMode: &csi.VolumeCapability_AccessMode{
-			Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
-		},
-	}
-	var arr []*csi.VolumeCapability
-	arr = append(arr, &capa)
-	return &csi.ValidateVolumeCapabilitiesRequest{
-		VolumeId:           "1$$iscsi",
-		Parameters:         parameterMap,
-		VolumeCapabilities: arr,
-	}
-}
-
 func getISCSICreateVolumeParameters() map[string]string {
 	return map[string]string{
 		common.SC_GID:               "2468",

@@ -12,7 +12,7 @@ import (
 
 type ControllerMock struct {
 	mock.Mock
-	storage.Storageoperations
+	storage.StorageOperations
 }
 
 func (m *ControllerMock) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {

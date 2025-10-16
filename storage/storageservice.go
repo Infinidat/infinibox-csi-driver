@@ -31,18 +31,14 @@ const (
 	Name = "infinibox-csi-driver"
 )
 
-// env vars that let users override various delay times
-type Storageoperations interface {
+type StorageOperations interface {
 	csi.ControllerServer
 	csi.NodeServer
 	ValidateStorageClass(params map[string]string) error
 }
 
-// Mutex protecting device rescan and delete operations
-// var deviceMu sync.Mutex
-
 // NewStorageController : To return specific implementation of storage
-func NewStorageController(comnserv storagecommon.Commonservice, capacity int64, storageProtocol string, configparams ...map[string]string) (Storageoperations, error) {
+func NewStorageController(comnserv storagecommon.Commonservice, capacity int64, storageProtocol string, configparams ...map[string]string) (StorageOperations, error) {
 	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 
 	switch storageProtocol {
@@ -61,7 +57,7 @@ func NewStorageController(comnserv storagecommon.Commonservice, capacity int64, 
 }
 
 // NewStorageNode : To return specific implementation of storage
-func NewStorageNode(comnserv storagecommon.Commonservice, configparams ...map[string]string) (Storageoperations, error) {
+func NewStorageNode(comnserv storagecommon.Commonservice, configparams ...map[string]string) (StorageOperations, error) {
 	volProto := comnserv.VolProto
 
 	storageProtocol := volProto.StorageType

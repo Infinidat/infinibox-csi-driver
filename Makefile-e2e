@@ -122,7 +122,7 @@ e2etreeqanno:  ## run the infinidat developed e2e treeq tests
 e2enfsstressout:  ## create a bunch of nfs filesystems
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nfs-stress -tags e2e
+	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nfsstress -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfs
@@ -136,7 +136,7 @@ e2enfs:  ## run the infinidat developed e2e nfs tests
 e2enfspermsfeature:  ## run the infinidat developed e2e nfs tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=30m -count=1 -v ./e2e/nfs-perms-feature -tags e2e
+	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=30m -count=1 -v ./e2e/nfsperms-feature -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2enfsanno
@@ -157,14 +157,14 @@ e2eiscsi:  ## run the infinidat developed e2e iscsi tests
 e2eiscsireplica:  ## run the infinidat developed e2e iscsi replica tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-replica -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsireplica -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsivolumegroup
 e2eiscsivolumegroup:  ## VolumeGroupSnapshot test using iscsi volume
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=iscsi && $(_GOTEST) -count=1 -v ./e2e/iscsi-volumegroup -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -count=1 -v ./e2e/iscsivolumegroup -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsianno
@@ -220,14 +220,14 @@ e2efccleanup:  ## this tests if fc performs a device cleanup
 e2efcstressout:  ## create a bunch of fc volumes
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=fc && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/fc-stress -tags e2e
+	_E2E_PROTOCOL=fc && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/fcstress -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsistressout
 e2eiscsistressout:  ## create a bunch of iscsi volumes
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsi-stress -tags e2e
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsistress -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2efcanno
@@ -271,5 +271,5 @@ e2envme:  ## run the infinidat developed e2e nvme tests
 e2envmestressout:  ## create a bunch of nvme volumes
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=nvme && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvme-stress -tags e2e
+	_E2E_PROTOCOL=nvme && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nvmestress -tags e2e
 	@echo -e $(_finish)

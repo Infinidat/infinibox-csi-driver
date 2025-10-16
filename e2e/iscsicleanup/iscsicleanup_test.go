@@ -1,6 +1,6 @@
 //go:build e2e
 
-package fc
+package iscsicleanup
 
 import (
 	"context"
@@ -15,9 +15,9 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestFcCleanup(t *testing.T) {
+func TestISCSICleanup(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -74,6 +74,11 @@ func TestFcCleanup(t *testing.T) {
 		if mpathExists {
 			t.Fatalf("error mpath %s still exists and is considered an orphan device\n", mpathName)
 		}
+	}
+
+	err = e2e.CleanISCI(*testConfig)
+	if err != nil {
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
 }

@@ -1,6 +1,6 @@
 //go:build e2e
 
-package fc
+package fcstress
 
 import (
 	"context"
