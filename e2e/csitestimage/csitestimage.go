@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-
 	fmt.Printf("current user id %d\n", os.Getuid())
 	fmt.Printf("current group id %d\n", os.Getgid())
 
@@ -31,7 +30,7 @@ func main() {
 		fmt.Println("READ_ONLY is true")
 	}
 
-	fi, err := openFile(readOnly)
+	file, err := openFile(readOnly)
 	if err != nil {
 		fmt.Printf("error opening file %s", err.Error())
 		os.Exit(2)
@@ -43,38 +42,35 @@ func main() {
 
 	for {
 		if readOnly {
-			readFile(fi)
+			readFile(file)
 		} else {
-			writeToFile(fi)
+			writeToFile(file)
 		}
 		time.Sleep(time.Second * 30)
 	}
-
 }
 
 func catchSignal() {
-
 	terminateSignals := make(chan os.Signal, 1)
 
 	signal.Notify(terminateSignals, syscall.SIGINT, syscall.SIGTERM) //NOTE:: syscall.SIGKILL we cannot catch kill -9 as its force kill signal.
 
-	for s := range terminateSignals {
-		log.Println("Got one of stop signals, shutting down gracefully, SIGNAL NAME :", s)
+	for signal := range terminateSignals {
+		log.Println("Got one of stop signals, shutting down gracefully, SIGNAL NAME :", signal)
 		os.Exit(1)
 		break
 	}
-
 }
 
 func openFile(readOnly bool) (*os.File, error) {
-	var fi *os.File
+	var file *os.File
 	var fileName = "/tmp/csitesting/testfile"
 
 	_, err := os.Stat(fileName)
 	if err != nil {
 		if !readOnly {
 			fmt.Println("file does not exist, will create...")
-			fi, err = os.Create(fileName)
+			file, err = os.Create(fileName)
 			if err != nil {
 				fmt.Printf("error creating file %s\n", err.Error())
 				return nil, err
@@ -83,43 +79,42 @@ func openFile(readOnly bool) (*os.File, error) {
 	} else {
 		fmt.Println("file already exists...")
 		if readOnly {
-			fi, err = os.Open(fileName)
+			file, err = os.Open(fileName)
 			fmt.Println("opening in read-only mode")
 		} else {
-			fi, err = os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+			file, err = os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 		}
 		if err != nil {
 			fmt.Printf("error opening file %s\n", err.Error())
 			return nil, err
 		}
 	}
-	return fi, nil
+	return file, nil
 }
 
-func writeToFile(fi *os.File) {
-	_, err := fi.WriteString("w")
+func writeToFile(file *os.File) {
+	_, err := file.WriteString("w")
 	if err != nil {
 		fmt.Printf("error writing to file %s\n", err.Error())
 		os.Exit(2)
 	}
-
 }
 
-func readFile(fi *os.File) {
+func readFile(file *os.File) {
 	var totalBytes int
-	buf := make([]byte, 1024)
+	buffer := make([]byte, 1024)
 	for {
-		n, err := fi.Read(buf)
+		bytesRead, err := file.Read(buffer)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			//fmt.Println(err)
+			// fmt.Println(err)
 			continue
 		}
-		if n > 0 {
-			//fmt.Println(string(buf[:n]))
-			totalBytes = totalBytes + n
+		if bytesRead > 0 {
+			// fmt.Println(string(buf[:n]))
+			totalBytes += bytesRead
 		}
 	}
 	fmt.Printf("%d read\n", totalBytes)

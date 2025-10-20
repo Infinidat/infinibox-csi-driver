@@ -38,21 +38,21 @@ type OsHelper interface {
 type Service struct{}
 
 // Lock or unlock NodeVolumeMutex. Log taking care to write to log while locked.
-func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeId string) (err error) {
+func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeID string) (err error) {
 	defer func() {
 		// This might happen if unlocking a mutex that was not locked.
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
-			zlog.Debug().Msgf("manageNodeVolumeMutex, called by %s with volume ID %s, failed with run-time error: %s", callingFunction, volumeId, err)
+			zlog.Debug().Msgf("manageNodeVolumeMutex, called by %s with volume ID %s, failed with run-time error: %s", callingFunction, volumeID, err)
 		}
 	}()
 
 	err = nil
 	if isLocking {
 		nodeVolumeMutex.Lock()
-		zlog.Debug().Msgf("LOCKED: %s() with volume ID %s", callingFunction, volumeId)
+		zlog.Debug().Msgf("LOCKED: %s() with volume ID %s", callingFunction, volumeID)
 	} else {
-		zlog.Debug().Msgf("UNLOCKING: %s() with volume ID %s", callingFunction, volumeId)
+		zlog.Debug().Msgf("UNLOCKING: %s() with volume ID %s", callingFunction, volumeID)
 		nodeVolumeMutex.Unlock()
 	}
 	return

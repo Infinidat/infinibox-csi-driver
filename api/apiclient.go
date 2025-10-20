@@ -34,12 +34,12 @@ type Client interface {
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations
 type ClientService struct {
-	Iboxapi    *iboxapi.IboxClient
+	IboxAPI    *iboxapi.IboxClient
 	SecretsMap map[string]string
 	ConfigMap  map[string]string
 }
 type HostConfig struct {
-	ApiHost  string
+	APIHost  string
 	UserName string
 	Password string
 }
@@ -49,33 +49,31 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 	zlog.Trace().Msg("NewClient Started")
 
 	// for setting up iboxapi
-	hostconfig, err := c.getAPIConfig()
+	hostConfig, err := c.getAPIConfig()
 	if err != nil {
 		return nil, err
 	}
 	creds := iboxapi.Credentials{
-		Username: hostconfig.UserName,
-		Password: hostconfig.Password,
-		Url:      hostconfig.ApiHost,
+		Username: hostConfig.UserName,
+		Password: hostConfig.Password,
+		URL:      hostConfig.APIHost,
 	}
-	var iboxApiLog = zerologr.New(&zlog)
-	c.Iboxapi = iboxapi.NewIboxClient(iboxApiLog, creds)
+	var iboxAPILog = zerologr.New(&zlog)
+	c.IboxAPI = iboxapi.NewIboxClient(iboxAPILog, creds)
 
 	zlog.Trace().Msg("NewClient Finished")
 	return c, nil
 }
 
-func (c *ClientService) getAPIConfig() (hostconfig HostConfig, err error) {
+func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
 	if c.SecretsMap == nil {
-		return hostconfig, errors.New("secret not found")
+		return hostConfig, errors.New("secret not found")
 	}
 	if c.SecretsMap["hostname"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
-
 		hostnameURL, err := url.Parse(c.SecretsMap["hostname"])
 
 		if err != nil {
 			zlog.Error().Msgf("Error parsing IBox hostname: %s", err.Error())
-
 		}
 
 		// check for scheme, add if missing.
@@ -83,23 +81,23 @@ func (c *ClientService) getAPIConfig() (hostconfig HostConfig, err error) {
 
 		if urlScheme == "" {
 			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
-			hostconfig.ApiHost = "https://" + c.SecretsMap["hostname"] + "/"
+			hostConfig.APIHost = "https://" + c.SecretsMap["hostname"] + "/"
 		} else {
-			hostconfig.ApiHost = hostnameURL.String()
+			hostConfig.APIHost = hostnameURL.String()
 		}
 
 		// check for URI validity.
-		hostnameURL, err = url.ParseRequestURI(hostconfig.ApiHost)
+		hostnameURL, err = url.ParseRequestURI(hostConfig.APIHost)
 		if err != nil {
 			zlog.Error().Msgf("IBox hostname %s is invalid URI: %s", hostnameURL.String(), err.Error())
 		} else {
-			zlog.Trace().Msgf("IBox URL: %s", hostconfig.ApiHost)
+			zlog.Trace().Msgf("IBox URL: %s", hostConfig.APIHost)
 		}
 
-		//zlog.Trace().Msgf("setting url to %s", hostconfig.ApiHost)
-		hostconfig.UserName = c.SecretsMap["username"]
-		hostconfig.Password = c.SecretsMap["password"]
-		return hostconfig, nil
+		// zlog.Trace().Msgf("setting url to %s", hostconfig.ApiHost)
+		hostConfig.UserName = c.SecretsMap["username"]
+		hostConfig.Password = c.SecretsMap["password"]
+		return hostConfig, nil
 	}
-	return hostconfig, errors.New("host configuration is not valid")
+	return hostConfig, errors.New("host configuration is not valid")
 }

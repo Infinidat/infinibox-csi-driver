@@ -31,19 +31,18 @@ func NewNonBlockingGRPCServer() NonBlockingGRPCServer {
 
 // NonBlocking server
 type nonBlockingGRPCServer struct {
-	wg     sync.WaitGroup
-	server *grpc.Server
+	waitGroup sync.WaitGroup
+	server    *grpc.Server
 }
 
 func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, vgs csi.GroupControllerServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool) {
-
-	s.wg.Add(1)
+	s.waitGroup.Add(1)
 
 	go s.serve(endpoint, ids, vgs, cs, ns, testMode)
 }
 
 func (s *nonBlockingGRPCServer) Wait() {
-	s.wg.Wait()
+	s.waitGroup.Wait()
 }
 
 func (s *nonBlockingGRPCServer) Stop() {
@@ -54,8 +53,7 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 	s.server.Stop()
 }
 
-func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, vgs csi.GroupControllerServer, cs csi.ControllerServer, ns csi.NodeServer, testMode bool) {
-
+func (s *nonBlockingGRPCServer) serve(endpoint string, identityServer csi.IdentityServer, groupControllerServer csi.GroupControllerServer, controllerServer csi.ControllerServer, namespace csi.NodeServer, testMode bool) {
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
 		zlog.Fatal().Msg(err.Error())
@@ -79,25 +77,25 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, v
 	server := grpc.NewServer(opts...)
 	s.server = server
 
-	if ids != nil {
-		csi.RegisterIdentityServer(server, ids)
+	if identityServer != nil {
+		csi.RegisterIdentityServer(server, identityServer)
 	}
-	if vgs != nil {
-		csi.RegisterGroupControllerServer(server, vgs)
+	if groupControllerServer != nil {
+		csi.RegisterGroupControllerServer(server, groupControllerServer)
 	}
-	if cs != nil {
-		csi.RegisterControllerServer(server, cs)
+	if controllerServer != nil {
+		csi.RegisterControllerServer(server, controllerServer)
 	}
-	if ns != nil {
-		csi.RegisterNodeServer(server, ns)
+	if namespace != nil {
+		csi.RegisterNodeServer(server, namespace)
 	}
 
 	// Used to stop the server while running tests
 	if testMode {
-		s.wg.Done()
+		s.waitGroup.Done()
 		go func() {
 			// make sure Serve() is called
-			s.wg.Wait()
+			s.waitGroup.Wait()
 			time.Sleep(time.Millisecond * 1000)
 			s.server.GracefulStop()
 		}()
@@ -111,12 +109,12 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, v
 	}
 }
 
-func ParseEndpoint(ep string) (string, string, error) {
-	if strings.HasPrefix(strings.ToLower(ep), "unix://") || strings.HasPrefix(strings.ToLower(ep), "tcp://") {
-		s := strings.SplitN(ep, "://", 2)
-		if s[1] != "" {
-			return s[0], s[1], nil
+func ParseEndpoint(endpoint string) (string, string, error) {
+	if strings.HasPrefix(strings.ToLower(endpoint), "unix://") || strings.HasPrefix(strings.ToLower(endpoint), "tcp://") {
+		endpointParts := strings.SplitN(endpoint, "://", 2)
+		if endpointParts[1] != "" {
+			return endpointParts[0], endpointParts[1], nil
 		}
 	}
-	return "", "", fmt.Errorf("invalid endpoint: %v", ep)
+	return "", "", fmt.Errorf("invalid endpoint: %v", endpoint)
 }

@@ -75,7 +75,7 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, 
 			var errCode codes.Code
 			exitCode := nativeError.ExitCode()
 			stdErr = string(nativeError.Stderr)
-			//zlog.Debug().Msgf("Command %s had exit code %s", cmd, exitCode)
+			// zlog.Debug().Msgf("Command %s had exit code %s", cmd, exitCode)
 			if cmd == "iscsiadm" {
 				switch exitCode {
 				case 2:
@@ -97,7 +97,7 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, 
 			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s, result: %s", cmd, cmdErr, stdOutBytes.String()))
 		}
 		zlog.Error().Msgf("'%s' failed: %s result: %s stderr: %s", pipefailCmd, err, stdOutBytes.String(), stdErrBytes.String())
-		return "", string(stdErr), err
+		return "", stdErr, err
 	}
 
 	// Logging is optional, defaults to logged

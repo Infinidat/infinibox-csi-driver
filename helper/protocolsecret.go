@@ -11,8 +11,7 @@ import (
 )
 
 func GetProtocolSecret() (protocolSecret map[string]string, found bool, err error) {
-
-	const FN = "GetProtocolSecret"
+	const functionName = "GetProtocolSecret"
 	secretName := os.Getenv(common.ENV_VAR_PROTOCOL_SECRET)
 	secretNamespace := os.Getenv(common.ENV_VAR_POD_NAMESPACE)
 
@@ -23,14 +22,14 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 	// the secret namespace is set in the installation, it should never
 	// be blank, if so, it would be an error
 	if secretName != "" && secretNamespace == "" {
-		e := fmt.Errorf("%s - error - protocol secret namespace is blank - verify your StorageClass has the values set", FN)
+		e := fmt.Errorf("%s - error - protocol secret namespace is blank - verify your StorageClass has the values set", functionName)
 		zlog.Error().Msg(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	kubeClient, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s - error %s - could not get kube client", FN, err.Error())
+		e := fmt.Errorf("%s - error %s - could not get kube client", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -39,7 +38,7 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 	if err != nil {
 		// since secretName was specified, something has happened to
 		// remove the secret, this would be an error condition
-		e := fmt.Errorf("%s - error %s - could not get protocol secret", FN, err.Error())
+		e := fmt.Errorf("%s - error %s - could not get protocol secret", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -49,7 +48,7 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 	switch storageProtocol {
 	case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
 		/**
-		e := fmt.Errorf("%s - error - nfs and treeq are unsupported when using a protocol secret %s", FN, storageProtocol)
+		e := fmt.Errorf("%s - error - nfs and treeq are unsupported when using a protocol secret %s", functionName, storageProtocol)
 		zlog.Error().Msg(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 		*/
@@ -58,11 +57,11 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 	case common.PROTOCOL_ISCSI:
 	case common.PROTOCOL_AUTO:
 	default:
-		e := fmt.Errorf("%s - error - unsupported protocol specified %s", FN, storageProtocol)
+		e := fmt.Errorf("%s - error - unsupported protocol specified %s", functionName, storageProtocol)
 		zlog.Error().Msg(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	zlog.Debug().Msgf("%s - secret protcol in use - %v", FN, protocolSecret)
+	zlog.Debug().Msgf("%s - secret protcol in use - %v", functionName, protocolSecret)
 	return protocolSecret, true, nil
 }

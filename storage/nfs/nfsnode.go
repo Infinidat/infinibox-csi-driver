@@ -37,7 +37,7 @@ func (nfs *NFSstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnsta
 }
 
 func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	const function = "NodePublishVolume"
+	const functionName = "NodePublishVolume"
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	// instead of hard-coding, we get he '/host' mount prefix via configuration, this lets us unit test with '/tmp' easier
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
@@ -46,7 +46,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s %s", function, nfs.CS.VolProto.VolumeID, hostTargetPath, storagecommon.GetHostInfo(req.GetSecrets(), nfs.CS.IboxApi))
+	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s %s", functionName, nfs.CS.VolProto.VolumeID, hostTargetPath, storagecommon.GetHostInfo(req.GetSecrets(), nfs.CS.IboxAPI))
 	fileSystemId := nfs.CS.VolProto.VolumeID
 
 	nfs.SnapdirVisible = false
@@ -57,7 +57,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if snapDir != "" {
 		nfs.SnapdirVisible, err = strconv.ParseBool(snapDir)
 		if err != nil {
-			e := fmt.Errorf("%s (nfs) - snapsdir visible format error - error: %s", function, err.Error())
+			e := fmt.Errorf("%s (nfs) - snapsdir visible format error - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
@@ -66,7 +66,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if privPorts != "" {
 		nfs.UsePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
-			e := fmt.Errorf("%s (nfs) - priv ports format error - error: %s", function, err.Error())
+			e := fmt.Errorf("%s (nfs) - priv ports format error - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
@@ -75,84 +75,84 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
 		exportAccess := "RW"
 		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-			zlog.Debug().Msgf("%s (nfs) - detected read-only, setting export to RO", function)
+			zlog.Debug().Msgf("%s (nfs) - detected read-only, setting export to RO", functionName)
 			exportAccess = "RO"
 		}
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
 		err = nfs.UpdateExport(fileSystemId, exportPerms)
 		if err != nil {
-			e := fmt.Errorf("%s (nfs) - updateExport - error: %s", function, err.Error())
+			e := fmt.Errorf("%s (nfs) - updateExport - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
 	} else {
-		zlog.Trace().Msgf("%s (nfs) - nfs_export_permissions was specified %s, will not create default export rule", function, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+		zlog.Trace().Msgf("%s (nfs) - nfs_export_permissions was specified %s, will not create default export rule", functionName, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
 	}
 
 	_, err = os.Stat(hostTargetPath)
 	if os.IsNotExist(err) {
-		zlog.Debug().Msgf("%s (nfs) - targetPath %s does not exist, will create", function, targetPath)
+		zlog.Debug().Msgf("%s (nfs) - targetPath %s does not exist, will create", functionName, targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-			e := fmt.Errorf("%s (nfs) - MkdirAll - error: %s", function, err.Error())
+			e := fmt.Errorf("%s (nfs) - MkdirAll - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
 	} else {
-		zlog.Debug().Msgf("%s (nfs) - targetPath %s already exists, will not do anything", function, targetPath)
+		zlog.Debug().Msgf("%s (nfs) - targetPath %s already exists, will not do anything", functionName, targetPath)
 		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
 		// dont' return, this may be a second call after a mount timeout
 	}
 
 	mountOptions, err := nfs.StorageHelper.GetNFSMountOptions(req)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - GetNFSMountOptions - targetPath: %s error: %s", function, hostTargetPath, err.Error())
+		e := fmt.Errorf("%s (nfs) - GetNFSMountOptions - targetPath: %s error: %s", functionName, hostTargetPath, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	nfsVersion, nfsPort := GetNFSVersionPort(mountOptions)
-	zlog.Debug().Msgf("%s (nfs) -  mount options are [%v], nfs version [%s] port [%s]", function, mountOptions, nfsVersion, nfsPort)
+	zlog.Debug().Msgf("%s (nfs) -  mount options are [%v], nfs version [%s] port [%s]", functionName, mountOptions, nfsVersion, nfsPort)
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
 	dnsName := req.GetVolumeContext()["dnsname"]
 	if dnsName != "" {
 		sourceIP = dnsName
-		zlog.Debug().Msgf("%s (nfs) - storageclass has dnsname specified, using it for mount instead of ipAddress %s", function, dnsName)
+		zlog.Debug().Msgf("%s (nfs) - storageclass has dnsname specified, using it for mount instead of ipAddress %s", functionName, dnsName)
 	}
 
 	port, err := strconv.Atoi(nfsPort)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - ValidateIPAddress - port parsing error: %s", function, err.Error())
+		e := fmt.Errorf("%s (nfs) - ValidateIPAddress - port parsing error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	err = nfs.StorageHelper.ValidateIPAddress(sourceIP, port)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - ValidateIPAddress - error: %s", function, err.Error())
+		e := fmt.Errorf("%s (nfs) - ValidateIPAddress - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	ep := req.GetVolumeContext()["volPathd"]
 	source := fmt.Sprintf("%s:%s", sourceIP, ep)
-	zlog.Debug().Msgf("%s (nfs) - Mount sourcePath %v, targetPath %v", function, source, targetPath)
+	zlog.Debug().Msgf("%s (nfs) - Mount sourcePath %v, targetPath %v", functionName, source, targetPath)
 	err = nfs.Mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - Mount - failed to mount source '%s ' target %s: %v", function, source, targetPath, err)
+		e := fmt.Errorf("%s (nfs) - Mount - failed to mount source '%s ' target %s: %v", functionName, source, targetPath, err)
 		zlog.Err(e)
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	zlog.Debug().Msgf("%s (nfs) - successfully mounted nfs volume '%s' to mount point '%s' with options %s", function, source, targetPath, mountOptions)
+	zlog.Debug().Msgf("%s (nfs) - successfully mounted nfs volume '%s' to mount point '%s' with options %s", functionName, source, targetPath, mountOptions)
 
 	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		zlog.Debug().Msgf("%s (nfs) - this is a readonly volume, skipping setting volume permissions", function)
+		zlog.Debug().Msgf("%s (nfs) - this is a readonly volume, skipping setting volume permissions", functionName)
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
 	err = nfs.StorageHelper.SetVolumePermissions(req)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - SetVolumePermissions - error: %s", function, err.Error())
+		e := fmt.Errorf("%s (nfs) - SetVolumePermissions - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -196,64 +196,64 @@ func (nfs *NFSstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 	return &response, nil
 }
 
-func (nfs *NFSstorage) UpdateExport(filesystemId int, exportPerms string) (err error) {
-	const function = "UpdateExport"
-	//lookup file system information
-	fs, err := nfs.CS.IboxApi.GetFileSystemByID(filesystemId)
+func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err error) {
+	const functionName = "UpdateExport"
+	// lookup file system information
+	fileSystem, err := nfs.CS.IboxAPI.GetFileSystemByID(fileSystemID)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - failed to get filesystem by id %d %v", function, filesystemId, err)
+		e := fmt.Errorf("%s (nfs) - failed to get filesystem by id %d %v", functionName, fileSystemID, err)
 		zlog.Err(e)
 		return status.Error(codes.Internal, e.Error())
 	}
 
 	// use the volumeId to get the filesystem information,
-	//example export {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
+	// example export {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
 	exportFileSystem := iboxapi.CreateExportRequest{
-		FilesystemID:        filesystemId,
-		Transport_protocols: "TCP",
-		Privileged_port:     nfs.UsePrivilegedPorts,
-		SnapdirVisible:      nfs.SnapdirVisible,
-		Export_path:         "/" + fs.Name, // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
+		FilesystemID:       fileSystemID,
+		TransportProtocols: "TCP",
+		PrivilegedPort:     nfs.UsePrivilegedPorts,
+		SnapdirVisible:     nfs.SnapdirVisible,
+		ExportPath:         "/" + fileSystem.Name, // convention is /csi-xxxxxxxx  where xxxx is the filesystem name/pvname
 	}
 
 	permissionsMapArray, err := getPermissionMaps(exportPerms)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - failed to parse permission map string %s %v", function, exportPerms, err)
+		e := fmt.Errorf("%s (nfs) - failed to parse permission map string %s %v", functionName, exportPerms, err)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
 	updatePerms := convertToExportRulePermissions(permissionsMapArray)
-	zlog.Debug().Msgf("%s (nfs) updatePermissions len(%d) %+v", function, len(updatePerms), updatePerms)
+	zlog.Debug().Msgf("%s (nfs) updatePermissions len(%d) %+v", functionName, len(updatePerms), updatePerms)
 
-	existingExports, err := nfs.CS.IboxApi.GetExportsByFileSystemID(filesystemId)
+	existingExports, err := nfs.CS.IboxAPI.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - error from GetExportByFileSystem filesystemId %d %v", function, filesystemId, err)
+		e := fmt.Errorf("%s (nfs) - error from GetExportByFileSystem filesystemId %d %v", functionName, fileSystemID, err)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
-	zlog.Debug().Msgf("%s (nfs) - GetExportByFileSystem response =%+v", function, existingExports)
+	zlog.Debug().Msgf("%s (nfs) - GetExportByFileSystem response =%+v", functionName, existingExports)
 	for _, existingExport := range existingExports {
-		if existingExport.ExportPath == exportFileSystem.Export_path {
-			zlog.Debug().Msgf("%s (nfs) - export path was found to already exist %s with snapDirVisible %t", function, existingExport.ExportPath, existingExport.SnapdirVisible)
+		if existingExport.ExportPath == exportFileSystem.ExportPath {
+			zlog.Debug().Msgf("%s (nfs) - export path was found to already exist %s with snapDirVisible %t", functionName, existingExport.ExportPath, existingExport.SnapdirVisible)
 
 			// look at all existing permissions, see if the client IP already is used, do nothing if that is the case
 			for _, p := range existingExport.Permissions {
 				for _, newP := range updatePerms {
 					if newP.Client == p.Client {
-						zlog.Debug().Msgf("%s (nfs) - client IP was found to already exist %s, skipping adding it or updating existing perms", function, newP.Client)
+						zlog.Debug().Msgf("%s (nfs) - client IP was found to already exist %s, skipping adding it or updating existing perms", functionName, newP.Client)
 						return nil
 					}
 				}
 			}
 
 			// update the existing filesystem export with the new permissions
-			zlog.Debug().Msgf("%s (nfs) - updating  export ID %d old perms %+v plus new perms %+v", function, existingExport.ID, existingExport.Permissions, updatePerms)
+			zlog.Debug().Msgf("%s (nfs) - updating  export ID %d old perms %+v plus new perms %+v", functionName, existingExport.ID, existingExport.Permissions, updatePerms)
 			exportPathRef := iboxapi.ExportPathRef{
 				Permissions: append(existingExport.Permissions, updatePerms...),
 			}
-			_, err = nfs.CS.IboxApi.UpdateExportPermissions(existingExport, exportPathRef)
+			_, err = nfs.CS.IboxAPI.UpdateExportPermissions(existingExport, exportPathRef)
 			if err != nil {
-				e := fmt.Errorf("%s (nfs) - error from UpdateExport ID %d filesystemId %d %v", function, existingExport.ID, filesystemId, err)
+				e := fmt.Errorf("%s (nfs) - error from UpdateExport ID %d filesystemId %d %v", functionName, existingExport.ID, fileSystemID, err)
 				zlog.Error().Msg(e.Error())
 				return e
 			}
@@ -266,17 +266,17 @@ func (nfs *NFSstorage) UpdateExport(filesystemId int, exportPerms string) (err e
 
 	// create the export rule if it didn't already exist
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
-	zlog.Debug().Msgf("%s (nfs) - exportFileSystem =%+v", function, exportFileSystem)
-	exportResp, err := nfs.CS.IboxApi.CreateExport(exportFileSystem)
+	zlog.Debug().Msgf("%s (nfs) - exportFileSystem =%+v", functionName, exportFileSystem)
+	exportResp, err := nfs.CS.IboxAPI.CreateExport(exportFileSystem)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - failed to create export path of filesystem %s %v", function, fs.Name, err)
+		e := fmt.Errorf("%s (nfs) - failed to create export path of filesystem %s %v", functionName, fileSystem.Name, err)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
 	nfs.ExportID = exportResp.ID
 	nfs.ExportBlock = exportResp.ExportPath
 	nfs.SnapdirVisible = exportFileSystem.SnapdirVisible
-	zlog.Debug().Msgf("%s (nfs) - created nfs export for PV '%s', snapdirVisible: %t", function, fs.Name, exportFileSystem.SnapdirVisible)
+	zlog.Debug().Msgf("%s (nfs) - created nfs export for PV '%s', snapdirVisible: %t", functionName, fileSystem.Name, exportFileSystem.SnapdirVisible)
 
 	return nil
 }

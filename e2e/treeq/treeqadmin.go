@@ -16,16 +16,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var TREEQ_USERS []string
+var treeqUsers []string
 
 func init() {
-	TREEQ_USERS = []string{"user1", "user2"}
+	treeqUsers = []string{"user1", "user2"}
 }
 
 func VerifyAdminTreeqs(config *e2e.TestConfig) (err error) {
 	// there should be 2 running pods at this point, user1-app and user2-app
-	for i := 0; i < len(TREEQ_USERS); i++ {
-		err = e2e.WaitForPod(config.Testt, TREEQ_USERS[i]+"-app", config.TestNames.NSName, config.ClientSet, time.Second*5, time.Minute*4)
+	for _, treeqUser := range treeqUsers {
+		err = e2e.WaitForPod(config.Testt, treeqUser+"-app", config.TestNames.NSName, config.ClientSet, time.Second*5, time.Minute*4)
 		if err != nil {
 			return err
 		}
@@ -34,7 +34,6 @@ func VerifyAdminTreeqs(config *e2e.TestConfig) (err error) {
 }
 
 func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
-
 	poolName := os.Getenv("_E2E_POOL")
 	if poolName == "" {
 		return 0, fmt.Errorf("_E2E_POOL env var required")
@@ -50,7 +49,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 			return 0, fmt.Errorf("%s or %s env vars not set, one is required", e2e.ENV_NETWORK_SPACE, e2e.ENV_NAS_NETWORK_SPACE)
 		}
 	}
-	networkSpaceResponse, err := config.ClientService.Iboxapi.GetNetworkSpaceByName(networkSpace)
+	networkSpaceResponse, err := config.ClientService.IboxAPI.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return 0, err
 	}
@@ -59,9 +58,9 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 		return 0, fmt.Errorf("networkpace name does not exist: %s", networkSpace)
 	}
 
-	networkSpaceIPAddress := networkSpaceResponse.Portals[0].IpAdress
+	networkSpaceIPAddress := networkSpaceResponse.Portals[0].IPAddress
 
-	pool, err := config.ClientService.Iboxapi.GetPoolByName(poolName)
+	pool, err := config.ClientService.IboxAPI.GetPoolByName(poolName)
 	if err != nil {
 		return 0, err
 	}
@@ -73,28 +72,28 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 		Provtype: common.SC_THIN_PROVISION_TYPE,
 	}
 
-	fs, err := config.ClientService.Iboxapi.CreateFileSystem(fsRequest)
+	filesystem, err := config.ClientService.IboxAPI.CreateFileSystem(fsRequest)
 	if err != nil {
 		return 0, err
 	}
-	config.Testt.Logf("✓ Filesystem %s %d is created\n", fileSystemName, fs.ID)
+	config.Testt.Logf("✓ Filesystem %s %d is created\n", fileSystemName, filesystem.ID)
 
-	treeqIDs := make([]int, len(TREEQ_USERS))
+	treeqIDs := make([]int, len(treeqUsers))
 
-	for i := 0; i < len(TREEQ_USERS); i++ {
+	for index := range treeqUsers {
 		request := iboxapi.CreateTreeqRequest{
-			Path:         "/" + TREEQ_USERS[i],
-			Name:         TREEQ_USERS[i],
+			Path:         "/" + treeqUsers[index],
+			Name:         treeqUsers[index],
 			HardCapacity: common.BytesInOneGibibyte,
 		}
-		resp, err := config.ClientService.Iboxapi.CreateTreeq(fs.ID, request)
+		resp, err := config.ClientService.IboxAPI.CreateTreeq(filesystem.ID, request)
 		if err != nil {
 			return 0, err
 		}
 		config.Testt.Logf("✓ TreeQ %s %d is created\n", resp.Name, resp.ID)
-		treeqIDs[i] = resp.ID
+		treeqIDs[index] = resp.ID
 	}
-	err = CreatePersistentVolumesForTreeqs(fs, treeqIDs, networkSpaceIPAddress, config)
+	err = CreatePersistentVolumesForTreeqs(filesystem, treeqIDs, networkSpaceIPAddress, config)
 	if err != nil {
 		return 0, err
 	}
@@ -108,22 +107,22 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 		return 0, err
 	}
 
-	return fs.ID, nil
+	return filesystem.ID, nil
 }
 
-func CreatePersistentVolumesForTreeqs(fs *iboxapi.FileSystem, treeqIDs []int, networkSpaceIPAddress string, config *e2e.TestConfig) (err error) {
-	rList := make(map[v1.ResourceName]resource.Quantity)
-	rList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
+func CreatePersistentVolumesForTreeqs(filesystem *iboxapi.FileSystem, treeqIDs []int, networkSpaceIPAddress string, config *e2e.TestConfig) (err error) {
+	resourceList := make(map[v1.ResourceName]resource.Quantity)
+	resourceList[v1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
 		return err
 	}
-	ns := os.Getenv("_E2E_NAMESPACE")
-	if ns == "" {
+	namespace := os.Getenv("_E2E_NAMESPACE")
+	if namespace == "" {
 		return fmt.Errorf("_E2E_NAMESPACE env var not set, required")
 	}
 	secretRef := &v1.SecretReference{
 		Name:      "infinibox-creds",
-		Namespace: ns,
+		Namespace: namespace,
 	}
 	csiSource := &v1.CSIPersistentVolumeSource{
 		ControllerExpandSecretRef:  secretRef,
@@ -139,16 +138,16 @@ func CreatePersistentVolumesForTreeqs(fs *iboxapi.FileSystem, treeqIDs []int, ne
 	}
 	persistentVolumeSource := v1.PersistentVolumeSource{}
 	persistentVolumeSource.CSI = csiSource
-	for i := 0; i < len(TREEQ_USERS); i++ {
-		csiSource.VolumeAttributes["volumePath"] = "/" + fs.Name + "/" + TREEQ_USERS[i]
-		csiSource.VolumeHandle = strconv.Itoa(fs.ID) + "#" + strconv.Itoa(treeqIDs[i]) + "$$" + common.PROTOCOL_TREEQ
-		pv := &v1.PersistentVolume{
+	for index, treeqUser := range treeqUsers {
+		csiSource.VolumeAttributes["volumePath"] = "/" + filesystem.Name + "/" + treeqUser
+		csiSource.VolumeHandle = strconv.Itoa(filesystem.ID) + "#" + strconv.Itoa(treeqIDs[index]) + "$$" + common.PROTOCOL_TREEQ
+		persistentVolume := &v1.PersistentVolume{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix,
+				Name:      treeqUser + "-pv-" + config.TestNames.UniqueSuffix,
 				Namespace: config.TestNames.NSName,
 			},
 			Spec: v1.PersistentVolumeSpec{
-				Capacity:               rList,
+				Capacity:               resourceList,
 				PersistentVolumeSource: persistentVolumeSource,
 				AccessModes:            []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
 				//PersistentVolumeReclaimPolicy: &scName,
@@ -157,11 +156,11 @@ func CreatePersistentVolumesForTreeqs(fs *iboxapi.FileSystem, treeqIDs []int, ne
 			},
 		}
 
-		_, err = config.ClientSet.CoreV1().PersistentVolumes().Create(context.TODO(), pv, metav1.CreateOptions{})
+		_, err = config.ClientSet.CoreV1().PersistentVolumes().Create(context.TODO(), persistentVolume, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
-		config.Testt.Logf("✓ PV %s is created\n", pv.Name)
+		config.Testt.Logf("✓ PV %s is created\n", persistentVolume.Name)
 	}
 	return nil
 }
@@ -169,9 +168,9 @@ func CreatePersistentVolumesForTreeqs(fs *iboxapi.FileSystem, treeqIDs []int, ne
 func CreatePersistentVolumeClaimsForTreeqs(config *e2e.TestConfig) (err error) {
 	config.UsePVCVolumeRef = true
 
-	for i := 0; i < len(TREEQ_USERS); i++ {
-		config.TestNames.PVName = TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix
-		config.TestNames.PVCName = TREEQ_USERS[i] + "-pvc"
+	for _, treeqUser := range treeqUsers {
+		config.TestNames.PVName = treeqUser + "-pv-" + config.TestNames.UniqueSuffix
+		config.TestNames.PVCName = treeqUser + "-pvc"
 
 		err = e2e.CreatePVC(config)
 		if err != nil {
@@ -196,48 +195,48 @@ func CleanupAdminTreeqs(fileSystemID int, config *e2e.TestConfig) (err error) {
 	if password == "" {
 		return fmt.Errorf("_E2E_IBOX_PASSWORD env var required")
 	}
-	for i := 0; i < len(TREEQ_USERS); i++ {
+	for index := range treeqUsers {
 		// delete apps
 		ctx := context.Background()
-		podName := TREEQ_USERS[i] + "-app"
+		podName := treeqUsers[index] + "-app"
 		err := e2e.DeletePod(ctx, config.TestNames.NSName, podName, config.ClientSet)
 		if err != nil {
 			fmt.Printf("error deleting pod %s %s\n", podName, err.Error())
 		}
 		config.Testt.Logf("✓ Pod %s is deleted\n", podName)
 		// delete pvcs
-		pvcName := TREEQ_USERS[i] + "-pvc"
+		pvcName := treeqUsers[index] + "-pvc"
 		err = e2e.DeletePVC(ctx, config.TestNames.NSName, pvcName, config.ClientSet)
 		if err != nil {
 			fmt.Printf("error deleting pvc %s %s\n", pvcName, err.Error())
 		}
 		config.Testt.Logf("✓ PVC %s is deleted\n", pvcName)
 		// delete pvs
-		pvName := TREEQ_USERS[i] + "-pv-" + config.TestNames.UniqueSuffix
+		pvName := treeqUsers[index] + "-pv-" + config.TestNames.UniqueSuffix
 		err = e2e.DeletePV(ctx, pvName, config.ClientSet)
 		if err != nil {
 			fmt.Printf("error deleting pv %s %s\n", pvName, err.Error())
 		}
 		config.Testt.Logf("✓ PV %s is deleted\n", pvName)
 	}
-	c := make(map[string]string)
+	thisMap := make(map[string]string)
 	secrets := map[string]string{
 		"hostname": hostname,
 		"password": password,
 		"username": username,
 	}
 
-	x := api.ClientService{
-		ConfigMap:  c,
+	client := api.ClientService{
+		ConfigMap:  thisMap,
 		SecretsMap: secrets,
 	}
 
-	clientsvc, err := x.NewClient()
+	clientService, err := client.NewClient()
 	if err != nil {
 		return err
 	}
 	// delete filesystem
-	err = clientsvc.DeleteFileSystemComplete(fileSystemID)
+	err = clientService.DeleteFileSystemComplete(fileSystemID)
 	if err != nil {
 		fmt.Printf("error deleting filesystem %d %s\n", fileSystemID, err.Error())
 	}
@@ -246,10 +245,9 @@ func CleanupAdminTreeqs(fileSystemID int, config *e2e.TestConfig) (err error) {
 }
 
 func CreateTreeqApps(config *e2e.TestConfig) (err error) {
-
-	for i := 0; i < len(TREEQ_USERS); i++ {
-		config.TestNames.PVCName = TREEQ_USERS[i] + "-pvc"
-		podName := TREEQ_USERS[i] + "-app"
+	for _, treeqUser := range treeqUsers {
+		config.TestNames.PVCName = treeqUser + "-pvc"
+		podName := treeqUser + "-app"
 
 		err = e2e.CreatePod(config, config.TestNames.NSName, podName)
 		if err != nil {

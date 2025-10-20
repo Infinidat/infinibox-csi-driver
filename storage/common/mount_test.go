@@ -15,16 +15,16 @@ import (
 )
 
 func (suite *MountSuite) SetupTest() {
-	suite.api = new(api.MockApiService)
-	suite.iboxapi = new(iboxapi.MockApiService)
+	suite.api = new(api.MockAPIService)
+	suite.iboxapi = new(iboxapi.MockAPIService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &Commonservice{IboxApi: suite.iboxapi, Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.cs = &Commonservice{IboxAPI: suite.iboxapi, API: suite.api, AccessModesHelper: suite.accessMock}
 }
 
 type MountSuite struct {
 	suite.Suite
-	api        *api.MockApiService
-	iboxapi    *iboxapi.MockApiService
+	api        *api.MockAPIService
+	iboxapi    *iboxapi.MockAPIService
 	accessMock *helper.MockAccessModesHelper
 	cs         *Commonservice
 }

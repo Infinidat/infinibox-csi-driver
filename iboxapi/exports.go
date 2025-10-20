@@ -29,7 +29,7 @@ type ExportPathRef struct {
 	MaxRead            int           `json:"max_read,omitempty"`
 	PrefReaddir        int           `json:"pref_readdir,omitempty"`
 	TransportProtocols string        `json:"transport_protocols,omitempty"`
-	FilesystemId       int           `json:"filesystem_id,omitempty"`
+	FilesystemID       int           `json:"filesystem_id,omitempty"`
 	MaxWrite           int           `json:"max_write,omitempty"`
 	PrivilegedPort     bool          `json:"privileged_port"`
 	ExportPath         string        `json:"export_path,omitempty"`
@@ -53,7 +53,7 @@ type Export struct {
 	PrefRead              int           `json:"pref_read,omitempty"`
 	MaxRead               int           `json:"max_read,omitempty"`
 	Permissions           []Permissions `json:"permissions,omitempty"`
-	TenantId              int           `json:"tenant_id,omitempty"`
+	TenantID              int           `json:"tenant_id,omitempty"`
 	CreatedAt             int           `json:"created_at,omitempty"`
 	PrefReaddir           int           `json:"pref_readdir,omitempty"`
 	Enabled               bool          `json:"enabled,omitempty"`
@@ -61,9 +61,9 @@ type Export struct {
 	MakeAllUsersAnonymous bool          `json:"make_all_users_anonymous,omitempty"`
 	SnapdirVisible        bool          `json:"snapdir_visible,omitempty"`
 	TransportProtocols    string        `json:"transport_protocols,omitempty"`
-	AnonymousGid          int           `json:"anonymous_gid,omitempty"`
-	AnonymousUid          int           `json:"anonymous_uid,omitempty"`
-	FilesystemId          int           `json:"filesystem_id,omitempty"`
+	AnonymousGID          int           `json:"anonymous_gid,omitempty"`
+	AnonymousUID          int           `json:"anonymous_uid,omitempty"`
+	FilesystemID          int           `json:"filesystem_id,omitempty"`
 	MaxWrite              int           `json:"max_write,omitempty"`
 	PrivilegedPort        bool          `json:"privileged_port,omitempty"`
 	ID                    int           `json:"id,omitempty"`
@@ -94,13 +94,13 @@ type GetExportsByFileSystemIDResponse struct {
 }
 
 type CreateExportRequest struct {
-	FilesystemID        int                      `json:"filesystem_id,omitempty"`
-	Name                string                   `json:"name,omitempty"`
-	Transport_protocols string                   `json:"transport_protocols,omitempty"`
-	Privileged_port     bool                     `json:"privileged_port"`
-	Export_path         string                   `json:"export_path,omitempty"`
-	Permissionsput      []map[string]interface{} `json:"permissions,omitempty"`
-	SnapdirVisible      bool                     `json:"snapdir_visible"`
+	FilesystemID       int                      `json:"filesystem_id,omitempty"`
+	Name               string                   `json:"name,omitempty"`
+	TransportProtocols string                   `json:"transport_protocols,omitempty"`
+	PrivilegedPort     bool                     `json:"privileged_port"`
+	ExportPath         string                   `json:"export_path,omitempty"`
+	Permissionsput     []map[string]interface{} `json:"permissions,omitempty"`
+	SnapdirVisible     bool                     `json:"snapdir_visible"`
 }
 type CreateExportResponse struct {
 	Metadata Metadata `json:"metadata"`
@@ -109,59 +109,59 @@ type CreateExportResponse struct {
 }
 
 func (iboxClient *IboxClient) GetExportByID(exportID int) (ex *Export, err error) {
-	const FN = "GetExportByID"
+	const functionName = "GetExportByID"
 
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", exportID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "export ID", exportID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/exports", exportID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "export ID", exportID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetExportByIDResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "EXPORT_NOT_FOUND" {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - export ID '%d' not found", FN, exportID)}
+			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - export ID '%d' not found", functionName, exportID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Export, err error) {
-	const FN = "GetExportsByFileSystemID"
+	const functionName = "GetExportsByFileSystemID"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/exports")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "filesystem ID", fsID)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/exports")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "filesystem ID", fsID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 
 		values := req.URL.Query()
@@ -172,24 +172,24 @@ func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Expo
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", FN, err)
+			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetExportsByFileSystemIDResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -202,14 +202,14 @@ func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Expo
 }
 
 func (iboxClient *IboxClient) DeleteExport(exportID int) (response *Export, err error) {
-	const FN = "DeleteExport"
+	const functionName = "DeleteExport"
 
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", exportID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "export ID", exportID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/exports", exportID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "export ID", exportID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := req.URL.Query()
@@ -218,58 +218,58 @@ func (iboxClient *IboxClient) DeleteExport(exportID int) (response *Export, err 
 
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll -error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll -error %w", functionName, err)
 	}
 	var responseObject DeleteExportResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "EXPORT_NOT_FOUND" {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - export ID '%d' not found", FN, exportID)}
+			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - export ID '%d' not found", functionName, exportID)}
 		}
 
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) CreateExport(req CreateExportRequest) (*Export, error) {
-	const FN = "CreateExport"
+	const functionName = "CreateExport"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/exports")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "request", req)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/exports")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -278,19 +278,19 @@ func (iboxClient *IboxClient) CreateExport(req CreateExportRequest) (*Export, er
 	var responseObject CreateExportResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "Export ID", responseObject.Result.ID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "Export ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) UpdateExportPermissions(ex Export, exportPathRef ExportPathRef) (resp *Export, err error) {
-	const FN = "UpdateExport"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/exports", ex.ID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "export ID", ex.ID, "exportPathRef", exportPathRef)
+	const functionName = "UpdateExport"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/exports", ex.ID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "export ID", ex.ID, "exportPathRef", exportPathRef)
 
 	// the ibox only allows a single field of the export rule to be updated, in this
 	// case we want to only update the Permissions of an existing export rule, this is
@@ -301,12 +301,12 @@ func (iboxClient *IboxClient) UpdateExportPermissions(ex Export, exportPathRef E
 	}
 	jsonBytes, err := json.Marshal(onlyPermissionsField)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	iboxClient.Log.V(DEBUG_LEVEL).Info(FN, "URL", url, "update export json", string(jsonBytes))
+	iboxClient.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "update export json", string(jsonBytes))
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := request.URL.Query()
@@ -317,28 +317,28 @@ func (iboxClient *IboxClient) UpdateExportPermissions(ex Export, exportPathRef E
 
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject UpdateExportResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }

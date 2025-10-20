@@ -62,13 +62,13 @@ type PoolResult struct {
 }
 
 func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err error) {
-	const function = "GetPoolByName"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/pools")
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "name", name)
+	const functionName = "GetPoolByName"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/pools")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "name", name)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	values := req.URL.Query()
 	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOX_DEFAULT_QUERY_PAGE_SIZE))
@@ -78,75 +78,75 @@ func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err 
 
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", function, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetPoolByNameResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	if len(responseObject.Result) > 0 {
 		pool = &responseObject.Result[0]
 	} else {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - pool '%s' not found", function, name)}
+		return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - pool '%s' not found", functionName, name)}
 	}
 
 	return pool, nil
 }
 
-func (iboxClient *IboxClient) GetPoolByID(id int) (pool *PoolResult, err error) {
-	const function = "GetPoolByID"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/pools", id)
-	iboxClient.Log.V(TRACE_LEVEL).Info(function, "URL", url, "id", id)
+func (iboxClient *IboxClient) GetPoolByID(poolID int) (pool *PoolResult, err error) {
+	const functionName = "GetPoolByID"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/pools", poolID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "id", poolID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", function, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", function, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, function, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", function, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetPoolByIDResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", function, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	if responseObject.Error.Code == "POOL_NOT_FOUND" {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - pool '%d' not found", function, id)}
+		return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - pool '%d' not found", functionName, poolID)}
 	}
 
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", function, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	return &responseObject.Result, nil

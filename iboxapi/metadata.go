@@ -44,62 +44,62 @@ type GetMetadataResult struct {
 }
 
 func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]interface{}) (r *PutMetadataResponse, err error) {
-	const FN = "PutMetadata"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/metadata/", objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "object ID", objectID, "map", metadata)
+	const functionName = "PutMetadata"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata/", objectID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID, "map", metadata)
 
 	jsonBytes, err := json.Marshal(metadata)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	SetAuthHeader(request, iboxClient.Creds)
 
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject PutMetadataResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
 }
 
 func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult, err error) {
-	const FN = "GetMetadata"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/metadata", objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "object ID", objectID)
+	const functionName = "GetMetadata"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata", objectID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 
 		values := req.URL.Query()
@@ -109,25 +109,25 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", FN, err)
+			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetMetadataResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "resp", responseObject)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "resp", responseObject)
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {
@@ -139,13 +139,13 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 }
 
 func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
-	const FN = "DeleteMetadata"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/metadata", objectID)
-	iboxClient.Log.V(DEBUG_LEVEL).Info(FN, "URL", url, "object ID", objectID)
+	const functionName = "DeleteMetadata"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata", objectID)
+	iboxClient.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := req.URL.Query()
@@ -154,26 +154,26 @@ func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMeta
 
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject DeleteMetadataResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
 }

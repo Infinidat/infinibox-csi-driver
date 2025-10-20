@@ -18,20 +18,20 @@ var protoToServiceMap = map[string]string{
 func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string) error {
 	// Loop through and check required parameters only, consciously ignore parameters that aren't required
 	badParamsMap := make(map[string]string)
-	for param, required_regex := range requiredStorageClassParams {
-		if param_value, ok := providedStorageClassParams[param]; ok {
-			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
-				badParamsMap[param] = "required input parameter " + param_value + " didn't match expected pattern " + required_regex
+	for param, requiredRegex := range requiredStorageClassParams {
+		if paramValue, ok := providedStorageClassParams[param]; ok {
+			if matched, _ := regexp.MatchString(requiredRegex, paramValue); !matched {
+				badParamsMap[param] = "required input parameter " + paramValue + " didn't match expected pattern " + requiredRegex
 			}
 		} else {
 			badParamsMap[param] = "parameter required but not provided"
 		}
 	}
 
-	for param, required_regex := range optionalSCParameters {
-		if param_value, ok := providedStorageClassParams[param]; ok {
-			if matched, _ := regexp.MatchString(required_regex, param_value); !matched {
-				badParamsMap[param] = "Optional input parameter " + param_value + " didn't match expected pattern " + required_regex
+	for param, requiredRegex := range optionalSCParameters {
+		if paramValue, ok := providedStorageClassParams[param]; ok {
+			if matched, _ := regexp.MatchString(requiredRegex, paramValue); !matched {
+				badParamsMap[param] = "Optional input parameter " + paramValue + " didn't match expected pattern " + requiredRegex
 			}
 		}
 	}
@@ -47,16 +47,15 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
 func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api iboxapi.Client) error {
-
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
 		zlog.Err(err)
 		return err
 	}
 
-	for _, ns := range networkSpaces {
-		zlog.Debug().Msgf("validating ns=%s protocol=%s", ns, protocol)
-		nSpace, err := api.GetNetworkSpaceByName(ns)
+	for _, networkSpace := range networkSpaces {
+		zlog.Debug().Msgf("validating ns=%s protocol=%s", networkSpace, protocol)
+		nSpace, err := api.GetNetworkSpaceByName(networkSpace)
 		if err != nil {
 			// api call throws error
 			zlog.Err(err)
@@ -64,17 +63,17 @@ func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 		}
 		if len(nSpace.Service) == 0 {
 			// handle empty result - nSpace doesn't exist
-			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", ns)
+			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", networkSpace)
 			zlog.Err(e)
 			return e
 		}
 		if nSpace.Service != protoToServiceMap[protocol] {
 			// handle invalid protocol/networkspace configuration
-			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", ns, protocol, nSpace.Service)
+			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", networkSpace, protocol, nSpace.Service)
 			zlog.Err(e)
 			return e
 		}
-		zlog.Debug().Msgf("Network space %s supports %s protocol with %s service", ns, protocol, nSpace.Service)
+		zlog.Debug().Msgf("Network space %s supports %s protocol with %s service", networkSpace, protocol, nSpace.Service)
 	}
 
 	return nil // returns here if all network spaces pass validation for protocol.

@@ -36,9 +36,9 @@ func (suite *TreeqNodeSuite) SetupTest() {
 	suite.nfsMountMock = new(storagecommon.MockNfsMounter)
 	suite.osHelperMock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(storagecommon.MockStorageHelper)
-	suite.api = new(api.MockApiService)
-	suite.iboxapi = new(iboxapi.MockApiService)
-	suite.cs = &storagecommon.Commonservice{IboxApi: suite.iboxapi, Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.api = new(api.MockAPIService)
+	suite.iboxapi = new(iboxapi.MockAPIService)
+	suite.cs = &storagecommon.Commonservice{IboxAPI: suite.iboxapi, API: suite.api, AccessModesHelper: suite.accessMock}
 }
 
 type TreeqNodeSuite struct {
@@ -46,8 +46,8 @@ type TreeqNodeSuite struct {
 	nfsMountMock      *storagecommon.MockNfsMounter
 	osHelperMock      *helper.MockOsHelper
 	accessMock        *helper.MockAccessModesHelper
-	api               *api.MockApiService
-	iboxapi           *iboxapi.MockApiService
+	api               *api.MockAPIService
+	iboxapi           *iboxapi.MockAPIService
 	cs                *storagecommon.Commonservice
 	storageHelperMock *storagecommon.MockStorageHelper
 }
@@ -58,7 +58,7 @@ func TestTreeqNodeSuite(t *testing.T) {
 
 func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 
-	//mountOptions, err := treeq.NFSstorage.NFSStorageHelper.GetNFSMountOptions(req)
+	// mountOptions, err := treeq.NFSstorage.NFSStorageHelper.GetNFSMountOptions(req)
 
 	nfs := nfs.NFSstorage{StorageHelper: suite.storageHelperMock, CS: *suite.cs, Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
 	service := Treeqstorage{NFSstorage: nfs}
@@ -146,8 +146,8 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	mountErr := errors.New("mount error")
 	nfs := nfs.NFSstorage{StorageHelper: suite.storageHelperMock, CS: *suite.cs, Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
 	service := Treeqstorage{NFSstorage: nfs}
-	//nfs := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
-	//service := treeqstorage{nfsstorage: nfs}
+	// nfs := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
+	// service := treeqstorage{nfsstorage: nfs}
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)

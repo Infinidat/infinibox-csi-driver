@@ -123,7 +123,7 @@ func TestNvmeFsGroup(t *testing.T) {
 	testConfig.UseFsGroup = true
 	e2e.Setup(testConfig)
 
-	time.Sleep(10 * time.Second) //sleep to avoid a race condition
+	time.Sleep(10 * time.Second) // sleep to avoid a race condition
 
 	expectedValue := "drwxrwsr-x"
 	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
@@ -138,7 +138,7 @@ func TestNvmeFsGroup(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual, err = e2e.VerifyGroupIdIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIDIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifyGroupIdIsUsed %s", err.Error())
 	}

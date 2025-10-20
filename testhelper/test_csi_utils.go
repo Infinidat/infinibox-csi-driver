@@ -1,4 +1,4 @@
-package test_helper
+package testhelper
 
 import (
 	"infinibox-csi-driver/common"
@@ -25,13 +25,13 @@ func GetHostMetadata() (results []iboxapi.GetMetadataResult) {
 }
 
 // TODO: below only generates a MountVolume request, not a BlockVolume request. We should test both. CSIC-342
-func GetCreateVolumeRequest(name string, parameterMap map[string]string, sourceVolId string) *csi.CreateVolumeRequest {
+func GetCreateVolumeRequest(name string, parameterMap map[string]string, sourceVolID string) *csi.CreateVolumeRequest {
 	var volContentSrc *csi.VolumeContentSource
-	if sourceVolId != "" {
+	if sourceVolID != "" {
 		volContentSrc = &csi.VolumeContentSource{
 			Type: &csi.VolumeContentSource_Volume{
 				Volume: &csi.VolumeContentSource_VolumeSource{
-					VolumeId: sourceVolId,
+					VolumeId: sourceVolID,
 				},
 			},
 		}

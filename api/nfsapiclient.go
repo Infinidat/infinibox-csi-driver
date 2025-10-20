@@ -19,46 +19,46 @@ import (
 	"strings"
 )
 
-func compareClientIP(permissionIP, ip string) bool {
+func compareClientIP(permissionIP, ipAddress string) bool {
 	flag := false
 	if strings.Contains(permissionIP, "-") {
 		iprange := strings.Split(permissionIP, "-")
 		ip1 := net.ParseIP(iprange[0])
 		ip2 := net.ParseIP(iprange[1])
-		clientIP := net.ParseIP(ip)
+		clientIP := net.ParseIP(ipAddress)
 		if bytes.Compare(clientIP, ip1) >= 0 && bytes.Compare(clientIP, ip2) <= 0 {
 			flag = true
 		}
-	} else if permissionIP == ip {
+	} else if permissionIP == ipAddress {
 		flag = true
 	}
 	return flag
 }
 
 // AddNodeInExport : Export should be updated in case of node addition in k8s cluster
-func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
+func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquash bool, ipAddress string) (*iboxapi.Export, error) {
 	zlog.Trace().Msgf("AddNodeInExport() called")
-	zlog.Debug().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ip, id, access)
+	zlog.Debug().Msgf("Adding node with IP %s to export with export ID %d using access '%s'", ipAddress, exportID, access)
 	flag := false
 
-	ex, err := c.Iboxapi.GetExportByID(id)
+	export, err := c.IboxAPI.GetExportByID(exportID)
 	if err != nil {
-		zlog.Error().Msgf("Error occurred while getting export path for export with ID %d: %s", ex.ID, err)
+		zlog.Error().Msgf("Error occurred while getting export path for export with ID %d: %s", export.ID, err)
 		return nil, err
 	}
 
-	zlog.Debug().Msgf("Current export with export ID %d. export: %v", ex.ID, ex)
+	zlog.Debug().Msgf("Current export with export ID %d. export: %v", export.ID, export)
 
 	index := -1
-	permissionList := ex.Permissions
-	for i, permission := range permissionList {
-		if compareClientIP(permission.Client, ip) {
+	permissionList := export.Permissions
+	for permissionIndex, permission := range permissionList {
+		if compareClientIP(permission.Client, ipAddress) {
 			flag = true
-			zlog.Debug().Msgf("Node IP address %s already added in export rule with ID %d", ip, ex.ID)
+			zlog.Debug().Msgf("Node IP address %s already added in export rule with ID %d", ipAddress, export.ID)
 		} else if permission.Client == "*" {
-			index = i
+			index = permissionIndex
 			flag = true
-			zlog.Debug().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ip, ex.ID)
+			zlog.Debug().Msgf("Node IP address %s already covered by '*' export rule for export ID %d", ipAddress, export.ID)
 		}
 	}
 	if index != -1 {
@@ -68,42 +68,41 @@ func (c *ClientService) AddNodeInExport(id int, access string, noRootSquash bool
 		newPermission := iboxapi.Permissions{
 			Access:       access,
 			NoRootSquash: noRootSquash,
-			Client:       ip,
+			Client:       ipAddress,
 		}
 		permissionList = append(permissionList, newPermission)
 
-		zlog.Debug().Msgf("Setting export with ID %d permissions to %+v", ex.ID, permissionList)
+		zlog.Debug().Msgf("Setting export with ID %d permissions to %+v", export.ID, permissionList)
 
 		exportPathRef := iboxapi.ExportPathRef{
 			Permissions: permissionList,
 		}
-		ex, err = c.Iboxapi.UpdateExportPermissions(*ex, exportPathRef)
+		export, err = c.IboxAPI.UpdateExportPermissions(*export, exportPathRef)
 		if err != nil {
-			zlog.Error().Msgf("Error: updating export rule for export with ID: %d access: %s noRootSquash: %t ip:%s error: %s", id, access, noRootSquash, ip, err)
+			zlog.Error().Msgf("Error: updating export rule for export with ID: %d access: %s noRootSquash: %t ip:%s error: %s", exportID, access, noRootSquash, ipAddress, err)
 			return nil, err
-		} else {
-			zlog.Debug().Msgf("Updated export rule for export with ID %d, export Response %v", ex.ID, ex)
 		}
+		zlog.Debug().Msgf("Updated export rule for export with ID %d, export Response %v", export.ID, export)
 	}
-	zlog.Debug().Msgf("Completed adding node %s to export with export ID %d: %+v", ip, ex.ID, ex)
-	return ex, nil
+	zlog.Debug().Msgf("Completed adding node %s to export with export ID %d: %+v", ipAddress, export.ID, export)
+	return export, nil
 }
 
 // DeleteExportRule method
 func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) error {
 	zlog.Trace().Msgf("Delete export rule from filesystem with file system ID %d", fileSystemID)
-	exportArray, err := c.Iboxapi.GetExportsByFileSystemID(fileSystemID)
+	exports, err := c.IboxAPI.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
-		zlog.Error().Msgf("Error occured while getting export : %v", err)
+		zlog.Error().Msgf("Error occurred while getting export : %v", err)
 		return err
 	}
-	for _, export := range exportArray {
+	for _, export := range exports {
 		permissionList := export.Permissions
 		for _, permission := range permissionList {
 			if permission.Client == ipAddress {
 				_, err = c.DeleteNodeFromExport(export, permission.Access, permission.NoRootSquash, ipAddress)
 				if err != nil {
-					zlog.Error().Msgf("Error occured while getting export path : %s", err)
+					zlog.Error().Msgf("Error occurred while getting export path : %s", err)
 					return err
 				}
 			}
@@ -114,17 +113,17 @@ func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) err
 }
 
 // DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
-func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
+func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ipAddress string) (*iboxapi.Export, error) {
 	zlog.Trace().Msgf("Delete node from export with export ID %d", export.ID)
 	flag := false
 	var index int
 	exportPathRef := iboxapi.ExportPathRef{}
 	var exportResponse *iboxapi.Export
 	permissionList := export.Permissions
-	for i, permission := range permissionList {
-		if permission.Client == ip {
+	for permissionIndex, permission := range permissionList {
+		if permission.Client == ipAddress {
 			flag = true
-			index = i
+			index = permissionIndex
 		}
 	}
 
@@ -140,13 +139,13 @@ func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, access strin
 		exportPathRef.Permissions = permissionList
 
 		var err error
-		exportResponse, err = c.Iboxapi.UpdateExportPermissions(export, exportPathRef)
+		exportResponse, err = c.IboxAPI.UpdateExportPermissions(export, exportPathRef)
 		if err != nil {
-			zlog.Error().Msgf("Error occured while updating permission : %s", err)
+			zlog.Error().Msgf("Error occurred while updating permission : %s", err)
 			return nil, err
 		}
 	} else {
-		zlog.Error().Msgf("Given Ip %s address not found in the list", ip)
+		zlog.Error().Msgf("Given Ip %s address not found in the list", ipAddress)
 	}
 	zlog.Trace().Msgf("Deleted node from export with ID %d", export.ID)
 	return exportResponse, nil
@@ -159,30 +158,28 @@ const (
 
 // DeleteParentFileSystem method delete the ascenders of fileystem
 func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { // delete fileystem's parent ID
-
-	var metadata []iboxapi.GetMetadataResult
-	metadata, err = c.Iboxapi.GetMetadata(fileSystemID)
+	var metadataList []iboxapi.GetMetadataResult
+	metadataList, err = c.IboxAPI.GetMetadata(fileSystemID)
 	if err != nil {
 		zlog.Error().Msgf("Failed to delete filesystem with ID %d, error getting metadata: %v", fileSystemID, err)
 		return err
 	}
 	var toBeDeleted bool
-	for _, m := range metadata {
-		if m.Key == TOBEDELETED {
+	for _, metadata := range metadataList {
+		if metadata.Key == TOBEDELETED {
 			toBeDeleted = true
 		}
 	}
 
-	childFileSystems, err := c.Iboxapi.GetFileSystemsByParentID(fileSystemID)
+	childFileSystems, err := c.IboxAPI.GetFileSystemsByParentID(fileSystemID)
 	if err != nil {
 		zlog.Error().Msgf("Failed to get filesystem with parent ID %d: %v", fileSystemID, err)
 		return err
 	}
 
 	if len(childFileSystems) == 0 && toBeDeleted { // If No child and to_be_delete_status =true in metadata then
-
 		// get the filesystem before deleting so we can recall the ParentID
-		fs, err := c.Iboxapi.GetFileSystemByID(fileSystemID)
+		fileSystem, err := c.IboxAPI.GetFileSystemByID(fileSystemID)
 		if err != nil {
 			zlog.Error().Msgf("Failed to get filesystem with ID %d: %v", fileSystemID, err)
 			return err
@@ -192,8 +189,8 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { /
 			zlog.Error().Msgf("Failed to delete filesystem with ID %d: %v", fileSystemID, err)
 			return err
 		}
-		if fs.ParentID != 0 {
-			err = c.DeleteParentFileSystem(fs.ParentID)
+		if fileSystem.ParentID != 0 {
+			err = c.DeleteParentFileSystem(fileSystem.ParentID)
 			if err != nil {
 				zlog.Error().Msgf("Failed to delete parent filesystem with parent ID %d: %v", fileSystemID, err)
 				return err
@@ -206,7 +203,7 @@ func (c *ClientService) DeleteParentFileSystem(fileSystemID int) (err error) { /
 // DeleteFileSystemComplete method delete the fileystem
 func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	// 1. Delete export path
-	exportResp, err := c.Iboxapi.GetExportsByFileSystemID(fileSystemID)
+	exportResp, err := c.IboxAPI.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
 		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 			err = nil
@@ -215,10 +212,10 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 			return
 		}
 	}
-	for _, ep := range exportResp {
-		_, err = c.Iboxapi.DeleteExport(ep.ID)
+	for _, export := range exportResp {
+		_, err = c.IboxAPI.DeleteExport(export.ID)
 		if err != nil {
-			re, ok := err.(*iboxapi.IboxAPIError)
+			re, ok := err.(*iboxapi.APIError)
 			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 				err = nil
 			} else {
@@ -231,7 +228,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	zlog.Trace().Msgf("Export path deleted successfully")
 
 	// 2.delete metadata
-	_, err = c.Iboxapi.DeleteMetadata(fileSystemID)
+	_, err = c.IboxAPI.DeleteMetadata(fileSystemID)
 	if err != nil {
 		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			err = nil
@@ -243,7 +240,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 
 	// 3. delete file system
 	zlog.Trace().Msgf("delete FileSystem FileSystemID %d", fileSystemID)
-	err = c.Iboxapi.DeleteFileSystem(fileSystemID)
+	err = c.IboxAPI.DeleteFileSystem(fileSystemID)
 	if err != nil {
 		zlog.Error().Msgf("failed to delete filesystem %v", err)
 		return

@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-
 	go catchSignal()
 
 	fmt.Printf("current user id %d\n", os.Getuid())
@@ -37,7 +36,7 @@ func main() {
 		fmt.Println("READ_ONLY is true")
 	}
 
-	//use nodeName if it exists
+	// use nodeName if it exists
 	nodeName := os.Getenv("KUBE_NODE_NAME")
 	if nodeName != "" {
 		valueToWrite = nodeName
@@ -79,11 +78,9 @@ func main() {
 		time.Sleep(time.Second * 30)
 		fmt.Println(".")
 	}
-
 }
 
 func catchSignal() {
-
 	terminateSignals := make(chan os.Signal, 1)
 
 	signal.Notify(terminateSignals, syscall.SIGINT, syscall.SIGTERM) //NOTE:: syscall.SIGKILL we cannot catch kill -9 as its force kill signal.
@@ -92,26 +89,25 @@ func catchSignal() {
 		fmt.Printf("Got one of stop signals, shutting down gracefully, SIGNAL NAME : %v\n", s)
 		os.Exit(1)
 	}
-
 }
 
 func writeToBlockDevice(value, device string) error {
 	// simulate the command line: echo foo > /dev/xvda;sync
-	f, err := syscall.Open(device, os.O_RDWR, 0777)
+	file, err := syscall.Open(device, os.O_RDWR, 0777)
 	if err != nil {
 		fmt.Printf("error in opening block device %s\n", err.Error())
 		return err
 	}
 
 	defer func() {
-		if err := syscall.Close(f); err != nil {
+		if err := syscall.Close(file); err != nil {
 			panic(err)
 		}
 	}()
 
 	// write a chunk
-	buf := []byte(value)
-	if _, err := syscall.Write(f, buf); err != nil {
+	buffer := []byte(value)
+	if _, err := syscall.Write(file, buffer); err != nil {
 		panic(err)
 	}
 
@@ -121,30 +117,28 @@ func writeToBlockDevice(value, device string) error {
 }
 
 func readFromBlockDevice(value, device string) (int, string, error) {
-
 	// simulate the command line: head -c 3 /dev/xvda
-
-	f, err := syscall.Open(device, os.O_RDONLY, 0555)
+	file, err := syscall.Open(device, os.O_RDONLY, 0555)
 	if err != nil {
 		fmt.Printf("error in opening block device %s\n", err.Error())
 		return 0, "", err
 	}
 
 	defer func() {
-		if err := syscall.Close(f); err != nil {
+		if err := syscall.Close(file); err != nil {
 			panic(err)
 		}
 	}()
 
-	buf := make([]byte, len(value))
-	n, err := syscall.Read(f, buf)
+	buffer := make([]byte, len(value))
+	bytesRead, err := syscall.Read(file, buffer)
 	if err != nil && err != io.EOF {
 		panic(err)
 	}
 
-	valueRead := string(buf[:n])
+	valueRead := string(buffer[:bytesRead])
 
-	return n, valueRead, nil
+	return bytesRead, valueRead, nil
 }
 
 func listPermissions(device string) {

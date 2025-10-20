@@ -32,10 +32,13 @@ func TimeTrack(zlog zerolog.Logger, start time.Time) {
 	elapsed := time.Since(start)
 
 	// Skip this function, and fetch the PC and file for its parent.
-	pc, _, _, _ := runtime.Caller(1)
+	programCaller, _, _, okValue := runtime.Caller(1)
+	if !okValue {
+		zlog.Debug().Msg("could not get the program caller")
+	}
 
 	// Retrieve a function object this functions parent.
-	funcObj := runtime.FuncForPC(pc)
+	funcObj := runtime.FuncForPC(programCaller)
 
 	// Regex to extract just the function name (and not the module path).
 	runtimeFunc := regexp.MustCompile(`^.*\.(.*)$`)

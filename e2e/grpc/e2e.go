@@ -42,8 +42,8 @@ func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
 		return nil, err
 	}
 	return conn, nil
-
 }
+
 func GetKubeHost() (string, error) {
 	kcenv := os.Getenv("KUBECONFIG")
 	zlog.Info().Msgf("KUBECONFIG is %s\n", kcenv)

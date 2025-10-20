@@ -143,50 +143,50 @@ type MapVolumeToHostResponse struct {
 }
 
 func (iboxClient *IboxClient) GetAllHosts() (host []Host, err error) {
-	const FN = "GetAllHosts"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/hosts")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url)
+	const functionName = "GetAllHosts"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/hosts")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return host, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return host, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return host, fmt.Errorf("%s - Do - error %w", FN, err)
+		return host, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return host, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return host, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject HostResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return host, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return host, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return host, fmt.Errorf("%s - ibox API - error code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return host, fmt.Errorf("%s - ibox API - error code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	return responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err error) {
-	const FN = "GetHostByName"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/hosts")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host name", hostName)
+	const functionName = "GetHostByName"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/hosts")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host name", hostName)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
@@ -194,129 +194,127 @@ func (iboxClient *IboxClient) GetHostByName(hostName string) (host *Host, err er
 	values.Add("name", hostName)
 	req.URL.RawQuery = values.Encode()
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject HostResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if len(responseObject.Result) == 0 {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - host '%s' not found", FN, hostName)}
+		return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - host '%s' not found", functionName, hostName)}
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
-
+		return nil, fmt.Errorf("%s - ibox API - error code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result[0], nil
 }
 
-func (iboxClient *IboxClient) CreateHost(hostName string) (host *Host, err error) {
-	const FN = "CreateHost"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/hosts")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host name", hostName)
+func (iboxClient *IboxClient) CreateHost(hostName string) (*Host, error) {
+	const functionName = "CreateHost"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/hosts")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host name", hostName)
 
-	hp := CreateHostPost{
+	hostPort := CreateHostPost{
 		Name: hostName,
 	}
-	jsonBytes, err := json.Marshal(hp)
+	jsonBytes, err := json.Marshal(hostPort)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s -ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s -ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject CreateHostResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
-
+		return nil, fmt.Errorf("%s - ibox API - error code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) DeleteHost(hostID int) (response *Host, err error) {
-	const FN = "DeleteHost"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host ID", hostID)
+	const functionName = "DeleteHost"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/hosts/", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRquest -  error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRquest -  error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject DeleteHostResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "HOST_NOT_FOUND" {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - host ID '%d' not found", FN, hostID)}
+			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - host ID '%d' not found", functionName, hostID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) AddHostSecurity(chapCreds map[string]string, hostID int) (host *AddHostSecurityResponse, err error) {
-	const FN = "AddHostSecurity"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host ID", hostID)
+	const functionName = "AddHostSecurity"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/hosts/", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
 
-	hp := AddHostSecurityRequest{
+	hostSecurityInfo := AddHostSecurityRequest{
 		SecurityMethod:               chapCreds[CHAP_SECURITY_METHOD],
 		SecurityCHAPInboundUsername:  chapCreds[CHAP_INBOUND_USERNAME],
 		SecurityCHAPInboundSecret:    chapCreds[CHAP_INBOUND_SECRET],
@@ -324,13 +322,13 @@ func (iboxClient *IboxClient) AddHostSecurity(chapCreds map[string]string, hostI
 		SecurityCHAPOutboundSecret:   chapCreds[CHAP_OUTBOUND_SECRET],
 	}
 
-	jsonBytes, err := json.Marshal(hp)
+	jsonBytes, err := json.Marshal(hostSecurityInfo)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := request.URL.Query()
@@ -341,49 +339,49 @@ func (iboxClient *IboxClient) AddHostSecurity(chapCreds map[string]string, hostI
 
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject AddHostSecurityResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
 }
 
 func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error) {
-	const Fn = "AddHostPort"
-	url := fmt.Sprintf("%s%s/%d/ports", iboxClient.Creds.Url, "api/rest/hosts", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(Fn, "URL", url, "port type", portType, "port address", portAddress, "host ID", hostID)
+	const functionName = "AddHostPort"
+	url := fmt.Sprintf("%s%s/%d/ports", iboxClient.Creds.URL, "api/rest/hosts", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "port type", portType, "port address", portAddress, "host ID", hostID)
 
-	hp := AddPortRequest{
+	portInfo := AddPortRequest{
 		Type:    portType,
 		Address: portAddress,
 	}
 
-	jsonBytes, err := json.Marshal(hp)
+	jsonBytes, err := json.Marshal(portInfo)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := request.URL.Query()
@@ -393,13 +391,13 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, Fn, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -408,40 +406,39 @@ func (iboxClient *IboxClient) AddHostPort(portType, portAddress string, hostID i
 	var responseObject AddPortResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal -error %w", Fn, err)
+		return nil, fmt.Errorf("%s - Unmarshal -error %w", functionName, err)
 	}
 	return &responseObject, nil
-
 }
 
 func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostPort *HostPort, err error) {
-	const Fn = "GetHostPort"
-	url := fmt.Sprintf("%s%s/%d/ports", iboxClient.Creds.Url, "api/rest/hosts", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(Fn, "URL", url, "host ID", hostID, "port address", portAddress)
+	const functionName = "GetHostPort"
+	url := fmt.Sprintf("%s%s/%d/ports", iboxClient.Creds.URL, "api/rest/hosts", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "port address", portAddress)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, Fn, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetHostPortResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", Fn, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	var portFound bool
@@ -452,18 +449,18 @@ func (iboxClient *IboxClient) GetHostPort(hostID int, portAddress string) (hostP
 		}
 	}
 	if !portFound {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - portAddress '%s' not found", Fn, portAddress)}
+		return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - portAddress '%s' not found", functionName, portAddress)}
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", Fn, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return hostPort, nil
 }
 
 func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *LunInfo, err error) {
-	const FN = "MapVolumeToHost"
-	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/hosts", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "volume ID", volumeID, "lun", lun, "host ID", hostID)
+	const functionName = "MapVolumeToHost"
+	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/hosts", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID, "lun", lun, "host ID", hostID)
 
 	hp := MapVolumeToHostRequest{
 		VolumeID: volumeID,
@@ -471,11 +468,11 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 
 	jsonBytes, err := json.Marshal(hp)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := request.URL.Query()
@@ -485,13 +482,13 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -500,54 +497,53 @@ func (iboxClient *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInf
 	var responseObject MapVolumeToHostResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
-
 }
 
 func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err error) {
-	const FN = "GetAllLunByHost"
-	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host ID", hostID)
+	const functionName = "GetAllLunByHost"
+	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/hosts/", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return luns, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return luns, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 		values := req.URL.Query()
 		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return luns, fmt.Errorf("%s - Do - error %w", FN, err)
+			return luns, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return luns, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return luns, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetAllLunsResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return luns, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return luns, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 
 		luns = append(luns, responseObject.Result...)
@@ -561,45 +557,45 @@ func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err e
 }
 
 func (iboxClient *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *LunInfo, err error) {
-	const FN = "GetLunByHostVolume"
-	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.Url, "api/rest/hosts/", hostID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host ID", hostID, "volume ID", volumeID)
+	const functionName = "GetLunByHostVolume"
+	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/hosts/", hostID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "volume ID", volumeID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 		values := req.URL.Query()
 		values.Add("volume_id", strconv.Itoa(volumeID))
 		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+			return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetAllLunsResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 
 		if page == 1 {
@@ -608,25 +604,26 @@ func (iboxClient *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *Lun
 
 		if len(responseObject.Result) > 0 {
 			lun = &responseObject.Result[0]
+
 			break
 		}
 	}
 
 	if lun == nil {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - host ID '%d' volume ID '%d' not found", FN, hostID, volumeID)}
+		return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - host ID '%d' volume ID '%d' not found", functionName, hostID, volumeID)}
 	}
 
 	return lun, nil
 }
 
 func (iboxClient *IboxClient) UnMapVolumeFromHost(hostID, volumeID int) (unmapResponse *UnMapVolumeFromHostResponse, err error) {
-	const FN = "UnMapVolumeFromHost"
-	url := fmt.Sprintf("%s%s/%d/luns/volume_id/%d", iboxClient.Creds.Url, "api/rest/hosts/", hostID, volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "host ID", hostID, "volume ID", volumeID)
+	const functionName = "UnMapVolumeFromHost"
+	url := fmt.Sprintf("%s%s/%d/luns/volume_id/%d", iboxClient.Creds.URL, "api/rest/hosts/", hostID, volumeID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "volume ID", volumeID)
 
 	request, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := request.URL.Query()
@@ -635,28 +632,28 @@ func (iboxClient *IboxClient) UnMapVolumeFromHost(hostID, volumeID int) (unmapRe
 
 	SetAuthHeader(request, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(request)
+	resp, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject UnMapVolumeFromHostResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject, nil
 }

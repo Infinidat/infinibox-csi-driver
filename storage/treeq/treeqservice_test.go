@@ -32,14 +32,14 @@ import (
 )
 
 func (suite *TreeqServiceSuite) SetupTest() {
-	suite.api = new(api.MockApiService)
-	suite.iboxapi = new(iboxapi.MockApiService)
+	suite.api = new(api.MockAPIService)
+	suite.iboxapi = new(iboxapi.MockAPIService)
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	volproto := &api.VolumeProtocolConfig{
 		VolumeID:    1,
 		StorageType: "",
 	}
-	cs := storagecommon.Commonservice{Api: suite.api, IboxApi: suite.iboxapi, VolProto: volproto}
+	cs := storagecommon.Commonservice{API: suite.api, IboxAPI: suite.iboxapi, VolProto: volproto}
 	suite.cs = &cs
 	nfs := nfs.NFSstorage{CS: cs, Capacity: 100 * storagecommon.GIB}
 	suite.service = Treeqstorage{NFSstorage: nfs}
@@ -50,8 +50,8 @@ func (suite *TreeqServiceSuite) SetupTest() {
 type TreeqServiceSuite struct {
 	suite.Suite
 	accessMock *helper.MockAccessModesHelper
-	api        *api.MockApiService
-	iboxapi    *iboxapi.MockApiService
+	api        *api.MockAPIService
+	iboxapi    *iboxapi.MockAPIService
 	cs         *storagecommon.Commonservice
 	service    Treeqstorage
 	someError  error
@@ -132,7 +132,7 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_Success() {
 func getnetworkspace() *iboxapi.NetworkSpace {
 	networkSpace := iboxapi.NetworkSpace{}
 	var p1 iboxapi.Portal
-	p1.IpAdress = "10.20.30.40"
+	p1.IPAddress = "10.20.30.40"
 	networkSpace.Portals = append(networkSpace.Portals, p1)
 	return &networkSpace
 }

@@ -27,7 +27,6 @@ const (
 )
 
 func main() {
-
 	zlog = log.Get() // grab the logger for package use
 
 	zlog.Info().Msgf("infinidat CSI metrics starting")
@@ -36,21 +35,21 @@ func main() {
 	zlog.Info().Msgf("compile git hash: %s", gitHash)
 
 	// Get a k8s go client for in-cluster use
-	cl, err := clientgo.BuildClient()
+	client, err := clientgo.BuildClient()
 	if err != nil {
 		zlog.Error().Msgf("error getting client-go connection %s", err.Error())
 		os.Exit(1)
 	}
 
-	ns := os.Getenv("POD_NAMESPACE")
-	zlog.Info().Msgf("POD_NAMESPACE=%s", ns)
-	if ns == "" {
+	namespace := os.Getenv("POD_NAMESPACE")
+	zlog.Info().Msgf("POD_NAMESPACE=%s", namespace)
+	if namespace == "" {
 		zlog.Error().Msg("env var POD_NAMESPACE was not set, defaulting to infinidat-csi namespace")
-		ns = "infinidat-csi"
+		namespace = "infinidat-csi"
 	}
 
 	var secrets []map[string]string
-	secrets, err = cl.GetSecrets(ns)
+	secrets, err = client.GetSecrets(namespace)
 	if err != nil {
 		zlog.Error().Msgf("error getting secrets: %s", err.Error())
 	}
@@ -60,8 +59,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	for i := 0; i < len(config.Ibox); i++ {
-		tmp := config.Ibox[i]
+	for index := range config.Ibox {
+		tmp := config.Ibox[index]
 		zlog.Info().Msgf("config ibox hostname: %s username: %s", tmp.IboxHostname, tmp.IboxUsername)
 	}
 
@@ -72,7 +71,7 @@ func main() {
 
 	http.Handle("/", &home{})
 	http.Handle("/metrics", promhttp.Handler())
-	//_ = http.ListenAndServe(":"+*metric.PortFlag, nil)
+	// _ = http.ListenAndServe(":"+*metric.PortFlag, nil)
 	// load tls certificates
 	tlsListenEnvVar := os.Getenv("TLS_LISTEN")
 	zlog.Info().Msgf("TLS_LISTEN=%s", tlsListenEnvVar)
@@ -99,7 +98,7 @@ func main() {
 		}
 	}
 
-	srv := &http.Server{
+	server := &http.Server{
 		TLSConfig: tlsConfig,
 		Addr:      ":" + *metric.PortFlag,
 		// ReadHeaderTimeout is the amount of time allowed to read
@@ -135,13 +134,13 @@ func main() {
 	}
 
 	if tlsEnabled {
-		if err := srv.ListenAndServeTLS("", ""); err != nil {
+		if err := server.ListenAndServeTLS("", ""); err != nil {
 			zlog.Info().Msgf("fatal error on srv.ListenAndServeTLS %s", err.Error())
 			os.Exit(1)
 		}
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
+	if err := server.ListenAndServe(); err != nil {
 		zlog.Info().Msgf("fatal error on srv.ListenAndServe %s", err.Error())
 		os.Exit(1)
 	}
@@ -149,7 +148,7 @@ func main() {
 
 type home struct{}
 
-func (h *home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *home) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	msg := `<html>
 <body>
 <h1>Infinidat CSI Driver Metrics Exporter</h1>
@@ -174,8 +173,8 @@ func (h *home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>`
 
-	n, err := fmt.Fprintf(w, "%s", msg)
+	bytesWritten, err := fmt.Fprintf(responseWriter, "%s", msg)
 	if err != nil {
-		zlog.Error().Msgf("error in ServeHTTP %s %d", err.Error(), n)
+		zlog.Error().Msgf("error in ServeHTTP %s %d", err.Error(), bytesWritten)
 	}
 }

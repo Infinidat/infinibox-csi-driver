@@ -38,25 +38,26 @@ type NodeServer struct {
 	csi.UnimplementedNodeServer
 }
 
-func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+const UNKNOWN = "unknown"
 
-	const FN = "NodePublishVolume"
-	zlog.Info().Msgf("%s Started - volume ID: '%s'", FN, req.GetVolumeId())
+func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
+	const functionName = "NodePublishVolume"
+	zlog.Info().Msgf("%s Started - volume ID: '%s'", functionName, req.GetVolumeId())
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("%s - error volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s - error volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	if req.GetStagingTargetPath() == "" {
-		e := fmt.Errorf("%s - error stagingTargetPath parameter was empty", FN)
+		e := fmt.Errorf("%s - error stagingTargetPath parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	if req.VolumeCapability == nil {
-		e := fmt.Errorf("%s - error volumeCapability parameter was nil", FN)
+		e := fmt.Errorf("%s - error volumeCapability parameter was nil", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -67,7 +68,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	_, err := validateCapabilities(caps)
 	if err != nil {
-		e := fmt.Errorf("%s - validateCapabilities - error %s, volume cap %v", FN, err.Error(), req.VolumeCapability)
+		e := fmt.Errorf("%s - validateCapabilities - error %s, volume cap %v", functionName, err.Error(), req.VolumeCapability)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.FailedPrecondition, e.Error())
 	}
@@ -89,7 +90,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -103,23 +104,23 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - BuildCommonService volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageNode - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - NewStorageNode - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finished - ID: '%s'", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Finished - ID: '%s'", functionName, req.GetVolumeId())
 	req.VolumeContext["nodeID"] = s.Driver.nodeID
 	response, err := storageNode.NodePublishVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sn.NodePublishVolume - volume ID: %s error: %s", FN, req.GetVolumeId(), err)
+		e := fmt.Errorf("%s - sn.NodePublishVolume - volume ID: %s error: %s", functionName, req.GetVolumeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -127,30 +128,29 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	if storageProtocol == common.PROTOCOL_NFS {
 		mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
 		nfsVersion, nfsPort := nfs.GetNFSVersionPort(mountOptions)
-		zlog.Debug().Msgf("%s - nfs mount options are [%v], nfs version [%s] port [%s]", FN, mountOptions, nfsVersion, nfsPort)
+		zlog.Debug().Msgf("%s - nfs mount options are [%v], nfs version [%s] port [%s]", functionName, mountOptions, nfsVersion, nfsPort)
 		helper.EventNFSVersions[nfsVersion]++
 	}
 
-	helper.EventAPIClient = comnserv.Api
-	helper.EventIboxAPIClient = comnserv.IboxApi
+	helper.EventAPIClient = comnserv.API
+	helper.EventIboxAPIClient = comnserv.IboxAPI
 	helper.EventPublishedVolumes[volProto.StorageType]++
 
 	return response, nil
 }
 
 func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+	const functionName = "NodeUnpublishVolume"
 
-	const FN = "NodeUnpublishVolume"
-
-	zlog.Info().Msgf("%s Started - ID: %s", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Started - ID: %s", functionName, req.GetVolumeId())
 
 	if req.GetTargetPath() == "" {
-		e := fmt.Errorf("%s - error targetPath parameter was empty", FN)
+		e := fmt.Errorf("%s - error targetPath parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("%s - error volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s - error volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -163,18 +163,18 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnpublishVolume", req.GetVolumeId())
 
-	zlog.Debug().Msgf("%s called with volume ID %s", FN, req.GetVolumeId())
-	zlog.Trace().Msgf("%s called with req %+v", FN, req)
+	zlog.Debug().Msgf("%s called with volume ID %s", functionName, req.GetVolumeId())
+	zlog.Trace().Msgf("%s called with req %+v", functionName, req)
 	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -182,16 +182,15 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	resp, err := protocolOperation.NodeUnpublishVolume(ctx, req)
 	if err != nil {
 		// TODO do we trust the error being correctly set with a valid gRPC status code?
-		zlog.Error().Msgf("%s NodeUnpublishVolume volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
+		zlog.Error().Msgf("%s NodeUnpublishVolume volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		return nil, err
 	}
 
-	zlog.Info().Msgf("%s Finished - ID: %s", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Finished - ID: %s", functionName, req.GetVolumeId())
 	return resp, nil
 }
 
 func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-
 	// set as trace because it happens frequently
 	zlog.Trace().Msgf("NodeGetCapabilities Requested - Node: %s capabilities: %v", s.Driver.nodeID, s.Driver.nscap)
 
@@ -201,7 +200,6 @@ func (s *NodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCa
 }
 
 func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-
 	zlog.Debug().Msgf("NodeGetInfo Requested - Node: %s", s.Driver.nodeID)
 
 	nodeFQDN := getNodeFQDN()
@@ -218,18 +216,17 @@ func (s *NodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoReques
 }
 
 func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-
-	const FN = "NodeStageVolume"
+	const functionName = "NodeStageVolume"
 	volumeId := req.GetVolumeId()
-	zlog.Info().Msgf("%s Started - ID: '%s'", FN, volumeId)
+	zlog.Info().Msgf("%s Started - ID: '%s'", functionName, volumeId)
 
 	if volumeId == "" {
-		e := fmt.Errorf("%s -  error volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s -  error volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.VolumeCapability == nil {
-		e := fmt.Errorf("%s - error volumeCapability parameter was nil", FN)
+		e := fmt.Errorf("%s - error volumeCapability parameter was nil", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -240,13 +237,13 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	_, err := validateCapabilities(caps)
 	if err != nil {
-		e := fmt.Errorf("%s - validateCapabilities - error %s", FN, err.Error())
+		e := fmt.Errorf("%s - validateCapabilities - error %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.FailedPrecondition, e.Error())
 	}
 
 	if req.StagingTargetPath == "" {
-		e := fmt.Errorf("%s  - error stagingTargetPath parameter was empty", FN)
+		e := fmt.Errorf("%s  - error stagingTargetPath parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -259,7 +256,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeStageVolume", req.GetVolumeId())
 
-	//storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
+	// storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
 
 	fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
 
@@ -268,12 +265,12 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID -  volume ID %s - error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID -  volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Debug().Msgf("%s volumeContext %+v storageProtocol is %s", FN, req.GetVolumeContext(), volProto.StorageType)
+	zlog.Debug().Msgf("%s volumeContext %+v storageProtocol is %s", functionName, req.GetVolumeContext(), volProto.StorageType)
 
 	err = validateSecret("NodeStageVolume", req.GetVolumeId(), common.SC_NODE_STAGE_SECRET_NAME, common.SC_NODE_STAGE_SECRET_NAMESPACE, req.GetSecrets())
 	if err != nil {
@@ -282,43 +279,42 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService volume ID %s - error: %s", FN, volumeId, err)
+		e := fmt.Errorf("%s - BuildCommonService volume ID %s - error: %s", functionName, volumeId, err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", FN, volumeId, err)
+		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", functionName, volumeId, err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	resp, err := storageNode.NodeStageVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sn.NodeStageVolume volume ID %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - sn.NodeStageVolume volume ID %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finished - ID: '%s'", FN, volumeId)
+	zlog.Info().Msgf("%s Finished - ID: '%s'", functionName, volumeId)
 	return resp, nil
-
 }
 
 func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	const FN = "NodeUnstageVolume"
+	const functionName = "NodeUnstageVolume"
 	volumeId := req.GetVolumeId()
 
-	zlog.Info().Msgf("%s Started - ID: %s", FN, volumeId)
+	zlog.Info().Msgf("%s Started - ID: %s", functionName, volumeId)
 
 	if volumeId == "" {
-		e := fmt.Errorf("%s - error volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s - error volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.StagingTargetPath == "" {
-		e := fmt.Errorf("%s - error stagingTargetPath parameter was empty", FN)
+		e := fmt.Errorf("%s - error stagingTargetPath parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -333,25 +329,25 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	volProto, err := storagecommon.ValidateVolumeID(volumeId)
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto}, nil, nil)
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	resp, err := protocolOperation.NodeUnstageVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - po.NodeUnstageVolume volume ID: %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - po.NodeUnstageVolume volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finished - volume ID: '%s'", FN, volumeId)
+	zlog.Info().Msgf("%s Finished - volume ID: '%s'", functionName, volumeId)
 
 	return resp, nil
 }
@@ -378,29 +374,29 @@ func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 		return nil, status.Errorf(codes.Internal, "failed to get metrics: %v", err)
 	}
 
-	available, ok := volumeMetrics.Available.AsInt64()
-	if !ok {
+	available, parseOK := volumeMetrics.Available.AsInt64()
+	if !parseOK {
 		return nil, status.Errorf(codes.Internal, "failed to transform volume available size(%v)", volumeMetrics.Available)
 	}
-	capacity, ok := volumeMetrics.Capacity.AsInt64()
-	if !ok {
+	capacity, parseOK := volumeMetrics.Capacity.AsInt64()
+	if !parseOK {
 		return nil, status.Errorf(codes.Internal, "failed to transform volume capacity size(%v)", volumeMetrics.Capacity)
 	}
-	used, ok := volumeMetrics.Used.AsInt64()
-	if !ok {
+	used, parseOK := volumeMetrics.Used.AsInt64()
+	if !parseOK {
 		return nil, status.Errorf(codes.Internal, "failed to transform volume used size(%v)", volumeMetrics.Used)
 	}
 
-	inodesFree, ok := volumeMetrics.InodesFree.AsInt64()
-	if !ok {
+	inodesFree, parseOK := volumeMetrics.InodesFree.AsInt64()
+	if !parseOK {
 		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes free(%v)", volumeMetrics.InodesFree)
 	}
-	inodes, ok := volumeMetrics.Inodes.AsInt64()
-	if !ok {
+	inodes, parseOK := volumeMetrics.Inodes.AsInt64()
+	if !parseOK {
 		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes(%v)", volumeMetrics.Inodes)
 	}
-	inodesUsed, ok := volumeMetrics.InodesUsed.AsInt64()
-	if !ok {
+	inodesUsed, parseOK := volumeMetrics.InodesUsed.AsInt64()
+	if !parseOK {
 		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes used(%v)", volumeMetrics.InodesUsed)
 	}
 
@@ -424,12 +420,12 @@ func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 }
 
 func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	const FN = "NodeExpandVolume"
+	const functionName = "NodeExpandVolume"
 	volumeId := req.GetVolumeId()
-	zlog.Info().Msgf("%s Started - volume ID: '%s'", FN, volumeId)
+	zlog.Info().Msgf("%s Started - volume ID: '%s'", functionName, volumeId)
 
 	if volumeId == "" {
-		e := fmt.Errorf("%s - error volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s - error volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -437,10 +433,10 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	defer func() {
 		isLocking := false
 		_ = helper.ManageNodeVolumeMutex(isLocking, "NodeExpandVolume", volumeId)
-		zlog.Debug().Msgf("%s unlocking - volume ID: '%s'", FN, volumeId)
+		zlog.Debug().Msgf("%s unlocking - volume ID: '%s'", functionName, volumeId)
 	}()
 
-	zlog.Debug().Msgf("%s locking - volume ID: '%s'", FN, volumeId)
+	zlog.Debug().Msgf("%s locking - volume ID: '%s'", functionName, volumeId)
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeExpandVolume", volumeId)
 
@@ -457,7 +453,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		zlog.Error().Msgf("%s  - ValidateVolumeID -  volume ID: %s - error: %s", FN, req.GetVolumeId(), err.Error())
+		zlog.Error().Msgf("%s  - ValidateVolumeID -  volume ID: %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -470,26 +466,26 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
 	if err != nil {
-		e := fmt.Errorf("%s  - BuildCommonService volume ID: %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s  - BuildCommonService volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	resp, err := storageNode.NodeExpandVolume(context.Background(), req)
 	if err != nil {
-		e := fmt.Errorf("%s - sn.NodeExpandVolume volume ID: %s - error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - sn.NodeExpandVolume volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finished - volume ID: '%s'", FN, volumeId)
+	zlog.Info().Msgf("%s Finished - volume ID: '%s'", functionName, volumeId)
 	return resp, nil
 }
 
@@ -502,13 +498,13 @@ func getNodeFQDN() string {
 		out, err = exec.Command("bash", "-c", cmd).Output()
 		if err != nil {
 			zlog.Error().Msgf("Failed to execute command: %s", cmd)
-			return "unknown"
+			return UNKNOWN
 		}
 	}
 	nodeFQDN := string(out)
 	if nodeFQDN == "" {
 		zlog.Warn().Msgf("node fqnd not found, setting node name as node fqdn instead")
-		nodeFQDN = "unknown"
+		nodeFQDN = UNKNOWN
 	}
 	nodeFQDN = strings.TrimSuffix(nodeFQDN, "\n")
 	return nodeFQDN

@@ -5,7 +5,7 @@ package service
 import (
 	"context"
 	"infinibox-csi-driver/common"
-	tests "infinibox-csi-driver/test_helper"
+	tests "infinibox-csi-driver/testhelper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"

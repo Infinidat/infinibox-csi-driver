@@ -42,7 +42,7 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 		for {
 			time.Sleep(config.GetDuration(METRIC_IBOX_PERFORMANCE_METRICS))
 
-			for i := 0; i < len(config.Ibox); i++ {
+			for i := range config.Ibox {
 				ibox := config.Ibox[i]
 				zlog.Trace().Msgf("performance metrics: creating collectors for %s...", ibox.IboxHostname)
 				nasID, sanID, err := createCollectors(ibox)
@@ -63,7 +63,7 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 				opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
 				zlog.Trace().Msgf("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
 				labels := prometheus.Labels{
-					METRIC_IBOX_IP:       ibox.IboxIpAddress,
+					METRIC_IBOX_IP:       ibox.IboxIPAddress,
 					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
 					METRIC_IBOX_PROTOCOL: "NAS"}
 
@@ -94,14 +94,13 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 				zlog.Trace().Msgf("performance metrics: deleted SAN collector %d\n", sanID)
 
 				labels = prometheus.Labels{
-					METRIC_IBOX_IP:       ibox.IboxIpAddress,
+					METRIC_IBOX_IP:       ibox.IboxIPAddress,
 					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
 					METRIC_IBOX_PROTOCOL: "SAN"}
 
 				MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
 				MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
 				MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
-
 			}
 		}
 	}()
@@ -153,14 +152,13 @@ func getCollectorData(collectorID int64, ibox IboxCredentials) (*CollectorRespon
 		return nil, err
 	}
 
-	//TODO proper check of error code/message goes here
+	// TODO proper check of error code/message goes here
 
 	// curl -u "csitesting:csitestingisfun" https://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors/data?collector_id=35184372295290 --insecure
 	return response, nil
 }
 
-func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorID int64, err error) {
-
+func createCollectors(ibox IboxCredentials) (nasCollectorID int64, sanCollectorID int64, err error) {
 	type Filters struct {
 		ProtocolType string `json:"protocol_type"`
 	}
@@ -217,13 +215,13 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	jsonData, err = json.Marshal(params)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 	buff := bytes.NewBuffer(jsonData)
 	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", ibox.IboxHostname), buff)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 
 	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
@@ -233,7 +231,7 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	res, err = client.Do(req)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 
 	defer func() {
@@ -246,7 +244,7 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	sanResponseData, err = io.ReadAll(res.Body)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 	zlog.Trace().Msgf("san collector create response %s\n", string(sanResponseData))
 
@@ -254,9 +252,9 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	err = json.Unmarshal(sanResponseData, sanresponse)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
-	//TODO proper check of error code/message goes here
+	// TODO proper check of error code/message goes here
 
 	// curl -u "csitesting:csitestingisfun" -d '{"collected_fields": ["ops","throughput","latency"],"type": "COUNTER","filters": {"protocol_type": "NAS"}}' -H "Content-Type: application/json" -X POST http://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors --insecure
 	filters = Filters{
@@ -271,13 +269,13 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	jsonData, err = json.Marshal(params)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 	buff = bytes.NewBuffer(jsonData)
 	req, err = http.NewRequest(http.MethodPost, fmt.Sprintf("https://%s/api/rest/metrics/collectors", ibox.IboxHostname), buff)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 
 	req.SetBasicAuth(ibox.IboxUsername, ibox.IboxPassword)
@@ -286,7 +284,7 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	res, err = client.Do(req)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 
 	defer func() {
@@ -299,7 +297,7 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	nasResponseData, err = io.ReadAll(res.Body)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
 
 	zlog.Trace().Msgf("nas collector post response %s\n", string(nasResponseData))
@@ -308,20 +306,19 @@ func createCollectors(ibox IboxCredentials) (NAScollectorID int64, SANcollectorI
 	err = json.Unmarshal(nasResponseData, nasresponse)
 	if err != nil {
 		zlog.Err(err)
-		return NAScollectorID, SANcollectorID, err
+		return nasCollectorID, sanCollectorID, err
 	}
-	//TODO proper check of error code/message goes here
+	// TODO proper check of error code/message goes here
 
 	if nasresponse.Result.ID == 0 {
-		return NAScollectorID, SANcollectorID, errors.New("nas collector not found")
+		return nasCollectorID, sanCollectorID, errors.New("nas collector not found")
 	}
 	if sanresponse.Result.ID == 0 {
-		return NAScollectorID, SANcollectorID, errors.New("san collector not found")
-
+		return nasCollectorID, sanCollectorID, errors.New("san collector not found")
 	}
-	NAScollectorID = nasresponse.Result.ID
-	SANcollectorID = sanresponse.Result.ID
-	return NAScollectorID, SANcollectorID, nil
+	nasCollectorID = nasresponse.Result.ID
+	sanCollectorID = sanresponse.Result.ID
+	return nasCollectorID, sanCollectorID, nil
 }
 
 func deleteCollector(collectorID int64, ibox IboxCredentials) error {
@@ -387,7 +384,7 @@ func deleteCollector(collectorID int64, ibox IboxCredentials) error {
 	}
 	zlog.Trace().Msgf("delete collector response %+v\n", deleteresponse)
 
-	//TODO proper check of error code/message goes here
+	// TODO proper check of error code/message goes here
 	return nil
 }
 
@@ -413,31 +410,24 @@ type CollectorResponse struct {
 }
 
 func getCounterAverages(fields []string, data [][]int) (opsAverage int, throughputAverage int, latencyAverage int) {
-
-	var opsIndex int
-	var opsTotal int
-	var latencyIndex int
-	var latencyTotal int
-	var throughputIndex int
-	var throughputTotal int
-	for i := 0; i < len(fields); i++ {
-		switch fields[i] {
+	var opsIndex, opsTotal, latencyIndex, latencyTotal, throughputIndex, throughputTotal int
+	for index := range fields {
+		switch fields[index] {
 		case FIELD_OPS:
-			opsIndex = i
+			opsIndex = index
 		case FIELD_LATENCY_NAS, FIELD_LATENCY_SAN:
-			latencyIndex = i
+			latencyIndex = index
 		case FIELD_THROUGHPUT:
-			throughputIndex = i
+			throughputIndex = index
 		}
 	}
-	for sample := 0; sample < len(data); sample++ {
-		s := data[sample]
-		ops := s[opsIndex]
-		opsTotal = opsTotal + ops
-		latency := s[latencyIndex]
-		latencyTotal = latencyTotal + latency
-		throughput := s[throughputIndex]
-		throughputTotal = throughputTotal + throughput
+	for _, sample := range data {
+		ops := sample[opsIndex]
+		opsTotal += ops
+		latency := sample[latencyIndex]
+		latencyTotal += latency
+		throughput := sample[throughputIndex]
+		throughputTotal += throughput
 	}
 	if len(data) > 0 {
 		opsAverage = (opsTotal / len(data))

@@ -43,6 +43,7 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 	for i := range mntPoints {
 		if mntPoints[i].Path == chrootPath {
 			mounted = true
+
 			break
 		}
 	}
@@ -155,53 +156,53 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 func CreateConfigFile(conf DiskInfo, mnt string) error {
 	const function = "createConfigFile"
 	zlog.Debug().Msgf("%s - diskInfo: %v mnt: %s", function, conf, mnt)
-	file := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
+	filePath := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
 
-	fp, err := os.Create(file)
+	file, err := os.Create(filePath)
 	if err != nil {
-		e := fmt.Errorf("%s: failed creating persist file with error %v file %s", function, err, file)
+		e := fmt.Errorf("%s: failed creating persist file with error %v file %s", function, err, filePath)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
 	defer func() {
-		if err := fp.Close(); err != nil {
+		if err := file.Close(); err != nil {
 			zlog.Error().Msgf("%s error in Close() %s", function, err.Error())
 		}
 	}()
 
-	encoder := json.NewEncoder(fp)
+	encoder := json.NewEncoder(file)
 	if err = encoder.Encode(conf); err != nil {
 		e := fmt.Errorf("%s: failed creating persist file with error %v", function, err)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
-	zlog.Debug().Msgf("%s: created persist config file at path %s", function, file)
+	zlog.Debug().Msgf("%s: created persist config file at path %s", function, filePath)
 	return nil
 }
 
 func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 	const function = "loadDiskInfoFromFile"
-	file := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
-	zlog.Debug().Msgf("%s file [%s]", function, file)
-	b, err := os.ReadFile(file)
+	filePath := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
+	zlog.Debug().Msgf("%s file [%s]", function, filePath)
+	b, err := os.ReadFile(filePath)
 	if err != nil {
 		zlog.Error().Msgf("%s error in file read [%s]", function, err.Error())
 	} else {
 		zlog.Debug().Msgf("%s file content [%s]", function, string(b))
 	}
 
-	fp, err := os.Open(file)
+	file, err := os.Open(filePath)
 	if err != nil {
-		e := fmt.Errorf("%s - Open - file: %s error %s", function, file, err.Error())
+		e := fmt.Errorf("%s - Open - file: %s error %s", function, filePath, err.Error())
 		zlog.Error().Msg(e.Error())
 		return e
 	}
 	defer func() {
-		if err := fp.Close(); err != nil {
+		if err := file.Close(); err != nil {
 			zlog.Error().Msgf("error in Close() %s", err.Error())
 		}
 	}()
-	decoder := json.NewDecoder(fp)
+	decoder := json.NewDecoder(file)
 	if err = decoder.Decode(conf); err != nil {
 		e := fmt.Errorf("%s - Decode - error %s", function, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -299,8 +300,8 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 
 	// Search list for targetHostPath
 	isMountedByListMethod := false
-	for i := range mountList {
-		if mountList[i].Path == targetHostPath {
+	for _, mount := range mountList {
+		if mount.Path == targetHostPath {
 			isMountedByListMethod = true
 			break
 		}
@@ -368,17 +369,17 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 
 // IsDirEmpty Check if a directory is empty. Return an isEmpty boolean and an error.
 func IsDirEmpty(name string) (bool, error) {
-	f, err := os.Open(name)
+	file, err := os.Open(name)
 	if err != nil {
 		return false, err
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
+		if err := file.Close(); err != nil {
 			zlog.Error().Msgf("error in Close() %s", err.Error())
 		}
 	}()
 
-	_, err = f.Readdirnames(1) // Or f.Readdir(1)
+	_, err = file.Readdirnames(1) // Or f.Readdir(1)
 	if err == io.EOF {
 		return true, nil
 	}

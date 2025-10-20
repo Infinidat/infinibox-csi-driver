@@ -74,18 +74,18 @@ type Link struct {
 }
 
 func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
-	const FN = "GetLinks"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/links")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url)
+	const functionName = "GetLinks"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/links")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 
 		values := req.URL.Query()
@@ -95,24 +95,24 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", FN, err)
+			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetLinksResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -125,37 +125,37 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 }
 
 func (iboxClient *IboxClient) GetLink(linkID int) (link *Link, err error) {
-	const FN = "GetLink"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/links", linkID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "link ID", linkID)
+	const functionName = "GetLink"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/links", linkID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "link ID", linkID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetLinkResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		//TODO  check for NOT FOUND?  return ErrNotFound for callers?
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		// TODO  check for NOT FOUND?  return ErrNotFound for callers?
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }

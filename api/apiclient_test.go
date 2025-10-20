@@ -22,16 +22,16 @@ import (
 )
 
 func (suite *ApiTestSuite) SetupTest() {
-	suite.clientMock = new(MockApiClient)
-	suite.iboxapi = new(iboxapi.MockApiClient)
-	suite.serviceMock = new(MockApiService)
+	suite.clientMock = new(MockAPIClient)
+	suite.iboxapi = new(iboxapi.MockAPIClient)
+	suite.serviceMock = new(MockAPIService)
 }
 
 type ApiTestSuite struct {
 	suite.Suite
-	clientMock  *MockApiClient
-	iboxapi     *iboxapi.MockApiClient
-	serviceMock *MockApiService
+	clientMock  *MockAPIClient
+	iboxapi     *iboxapi.MockAPIClient
+	serviceMock *MockAPIService
 }
 
 func TestServiceTestSuite(t *testing.T) {

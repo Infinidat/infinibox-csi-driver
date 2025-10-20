@@ -40,12 +40,12 @@ const (
 	PARAMETER_PAGE                   = "page"
 )
 
-type IboxAPIError struct {
+type APIError struct {
 	Code int
 	Err  error
 }
 
-func (r *IboxAPIError) Error() string {
+func (r *APIError) Error() string {
 	return fmt.Sprintf("iboxapi error code %d: err %v", r.Code, r.Err)
 }
 
@@ -165,13 +165,13 @@ type Client interface {
 type Credentials struct {
 	Username string
 	Password string
-	Url      string
+	URL      string
 }
 
 type IboxClient struct {
 	Creds      Credentials
 	Log        logr.Logger
-	HttpClient *http.Client
+	HTTPClient *http.Client
 }
 
 func NewIboxClient(log logr.Logger, creds Credentials) (cl *IboxClient) {
@@ -183,9 +183,8 @@ func NewIboxClient(log logr.Logger, creds Credentials) (cl *IboxClient) {
 	return &IboxClient{
 		Creds:      creds,
 		Log:        log,
-		HttpClient: httpClient,
+		HTTPClient: httpClient,
 	}
-
 }
 
 func SetAuthHeader(req *http.Request, creds Credentials) {

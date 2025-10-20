@@ -34,19 +34,17 @@ func RecordPVMetrics(config *MetricsConfig) {
 			}
 
 			zlog.Trace().Msgf("creating metrics for %d PVs", len(*pvInfo))
-			for i := 0; i < len(*pvInfo); i++ {
-				p := (*pvInfo)[i]
+			for _, persistentVolume := range *pvInfo {
 				labels := prometheus.Labels{
-					METRIC_PV_NAME:             p.PVol.Name,
-					METRIC_PV_STORAGE_CLASS:    p.SClass.Name,
-					METRIC_PV_PROVISION_TYPE:   p.SClass.Parameters[common.SC_PROVISION_TYPE],
-					METRIC_PV_SSD_ENABLED:      p.SClass.Parameters[common.SC_SSD_ENABLED],
-					METRIC_PV_NETWORK_SPACE:    p.SClass.Parameters[common.SC_NETWORK_SPACE],
-					METRIC_PV_STORAGE_PROTOCOL: p.SClass.Parameters[common.SC_STORAGE_PROTOCOL],
+					METRIC_PV_NAME:             persistentVolume.PVol.Name,
+					METRIC_PV_STORAGE_CLASS:    persistentVolume.SClass.Name,
+					METRIC_PV_PROVISION_TYPE:   persistentVolume.SClass.Parameters[common.SC_PROVISION_TYPE],
+					METRIC_PV_SSD_ENABLED:      persistentVolume.SClass.Parameters[common.SC_SSD_ENABLED],
+					METRIC_PV_NETWORK_SPACE:    persistentVolume.SClass.Parameters[common.SC_NETWORK_SPACE],
+					METRIC_PV_STORAGE_PROTOCOL: persistentVolume.SClass.Parameters[common.SC_STORAGE_PROTOCOL],
 				}
-				MetricPVTotalSizeGauge.With(labels).Set(float64(p.PVol.Spec.Capacity.Storage().Value()))
+				MetricPVTotalSizeGauge.With(labels).Set(float64(persistentVolume.PVol.Spec.Capacity.Storage().Value()))
 			}
-
 		}
 	}()
 }
@@ -73,18 +71,17 @@ func getPVInfo() (*[]PVInfo, error) {
 		return nil, err
 	}
 
-	pVols, err := clientset.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+	persistentVolumes, err := clientset.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
-	for i := 0; i < len(pVols.Items); i++ {
-		pvItem := pVols.Items[i]
-		if pvItem.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
-			zlog.Trace().Msgf("pv metrics: pv %s sc %s found\n", pvItem.Name, pvItem.Spec.StorageClassName)
-			sc, err := clientset.StorageV1().StorageClasses().Get(context.Background(), pvItem.Spec.StorageClassName, metav1.GetOptions{})
+	for _, persistentVolume := range persistentVolumes.Items {
+		if persistentVolume.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
+			zlog.Trace().Msgf("pv metrics: pv %s sc %s found", persistentVolume.Name, persistentVolume.Spec.StorageClassName)
+			storageClass, err := clientset.StorageV1().StorageClasses().Get(context.Background(), persistentVolume.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
-				zlog.Error().Msgf("error getting StorageClass %s error %s", pvItem.Spec.StorageClassName, err.Error())
+				zlog.Error().Msgf("error getting StorageClass %s error %s", persistentVolume.Spec.StorageClassName, err.Error())
 			} else {
 				/**
 				fmt.Printf("sc details name: %s \n", sc.Name)
@@ -95,8 +92,8 @@ func getPVInfo() (*[]PVInfo, error) {
 				fmt.Println("---------------------")
 				*/
 				info := PVInfo{
-					PVol:   pvItem,
-					SClass: *sc,
+					PVol:   persistentVolume,
+					SClass: *storageClass,
 				}
 				pvInfo = append(pvInfo, info)
 			}

@@ -83,71 +83,71 @@ type TestConfig struct {
 	ClientService         *api.ClientService
 }
 
-func GetTestConfig(t *testing.T, protocol string) (config *TestConfig, err error) {
+func GetTestConfig(t *testing.T, protocol string) (testConfig *TestConfig, err error) {
 	GetFlags(t)
 
-	config = &TestConfig{}
+	testConfig = &TestConfig{}
 
-	config.TestNames = &TestResourceNames{}
-	config.TestNames.UniqueSuffix = RandSeq(3)
+	testConfig.TestNames = &TestResourceNames{}
+	testConfig.TestNames.UniqueSuffix = RandSeq(3)
 	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
-	config.TestNames.NSName = e2eNamespace + config.TestNames.UniqueSuffix
+	testConfig.TestNames.NSName = e2eNamespace + testConfig.TestNames.UniqueSuffix
 	scName := fmt.Sprintf(SC_NAME, protocol)
-	config.TestNames.SCName = scName + config.TestNames.UniqueSuffix
-	config.TestNames.VSCName = scName + config.TestNames.UniqueSuffix
-	config.TestNames.PVCName = fmt.Sprintf(PVC_NAME, protocol)
+	testConfig.TestNames.SCName = scName + testConfig.TestNames.UniqueSuffix
+	testConfig.TestNames.VSCName = scName + testConfig.TestNames.UniqueSuffix
+	testConfig.TestNames.PVCName = fmt.Sprintf(PVC_NAME, protocol)
 
-	//connect to kube
-	err = GetKubeClient(config, *KubeConfigPath)
+	// connect to kube
+	err = GetKubeClient(testConfig, *KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if config.ClientSet == nil {
+	if testConfig.ClientSet == nil {
 		return nil, fmt.Errorf("error getting ClientSet")
 	}
 
-	config.RestConfig = GetRestConfig(*KubeConfigPath)
+	testConfig.RestConfig = GetRestConfig(*KubeConfigPath)
 
-	if config.RestConfig == nil {
+	if testConfig.RestConfig == nil {
 		return nil, fmt.Errorf("error getting RESTConfig")
 	}
 
-	config.AccessMode = v1.ReadWriteOnce
-	config.Testt = t
-	config.Protocol = protocol
+	testConfig.AccessMode = v1.ReadWriteOnce
+	testConfig.Testt = t
+	testConfig.Protocol = protocol
 
 	hostname := os.Getenv(ENV_IBOX_HOSTNAME)
 	if hostname == "" {
-		return config, fmt.Errorf("%s env var required", ENV_IBOX_HOSTNAME)
+		return testConfig, fmt.Errorf("%s env var required", ENV_IBOX_HOSTNAME)
 	}
 	username := os.Getenv(ENV_IBOX_USERNAME)
 	if username == "" {
-		return config, fmt.Errorf("%s env var required", ENV_IBOX_USERNAME)
+		return testConfig, fmt.Errorf("%s env var required", ENV_IBOX_USERNAME)
 	}
 	password := os.Getenv(ENV_IBOX_PASSWORD)
 	if password == "" {
-		return config, fmt.Errorf("%s env var required", ENV_IBOX_PASSWORD)
+		return testConfig, fmt.Errorf("%s env var required", ENV_IBOX_PASSWORD)
 	}
 
-	c := make(map[string]string)
+	thisMap := make(map[string]string)
 	secrets := map[string]string{
 		"hostname": hostname,
 		"password": password,
 		"username": username,
 	}
 
-	x := api.ClientService{
-		ConfigMap:  c,
+	clientService := api.ClientService{
+		ConfigMap:  thisMap,
 		SecretsMap: secrets,
 	}
 
-	config.ClientService, err = x.NewClient()
+	testConfig.ClientService, err = clientService.NewClient()
 	if err != nil {
-		return config, err
+		return testConfig, err
 	}
 
-	return config, nil
+	return testConfig, nil
 }
 
 var zlog = log.Get() // grab the logger for package use
@@ -159,40 +159,39 @@ func SetupControllerClient() (pb.ControllerClient, error) {
 		return nil, err
 	}
 	grpcAddress := fmt.Sprintf("%s:%s", host, SOCAT_SERVICE_PORT)
-	conn, err := SetupGRPC(grpcAddress)
+	grpcConnection, err := SetupGRPC(grpcAddress)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
-	cl := pb.NewControllerClient(conn)
-	return cl, nil
+	controllerClient := pb.NewControllerClient(grpcConnection)
+	return controllerClient, nil
 }
 
 func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
-	conn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcConnection, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
 	}
-	return conn, nil
-
+	return grpcConnection, nil
 }
 func GetKubeHost() (string, error) {
-	kcenv := os.Getenv("KUBECONFIG")
-	//zlog.Info().Msgf("KUBECONFIG is %s", kcenv)
+	kubeConfig := os.Getenv("KUBECONFIG")
+	// zlog.Info().Msgf("KUBECONFIG is %s", kcenv)
 
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kcenv)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
 	if err != nil {
 		return "", err
 	}
 
-	//zlog.Info().Msgf("host is %s", config.Host)
-	parts := strings.Split(config.Host, ":")
-	if len(parts) < 2 {
-		return parts[0], nil
+	// zlog.Info().Msgf("host is %s", config.Host)
+	hostParts := strings.Split(restConfig.Host, ":")
+	if len(hostParts) < 2 {
+		return hostParts[0], nil
 	}
-	s := strings.Trim(parts[1], "/")
-	//zlog.Info().Msgf("host is %s", s)
-	return s, nil
+	hostPart1 := strings.Trim(hostParts[1], "/")
+	// zlog.Info().Msgf("host is %s", s)
+	return hostPart1, nil
 }

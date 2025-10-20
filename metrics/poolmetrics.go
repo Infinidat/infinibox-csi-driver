@@ -40,30 +40,27 @@ func RecordPoolMetrics(config *MetricsConfig) {
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(METRIC_POOL_METRICS))
-			for i := 0; i < len(config.Ibox); i++ {
-				ibox := config.Ibox[i]
+			for _, ibox := range config.Ibox {
 				zlog.Trace().Msgf("pool metrics: creating collectors for %s...", ibox.IboxHostname)
-				poolInfo, err := getPoolInfo(ibox)
+				poolInfoList, err := getPoolInfo(ibox)
 				if err != nil {
 					zlog.Err(err)
 					continue
 				}
 
-				for i := 0; i < len(poolInfo); i++ {
-					pi := poolInfo[i]
+				for _, poolInfo := range poolInfoList {
 					labels := prometheus.Labels{
-						METRIC_POOL_NAME:             pi.storageClass.Parameters[common.SC_POOL_NAME],
-						METRIC_POOL_PROVISION_TYPE:   pi.storageClass.Parameters[common.SC_PROVISION_TYPE],
-						METRIC_POOL_SSD_ENABLED:      pi.storageClass.Parameters[common.SC_SSD_ENABLED],
-						METRIC_POOL_NETWORK_SPACE:    pi.storageClass.Parameters[common.SC_NETWORK_SPACE],
-						METRIC_POOL_STORAGE_PROTOCOL: pi.storageClass.Parameters[common.SC_STORAGE_PROTOCOL],
+						METRIC_POOL_NAME:             poolInfo.storageClass.Parameters[common.SC_POOL_NAME],
+						METRIC_POOL_PROVISION_TYPE:   poolInfo.storageClass.Parameters[common.SC_PROVISION_TYPE],
+						METRIC_POOL_SSD_ENABLED:      poolInfo.storageClass.Parameters[common.SC_SSD_ENABLED],
+						METRIC_POOL_NETWORK_SPACE:    poolInfo.storageClass.Parameters[common.SC_NETWORK_SPACE],
+						METRIC_POOL_STORAGE_PROTOCOL: poolInfo.storageClass.Parameters[common.SC_STORAGE_PROTOCOL],
 					}
-					MetricPoolAvailableCapGauge.With(labels).Set(float64(pi.pool.PhysicalCapacity))  // pool - physical_capacity
-					MetricPoolUsedCapGauge.With(labels).Set(float64(pi.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
-					pct := (pi.pool.AllocatedPhysicalSpace / pi.pool.PhysicalCapacity) * 100.00
+					MetricPoolAvailableCapGauge.With(labels).Set(float64(poolInfo.pool.PhysicalCapacity))  // pool - physical_capacity
+					MetricPoolUsedCapGauge.With(labels).Set(float64(poolInfo.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
+					pct := (poolInfo.pool.AllocatedPhysicalSpace / poolInfo.pool.PhysicalCapacity) * 100.00
 					MetricPoolPctUtilizedGauge.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
 				}
-
 			}
 		}
 	}()
@@ -79,22 +76,21 @@ func getPoolInfo(ibox IboxCredentials) ([]PoolInfo, error) {
 	storageClasses, err := getStorageClasses()
 	if err != nil {
 		zlog.Err(err)
-		return nil, err
+		return poolInfo, err
 	}
 	allPools, err := getPools(ibox)
 	if err != nil {
 		zlog.Err(err)
 		return poolInfo, err
 	}
-	for i := 0; i < len(*storageClasses); i++ {
-		sc := (*storageClasses)[i]
-		p, err := lookupPool(allPools, sc.Parameters[common.SC_POOL_NAME])
+	for _, storageClass := range *storageClasses {
+		pool, err := lookupPool(allPools, storageClass.Parameters[common.SC_POOL_NAME])
 		if err != nil {
-			zlog.Error().Msgf("pool_name not found from storage classes %s", sc.Parameters["pool_name"])
+			zlog.Error().Msgf("pool_name not found from storage classes %s", storageClass.Parameters["pool_name"])
 		} else {
 			pi := PoolInfo{
-				storageClass: sc,
-				pool:         *p,
+				storageClass: storageClass,
+				pool:         *pool,
 			}
 			poolInfo = append(poolInfo, pi)
 		}
@@ -123,18 +119,17 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 	}
 
 	ourStorageClasses := make([]storagev1.StorageClass, 0)
-	for i := 0; i < len(storageClasses.Items); i++ {
-		s := storageClasses.Items[i]
-		if s.Provisioner == "infinibox-csi-driver" {
+	for _, storageClass := range storageClasses.Items {
+		if storageClass.Provisioner == "infinibox-csi-driver" {
 			// this is a storageclass used by our driver
-			zlog.Debug().Msgf("storageclass name %s\n", s.Name)
-			zlog.Debug().Msgf("storage_protocol %s\n", s.Parameters[common.SC_STORAGE_PROTOCOL])
-			zlog.Debug().Msgf("network_space %s\n", s.Parameters[common.SC_NETWORK_SPACE])
-			zlog.Debug().Msgf("pool_name %s\n", s.Parameters[common.SC_POOL_NAME])
-			zlog.Debug().Msgf("provision_type %s\n", s.Parameters[common.SC_PROVISION_TYPE])
-			zlog.Debug().Msgf("ssd_enabled %s\n", s.Parameters[common.SC_SSD_ENABLED])
+			zlog.Debug().Msgf("storageclass name %s", storageClass.Name)
+			zlog.Debug().Msgf("storage_protocol %s", storageClass.Parameters[common.SC_STORAGE_PROTOCOL])
+			zlog.Debug().Msgf("network_space %s", storageClass.Parameters[common.SC_NETWORK_SPACE])
+			zlog.Debug().Msgf("pool_name %s", storageClass.Parameters[common.SC_POOL_NAME])
+			zlog.Debug().Msgf("provision_type %s", storageClass.Parameters[common.SC_PROVISION_TYPE])
+			zlog.Debug().Msgf("ssd_enabled %s", storageClass.Parameters[common.SC_SSD_ENABLED])
 			zlog.Debug().Msgf("--------------------------------------")
-			ourStorageClasses = append(ourStorageClasses, s)
+			ourStorageClasses = append(ourStorageClasses, storageClass)
 		}
 	}
 
@@ -180,15 +175,15 @@ func getPools(ibox IboxCredentials) (*Pools, error) {
 		zlog.Err(err)
 		return nil, err
 	}
-	//fmt.Println(string(responseData))
+	// fmt.Println(string(responseData))
 
-	r := Pools{}
-	err = json.Unmarshal(responseData, &r)
+	pools := Pools{}
+	err = json.Unmarshal(responseData, &pools)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//fmt.Printf("API Result %+v\n", r.Result)
-	return &r, nil
+	// fmt.Printf("API Result %+v\n", r.Result)
+	return &pools, nil
 }
 
 type Pool struct {
@@ -242,7 +237,7 @@ type Pools struct {
 }
 
 func lookupPool(allPools *Pools, poolName string) (*Pool, error) {
-	for i := 0; i < len(allPools.Result); i++ {
+	for i := range allPools.Result {
 		p := allPools.Result[i]
 		if p.Name == poolName {
 			return &p, nil

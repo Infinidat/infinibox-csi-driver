@@ -14,7 +14,6 @@ const (
 // validateSnapshotLockingParameter validates an input lock_expires parameter string and returns
 // the computed expire time in Unix Milliseconds or an error if the validation fails
 func ValidateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMilli int64, err error) {
-
 	parts := strings.Split(input, " ")
 	if len(parts) != 2 {
 		return 0, fmt.Errorf("invalid format of lock_expires_at parameter, should only have 2 values (int string)")

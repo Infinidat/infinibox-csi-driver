@@ -15,7 +15,7 @@ func GetVolume() *iboxapi.Volume {
 	vol := iboxapi.Volume{
 		ID:       100,
 		PoolId:   10,
-		ParentId: 1001,
+		ParentID: 1001,
 		Name:     "volName",
 		PoolName: "poolName",
 		Size:     common.BytesInOneGibibyte,
@@ -54,11 +54,11 @@ func GetLunInfoArry() []iboxapi.LunInfo {
 	return lunInfoArry
 }
 func GetLunInf() iboxapi.LunInfo {
-	luninfo := iboxapi.LunInfo{
+	lunInfo := iboxapi.LunInfo{
 		HostID: 100,
 		ID:     1,
 	}
-	return luninfo
+	return lunInfo
 }
 
 func GetSystem() *iboxapi.SystemDetails {
@@ -75,19 +75,19 @@ func GetDeleteRequest() *csi.DeleteVolumeRequest {
 }
 
 func GetVolumeArray() []iboxapi.Volume {
-	var volArry []iboxapi.Volume
+	var volumes []iboxapi.Volume
 	vol := GetVolume()
-	volArry = append(volArry, *vol)
-	return volArry
+	volumes = append(volumes, *vol)
+	return volumes
 }
 
 func GetNetworkspace() api.NetworkSpace {
 	var nspace api.NetworkSpace
 	var pArry []api.Portal
-	p := api.Portal{
+	portal := api.Portal{
 		Enabled:     true,
 		InterfaceID: 1,
-		IpAdress:    "10.20.30.40",
+		IPAddress:   "10.20.30.40",
 		Reserved:    false,
 		Tpgt:        100,
 		Type:        "",
@@ -95,10 +95,10 @@ func GetNetworkspace() api.NetworkSpace {
 	}
 
 	var netProp api.NetworkSpaceProperty
-	netProp.IscsiIqn = "iqn.1991-05.com.infinidate:example"
+	netProp.ISCSIIqn = "iqn.1991-05.com.infinidate:example"
 
 	nspace.Properties = netProp
-	pArry = append(pArry, p)
+	pArry = append(pArry, portal)
 	nspace.Portals = append(nspace.Portals, pArry...)
 	nspace.Service = common.NS_ISCSI_SVC
 	return nspace
@@ -155,7 +155,7 @@ func GetFileSystemPrior() *iboxapi.FileSystem {
 		ID:         1,
 		PoolID:     100,
 		Name:       "PVName",
-		SsdEnabled: true,
+		SSDEnabled: true,
 		Provtype:   "thin",
 		Size:       100 * GIB,
 		PoolName:   "pool_name1",
@@ -166,7 +166,7 @@ func GetFileSystem() *iboxapi.FileSystem {
 		ID:         1,
 		PoolID:     100,
 		Name:       "PVName",
-		SsdEnabled: true,
+		SSDEnabled: true,
 		Provtype:   "thin",
 		Size:       100 * GIB,
 		PoolName:   "pool_name1",
@@ -174,7 +174,7 @@ func GetFileSystem() *iboxapi.FileSystem {
 }
 
 func GetNetworkSpace() *iboxapi.NetworkSpace {
-	portalArry := []iboxapi.Portal{{IpAdress: "10.20.20.50"}}
+	portalArry := []iboxapi.Portal{{IPAddress: "10.20.20.50"}}
 	return &iboxapi.NetworkSpace{Portals: portalArry, Service: common.NS_NFS_SVC}
 }
 
@@ -285,7 +285,7 @@ func GetIboxapiCreateVolumeResponse() *iboxapi.Volume {
 	vol := iboxapi.Volume{
 		ID:       100,
 		PoolId:   10,
-		ParentId: 1001,
+		ParentID: 1001,
 		Name:     "volName",
 		PoolName: "poolName",
 		Size:     common.BytesInOneGibibyte,

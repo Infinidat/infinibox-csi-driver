@@ -35,15 +35,15 @@ func (a AccessMode) IsValidAccessMode(volume *iboxapi.Volume, req *csi.Controlle
 	// Compare the volume's write protected state on IBox to the requested access mode. Return an error if incompatible.
 	isIboxVolWriteProtected := volume.WriteProtected
 	volName := volume.Name
-	volId := req.GetVolumeId()
+	volumeID := req.GetVolumeId()
 	reqVolCapability := req.GetVolumeCapability()
 	reqAccessMode := reqVolCapability.GetAccessMode().GetMode()
 	friendlyModeName := reqAccessMode.String()
 
 	// warn about multi-writer with raw block volumes
 	if reqAccessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER && reqVolCapability.GetBlock() != nil {
-		zlog.Warn().Msgf("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
 		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
+		zlog.Warn().Msgf("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
 	}
 
 	// fail if write access requested to a write-protected dataset
@@ -53,7 +53,7 @@ func (a AccessMode) IsValidAccessMode(volume *iboxapi.Volume, req *csi.Controlle
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
 		// TODO: handle new alpha SINGLE_NODE_SINGLE_WRITER and SINGLE_NODE_MULTI_WRITER AccessModes, probably here
 		if isIboxVolWriteProtected {
-			return false, fmt.Errorf("IBox Volume name '%s' (%s) is write protected, but the requested access mode is '%s'", volName, volId, friendlyModeName)
+			return false, fmt.Errorf("IBox Volume name '%s' (%s) is write protected, but the requested access mode is '%s'", volName, volumeID, friendlyModeName)
 		}
 		return true, nil
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
@@ -61,10 +61,10 @@ func (a AccessMode) IsValidAccessMode(volume *iboxapi.Volume, req *csi.Controlle
 		return true, nil
 	}
 
-	return false, fmt.Errorf("unsupported access mode for volume '%s' (%s): '%s'", volName, volId, friendlyModeName)
+	return false, fmt.Errorf("unsupported access mode for volume '%s' (%s): '%s'", volName, volumeID, friendlyModeName)
 }
 
-func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (isValidAccessMode bool, err error) {
+func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (bool, error) {
 	// Compare the export permissions on IBox to the requested access mode. Return an error if incompatible.
 	nfsExportPermission := req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
 	isIboxExportReadonly := strings.Contains(nfsExportPermission, "'access':'RO'") // Could also contain "'access':'RW'"
@@ -81,9 +81,8 @@ func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest
 		// TODO: handle new alpha SINGLE_NODE_SINGLE_WRITER and SINGLE_NODE_MULTI_WRITER AccessModes, probably here
 		if isIboxExportReadonly {
 			return false, fmt.Errorf("IBox NFS export name '%s' (%s) is write protected, but the requested access mode is '%s'", exportVolPathd, exportID, friendlyModeName)
-		} else {
-			return true, nil
 		}
+		return true, nil
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
 		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
 		return true, nil

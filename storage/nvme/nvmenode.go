@@ -61,7 +61,7 @@ type nvmeDisk struct {
 }
 
 func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s %s", req.GetPublishContext(), storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxApi))
+	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s %s", req.GetPublishContext(), storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxAPI))
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -91,9 +91,8 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 }
 
 func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-
 	zlog.Debug().Msgf("NodePublishVolume (nvme) - volume ID %s, network_space %s mode %s readOnly %t %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
-		storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxApi))
+		storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxAPI))
 
 	targets, err := nvme.getNVMETargets(req)
 	if err != nil {
@@ -159,7 +158,6 @@ func (nvme *NVMEstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeU
 }
 
 func (nvme *NVMEstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (res *csi.NodeUnstageVolumeResponse, err error) {
-
 	zlog.Debug().Msgf("NodeUnstageVolume (nvme) - volume ID %s", req.GetVolumeId())
 
 	stagePath := req.GetStagingTargetPath()
@@ -249,10 +247,9 @@ func (nvme *NVMEstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	return response, nil
 }
 
-func (nvme *NVMEstorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nvmeDevicePath string, err error) {
-
-	zlog.Debug().Msgf("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", b.nvmeDiskInfo.VolumeID, b.nvmeDiskInfo.MpathDevice,
-		b.nvmeDiskInfo.lun, b.fsType, b.readOnly, b.mountOptions, b.targetPath, b.stagePath)
+func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeTarget) (nvmeDevicePath string, err error) {
+	zlog.Debug().Msgf("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", diskMounter.nvmeDiskInfo.VolumeID, diskMounter.nvmeDiskInfo.MpathDevice,
+		diskMounter.nvmeDiskInfo.lun, diskMounter.fsType, diskMounter.readOnly, diskMounter.mountOptions, diskMounter.targetPath, diskMounter.stagePath)
 
 	if len(targets) == 0 {
 		return "", fmt.Errorf("AttachDisk (nvme) - error no targets")
@@ -283,32 +280,32 @@ func (nvme *NVMEstorage) AttachDisk(b nvmeDiskMounter, targets []nvmeTarget) (nv
 
 	// find the device path based on the lun/nsid
 
-	for i := 0; i < len(devices.Devices); i++ {
+	for i := range devices.Devices {
 		dev := devices.Devices[i]
-		lunInt, err := strconv.Atoi(b.nvmeDiskInfo.lun)
+		lunInt, err := strconv.Atoi(diskMounter.nvmeDiskInfo.lun)
 		if err != nil {
-			return "", fmt.Errorf("AttachDisk (nvme) - could not convert lun %s to integer - error %s", b.nvmeDiskInfo.lun, err.Error())
+			return "", fmt.Errorf("AttachDisk (nvme) - could not convert lun %s to integer - error %s", diskMounter.nvmeDiskInfo.lun, err.Error())
 		}
 		if dev.NameSpace == lunInt {
 			nvmeDevicePath = dev.DevicePath
-			zlog.Debug().Msgf("AttachDisk (nvme) - found nvme device path %s using lun %s", dev.DevicePath, b.nvmeDiskInfo.lun)
+			zlog.Debug().Msgf("AttachDisk (nvme) - found nvme device path %s using lun %s", dev.DevicePath, diskMounter.nvmeDiskInfo.lun)
 			break
 		}
 	}
 	if nvmeDevicePath == "" {
-		return "", fmt.Errorf("AttachDisk (nvme) - could not find nvme device path using lun %s", b.nvmeDiskInfo.lun)
+		return "", fmt.Errorf("AttachDisk (nvme) - could not find nvme device path using lun %s", diskMounter.nvmeDiskInfo.lun)
 	}
 
 	diskinf := storagecommon.DiskInfo{
 		MpathDevice: nvmeDevicePath,
-		VolumeID:    b.nvmeDiskInfo.VolumeID,
-		IsBlock:     b.nvmeDiskInfo.isBlock,
+		VolumeID:    diskMounter.nvmeDiskInfo.VolumeID,
+		IsBlock:     diskMounter.nvmeDiskInfo.isBlock,
 		RootDir:     common.NODE_ROOT_DIR,
 	}
 
 	zlog.Debug().Msgf("AttachDisk (nvme) - diskinf %v", diskinf)
 
-	err = storagecommon.MountLogic(diskinf, b.targetPath, nvmeDevicePath, b.stagePath, b.fsType, b.mountOptions, b.nvmeDiskInfo.isBlock, b.readOnly)
+	err = storagecommon.MountLogic(diskinf, diskMounter.targetPath, nvmeDevicePath, diskMounter.stagePath, diskMounter.fsType, diskMounter.mountOptions, diskMounter.nvmeDiskInfo.isBlock, diskMounter.readOnly)
 	if err != nil {
 		zlog.Error().Msgf("AttachDisk (nvme) - mountLogic() error %s", err.Error())
 		return "", err
@@ -346,7 +343,7 @@ func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDi
 }
 
 func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePublishVolumeRequest) (*nvmeDiskMounter, error) {
-	m := &nvmeDiskMounter{
+	diskMounter := &nvmeDiskMounter{
 		targetPath:   req.GetTargetPath(),
 		stagePath:    req.GetStagingTargetPath(),
 		mountOptions: []string{},
@@ -362,7 +359,7 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
 
 	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		m.readOnly = true
+		diskMounter.readOnly = true
 	}
 	// handle file (mount) and block parameters
 	mountVolCapability := reqVolCapability.GetMount()
@@ -373,16 +370,15 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 		// option A. user wants file access to their nvme device
 		nvmeDisk.isBlock = false
 
-		m.fsType = mountVolCapability.GetFsType()
+		diskMounter.fsType = mountVolCapability.GetFsType()
 
 		// mountOptions - could be nothing
-		m.mountOptions = mountVolCapability.GetMountFlags()
+		diskMounter.mountOptions = mountVolCapability.GetMountFlags()
 
 		// TODO: other validations needed for file?
 		// - something about read-only access?
 		// - check that fstype is supported?
 		// - check that mount options are valid for fstype provided
-
 	} else if mountVolCapability == nil && blockVolCapability != nil {
 		// option B. user wants block access to their nvme device
 		nvmeDisk.isBlock = true
@@ -401,9 +397,9 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
-	m.nvmeDiskInfo = nvmeDisk
+	diskMounter.nvmeDiskInfo = nvmeDisk
 
-	return m, nil
+	return diskMounter, nil
 }
 
 func (nvme *NVMEstorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {
@@ -412,40 +408,40 @@ func (nvme *NVMEstorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 		return targets, fmt.Errorf("getNVMETargets (nvme) - no network spaces found")
 	}
 	zlog.Debug().Msgf("networkSpaces %v", networkSpaces)
-	if nvme.CS.Api == nil {
+	if nvme.CS.API == nil {
 		return targets, fmt.Errorf("getNVMETargets (nvme) - no api found")
 	}
 
 	var portalsExist bool
 	targets = make([]nvmeTarget, len(networkSpaces))
 
-	for i := 0; i < len(networkSpaces); i++ {
-		zlog.Debug().Msgf("getNVMETargets (nvme) - getting nspace by name: %v", networkSpaces[i])
-		nspace, err := nvme.CS.IboxApi.GetNetworkSpaceByName(networkSpaces[i])
+	for index, networkSpace := range networkSpaces {
+		zlog.Debug().Msgf("getNVMETargets (nvme) - getting nspace by name: %v", networkSpace)
+		nspace, err := nvme.CS.IboxAPI.GetNetworkSpaceByName(networkSpace)
 		if err != nil {
-			e := fmt.Errorf("getNVMETargets (nvme) - error getting network space: %s error: %v", networkSpaces[i], err)
+			e := fmt.Errorf("getNVMETargets (nvme) - error getting network space: %s error: %v", networkSpace, err)
 			zlog.Error().Msgf("%s", e.Error())
 			return targets, status.Error(codes.InvalidArgument, e.Error())
 		}
 		zlog.Debug().Msgf("getNVMETargets (nvme) - got nspace by name: %s", nspace.Name)
 
-		targets[i] = nvmeTarget{
+		targets[index] = nvmeTarget{
 			Portals: []string{},
 		}
-		for _, p := range nspace.Portals {
-			if !p.Enabled {
-				zlog.Error().Msgf("getNVMETargets (nvme) - network space %s ip address %s is disabled, not adding to list of available ip addresses", nspace.Name, p.IpAdress)
+		for _, portal := range nspace.Portals {
+			if !portal.Enabled {
+				zlog.Error().Msgf("getNVMETargets (nvme) - network space %s ip address %s is disabled, not adding to list of available ip addresses", nspace.Name, portal.IPAddress)
 				continue
 			}
 
-			err := nvme.StorageHelper.ValidateIPAddress(p.IpAdress, NVME_DISCOVERY_PORT)
+			err := nvme.StorageHelper.ValidateIPAddress(portal.IPAddress, NVME_DISCOVERY_PORT)
 			if err != nil {
-				zlog.Error().Msgf("getNVMETargets (nvme) - error getting nvme network space %s ip connection to %s %d error: %v", networkSpaces[i], p.IpAdress, NVME_DISCOVERY_PORT, err)
+				zlog.Error().Msgf("getNVMETargets (nvme) - error getting nvme network space %s ip connection to %s %d error: %v", networkSpace, portal.IPAddress, NVME_DISCOVERY_PORT, err)
 				continue
 			}
 
-			zlog.Debug().Msgf("getNVMETargets (nvme) - adding nvme network space %s ip connection to %s %d list", networkSpaces[i], p.IpAdress, NVME_DISCOVERY_PORT)
-			targets[i].Portals = append(targets[i].Portals, storagecommon.PortalMounter(p.IpAdress))
+			zlog.Debug().Msgf("getNVMETargets (nvme) - adding nvme network space %s ip connection to %s %d list", networkSpace, portal.IPAddress, NVME_DISCOVERY_PORT)
+			targets[index].Portals = append(targets[index].Portals, storagecommon.PortalMounter(portal.IPAddress))
 			portalsExist = true
 		}
 	}

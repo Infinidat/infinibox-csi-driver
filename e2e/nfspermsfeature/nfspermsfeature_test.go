@@ -43,7 +43,7 @@ func TestNfsPermsFeatureRemoveSinglePerm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not convert volumeID to int - error %s", err.Error())
 	}
-	exports, err := testConfig.ClientService.Iboxapi.GetExportsByFileSystemID(volumeID)
+	exports, err := testConfig.ClientService.IboxAPI.GetExportsByFileSystemID(volumeID)
 	if err != nil {
 		t.Fatalf("could not get exports for volumeID %d - error %s", volumeID, err.Error())
 	}
@@ -62,7 +62,7 @@ func TestNfsPermsFeatureRemoveSinglePerm(t *testing.T) {
 	phonyExportPermRef := iboxapi.ExportPathRef{
 		Permissions: append(existingExport.Permissions, phonyPerm),
 	}
-	updateExport, err := testConfig.ClientService.Iboxapi.UpdateExportPermissions(existingExport, phonyExportPermRef)
+	updateExport, err := testConfig.ClientService.IboxAPI.UpdateExportPermissions(existingExport, phonyExportPermRef)
 	if err != nil {
 		t.Fatalf("could not update export permissions for volumeID %d - error %s", volumeID, err.Error())
 	}
@@ -79,7 +79,7 @@ func TestNfsPermsFeatureRemoveSinglePerm(t *testing.T) {
 	time.Sleep(10 * time.Second)
 	// get the export rule permissions, there should be only a single permission
 	// at this point, the phony one we added
-	ex, err := testConfig.ClientService.Iboxapi.GetExportByID(updateExport.ID)
+	ex, err := testConfig.ClientService.IboxAPI.GetExportByID(updateExport.ID)
 	if err != nil {
 		t.Fatalf("could not get updated export %d for volumeID %d - error %s", updateExport.ID, volumeID, err.Error())
 	}
@@ -95,7 +95,7 @@ func TestNfsPermsFeatureRemoveSinglePerm(t *testing.T) {
 	// wait 10 seconds, give time for the pod to start
 	time.Sleep(time.Second * 10)
 	// verify the export rule permissions now has 2 export rule permissions
-	ex, err = testConfig.ClientService.Iboxapi.GetExportByID(updateExport.ID)
+	ex, err = testConfig.ClientService.IboxAPI.GetExportByID(updateExport.ID)
 	if err != nil {
 		t.Fatalf("could not get updated export %d after re-creating pod for volumeID %d - error %s", updateExport.ID, volumeID, err.Error())
 	}
@@ -138,7 +138,7 @@ func TestNfsPermsFeatureRemoveExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not convert volumeID to int - error %s", err.Error())
 	}
-	exports, err := testConfig.ClientService.Iboxapi.GetExportsByFileSystemID(volumeID)
+	exports, err := testConfig.ClientService.IboxAPI.GetExportsByFileSystemID(volumeID)
 	if err != nil {
 		t.Fatalf("could not get exports for volumeID %d - error %s", volumeID, err.Error())
 	}
@@ -161,7 +161,7 @@ func TestNfsPermsFeatureRemoveExport(t *testing.T) {
 	// try to get the Export, this should fail because the export should
 	// be removed since it only had the single IP address export rule permission prior
 	// to the pod being removed
-	_, err = testConfig.ClientService.Iboxapi.GetExportByID(existingExport.ID)
+	_, err = testConfig.ClientService.IboxAPI.GetExportByID(existingExport.ID)
 	if err == nil {
 		t.Fatalf("got export %d for volumeID %d after pod was removed, this should not happen", existingExport.ID, volumeID)
 	}
@@ -174,7 +174,7 @@ func TestNfsPermsFeatureRemoveExport(t *testing.T) {
 	// wait 10 seconds, give time for the pod to start
 	time.Sleep(time.Second * 10)
 	// verify the export rule permissions now has 1 export rule permissions
-	exports, err = testConfig.ClientService.Iboxapi.GetExportsByFileSystemID(volumeID)
+	exports, err = testConfig.ClientService.IboxAPI.GetExportsByFileSystemID(volumeID)
 	if err != nil {
 		t.Fatalf("could not get exports for volumeID %d - error %s", volumeID, err.Error())
 	}

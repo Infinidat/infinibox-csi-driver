@@ -33,7 +33,7 @@ type FileSystemSnapshotResponse struct {
 	SnapshotID  int    `json:"id"`
 	Name        string `json:"name,omitempty"`
 	DatasetType string `json:"dataset_type,omitempty"`
-	ParentId    int    `json:"parent_id,omitempty"`
+	ParentID    int    `json:"parent_id,omitempty"`
 	Size        int64  `json:"size,omitempty"`
 	CreatedAt   int64  `json:"created_at,omitempty"`
 }
@@ -48,9 +48,9 @@ type FileSystem struct {
 	WriteProtected                      bool     `json:"write_protected,omitempty"`
 	Size                                int64    `json:"size,omitempty"`
 	Provtype                            string   `json:"provtype,omitempty"`
-	SsdEnabled                          bool     `json:"ssd_enabled,omitempty"`
-	SsaExpressEnabled                   bool     `json:"ssa_express_enabled,omitempty"`
-	SsaExpressStatus                    any      `json:"ssa_express_status,omitempty"`
+	SSDEnabled                          bool     `json:"ssd_enabled,omitempty"`
+	SSAExpressEnabled                   bool     `json:"ssa_express_enabled,omitempty"`
+	SSAExpressStatus                    any      `json:"ssa_express_status,omitempty"`
 	CompressionEnabled                  bool     `json:"compression_enabled,omitempty"`
 	Serial                              string   `json:"serial,omitempty"`
 	RmrTarget                           bool     `json:"rmr_target,omitempty"`
@@ -111,7 +111,7 @@ type FileSystem struct {
 	QosSharedPolicyName                 any      `json:"qos_shared_policy_name,omitempty"`
 	PoolName                            string   `json:"pool_name,omitempty"`
 	Nguid                               string   `json:"nguid,omitempty"`
-	ReplicaIds                          []any    `json:"replica_ids,omitempty"`
+	ReplicaIDs                          []any    `json:"replica_ids,omitempty"`
 	ReplicationTypes                    []string `json:"replication_types,omitempty"`
 	NumBlocks                           int      `json:"num_blocks,omitempty"`
 }
@@ -177,23 +177,25 @@ type FileSystemSnapshot struct {
 	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
-	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled     bool   `json:"ssd_enabled,omitempty"`
 }
 
-func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
-	const FN = "GetFileSystemsByPool"
+const FILESYSTEM_NOT_FOUND = "FILESYSTEM_NOT_FOUND"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "pool ID", poolID, "fsprefix", fsPrefix)
+func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
+	const functionName = "GetFileSystemsByPool"
+
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "pool ID", poolID, "fsprefix", fsPrefix)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 
 		values := req.URL.Query()
@@ -205,26 +207,26 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", FN, err)
+			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetFileSystemsByPoolResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 		if responseObject.Error.Code != "" {
-			return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+			return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -237,69 +239,69 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 }
 
 func (iboxClient *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err error) {
-	const FN = "GetFileSystemByID"
+	const functionName = "GetFileSystemByID"
 
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "filesystem ID", fsID)
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/filesystems", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "filesystem ID", fsID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetFileSystemByIDResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
 	if responseObject.Error.Code != "" {
-		if responseObject.Error.Code == "FILESYSTEM_NOT_FOUND" {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - fs ID '%d' not found", FN, fsID)}
+		if responseObject.Error.Code == FILESYSTEM_NOT_FOUND {
+			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - fs ID '%d' not found", functionName, fsID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*FileSystem, error) {
-	const FN = "CreateFileSystem"
+	const functionName = "CreateFileSystem"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "request", req)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -308,29 +310,29 @@ func (iboxClient *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*Fi
 	var responseObject CreateFileSystemResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "FileSystem ID", responseObject.Result.ID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "FileSystem ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSystem, err error) {
-	const FN = "GetFileSystemByName"
+func (iboxClient *IboxClient) GetFileSystemByName(name string) (*FileSystem, error) {
+	const functionName = "GetFileSystemByName"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "name", name)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "name", name)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	page := 1
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := req.URL.Query()
@@ -341,48 +343,47 @@ func (iboxClient *IboxClient) GetFileSystemByName(name string) (result *FileSyst
 
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 	var responseObject GetFileSystemByNameResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if len(responseObject.Result) == 0 {
-		return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - name '%s' not found", FN, name)}
+		return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - name '%s' not found", functionName, name)}
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - API error - %s", FN, responseObject.Error.Code)
+		return nil, fmt.Errorf("%s - API error - %s", functionName, responseObject.Error.Code)
 	}
 	return &responseObject.Result[0], nil
-
 }
 
 func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []FileSystem, err error) {
-	const FN = "GetFileSystemsByParentID"
+	const functionName = "GetFileSystemsByParentID"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "parent ID", parentID)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "parent ID", parentID)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 
 		values := req.URL.Query()
@@ -393,27 +394,27 @@ func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", FN, err)
+			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetFileSystemsByParentIDResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 
 		if responseObject.Error.Code != "" {
-			return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+			return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -425,14 +426,14 @@ func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []
 	return results, nil
 }
 
-func (iboxClient *IboxClient) DeleteFileSystem(fsID int) (err error) {
-	const FN = "DeleteFileSystem"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/filesystems", fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "fs ID", fsID)
+func (iboxClient *IboxClient) DeleteFileSystem(fsID int) error {
+	const functionName = "DeleteFileSystem"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/filesystems", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
-		return fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := req.URL.Query()
@@ -441,90 +442,90 @@ func (iboxClient *IboxClient) DeleteFileSystem(fsID int) (err error) {
 
 	SetAuthHeader(req, iboxClient.Creds)
 
-	resp, err := iboxClient.HttpClient.Do(req)
+	resp, err := iboxClient.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s - Do - error %w", FN, err)
+		return fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("%s - ReadAll -error %w", FN, err)
+		return fmt.Errorf("%s - ReadAll -error %w", functionName, err)
 	}
 	var responseObject DeleteFileSystemResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return nil
 }
 
 func (iboxClient *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSystem, error) {
-	const FN = "UpdateFileSystem"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.Url, "api/rest/filesystems/", fsID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "fs ID", fsID)
+	const functionName = "UpdateFileSystem"
+	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/filesystems/", fsID)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID)
 
 	jsonBytes, err := json.Marshal(fs)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	SetAuthHeader(request, iboxClient.Creds)
 
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject UpdateFileSystemResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		if responseObject.Error.Code == "FILESYSTEM_NOT_FOUND" {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s- fs ID '%d' not found", FN, fsID)}
+		if responseObject.Error.Code == FILESYSTEM_NOT_FOUND {
+			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s- fs ID '%d' not found", functionName, fsID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }
 
 func (iboxClient *IboxClient) CreateFileSystemSnapshot(snapshotParam FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
-	const FN = "CreateFileSystemSnapshot"
+	const functionName = "CreateFileSystemSnapshot"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/filesystems")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "snapshotParam", snapshotParam)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "snapshotParam", snapshotParam)
 
 	jsonBytes, err := json.Marshal(snapshotParam)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
 	values := request.URL.Query()
@@ -534,13 +535,13 @@ func (iboxClient *IboxClient) CreateFileSystemSnapshot(snapshotParam FileSystemS
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -549,11 +550,11 @@ func (iboxClient *IboxClient) CreateFileSystemSnapshot(snapshotParam FileSystemS
 	var responseObject CreateFileSystemSnapshotResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "FileSystem response", responseObject.Result)
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "FileSystem response", responseObject.Result)
 	return &responseObject.Result, nil
 }

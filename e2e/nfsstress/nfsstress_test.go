@@ -22,7 +22,7 @@ func TestNfs(t *testing.T) {
 
 	originalPVCName := testConfig.TestNames.PVCName
 
-	//testConfig.UseFsGroup = true
+	// testConfig.UseFsGroup = true
 
 	for i := range testConfig.StressIterations {
 		testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)

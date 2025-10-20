@@ -136,7 +136,7 @@ func TestFsGroupFc(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual, err = e2e.VerifyGroupIdIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIDIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifygroupIdIsUsed %s", err.Error())
 	}

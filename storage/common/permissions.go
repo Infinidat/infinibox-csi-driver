@@ -72,10 +72,9 @@ func (sh StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (
 
 // SetVolumePermissions
 func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
-
-	//fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
-	//fsGroupIsSet := (fsGroup != "")
-	//zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
+	// fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
+	// fsGroupIsSet := (fsGroup != "")
+	// zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
 
 	uid_int := -1
 	gid_int := -1
@@ -165,23 +164,21 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 			return nil
 		}
 		zlog.Debug().Msgf("expected group ownership of volume %s did not match with: %d", path, stat.Gid)
-
 	}
 
 	err := filepath.WalkDir(path,
-		func(path string, d fs.DirEntry, err error) error {
-
+		func(path string, dir fs.DirEntry, err error) error {
 			if err == nil {
 				zlog.Trace().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
 
 				// handle the case on .snapshot hidden directories because they are readonly created by the ibox
-				if snapdirVisible && d.Name() == ".snapshot" {
-					zlog.Warn().Msgf("Chown: skipping chown on %s because snapdir_visible is true", d.Name())
+				if snapdirVisible && dir.Name() == ".snapshot" {
+					zlog.Warn().Msgf("Chown: skipping chown on %s because snapdir_visible is true", dir.Name())
 					return filepath.SkipDir
 				}
 
 				// handle the broken symlink case, skip chown on broken symlinks
-				if d.Type()&os.ModeSymlink != 0 {
+				if dir.Type()&os.ModeSymlink != 0 {
 					zlog.Warn().Msgf("Chown: we have a symlink %s!", path)
 					_, e := os.ReadFile(path)
 					if e != nil {

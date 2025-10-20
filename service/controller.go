@@ -49,21 +49,21 @@ var zlog = log.Get() // grab the logger for package use
 
 // CreateVolume method create the volume
 func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (createVolResp *csi.CreateVolumeResponse, err error) {
-	const FN = "CreateVolume"
-	zlog.Info().Msgf("%s Start - Name: %s", FN, req.GetName())
+	const functionName = "CreateVolume"
+	zlog.Info().Msgf("%s Start - Name: %s", functionName, req.GetName())
 
 	volName := req.GetName()
 
 	reqParameters := req.GetParameters()
 	if len(reqParameters) == 0 {
-		e := fmt.Errorf("%s - GetParameters empty ", FN)
+		e := fmt.Errorf("%s - GetParameters empty ", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	kc, err := clientgo.BuildClient()
+	kubernetesClient, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s - BuildClient - error %s", FN, err.Error())
+		e := fmt.Errorf("%s - BuildClient - error %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -80,20 +80,19 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 
 		if protocolSecretInUse {
-
 			storageProtocol = protocolSecretMap[common.SC_STORAGE_PROTOCOL]
 			if storageProtocol == common.PROTOCOL_AUTO {
-				sp, _, err := DetermineProtocol()
+				calculatedProtocol, _, err := DetermineProtocol()
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
 				}
-				storageProtocol = sp
+				storageProtocol = calculatedProtocol
 			}
 
-			var useChap, nfsExportPerms string
+			var useCHAP, nfsExportPerms string
 			switch storageProtocol {
 			case common.PROTOCOL_ISCSI:
-				useChap = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_USE_CHAP]
+				useCHAP = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_USE_CHAP]
 				networkSpace = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_NETWORK_SPACE]
 			case common.PROTOCOL_NVME:
 				networkSpace = protocolSecretMap[common.PROTOCOL_NVME+"."+common.SC_NETWORK_SPACE]
@@ -103,39 +102,39 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			default:
 			}
 
-			zlog.Debug().Msgf("%s - protocol secret %s:%s %s:%s %s:%s %s:%s", FN, common.SC_STORAGE_PROTOCOL, storageProtocol, common.SC_NETWORK_SPACE, networkSpace, common.SC_USE_CHAP, useChap, common.SC_NFS_EXPORT_PERMISSIONS, nfsExportPerms)
+			zlog.Debug().Msgf("%s - protocol secret %s:%s %s:%s %s:%s %s:%s", functionName, common.SC_STORAGE_PROTOCOL, storageProtocol, common.SC_NETWORK_SPACE, networkSpace, common.SC_USE_CHAP, useCHAP, common.SC_NFS_EXPORT_PERMISSIONS, nfsExportPerms)
 			reqParameters[common.SC_NETWORK_SPACE] = networkSpace
-			reqParameters[common.SC_USE_CHAP] = useChap
+			reqParameters[common.SC_USE_CHAP] = useCHAP
 			reqParameters[common.SC_NFS_EXPORT_PERMISSIONS] = nfsExportPerms
 		}
 	}
 
 	reqCapabilities := req.GetVolumeCapabilities()
 
-	zlog.Debug().Msgf("%s - capacity-range: %v ", FN, req.GetCapacityRange())
-	zlog.Debug().Msgf("%s - params: %v", FN, reqParameters)
+	zlog.Debug().Msgf("%s - capacity-range: %v ", functionName, req.GetCapacityRange())
+	zlog.Debug().Msgf("%s - params: %v", functionName, reqParameters)
 	zlog.Debug().Msgf("%s - name: '%s' controller nodeid: '%s' storage_protocol: '%s' capacity-range: %v params: %v",
-		FN, volName, s.Driver.nodeID, storageProtocol, req.GetCapacityRange(), reqParameters)
+		functionName, volName, s.Driver.nodeID, storageProtocol, req.GetCapacityRange(), reqParameters)
 
 	// Basic CSI parameter checking across protocols
 
 	if len(storageProtocol) == 0 {
-		e := fmt.Errorf("%s - storage protocol empty ", FN)
+		e := fmt.Errorf("%s - storage protocol empty ", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if storageProtocol != common.PROTOCOL_FC && len(networkSpace) == 0 {
-		e := fmt.Errorf("%s - network space empty ", FN)
+		e := fmt.Errorf("%s - network space empty ", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if len(volName) == 0 {
-		e := fmt.Errorf("%s - volume name empty ", FN)
+		e := fmt.Errorf("%s - volume name empty ", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if len(reqCapabilities) == 0 {
-		e := fmt.Errorf("%s - volume capabilities empty ", FN)
+		e := fmt.Errorf("%s - volume capabilities empty ", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -143,12 +142,12 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	var summary string
 	summary, err = validateCapabilities(reqCapabilities)
 	if err != nil {
-		e := fmt.Errorf("%s - validateCapabilities - error %s summary %s", FN, err.Error(), summary)
+		e := fmt.Errorf("%s - validateCapabilities - error %s summary %s", functionName, err.Error(), summary)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if reqParameters[common.SC_POOL_NAME] == "" {
-		e := fmt.Errorf("%s - %s empty", FN, common.SC_POOL_NAME)
+		e := fmt.Errorf("%s - %s empty", functionName, common.SC_POOL_NAME)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -164,9 +163,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	extraMetadataPVCName := req.Parameters["csi.storage.k8s.io/pvc/name"]
 	extraMetadataPVCNamespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
 	if extraMetadataPVCName != "" && extraMetadataPVCNamespace != "" {
-		pvcAnnotations, err = kc.GetPVCAnnotations(extraMetadataPVCName, extraMetadataPVCNamespace)
+		pvcAnnotations, err = kubernetesClient.GetPVCAnnotations(extraMetadataPVCName, extraMetadataPVCNamespace)
 		if err != nil {
-			e := fmt.Errorf("%s - GetPVCAnnotations - name %s error %s", FN, req.GetName(), err.Error())
+			e := fmt.Errorf("%s - GetPVCAnnotations - name %s error %s", functionName, req.GetName(), err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -175,9 +174,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	pvcAnnoSecret := pvcAnnotations[common.PVC_ANNOTATION_IBOX_SECRET]
 	if pvcAnnoSecret != "" {
-		secretsToUse, err = kc.GetSecret(pvcAnnoSecret, os.Getenv("POD_NAMESPACE"))
+		secretsToUse, err = kubernetesClient.GetSecret(pvcAnnoSecret, os.Getenv("POD_NAMESPACE"))
 		if err != nil {
-			e := fmt.Errorf("%s - GetSecret - %s error %s", FN, pvcAnnoSecret, err.Error())
+			e := fmt.Errorf("%s - GetSecret - %s error %s", functionName, pvcAnnoSecret, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -190,7 +189,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if roundUpParameter != "" {
 		roundUp, err = strconv.ParseBool(roundUpParameter)
 		if err != nil {
-			e := fmt.Errorf("%s - name %s param %s parse %s - error %s", FN, volName, roundUpParameter, common.SC_ROUND_UP, err.Error())
+			e := fmt.Errorf("%s - name %s param %s parse %s - error %s", functionName, volName, roundUpParameter, common.SC_ROUND_UP, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -199,9 +198,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if roundUp {
 		roundUpBytes := helper.RoundUp(capacity)
 		if capacity == roundUpBytes {
-			zlog.Debug().Msgf("%s requested bytes %d equals calculated rounded up %d bytes", FN, capacity, roundUpBytes)
+			zlog.Debug().Msgf("%s requested bytes %d equals calculated rounded up %d bytes", functionName, capacity, roundUpBytes)
 		} else {
-			zlog.Debug().Msgf("%s requested bytes %d will be rounded up to %d bytes", FN, capacity, roundUpBytes)
+			zlog.Debug().Msgf("%s requested bytes %d will be rounded up to %d bytes", functionName, capacity, roundUpBytes)
 			capacity = roundUpBytes
 		}
 	}
@@ -211,23 +210,23 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(configparams, secretsToUse, nil)
+	commonService, err := storagecommon.BuildCommonService(configparams, secretsToUse, nil)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - name %s error %s", FN, volName, err.Error())
+		e := fmt.Errorf("%s - BuildCommonService - name %s error %s", functionName, volName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageController, err := storage.NewStorageController(comnserv, capacity, storageProtocol, configparams, secretsToUse)
+	storageController, err := storage.NewStorageController(commonService, capacity, storageProtocol, configparams, secretsToUse)
 	if err != nil || storageController == nil {
-		e := fmt.Errorf("%s - NewStorageController - name %s error %s", FN, volName, err.Error())
+		e := fmt.Errorf("%s - NewStorageController - name %s error %s", functionName, volName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	err = validateCommonStorageClassParameters(comnserv, reqParameters, storageProtocol)
+	err = validateCommonStorageClassParameters(commonService, reqParameters, storageProtocol)
 	if err != nil {
-		e := fmt.Errorf("%s - validateCommonStorageClassParameters - name %s error %s", FN, volName, err.Error())
+		e := fmt.Errorf("%s - validateCommonStorageClassParameters - name %s error %s", functionName, volName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -237,61 +236,61 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	if pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
 		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME])
-		req.Parameters[common.SC_POOL_NAME] = pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] //overwrite what was in the storageclass if any
+		req.Parameters[common.SC_POOL_NAME] = pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] // overwrite what was in the storageclass if any
 	}
 
 	if pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
 		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE])
-		reqParameters[common.SC_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] //overwrite what was in the storageclass if any
+		reqParameters[common.SC_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] // overwrite what was in the storageclass if any
 	}
 
 	// perform protocol specific StorageClass validations
 	err = storageController.ValidateStorageClass(reqParameters)
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateStorageClass - name %s error %s", FN, volName, err.Error())
+		e := fmt.Errorf("%s - ValidateStorageClass - name %s error %s", functionName, volName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sc.CreateVolume - error %s", FN, err.Error())
+		e := fmt.Errorf("%s - sc.CreateVolume - error %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		// it's important to return the original error, because it matches K8s expectations
 		return nil, err
 	} else if createVolResp == nil {
-		e := fmt.Errorf("%s - sc.CreateVolume resp nil - %s", FN, volName)
+		e := fmt.Errorf("%s - sc.CreateVolume resp nil - %s", functionName, volName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	} else if createVolResp.Volume == nil {
-		e := fmt.Errorf("%s - sc.CreateVolume Volume is nil - name %s - resp %v", FN, volName, createVolResp)
+		e := fmt.Errorf("%s - sc.CreateVolume Volume is nil - name %s - resp %v", functionName, volName, createVolResp)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	} else if createVolResp.Volume.VolumeId == "" {
-		e := fmt.Errorf("%s - sc.CreateVolume Volume ID is empty - name %s - resp %v", FN, volName, createVolResp)
+		e := fmt.Errorf("%s - sc.CreateVolume Volume ID is empty - name %s - resp %v", functionName, volName, createVolResp)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageProtocol
 
-	helper.EventAPIClient = comnserv.Api
-	helper.EventIboxAPIClient = comnserv.IboxApi
+	helper.EventAPIClient = commonService.API
+	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventCreatedVolumes++
 
-	zlog.Info().Msgf("%s Finish - Name: %s volume ID: %s", FN, volName, createVolResp.Volume.VolumeId)
+	zlog.Info().Msgf("%s Finish - Name: %s volume ID: %s", functionName, volName, createVolResp.Volume.VolumeId)
 	return createVolResp, nil
 }
 
-// DeleteVolume method delete the volumne
+// DeleteVolume method delete the volume
 func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (deleteVolResp *csi.DeleteVolumeResponse, err error) {
-	const FN = "DeleteVolume"
-	volumeId := req.GetVolumeId()
+	const functionName = "DeleteVolume"
+	volumeID := req.GetVolumeId()
 
-	zlog.Info().Msgf("%s Start - volume ID: %s", FN, volumeId)
+	zlog.Info().Msgf("%s Start - volume ID: %s", functionName, volumeID)
 
-	volproto, err := storagecommon.ValidateVolumeID(volumeId)
+	volproto, err := storagecommon.ValidateVolumeID(volumeID)
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", functionName, volumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -299,32 +298,30 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	secretsToUse := req.GetSecrets()
 
 	// see if the pvc annotation was specified in the original PVC
-	kc, err := clientgo.BuildClient()
+	kubernetesClient, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s - BuildClient - error %s", FN, err.Error())
+		e := fmt.Errorf("%s - BuildClient - error %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	pvList, err := kc.GetAllPersistentVolumes()
+	pvList, err := kubernetesClient.GetAllPersistentVolumes()
 	if err != nil {
-		e := fmt.Errorf("%s - GetAllPersistentVolumes - error %s", FN, err.Error())
+		e := fmt.Errorf("%s - GetAllPersistentVolumes - error %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
-
 	}
-	for i := 0; i < len(pvList.Items); i++ {
-		pv := pvList.Items[i]
+	for _, persistentVolume := range pvList.Items {
 		// we match the PV using the volumeHandle (aka volumeId from above)
-		if pv.Spec.CSI.VolumeHandle == volumeId {
-			zlog.Debug().Msgf("%s - pv found for volume ID: %s ", FN, volumeId)
-			annoPVCSecretName := pv.Spec.CSI.ControllerPublishSecretRef.Name
-			annoPVCSecret, err := kc.GetSecret(annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
+		if persistentVolume.Spec.CSI.VolumeHandle == volumeID {
+			zlog.Debug().Msgf("%s - pv found for volume ID: %s ", functionName, volumeID)
+			annoPVCSecretName := persistentVolume.Spec.CSI.ControllerPublishSecretRef.Name
+			annoPVCSecret, err := kubernetesClient.GetSecret(annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
 			if err != nil {
-				e := fmt.Errorf("%s - GetSecret - volume ID: %s anno %s error %s", FN, volumeId, annoPVCSecretName, err.Error())
+				e := fmt.Errorf("%s - GetSecret - volume ID: %s anno %s error %s", functionName, volumeID, annoPVCSecretName, err.Error())
 				zlog.Error().Msg(e.Error())
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
-			zlog.Debug().Msgf("%s - volume ID: %s using secret: %s", FN, volumeId, annoPVCSecretName)
+			zlog.Debug().Msgf("%s - volume ID: %s using secret: %s", functionName, volumeID, annoPVCSecretName)
 			secretsToUse = annoPVCSecret
 		}
 	}
@@ -333,44 +330,44 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		"nodeid": s.Driver.nodeID,
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(config, secretsToUse, &volproto)
+	commonService, err := storagecommon.BuildCommonService(config, secretsToUse, &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", functionName, volumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, secretsToUse)
+	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType, config, secretsToUse)
 	if err != nil || storageController == nil {
-		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", functionName, volumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sc.DeleteVolume volume ID: %s error: %s", FN, volumeId, err.Error())
+		e := fmt.Errorf("%s - sc.DeleteVolume volume ID: %s error: %s", functionName, volumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finish - volume ID: %s", FN, volumeId)
+	zlog.Info().Msgf("%s Finish - volume ID: %s", functionName, volumeID)
 	return deleteVolResp, nil
 }
 
 // ControllerModifyVolume method
 func (s *ControllerServer) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (publishVolResp *csi.ControllerModifyVolumeResponse, err error) {
 	zlog.Info().Msg("ControllerModifyVolume is not implemented")
-	return nil, nil
+	return publishVolResp, nil
 }
 
 // ControllerPublishVolume method
 func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (publishVolResp *csi.ControllerPublishVolumeResponse, err error) {
-	const FN = "ControllerPublishVolume"
-	zlog.Info().Msgf("%s volume ID: %s, node ID: %s", FN, req.GetVolumeId(), req.GetNodeId())
+	const functionName = "ControllerPublishVolume"
+	zlog.Info().Msgf("%s volume ID: %s, node ID: %s", functionName, req.GetVolumeId(), req.GetNodeId())
 
 	if req.VolumeCapability == nil {
-		e := fmt.Errorf("%s - request VolumeCapability was nil", FN)
+		e := fmt.Errorf("%s - request VolumeCapability was nil", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -381,50 +378,50 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	_, err = validateCapabilities(caps)
 	if err != nil {
-		e := fmt.Errorf("%s - validateCapabilities - error %s, node ID %s, volume cap %v", FN, err.Error(), req.GetNodeId(), req.VolumeCapability)
+		e := fmt.Errorf("%s - validateCapabilities - error %s, node ID %s, volume cap %v", functionName, err.Error(), req.GetNodeId(), req.VolumeCapability)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.FailedPrecondition, e.Error())
 	}
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("%s  - request volumeId was empty", FN)
+		e := fmt.Errorf("%s  - request volumeId was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	volproto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	if volproto.StorageType == common.PROTOCOL_AUTO {
-		zlog.Debug().Msgf("%s protocol auto detected", FN)
-		sp, protocolSecret, err := DetermineProtocol()
+		zlog.Debug().Msgf("%s protocol auto detected", functionName)
+		calculatedProtocol, protocolSecret, err := DetermineProtocol()
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		if sp == common.PROTOCOL_ISCSI {
+		if calculatedProtocol == common.PROTOCOL_ISCSI {
 			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["iscsi.network_space"]
 		}
-		if sp == common.PROTOCOL_NVME {
+		if calculatedProtocol == common.PROTOCOL_NVME {
 			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["nvme.network_space"]
 		}
 		// need to determine the protocol based on user defined protocol order
 		// need to look up the network_space for this protocol as defined in the protocol secret
-		volproto.StorageType = sp
+		volproto.StorageType = calculatedProtocol
 	}
 
 	if req.GetNodeId() == "" {
-		e := fmt.Errorf("%s - volume ID: %s request nodeId was empty", FN, req.VolumeId)
+		e := fmt.Errorf("%s - volume ID: %s request nodeId was empty", functionName, req.VolumeId)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	err = validateNodeID(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("%s - validateNodeID - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - validateNodeID - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -436,44 +433,44 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
+	commonService, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil || storageController == nil {
-		e := fmt.Errorf("%s - NewStorageController - volume ID: %s type %v error: %s", FN, req.GetVolumeId(), volproto, err.Error())
+		e := fmt.Errorf("%s - NewStorageController - volume ID: %s type %v error: %s", functionName, req.GetVolumeId(), volproto, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - ControllerPublishVolume - failed proto: %v volume ID: %s node ID: %s error: %v", FN, volproto, req.GetVolumeId(), req.GetNodeId(), err)
+		e := fmt.Errorf("%s - ControllerPublishVolume - failed proto: %v volume ID: %s node ID: %s error: %v", functionName, volproto, req.GetVolumeId(), req.GetNodeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finish - volume ID: %s", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Finish - volume ID: %s", functionName, req.GetVolumeId())
 
 	return publishVolResp, nil
 }
 
 // ControllerUnpublishVolume method
 func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (unpublishVolResp *csi.ControllerUnpublishVolumeResponse, err error) {
-	const FN = "ControllerUnpublishVolume"
-	zlog.Info().Msgf("%s Start - volume ID: %s node ID: %s", FN, req.GetVolumeId(), req.GetNodeId())
+	const functionName = "ControllerUnpublishVolume"
+	zlog.Info().Msgf("%s Start - volume ID: %s node ID: %s", functionName, req.GetVolumeId(), req.GetNodeId())
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("%s - request volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s - request volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	volproto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID -  volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID -  volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -482,7 +479,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	if nodeID != "" { // NodeId is optional, when empty we should unpublish the volume from any nodes it is published to
 		err = validateNodeID(nodeID)
 		if err != nil {
-			e := fmt.Errorf("%s - validateNodeID - node ID: %s error: %s", FN, nodeID, err.Error())
+			e := fmt.Errorf("%s - validateNodeID - node ID: %s error: %s", functionName, nodeID, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -490,16 +487,16 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	config := make(map[string]string)
 
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
+	commonService, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("%s - DetermineHostName - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - DetermineHostName - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -508,35 +505,35 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	if volproto.StorageType != common.PROTOCOL_NFS && volproto.StorageType != common.PROTOCOL_TREEQ {
 		if volproto.StorageType == common.PROTOCOL_NVME {
-			hostName = hostName + nvme.NVME_HOST_SUFFIX
+			hostName += nvme.NVME_HOST_SUFFIX
 		}
-		volproto.Host, err = comnserv.IboxApi.GetHostByName(hostName)
+		volproto.Host, err = commonService.IboxAPI.GetHostByName(hostName)
 		if err != nil {
-			re, ok := err.(*iboxapi.IboxAPIError)
+			re, ok := err.(*iboxapi.APIError)
 			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
-			e := fmt.Errorf("%s - GetHostByName - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+			e := fmt.Errorf("%s - GetHostByName - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
 
-	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	unpublishVolResp, err = storageController.ControllerUnpublishVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sc.ControllerUnpublishVolume - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - sc.ControllerUnpublishVolume - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Info().Msgf("%s Finish - volume ID: %s", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Finish - volume ID: %s", functionName, req.GetVolumeId())
 
 	return unpublishVolResp, nil
 }
@@ -585,52 +582,51 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (summary string,
 		}
 
 		if modes != "" {
-			modes = modes + ", "
+			modes += ", "
 		}
-		modes = modes + fmt.Sprintf("mode: %s", mode.String())
-
+		modes += fmt.Sprintf("mode: %s", mode.String())
 	}
 
 	if isBlock && isFile {
 		return "", errors.New("both file and block volume capabilities specified")
 	}
 
-	summary = summary + fmt.Sprintf("modes: %s isBlock: %t isFile: %t", modes, isBlock, isFile)
+	summary += fmt.Sprintf("modes: %s isBlock: %t isFile: %t", modes, isBlock, isFile)
 
 	return summary, nil
 }
 
 func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (validateVolCapsResponse *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	const FN = "ValidateVolumeCapabilities"
-	zlog.Info().Msgf("%s Started - volume ID: %s", FN, req.GetVolumeId())
+	const functionName = "ValidateVolumeCapabilities"
+	zlog.Info().Msgf("%s Started - volume ID: %s", functionName, req.GetVolumeId())
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("%s - error volumeId parameter was empty", FN)
+		e := fmt.Errorf("%s - error volumeId parameter was empty", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.VolumeCapabilities == nil {
-		e := fmt.Errorf("%s - volume ID: %s error volumeCapabilities parameter was nil", FN, req.GetVolumeId())
+		e := fmt.Errorf("%s - volume ID: %s error volumeCapabilities parameter was nil", functionName, req.GetVolumeId())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if len(req.VolumeCapabilities) == 0 {
-		e := fmt.Errorf("%s - volume ID: %s error volumeCapabilities parameter was empty", FN, req.GetVolumeId())
+		e := fmt.Errorf("%s - volume ID: %s error volumeCapabilities parameter was empty", functionName, req.GetVolumeId())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	volproto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	config := make(map[string]string)
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
+	commonService, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -641,7 +637,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	//	if protocol != common.PROTOCOL_NFS && protocol != common.PROTOCOL_TREEQ {
 	protocolSecretMap, protocolSecretInUse, err := helper.GetProtocolSecret()
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - error getting protocol secret: %s", FN, err.Error())
+		e := fmt.Errorf("%s - BuildCommonService - error getting protocol secret: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -651,23 +647,23 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	//}
 
 	if protocol == common.PROTOCOL_NFS || protocol == common.PROTOCOL_TREEQ {
-		var fs *iboxapi.FileSystem
-		fs, err = comnserv.IboxApi.GetFileSystemByID(volproto.VolumeID)
+		var fileSystem *iboxapi.FileSystem
+		fileSystem, err = commonService.IboxAPI.GetFileSystemByID(volproto.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("%s - GetFileSystemByID volume ID: %d error: %s", FN, volproto.VolumeID, err.Error())
+			e := fmt.Errorf("%s - GetFileSystemByID volume ID: %d error: %s", functionName, volproto.VolumeID, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.NotFound, e.Error())
 		}
-		zlog.Debug().Msgf("filesystem volume ID: %d file system details: %v", volproto.VolumeID, fs)
+		zlog.Debug().Msgf("filesystem volume ID: %d file system details: %v", volproto.VolumeID, fileSystem)
 	} else {
-		var vol *iboxapi.Volume
-		vol, err = comnserv.IboxApi.GetVolume(volproto.VolumeID)
+		var volume *iboxapi.Volume
+		volume, err = commonService.IboxAPI.GetVolume(volproto.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("%s - GetVolume - failed to find volume ID: %d Error: %v", FN, volproto.VolumeID, err)
+			e := fmt.Errorf("%s - GetVolume - failed to find volume ID: %d Error: %v", functionName, volproto.VolumeID, err)
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.NotFound, e.Error())
 		}
-		zlog.Debug().Msgf("volume ID: %d volume details: %v", volproto.VolumeID, vol)
+		zlog.Debug().Msgf("volume ID: %d volume details: %v", volproto.VolumeID, volume)
 	}
 	validateVolCapsResponse = &csi.ValidateVolumeCapabilitiesResponse{
 		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
@@ -675,14 +671,14 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		},
 	}
 
-	zlog.Info().Msgf("%s Finished - volume ID: %s", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Finished - volume ID: %s", functionName, req.GetVolumeId())
 
 	return validateVolCapsResponse, nil
 }
 
 func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
-	const FN = "ListVolumes"
-	zlog.Info().Msgf("%s Started", FN)
+	const functionName = "ListVolumes"
+	zlog.Info().Msgf("%s Started", functionName)
 
 	res := &csi.ListVolumesResponse{
 		Entries: make([]*csi.ListVolumesResponse_Entry, 0),
@@ -690,46 +686,46 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 
 	if req.StartingToken == "" || req.StartingToken == "next-token" {
 	} else {
-		e := fmt.Errorf("%s - error startingToken parameter was incorrect [%s]", FN, req.StartingToken)
+		e := fmt.Errorf("%s - error startingToken parameter was incorrect [%s]", functionName, req.StartingToken)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Aborted, e.Error())
 	}
 
 	// Get a k8s go client for in-cluster use
-	cl, err := clientgo.BuildClient()
+	client, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s  - BuildClient - error: %s", FN, err.Error())
+		e := fmt.Errorf("%s  - BuildClient - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
 
 	// Find PVs managed by this CSI driver
-	pvList, err := cl.GetAllPersistentVolumes()
+	pvList, err := client.GetAllPersistentVolumes()
 	if err != nil {
-		e := fmt.Errorf("%s  - GetAllPersistentVolumes - error: %s", FN, err.Error())
+		e := fmt.Errorf("%s  - GetAllPersistentVolumes - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
 	zlog.Info().Msgf("pvList count: %d", len(pvList.Items))
 
-	for _, pv := range pvList.Items {
-		zlog.Info().Msgf("pv capacity : %#v", pv.Spec.Capacity)
-		zlog.Info().Msgf("pv name: %#v", pv.GetName())
-		zlog.Info().Msgf("pv anno: %#v", pv.GetAnnotations()["pv.kubernetes.io/provisioned-by"])
-		if pv.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.SERVICE_NAME {
+	for _, persistentVolume := range pvList.Items {
+		zlog.Info().Msgf("pv capacity : %#v", persistentVolume.Spec.Capacity)
+		zlog.Info().Msgf("pv name: %#v", persistentVolume.GetName())
+		zlog.Info().Msgf("pv anno: %#v", persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"])
+		if persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.SERVICE_NAME {
 			var status csi.ListVolumesResponse_VolumeStatus
-			status.PublishedNodeIds = append(status.PublishedNodeIds, pv.GetName())
+			status.PublishedNodeIds = append(status.PublishedNodeIds, persistentVolume.GetName())
 			// TODO Handle csi.ListVolumesResponse_VolumeStatus.VolumeCondition?
 			zlog.Info().Msgf("status: %s", status.String())
 
 			var volume csi.Volume
 
-			volume.CapacityBytes = pv.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
-			volume.VolumeId = pv.GetName()
+			volume.CapacityBytes = persistentVolume.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
+			volume.VolumeId = persistentVolume.GetName()
 			volume.VolumeContext = map[string]string{
-				common.SC_NETWORK_SPACE:    pv.Spec.CSI.VolumeAttributes[common.SC_NETWORK_SPACE],
-				common.SC_POOL_NAME:        pv.Spec.CSI.VolumeAttributes[common.SC_POOL_NAME],
-				common.SC_STORAGE_PROTOCOL: pv.Spec.CSI.VolumeAttributes[common.SC_STORAGE_PROTOCOL],
+				common.SC_NETWORK_SPACE:    persistentVolume.Spec.CSI.VolumeAttributes[common.SC_NETWORK_SPACE],
+				common.SC_POOL_NAME:        persistentVolume.Spec.CSI.VolumeAttributes[common.SC_POOL_NAME],
+				common.SC_STORAGE_PROTOCOL: persistentVolume.Spec.CSI.VolumeAttributes[common.SC_STORAGE_PROTOCOL],
 			}
 			volume.ContentSource = nil
 			volume.AccessibleTopology = nil
@@ -743,59 +739,58 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 		}
 	}
 
-	zlog.Info().Msgf("%s Finished", FN)
+	zlog.Info().Msgf("%s Finished", functionName)
 
 	return res, nil
-
 }
 
 func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	const FN = "ListSnapshots"
-	zlog.Info().Msgf("%s Started, MaxEntries=%d", FN, req.MaxEntries)
+	const functionName = "ListSnapshots"
+	zlog.Info().Msgf("%s Started, MaxEntries=%d", functionName, req.MaxEntries)
 
 	res := &csi.ListSnapshotsResponse{
 		Entries: make([]*csi.ListSnapshotsResponse_Entry, 0),
 	}
 
 	// Get a k8s go client for in-cluster use
-	cl, err := clientgo.BuildClient()
+	client, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s  - BuildClient - error: %s", FN, err.Error())
+		e := fmt.Errorf("%s  - BuildClient - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
 
-	ns := os.Getenv("POD_NAMESPACE")
-	zlog.Debug().Msgf("POD_NAMESPACE=%s", ns)
-	if ns == "" {
-		e := fmt.Errorf("%s - env var POD_NAMESPACE was not set, this is a required env var", FN)
+	namespace := os.Getenv("POD_NAMESPACE")
+	zlog.Debug().Msgf("POD_NAMESPACE=%s", namespace)
+	if namespace == "" {
+		e := fmt.Errorf("%s - env var POD_NAMESPACE was not set, this is a required env var", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
 
-	secrets, err := cl.GetSecrets(ns)
+	secrets, err := client.GetSecrets(namespace)
 	if err != nil {
-		e := fmt.Errorf("%s - GetSecrets - error: %s", FN, err.Error())
+		e := fmt.Errorf("%s - GetSecrets - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
 
-	for i := 0; i < len(secrets); i++ {
-		x := api.ClientService{
+	for _, secret := range secrets {
+		client := api.ClientService{
 			ConfigMap:  make(map[string]string),
-			SecretsMap: secrets[i],
+			SecretsMap: secret,
 		}
 
-		clientsvc, err := x.NewClient()
+		clientService, err := client.NewClient()
 		if err != nil {
-			e := fmt.Errorf("%s - NewClient - error: %s", FN, err.Error())
+			e := fmt.Errorf("%s - NewClient - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Unavailable, e.Error())
 		}
 
-		snapshots, err := clientsvc.Iboxapi.GetAllSnapshots()
+		snapshots, err := clientService.IboxAPI.GetAllSnapshots()
 		if err != nil {
-			e := fmt.Errorf("%s - GetAllSnapshots - error: %s", FN, err.Error())
+			e := fmt.Errorf("%s - GetAllSnapshots - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Unavailable, e.Error())
 		}
@@ -803,55 +798,55 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 
 		// handle the optional case where a SnapshotId is passed in the ListSnapshots request
 		var volProto api.VolumeProtocolConfig
-		var iValue int
+		var volumeID int
 		if req.SnapshotId != "" {
 			volProto, err = storagecommon.ValidateVolumeID(req.SnapshotId)
 			if err != nil {
-				e := fmt.Errorf("%s - ValidateVolumeID - error: %s", FN, err.Error())
+				e := fmt.Errorf("%s - ValidateVolumeID - error: %s", functionName, err.Error())
 				zlog.Error().Msg(e.Error())
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
-			iValue = volProto.VolumeID
+			volumeID = volProto.VolumeID
 		}
 
-		for i := 0; i < len(snapshots); i++ {
-			cdt := snapshots[i].CreatedAt / 1000
-			tt := time.Unix(cdt, 0)
-			t := tspb.New(tt)
+		for _, snapshot := range snapshots {
+			createdAtValue := snapshot.CreatedAt / 1000
+			timeValue := time.Unix(createdAtValue, 0)
+			timestampValue := tspb.New(timeValue)
 
 			var parentName string
-			zlog.Trace().Msgf("snapshot datasettype %s", snapshots[i].DatasetType)
-			switch snapshots[i].DatasetType {
+			zlog.Trace().Msgf("snapshot datasettype %s", snapshot.DatasetType)
+			switch snapshot.DatasetType {
 			case "VOLUME":
-				_, err := clientsvc.Iboxapi.GetVolume(snapshots[i].ParentId)
+				_, err := clientService.IboxAPI.GetVolume(snapshot.ParentID)
 				if err != nil {
-					zlog.Error().Msgf("%s - GetVolume - snapshot %s VOLUME parentId %d error %s", FN, snapshots[i].Name, snapshots[i].ParentId, err.Error())
-					parentName = "unknown"
+					zlog.Error().Msgf("%s - GetVolume - snapshot %s VOLUME parentId %d error %s", functionName, snapshot.Name, snapshot.ParentID, err.Error())
+					parentName = UNKNOWN
 				} else {
-					parentName = strconv.Itoa(snapshots[i].ParentId)
+					parentName = strconv.Itoa(snapshot.ParentID)
 				}
 			case "FILESYSTEM":
-				_, err := clientsvc.Iboxapi.GetFileSystemByID(snapshots[i].ParentId)
+				_, err := clientService.IboxAPI.GetFileSystemByID(snapshot.ParentID)
 				if err != nil {
-					zlog.Error().Msgf("%s - GetFileSystemByID - snapshot %s FILESYSTEM parentId %d error %s", FN, snapshots[i].Name, snapshots[i].ParentId, err.Error())
-					parentName = "unknown"
+					zlog.Error().Msgf("%s - GetFileSystemByID - snapshot %s FILESYSTEM parentId %d error %s", functionName, snapshot.Name, snapshot.ParentID, err.Error())
+					parentName = UNKNOWN
 				} else {
-					parentName = strconv.Itoa(snapshots[i].ParentId)
+					parentName = strconv.Itoa(snapshot.ParentID)
 				}
 			default:
-				zlog.Error().Msgf("%s - snapshot %s unknown dataset type %s parentId %d ", FN, snapshots[i].Name, snapshots[i].DatasetType, snapshots[i].ParentId)
-				parentName = "unknown"
+				zlog.Error().Msgf("%s - snapshot %s unknown dataset type %s parentId %d ", functionName, snapshot.Name, snapshot.DatasetType, snapshot.ParentID)
+				parentName = UNKNOWN
 			}
 
-			snapshot := &csi.Snapshot{
-				SnapshotId:     snapshots[i].Name,
+			newSnapshot := &csi.Snapshot{
+				SnapshotId:     snapshot.Name,
 				SourceVolumeId: parentName,
-				SizeBytes:      snapshots[i].Size,
-				CreationTime:   t,
-				ReadyToUse:     true, //always true on the ibox according to Jason.
+				SizeBytes:      snapshot.Size,
+				CreationTime:   timestampValue,
+				ReadyToUse:     true, // always true on the ibox according to Jason.
 			}
 			entry := csi.ListSnapshotsResponse_Entry{
-				Snapshot: snapshot,
+				Snapshot: newSnapshot,
 			}
 
 			zlog.Trace().Msgf("SourceVolumeId = %s SnapshotId = %s", req.SourceVolumeId, req.SnapshotId)
@@ -859,32 +854,31 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			if req.SourceVolumeId != "" {
 				volProto, err := storagecommon.ValidateVolumeID(req.SourceVolumeId)
 				if err != nil {
-					e := fmt.Errorf("%s - ValidateVolumeID - error validating sourceVolumeId %s %s", FN, req.SourceVolumeId, err.Error())
+					e := fmt.Errorf("%s - ValidateVolumeID - error validating sourceVolumeId %s %s", functionName, req.SourceVolumeId, err.Error())
 					zlog.Error().Msg(e.Error())
 					return nil, status.Error(codes.InvalidArgument, e.Error())
 				} else {
 					zlog.Trace().Msgf("comparing %d to %s %+v\n", volProto.VolumeID, entry.Snapshot.SourceVolumeId, entry.Snapshot)
 					if strconv.Itoa(volProto.VolumeID) == entry.Snapshot.SourceVolumeId {
 						zlog.Trace().Msgf("matches!")
-						entry.Snapshot.SourceVolumeId = req.SourceVolumeId //set the SourceVolumeId sent back to the incoming format xxxx$$nfs
+						entry.Snapshot.SourceVolumeId = req.SourceVolumeId // set the SourceVolumeId sent back to the incoming format xxxx$$nfs
 						res.Entries = append(res.Entries, &entry)
 					}
 				}
 			} else if req.SnapshotId != "" {
-				zlog.Trace().Msgf("comparing %d to %d", iValue, snapshots[i].ID)
-				if iValue == snapshots[i].ID {
-					zlog.Trace().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshots[i].ID, snapshots[i].Name)
+				zlog.Trace().Msgf("comparing %d to %d", volumeID, snapshot.ID)
+				if volumeID == snapshot.ID {
+					zlog.Trace().Msgf("req.SnapshotID contains %s found matching snapshot with ID %d name %s\n", req.SnapshotId, snapshot.ID, snapshot.Name)
 					entry.Snapshot.SnapshotId = req.SnapshotId
 					res.Entries = append(res.Entries, &entry)
 				}
 			} else {
 				res.Entries = append(res.Entries, &entry)
 			}
-
 		}
 	}
 
-	zlog.Info().Msgf("%s Finished with returned entries count %d", FN, len(res.Entries))
+	zlog.Info().Msgf("%s Finished with returned entries count %d", functionName, len(res.Entries))
 
 	return res, nil
 }
@@ -900,12 +894,12 @@ func (s *ControllerServer) ControllerGetCapabilities(ctx context.Context, req *c
 }
 
 func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshotResp *csi.CreateSnapshotResponse, err error) {
-	const FN = "CreateSnapshot"
-	zlog.Info().Msgf("%s Started - Snapshot Name: %s source volume ID: %s", FN, req.GetName(), req.GetSourceVolumeId())
+	const functionName = "CreateSnapshot"
+	zlog.Info().Msgf("%s Started - Snapshot Name: %s source volume ID: %s", functionName, req.GetName(), req.GetSourceVolumeId())
 
 	volproto, err := storagecommon.ValidateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID - snapshot Name: %s source volume ID: %s failed to validate storage type %v", FN, req.GetName(), req.GetSourceVolumeId(), err)
+		e := fmt.Errorf("%s - ValidateVolumeID - snapshot Name: %s source volume ID: %s failed to validate storage type %v", functionName, req.GetName(), req.GetSourceVolumeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -915,37 +909,37 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - snapshot name: %s source volume ID: %s failed to get ibox api error: %v", FN, req.GetName(), req.GetSourceVolumeId(), err)
+		e := fmt.Errorf("%s - BuildCommonService - snapshot name: %s source volume ID: %s failed to get ibox api error: %v", functionName, req.GetName(), req.GetSourceVolumeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageController - snapshot name: %s source volume ID: %s error: %s", FN, req.GetName(), req.GetSourceVolumeId(), err.Error())
+		e := fmt.Errorf("%s - NewStorageController - snapshot name: %s source volume ID: %s error: %s", functionName, req.GetName(), req.GetSourceVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sc.CreateSnapshot - snapshot name: %s source volume ID: %s error: %s", FN, req.GetName(), req.GetSourceVolumeId(), err)
+		e := fmt.Errorf("%s - sc.CreateSnapshot - snapshot name: %s source volume ID: %s error: %s", functionName, req.GetName(), req.GetSourceVolumeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	helper.EventAPIClient = comnserv.Api
-	helper.EventIboxAPIClient = comnserv.IboxApi
+	helper.EventAPIClient = comnserv.API
+	helper.EventIboxAPIClient = comnserv.IboxAPI
 	helper.EventCreatedSnapshots++
 
 	return createSnapshotResp, nil
 }
 
 func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
-	const FN = "DeleteSnapshot"
+	const functionName = "DeleteSnapshot"
 	snapshotID := req.GetSnapshotId()
-	zlog.Info().Msgf("%s Start - snapshot ID:  %s", FN, snapshotID)
+	zlog.Info().Msgf("%s Start - snapshot ID:  %s", functionName, snapshotID)
 	volproto, err := storagecommon.ValidateVolumeID(snapshotID)
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID - snapshot ID: %s invalid, error: %v", FN, snapshotID, err)
+		e := fmt.Errorf("%s - ValidateVolumeID - snapshot ID: %s invalid, error: %v", functionName, snapshotID, err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -955,13 +949,13 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	}
 	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - snapshot ID: %s error: %v", FN, req.GetSnapshotId(), err)
+		e := fmt.Errorf("%s - BuildCommonService - snapshot ID: %s error: %v", functionName, req.GetSnapshotId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageController - snapshot ID: %s error %s", FN, req.GetSnapshotId(), err.Error())
+		e := fmt.Errorf("%s - NewStorageController - snapshot ID: %s error %s", functionName, req.GetSnapshotId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -970,23 +964,21 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 	deleteSnapshotResp, err = storageController.DeleteSnapshot(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("%s - sc.DeleteSnapshot - snapshot ID: %s error: %s", FN, req.GetSnapshotId(), err.Error())
+		e := fmt.Errorf("%s - sc.DeleteSnapshot - snapshot ID: %s error: %s", functionName, req.GetSnapshotId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	zlog.Info().Msgf("%s Finished - snapshot ID:  %s", FN, snapshotID)
+	zlog.Info().Msgf("%s Finished - snapshot ID:  %s", functionName, snapshotID)
 	return deleteSnapshotResp, err
-
 }
 
 func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolResp *csi.ControllerExpandVolumeResponse, err error) {
-
-	const FN = "ControllerExpandVolume"
-	zlog.Info().Msgf("%s Started - volume ID: %s", FN, req.GetVolumeId())
+	const functionName = "ControllerExpandVolume"
+	zlog.Info().Msgf("%s Started - volume ID: %s", functionName, req.GetVolumeId())
 
 	err = validateExpandVolumeRequest(req)
 	if err != nil {
-		e := fmt.Errorf("%s - validate - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - validate - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -996,7 +988,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 	volproto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", FN, req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("%s - ValidateVolumeID - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -1010,13 +1002,13 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	comnserv, err := storagecommon.BuildCommonService(configparams, req.GetSecrets(), &volproto)
 	if err != nil {
-		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %v", FN, req.GetVolumeId(), err)
+		e := fmt.Errorf("%s - BuildCommonService - volume ID: %s error: %v", functionName, req.GetVolumeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	storageController, err := storage.NewStorageController(comnserv, capacity, volproto.StorageType, configparams, req.GetSecrets())
 	if err != nil {
-		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", FN, req.GetVolumeId(), err)
+		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", functionName, req.GetVolumeId(), err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -1024,13 +1016,13 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		req.VolumeId = strconv.Itoa(volproto.VolumeID)
 		expandVolResp, err = storageController.ControllerExpandVolume(ctx, req)
 		if err != nil {
-			e := fmt.Errorf("%s - sc.ControllerExpandVolume - volume ID: %s error: %s", FN, req.GetVolumeId(), err)
+			e := fmt.Errorf("%s - sc.ControllerExpandVolume - volume ID: %s error: %s", functionName, req.GetVolumeId(), err)
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
 
-	zlog.Info().Msgf("%s Finished - volume ID: %s", FN, req.GetVolumeId())
+	zlog.Info().Msgf("%s Finished - volume ID: %s", functionName, req.GetVolumeId())
 
 	return expandVolResp, nil
 }
@@ -1065,7 +1057,7 @@ func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 
 func validateCommonStorageClassParameters(comnserv storagecommon.Commonservice, scParameters map[string]string, protocol string) error {
 	poolName := scParameters[common.SC_POOL_NAME]
-	_, err := comnserv.IboxApi.GetPoolByName(poolName)
+	_, err := comnserv.IboxAPI.GetPoolByName(poolName)
 	if err != nil {
 		return err
 	}
@@ -1076,14 +1068,14 @@ func validateCommonStorageClassParameters(comnserv storagecommon.Commonservice, 
 		arrayofNetworkSpaces := strings.Split(networkspace, ",")
 
 		for _, name := range arrayofNetworkSpaces {
-			_, err := comnserv.IboxApi.GetNetworkSpaceByName(name)
+			_, err := comnserv.IboxAPI.GetNetworkSpaceByName(name)
 			if err != nil {
 				zlog.Error().Msgf("network space: %s is not found on the ibox", name)
 				return err
 			}
 		}
-		// validate network protocol / networkspace compatability
-		if err := storagecommon.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.IboxApi); err != nil {
+		// validate network protocol / networkspace compatibility
+		if err := storagecommon.ValidateProtocolToNetworkSpace(protocol, arrayofNetworkSpaces, comnserv.IboxAPI); err != nil {
 			zlog.Err(err)
 			return err
 		}
@@ -1162,44 +1154,44 @@ func validateSecret(functionName, volumeID, secretName, secretNamespace string, 
 // that we might support that being (fc, iscsi, or nvme)
 // auto is not for nfs or nfs_treeq
 func DetermineProtocol() (protocol string, protocolSecret map[string]string, err error) {
-	const FN = "DetermineProtocol"
+	const functionName = "DetermineProtocol"
 	protocolSecret, protocolSecretInUse, err := helper.GetProtocolSecret()
 	if err != nil {
-		return "", protocolSecret, fmt.Errorf("%s error: could not get protocol secret %s", FN, err.Error())
+		return "", protocolSecret, fmt.Errorf("%s error: could not get protocol secret %s", functionName, err.Error())
 	}
 	if !protocolSecretInUse {
-		return "", protocolSecret, fmt.Errorf("%s error: protocol secret not in use", FN)
+		return "", protocolSecret, fmt.Errorf("%s error: protocol secret not in use", functionName)
 	}
 	preferredOrder := []string{common.PROTOCOL_FC, common.PROTOCOL_NVME, common.PROTOCOL_ISCSI}
 	userPreferredOrder := protocolSecret[common.SC_PROTOCOL_SECRET_AUTO_ORDER]
 	if userPreferredOrder != "" {
 		preferredOrder = strings.Split(userPreferredOrder, ",")
-		zlog.Debug().Msgf("%s user preferred auto order %v", FN, preferredOrder)
+		zlog.Debug().Msgf("%s user preferred auto order %v", functionName, preferredOrder)
 	}
 
-	cl, err := clientgo.BuildClient()
+	client, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s  - BuildClient - error: %s", FN, err.Error())
+		e := fmt.Errorf("%s  - BuildClient - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return "", protocolSecret, e
 	}
 
-	ns := os.Getenv("POD_NAMESPACE")
-	zlog.Debug().Msgf("POD_NAMESPACE=%s", ns)
-	if ns == "" {
-		e := fmt.Errorf("%s - env var POD_NAMESPACE was not set, this is a required env var", FN)
+	namespace := os.Getenv("POD_NAMESPACE")
+	zlog.Debug().Msgf("POD_NAMESPACE=%s", namespace)
+	if namespace == "" {
+		e := fmt.Errorf("%s - env var POD_NAMESPACE was not set, this is a required env var", functionName)
 		zlog.Error().Msg(e.Error())
 		return "", protocolSecret, e
 	}
 
-	pods, err := cl.GetRunningDriverNodePods(ns)
+	pods, err := client.GetRunningDriverNodePods(namespace)
 	if err != nil {
-		e := fmt.Errorf("%s - GetRunningDriverNodePods - error: %s", FN, err.Error())
+		e := fmt.Errorf("%s - GetRunningDriverNodePods - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
 		return "", protocolSecret, e
 	}
 
-	zlog.Debug().Msgf("%s found %d driver node pods", FN, len(pods))
+	zlog.Debug().Msgf("%s found %d driver node pods", functionName, len(pods))
 
 	// we only need to test with a single driver node pod since they are required
 	// to be configured the same wrt protocol configurations
@@ -1207,14 +1199,14 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 
 	command := "cat /sys/class/fc_host/ho*/port_state"
 	containerName := "driver"
-	fcOutput, fcStderr, err := cl.ExecCmdInPod(podToTest, ns, command, containerName)
-	zlog.Debug().Msgf("%s fc command stdout [%s] stderr [%s]", FN, fcOutput, fcStderr)
+	fcOutput, fcStderr, err := client.ExecCmdInPod(podToTest, namespace, command, containerName)
+	zlog.Debug().Msgf("%s fc command stdout [%s] stderr [%s]", functionName, fcOutput, fcStderr)
 	var fcEnabled bool
 	if err != nil {
-		zlog.Debug().Msgf("%s fcEnabled set to false due to error %s - stderr %s", FN, err.Error(), fcStderr)
+		zlog.Debug().Msgf("%s fcEnabled set to false due to error %s - stderr %s", functionName, err.Error(), fcStderr)
 	} else {
 		if fcStderr != "" {
-			zlog.Debug().Msgf("%s fcEnabled stderr %s , setting to fcEnabled to false", FN, fcStderr)
+			zlog.Debug().Msgf("%s fcEnabled stderr %s , setting to fcEnabled to false", functionName, fcStderr)
 		} else {
 			fcEnabled = isFC(fcOutput)
 		}
@@ -1222,59 +1214,59 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 
 	var nvmeEnabled bool
 	command = "nvme list"
-	nvmeOutput, nvmeStderr, err := cl.ExecCmdInPod(podToTest, ns, command, containerName)
-	zlog.Debug().Msgf("%s nvme command stdout [%s] stderr [%s]", FN, nvmeOutput, nvmeStderr)
+	nvmeOutput, nvmeStderr, err := client.ExecCmdInPod(podToTest, namespace, command, containerName)
+	zlog.Debug().Msgf("%s nvme command stdout [%s] stderr [%s]", functionName, nvmeOutput, nvmeStderr)
 	if err != nil {
-		zlog.Debug().Msgf("%s nvmeEnabled set to false due to error %s - stderr %s", FN, err.Error(), nvmeStderr)
+		zlog.Debug().Msgf("%s nvmeEnabled set to false due to error %s - stderr %s", functionName, err.Error(), nvmeStderr)
 	} else {
 		if nvmeStderr != "" {
-			zlog.Debug().Msgf("%s nvmeEnabled stderr %s , setting to nvmeEnabled to false", FN, nvmeStderr)
+			zlog.Debug().Msgf("%s nvmeEnabled stderr %s , setting to nvmeEnabled to false", functionName, nvmeStderr)
 		} else {
 			nvmeEnabled = isNVME(nvmeOutput)
 		}
 	}
 
-	//command = "cat /etc/iscsi/initiatorname.iscsi"
+	// command = "cat /etc/iscsi/initiatorname.iscsi"
 	command = "pgrep iscsid"
 	var iscsiEnabled bool
-	iscsiOutput, iscsiStderr, err := cl.ExecCmdInPod(podToTest, ns, command, containerName)
-	zlog.Debug().Msgf("%s iscsi command stdout [%s] stderr [%s]", FN, iscsiOutput, iscsiStderr)
+	iscsiOutput, iscsiStderr, err := client.ExecCmdInPod(podToTest, namespace, command, containerName)
+	zlog.Debug().Msgf("%s iscsi command stdout [%s] stderr [%s]", functionName, iscsiOutput, iscsiStderr)
 	if err != nil {
-		zlog.Debug().Msgf("%s iscsiEnabled set to false due to error %s - stderr %s", FN, err.Error(), iscsiStderr)
+		zlog.Debug().Msgf("%s iscsiEnabled set to false due to error %s - stderr %s", functionName, err.Error(), iscsiStderr)
 	} else {
 		if iscsiStderr != "" {
-			zlog.Debug().Msgf("%s iscsiEnabled stderr %s , setting to iscsiEnabled to false", FN, iscsiStderr)
+			zlog.Debug().Msgf("%s iscsiEnabled stderr %s , setting to iscsiEnabled to false", functionName, iscsiStderr)
 		} else {
 			iscsiEnabled = isISCSI(iscsiOutput)
 		}
 	}
-	zlog.Debug().Msgf("%s protocol test results [%s=%t] [%s=%t] [%s=%t]", FN, common.PROTOCOL_FC, fcEnabled, common.PROTOCOL_NVME, nvmeEnabled, common.PROTOCOL_ISCSI, iscsiEnabled)
+	zlog.Debug().Msgf("%s protocol test results [%s=%t] [%s=%t] [%s=%t]", functionName, common.PROTOCOL_FC, fcEnabled, common.PROTOCOL_NVME, nvmeEnabled, common.PROTOCOL_ISCSI, iscsiEnabled)
 
-	for _, v := range preferredOrder {
-		switch v {
+	for _, orderValue := range preferredOrder {
+		switch orderValue {
 		case common.PROTOCOL_FC:
 			if fcEnabled {
-				return v, protocolSecret, nil
+				return orderValue, protocolSecret, nil
 			}
 		case common.PROTOCOL_ISCSI:
 			if iscsiEnabled {
-				return v, protocolSecret, nil
+				return orderValue, protocolSecret, nil
 			}
 		case common.PROTOCOL_NVME:
 			if nvmeEnabled {
-				return v, protocolSecret, nil
+				return orderValue, protocolSecret, nil
 			}
 		}
 	}
 
 	// out of ideas? pick FC and cross fingers
-	zlog.Warn().Msgf("%s could not determine protocol based on heuristics, defaulting to FC", FN)
+	zlog.Warn().Msgf("%s could not determine protocol based on heuristics, defaulting to FC", functionName)
 	return common.PROTOCOL_FC, protocolSecret, nil
 }
 
 func isFC(output string) bool {
-	//read /sys/class/fc_host/host*/port_state and treat Online as usable
-	//kubectl exec -it infinidat-csi-driver-node-z5hb6 -c driver -- sh -c "cat /sys/class/fc_host/ho*/port_state"
+	// read /sys/class/fc_host/host*/port_state and treat Online as usable
+	// kubectl exec -it infinidat-csi-driver-node-z5hb6 -c driver -- sh -c "cat /sys/class/fc_host/ho*/port_state"
 	// if the word Online is in the output then we assume fc is enabled
 	return strings.Contains(output, "Online")
 }

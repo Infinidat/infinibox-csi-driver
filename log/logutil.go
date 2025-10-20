@@ -38,11 +38,8 @@ var logger zerolog.Logger
 // a readable/parsable output. For good zerolog tutorial
 // see: https://betterstack.com/community/guides/logging/zerolog/
 func Get() zerolog.Logger {
-
 	once.Do(func() {
-
 		zerolog.CallerMarshalFunc = shortFileFormat
-
 		appLogLevel := os.Getenv("APP_LOG_LEVEL")
 		switch appLogLevel {
 		case "quiet":
@@ -95,7 +92,7 @@ func Get() zerolog.Logger {
 		}
 
 		logger = zerolog.New(output).
-			Level(zerolog.Level(logLevel)).
+			Level(logLevel).
 			With().
 			Caller(). // calling file line #
 			Timestamp().
@@ -111,6 +108,7 @@ func shortFileFormat(pc uintptr, file string, line int) string {
 	for i := len(file) - 1; i > 0; i-- {
 		if file[i] == '/' {
 			short = file[i+1:]
+
 			break
 		}
 	}
@@ -122,23 +120,22 @@ func SetupKlog() {
 	klog.InitFlags(nil)
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("stderrthreshold", "WARNING")
-	var verbosity string
 	appLogLevel := os.Getenv("APP_LOG_LEVEL")
+
 	switch appLogLevel {
 	case "quiet":
-		verbosity = "1"
+		_ = flag.Set("v", "1")
 	case "info":
-		verbosity = "2"
+		_ = flag.Set("v", "2")
 	case "extended":
-		verbosity = "3"
+		_ = flag.Set("v", "3")
 	case "debug":
-		verbosity = "4"
+		_ = flag.Set("v", "4")
 	case "trace":
-		verbosity = "5"
+		_ = flag.Set("v", "5")
 	default:
-		verbosity = "2"
+		_ = flag.Set("v", "2")
 	}
-	_ = flag.Set("v", verbosity)
 	flag.Parse()
 }
 

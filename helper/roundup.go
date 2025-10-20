@@ -17,14 +17,13 @@ import "infinibox-csi-driver/common"
 const Bytes1G = 1000000000
 
 func RoundUp(input int64) (output int64) {
-
-	//return the minimum (1G) if input value is less than the min
+	// return the minimum (1G) if input value is less than the min
 	if input < Bytes1G {
 		zlog.Debug().Msgf("number %d less than minimum %d\n", input, Bytes1G)
 		return Bytes1G
 	}
 
-	//return the minimum (1Gi) if input value is less than the min
+	// return the minimum (1Gi) if input value is less than the min
 	if input > Bytes1G && input < common.BytesInOneGibibyte {
 		zlog.Debug().Msgf("number %d less than minimum %d\n", input, common.BytesInOneGibibyte)
 		return common.BytesInOneGibibyte

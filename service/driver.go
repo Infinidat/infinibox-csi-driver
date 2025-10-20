@@ -37,7 +37,7 @@ type Driver struct {
 	mountPermissions uint64
 	workingMountDir  string
 
-	//ids *identityServer
+	// ids *identityServer
 	ns          *NodeServer
 	cscap       []*csi.ControllerServiceCapability
 	nscap       []*csi.NodeServiceCapability
@@ -48,7 +48,7 @@ type Driver struct {
 func NewDriver(options *DriverOptions) *Driver {
 	zlog.Info().Msgf("Driver: %v version: %v", options.DriverName, options.Version)
 
-	n := &Driver{
+	driver := &Driver{
 		name:             options.DriverName,
 		version:          options.Version,
 		nodeID:           options.NodeID,
@@ -57,7 +57,7 @@ func NewDriver(options *DriverOptions) *Driver {
 		workingMountDir:  options.WorkingMountDir,
 	}
 
-	n.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
+	driver.AddControllerServiceCapabilities([]csi.ControllerServiceCapability_RPC_Type{
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 		csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
 		csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
@@ -68,21 +68,21 @@ func NewDriver(options *DriverOptions) *Driver {
 
 		/**
 		currently unimplemented
+		csi.ControllerServiceCapability_RPC_GET_CAPACITY
+		csi.ControllerServiceCapability_RPC_PUBLISH_READONLY
+		csi.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES
+		csi.ControllerServiceCapability_RPC_VOLUME_CONDITION
+		csi.ControllerServiceCapability_RPC_GET_VOLUME
+		csi.ControllerServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER
 		*/
-		//csi.ControllerServiceCapability_RPC_GET_CAPACITY
-		//csi.ControllerServiceCapability_RPC_PUBLISH_READONLY
-		//csi.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES
-		//csi.ControllerServiceCapability_RPC_VOLUME_CONDITION
-		//csi.ControllerServiceCapability_RPC_GET_VOLUME
-		//csi.ControllerServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER
 
 	})
 
-	n.AddGroupControllerServiceCapabilities([]csi.GroupControllerServiceCapability_RPC_Type{
+	driver.AddGroupControllerServiceCapabilities([]csi.GroupControllerServiceCapability_RPC_Type{
 		csi.GroupControllerServiceCapability_RPC_CREATE_DELETE_GET_VOLUME_GROUP_SNAPSHOT,
 	})
 
-	n.AddNodeServiceCapabilities([]csi.NodeServiceCapability_RPC_Type{
+	driver.AddNodeServiceCapabilities([]csi.NodeServiceCapability_RPC_Type{
 		csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
 		csi.NodeServiceCapability_RPC_UNKNOWN,
 		csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
@@ -90,107 +90,106 @@ func NewDriver(options *DriverOptions) *Driver {
 
 		/**
 		currently unimplemented
+		csi.NodeServiceCapability_RPC_VOLUME_MOUNT_GROUP,
+		csi.NodeServiceCapability_RPC_VOLUME_CONDITION
+		csi.NodeServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER
 		*/
-		//csi.NodeServiceCapability_RPC_VOLUME_MOUNT_GROUP,
-		//csi.NodeServiceCapability_RPC_VOLUME_CONDITION
-		//csi.NodeServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER
 	})
-	n.volumeLocks = helper.NewVolumeLocks()
-	return n
+	driver.volumeLocks = helper.NewVolumeLocks()
+	return driver
 }
 
-func NewNodeServer(n *Driver, mounter mount.Interface) *NodeServer {
+func NewNodeServer(driver *Driver, mounter mount.Interface) *NodeServer {
 	return &NodeServer{
-		Driver:  n,
+		Driver:  driver,
 		mounter: mounter,
 	}
 }
 
-func (n *Driver) Run(testMode bool) {
-
+func (driver *Driver) Run(testMode bool) {
 	mounter := mount.New("")
 	if runtime.GOOS == "linux" {
 		// MounterForceUnmounter is only implemented on Linux now
 		mounter = mounter.(mount.MounterForceUnmounter)
 	}
-	n.ns = NewNodeServer(n, mounter)
-	s := NewNonBlockingGRPCServer()
-	s.Start(n.endpoint,
-		NewDefaultIdentityServer(n),
-		NewVolumeGroupServer(n),
-		NewControllerServer(n),
-		n.ns,
+	driver.ns = NewNodeServer(driver, mounter)
+	server := NewNonBlockingGRPCServer()
+	server.Start(driver.endpoint,
+		NewDefaultIdentityServer(driver),
+		NewVolumeGroupServer(driver),
+		NewControllerServer(driver),
+		driver.ns,
 		testMode)
-	s.Wait()
+	server.Wait()
 }
 
-func NewVolumeGroupServer(d *Driver) *VolumeGroupServer {
+func NewVolumeGroupServer(driver *Driver) *VolumeGroupServer {
 	return &VolumeGroupServer{
-		Driver: d,
+		Driver: driver,
 	}
 }
 
-func NewDefaultIdentityServer(d *Driver) *IdentityServer {
+func NewDefaultIdentityServer(driver *Driver) *IdentityServer {
 	return &IdentityServer{
-		Driver: d,
+		Driver: driver,
 	}
 }
 
-func NewControllerServer(d *Driver) *ControllerServer {
+func NewControllerServer(driver *Driver) *ControllerServer {
 	return &ControllerServer{
-		Driver: d,
+		Driver: driver,
 	}
 }
 
-func (n *Driver) AddControllerServiceCapabilities(cl []csi.ControllerServiceCapability_RPC_Type) {
-	var csc []*csi.ControllerServiceCapability
-	for _, c := range cl {
+func (driver *Driver) AddControllerServiceCapabilities(capability []csi.ControllerServiceCapability_RPC_Type) {
+	csc := []*csi.ControllerServiceCapability{}
+	for _, c := range capability {
 		csc = append(csc, NewControllerServiceCapability(c))
 	}
-	n.cscap = csc
+	driver.cscap = csc
 }
 
-func (n *Driver) AddGroupControllerServiceCapabilities(cl []csi.GroupControllerServiceCapability_RPC_Type) {
-	var csc []*csi.GroupControllerServiceCapability
-	for _, c := range cl {
+func (driver *Driver) AddGroupControllerServiceCapabilities(capability []csi.GroupControllerServiceCapability_RPC_Type) {
+	csc := []*csi.GroupControllerServiceCapability{}
+	for _, c := range capability {
 		csc = append(csc, NewGroupControllerServiceCapability(c))
 	}
-	n.groupcap = csc
+	driver.groupcap = csc
 }
 
-func (n *Driver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) {
-	var nsc []*csi.NodeServiceCapability
-	for _, n := range nl {
+func (driver *Driver) AddNodeServiceCapabilities(capability []csi.NodeServiceCapability_RPC_Type) {
+	nsc := []*csi.NodeServiceCapability{}
+	for _, n := range capability {
 		nsc = append(nsc, NewNodeServiceCapability(n))
 	}
-	n.nscap = nsc
+	driver.nscap = nsc
 }
 
-func NewControllerServiceCapability(cap csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
+func NewControllerServiceCapability(capability csi.ControllerServiceCapability_RPC_Type) *csi.ControllerServiceCapability {
 	return &csi.ControllerServiceCapability{
 		Type: &csi.ControllerServiceCapability_Rpc{
 			Rpc: &csi.ControllerServiceCapability_RPC{
-				Type: cap,
+				Type: capability,
 			},
 		},
 	}
 }
 
-func NewGroupControllerServiceCapability(cap csi.GroupControllerServiceCapability_RPC_Type) *csi.GroupControllerServiceCapability {
+func NewGroupControllerServiceCapability(capability csi.GroupControllerServiceCapability_RPC_Type) *csi.GroupControllerServiceCapability {
 	return &csi.GroupControllerServiceCapability{
 		Type: &csi.GroupControllerServiceCapability_Rpc{
 			Rpc: &csi.GroupControllerServiceCapability_RPC{
-				Type: cap,
+				Type: capability,
 			},
 		},
 	}
 }
 
-func NewNodeServiceCapability(cap csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
+func NewNodeServiceCapability(capability csi.NodeServiceCapability_RPC_Type) *csi.NodeServiceCapability {
 	return &csi.NodeServiceCapability{
 		Type: &csi.NodeServiceCapability_Rpc{
 			Rpc: &csi.NodeServiceCapability_RPC{
-				Type: cap,
+				Type: capability,
 			},
 		},
 	}

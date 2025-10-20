@@ -20,7 +20,7 @@ import (
 	"infinibox-csi-driver/common"
 	"infinibox-csi-driver/helper"
 	storagecommon "infinibox-csi-driver/storage/common"
-	tests "infinibox-csi-driver/test_helper"
+	tests "infinibox-csi-driver/testhelper"
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -30,7 +30,7 @@ import (
 
 type ControllerTestSuite struct {
 	suite.Suite
-	api            *api.MockApiService
+	api            *api.MockAPIService
 	accessMock     *helper.MockAccessModesHelper
 	cs             *storagecommon.Commonservice
 	mockController *ControllerMock
@@ -38,11 +38,11 @@ type ControllerTestSuite struct {
 
 func (suite *ControllerTestSuite) SetupTest() {
 	suite.mockController = &ControllerMock{}
-	x := new(api.MockApiService)
+	x := new(api.MockAPIService)
 	suite.api = x
 	suite.accessMock = new(helper.MockAccessModesHelper)
 	suite.cs = &storagecommon.Commonservice{
-		Api:               x,
+		API:               x,
 		AccessModesHelper: suite.accessMock,
 	}
 

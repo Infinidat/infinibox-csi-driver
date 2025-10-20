@@ -106,14 +106,12 @@ var (
 func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 	zlog.Trace().Msgf("system health metrics recording...")
 	go func() {
-
 		for {
 			time.Sleep(cfg.GetDuration(METRIC_IBOX_SYSTEM_METRICS))
 
-			for i := 0; i < len(cfg.Ibox); i++ {
-				ibox := cfg.Ibox[i]
-				zlog.Trace().Msgf("system health metrics: creating collectors for %s...", ibox.IboxHostname)
-				results, err := getResult(ibox)
+			for _, credential := range cfg.Ibox {
+				zlog.Trace().Msgf("system health metrics: creating collectors for %s...", credential.IboxHostname)
+				results, err := getResult(credential)
 				if err != nil {
 					zlog.Err(err)
 					continue
@@ -121,8 +119,8 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 
 				labels := prometheus.Labels{
 					METRIC_IBOX_NAME:     results.Name,
-					METRIC_IBOX_IP:       ibox.IboxIpAddress,
-					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
+					METRIC_IBOX_IP:       credential.IboxIPAddress,
+					METRIC_IBOX_HOSTNAME: credential.IboxHostname,
 				}
 				MetricIboxActiveCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveCacheSsdDevices))
 				MetricIboxActiveDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveDrives))
@@ -130,14 +128,14 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 				MetricIboxActiveEncryptedDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedDrives))
 				MetricIboxBBUAggregateChargePctGauge.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
 
-				for k, v := range results.HealthState.BbuChargeLevel {
-					zlog.Trace().Msgf("bbucharge level k %s v %f", k, v)
+				for index, bbuChargeLevel := range results.HealthState.BbuChargeLevel {
+					zlog.Trace().Msgf("bbucharge level k %s v %f", index, bbuChargeLevel)
 					l := prometheus.Labels{
 						METRIC_IBOX_NAME:      results.Name,
-						METRIC_IBOX_IP:        ibox.IboxIpAddress,
-						METRIC_IBOX_HOSTNAME:  ibox.IboxHostname,
-						METRIC_IBOX_NODE_NAME: k}
-					MetricIboxBBUChargeLevelGauge.With(l).Set(v.(float64))
+						METRIC_IBOX_IP:        credential.IboxIPAddress,
+						METRIC_IBOX_HOSTNAME:  credential.IboxHostname,
+						METRIC_IBOX_NODE_NAME: index}
+					MetricIboxBBUChargeLevelGauge.With(l).Set(bbuChargeLevel.(float64))
 				}
 				MetricIboxBBUProtectedNodesGauge.With(labels).Set(float64(results.HealthState.BbuProtectedNodes))
 				var boolValue int
@@ -155,18 +153,18 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 				MetricIboxMissingDrivesGauge.With(labels).Set(float64(results.HealthState.MissingDrives))
 
 				zlog.Trace().Msgf("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
-				for k, v := range results.HealthState.NodeBbuProtection {
-					zlog.Trace().Msgf("system health: nodebbuprotection k %s v %s", k, v)
-					l := prometheus.Labels{
+				for index, nodeBBUProt := range results.HealthState.NodeBbuProtection {
+					zlog.Trace().Msgf("system health: nodebbuprotection k %s v %s", index, nodeBBUProt)
+					label := prometheus.Labels{
 						METRIC_IBOX_NAME:      results.Name,
-						METRIC_IBOX_IP:        ibox.IboxIpAddress,
-						METRIC_IBOX_HOSTNAME:  ibox.IboxHostname,
-						METRIC_IBOX_NODE_NAME: k}
+						METRIC_IBOX_IP:        credential.IboxIPAddress,
+						METRIC_IBOX_HOSTNAME:  credential.IboxHostname,
+						METRIC_IBOX_NODE_NAME: index}
 					var protectedValue int
-					if v == "protected" {
+					if nodeBBUProt == "protected" {
 						protectedValue = 1
 					}
-					MetricIboxNodeBBUProtectionGauge.With(l).Set(float64(protectedValue))
+					MetricIboxNodeBBUProtectionGauge.With(label).Set(float64(protectedValue))
 				}
 				MetricIboxPhasingOutDrivesGauge.With(labels).Set(float64(results.HealthState.PhasingOutDrives))
 				MetricIboxRaidGroupsPendingRebuild1Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild1))
@@ -184,7 +182,6 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 				MetricIboxRebuild2InProgressGauge.With(labels).Set(float64(boolValue))
 				MetricIboxTestingDrivesGauge.With(labels).Set(float64(results.HealthState.TestingDrives))
 				MetricIboxUnknownDrivesGauge.With(labels).Set(float64(results.HealthState.UnknownDrives))
-
 			}
 		}
 	}()
@@ -371,14 +368,14 @@ func getResult(ibox IboxCredentials) (Result, error) {
 		zlog.Err(err)
 		return Result{}, err
 	}
-	//fmt.Println(string(responseData))
+	// fmt.Println(string(responseData))
 
-	r := SystemStatus{}
-	err = json.Unmarshal(responseData, &r)
+	systemStatus := SystemStatus{}
+	err = json.Unmarshal(responseData, &systemStatus)
 	if err != nil {
 		zlog.Err(err)
 		return Result{}, err
 	}
-	//fmt.Printf("API Result %+v\n", r.Result)
-	return r.Result, nil
+	// fmt.Printf("API Result %+v\n", r.Result)
+	return systemStatus.Result, nil
 }

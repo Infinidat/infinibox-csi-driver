@@ -22,7 +22,6 @@ const (
 )
 
 func GetNFSVersionPort(mountOptions []string) (version, port string) {
-
 	// we will default to nfs v3
 	version = "3"
 	port = NFSv3Port

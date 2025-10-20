@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"infinibox-csi-driver/common"
+	"maps"
 
 	"infinibox-csi-driver/log"
 
@@ -42,11 +43,11 @@ type kubeclient struct {
 	restConfig *rest.Config
 }
 
-var clientapi kubeclient
+var clientAPI kubeclient
 
-func BuildOffClusterClient(kubeConfigPath string) (kc *kubeclient, err error) {
+func BuildOffClusterClient(kubeConfigPath string) (kubeClient *kubeclient, err error) {
 	zlog.Debug().Msgf("BuildOffClusterClient called.")
-	if clientapi.client == nil {
+	if clientAPI.client == nil {
 		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 		if err != nil {
 			return nil, err
@@ -56,15 +57,15 @@ func BuildOffClusterClient(kubeConfigPath string) (kc *kubeclient, err error) {
 			return nil, err
 		}
 
-		clientapi = kubeclient{client: clientset, restConfig: config}
+		clientAPI = kubeclient{client: clientset, restConfig: config}
 	}
-	return &clientapi, err
+	return &clientAPI, err
 }
 
 // BuildClient
-func BuildClient() (kc *kubeclient, err error) {
+func BuildClient() (kubeClient *kubeclient, err error) {
 	zlog.Debug().Msgf("BuildClient called.")
-	if clientapi.client == nil {
+	if clientAPI.client == nil {
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			zlog.Error().Msgf("BuildClient Error while getting cluster config: %s", err)
@@ -76,50 +77,45 @@ func BuildClient() (kc *kubeclient, err error) {
 			zlog.Error().Msgf("BuildClient Error while creating client: %s", err)
 			return nil, err
 		}
-		clientapi = kubeclient{client: clientset, restConfig: config}
+		clientAPI = kubeclient{client: clientset, restConfig: config}
 	}
-	return &clientapi, err
+	return &clientAPI, err
 }
 
-func (kc *kubeclient) GetSecret(secretName, nameSpace string) (map[string]string, error) {
-	zlog.Debug().Msgf("get request for secret with namespace %s and secretname %s", nameSpace, secretName)
+func (kc *kubeclient) GetSecret(secretName, namespace string) (map[string]string, error) {
+	zlog.Debug().Msgf("get request for secret with namespace %s and secretname %s", namespace, secretName)
 	secretMap := make(map[string]string)
-	secret, err := kc.client.CoreV1().Secrets(nameSpace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := kc.client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
-		zlog.Error().Msgf("Error Getting secret with namespace %s and secretname %s Error: %v ", nameSpace, secretName, err)
+		zlog.Error().Msgf("Error Getting secret with namespace %s and secretname %s Error: %v ", namespace, secretName, err)
 		return secretMap, err
 	}
 	for key, value := range secret.Data {
 		secretMap[key] = string(value)
 	}
-	for key, value := range secret.StringData {
-		secretMap[key] = string(value)
-	}
+	maps.Copy(secretMap, secret.StringData)
 	return secretMap, nil
 }
 
-func (kc *kubeclient) GetSecrets(nameSpace string) ([]map[string]string, error) {
-	zlog.Debug().Msgf("get request for secrets with namespace %s", nameSpace)
+func (kc *kubeclient) GetSecrets(namespace string) ([]map[string]string, error) {
+	zlog.Debug().Msgf("get request for secrets with namespace %s", namespace)
 	secretMaps := make([]map[string]string, 0)
 	options := metav1.ListOptions{
 		LabelSelector: "app=infinidat-csi-driver",
 	}
-	secrets, err := kc.client.CoreV1().Secrets(nameSpace).List(context.TODO(), options)
+	secrets, err := kc.client.CoreV1().Secrets(namespace).List(context.TODO(), options)
 	if err != nil {
-		zlog.Error().Msgf("Error Getting secrets with namespace %s Error: %v ", nameSpace, err)
+		zlog.Error().Msgf("Error Getting secrets with namespace %s Error: %v ", namespace, err)
 		return secretMaps, err
 	}
-	zlog.Debug().Msgf("got %d secrets for app=infinidat-csi-driver in namespace %s", len(secrets.Items), nameSpace)
-	for i := 0; i < len(secrets.Items); i++ {
-		m := make(map[string]string)
-		secret := secrets.Items[i]
+	zlog.Debug().Msgf("got %d secrets for app=infinidat-csi-driver in namespace %s", len(secrets.Items), namespace)
+	for _, secret := range secrets.Items {
+		newMap := make(map[string]string)
 		for key, value := range secret.Data {
-			m[key] = string(value)
+			newMap[key] = string(value)
 		}
-		for key, value := range secret.StringData {
-			m[key] = string(value)
-		}
-		secretMaps = append(secretMaps, m)
+		maps.Copy(newMap, secret.StringData)
+		secretMaps = append(secretMaps, newMap)
 	}
 	return secretMaps, nil
 }
@@ -144,13 +140,13 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 	zlog.Trace().Msgf("There are %d persistent volumes in the cluster\n", len(persistentVolumes.Items))
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
-	for _, pv := range persistentVolumes.Items {
-		persistentVolumeName := pv.GetName()
-		provisionedBy := pv.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
+	for _, persistentVolume := range persistentVolumes.Items {
+		persistentVolumeName := persistentVolume.GetName()
+		provisionedBy := persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
 		zlog.Trace().Msgf("pv name: %+v\n", persistentVolumeName)
 		if provisionedBy == common.SERVICE_NAME {
 			zlog.Trace().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
-			infiPersistentVolumeList.Items = append(infiPersistentVolumeList.Items, pv)
+			infiPersistentVolumeList.Items = append(infiPersistentVolumeList.Items, persistentVolume)
 		} else {
 			zlog.Trace().Msgf("pv %s provisioned by foreign CSI driver %s", persistentVolumeName, provisionedBy)
 		}
@@ -164,14 +160,13 @@ func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error
 		zlog.Error().Msg(err.Error())
 		return nil, err
 	}
-	zlog.Debug().Msgf("GetStorageClasses() called")
-	zlog.Debug().Msgf("There are %d storageclasses in the cluster\n", len(storageclasses.Items))
+	zlog.Debug().Msgf("GetStorageClasses - there are %d storageclasses in the cluster", len(storageclasses.Items))
 	for _, sc := range storageclasses.Items {
-		storage_class_name := sc.GetName()
-		zlog.Debug().Msgf("storageclass name: %+v\n", storage_class_name)
+		storageClassName := sc.GetName()
+		zlog.Debug().Msgf("storageclass name: %+v\n", storageClassName)
 
-		pool_name := sc.Parameters["pool_name"]
-		zlog.Debug().Msgf("pool name: %s\n", pool_name)
+		poolName := sc.Parameters["pool_name"]
+		zlog.Debug().Msgf("pool name: %s\n", poolName)
 	}
 	return storageclasses, nil
 }
@@ -191,7 +186,7 @@ func (kc *kubeclient) GetPV(name string) (pv *v1.PersistentVolume, err error) {
 	return pv, nil
 }
 
-func (kc *kubeclient) GetPVByVolumeID(volumeID int, protocol string) (pv *v1.PersistentVolume, err error) {
+func (kc *kubeclient) GetPVByVolumeID(volumeID int, protocol string) (*v1.PersistentVolume, error) {
 	volumeHandle := fmt.Sprintf("%d$$%s", volumeID, protocol)
 	pvList, err := kc.client.CoreV1().PersistentVolumes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -236,7 +231,8 @@ func (kc *kubeclient) GetPVC(namespace, name string) (pvc *v1.PersistentVolumeCl
 func (kc *kubeclient) GetPVCAnnotations(pvcName, pvcNamespace string) (annotations map[string]string, err error) {
 	zlog.Trace().Msgf("GetPVCAnnotations called with pvcName %s namespace %s", pvcName, pvcNamespace)
 
-	pvc, err := kc.GetPVC(pvcNamespace, pvcName)
+	var pvc *v1.PersistentVolumeClaim
+	pvc, err = kc.GetPVC(pvcNamespace, pvcName)
 	if err != nil {
 		zlog.Error().Msgf("error getting PVC %s", err.Error())
 		return annotations, err
@@ -269,8 +265,7 @@ func (kc *kubeclient) GetRunningDriverNodePods(namespace string) (pods []v1.Pod,
 }
 
 // ExecCmdInPod - exec command on specific pod and wait the command's output.
-func (kc *kubeclient) ExecCmdInPod(podName string, nameSpace string, command string, containerName string) (string, string, error) {
-
+func (kc *kubeclient) ExecCmdInPod(podName, nameSpace, command, containerName string) (string, string, error) {
 	stdOut := &bytes.Buffer{}
 	stdErr := &bytes.Buffer{}
 
@@ -298,7 +293,7 @@ func (kc *kubeclient) ExecCmdInPod(podName string, nameSpace string, command str
 		scheme.ParameterCodec,
 	)
 
-	//fmt.Printf("execCmdInPod - Running command: %s\n", command)
+	// fmt.Printf("execCmdInPod - Running command: %s\n", command)
 
 	exec, err := remotecommand.NewSPDYExecutor(kc.restConfig, "POST", req.URL())
 	if err != nil {

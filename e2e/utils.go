@@ -80,25 +80,25 @@ type PVCAnnotations struct {
 }
 
 func GetKubeClient(testConfig *TestConfig, kubeConfigPath string) error {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return err
 	}
-	testConfig.ClientSet, err = kubernetes.NewForConfig(config)
+	testConfig.ClientSet, err = kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return err
 	}
-	testConfig.DynamicClient, err = dynamic.NewForConfig(config)
-	if err != nil {
-		return err
-	}
-
-	testConfig.SnapshotClient, err = snapshotv6.NewForConfig(config)
+	testConfig.DynamicClient, err = dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return err
 	}
 
-	testConfig.GroupSnapshotClient, err = groupsnapshotv1beta1.NewForConfig(config)
+	testConfig.SnapshotClient, err = snapshotv6.NewForConfig(restConfig)
+	if err != nil {
+		return err
+	}
+
+	testConfig.GroupSnapshotClient, err = groupsnapshotv1beta1.NewForConfig(restConfig)
 	if err != nil {
 		return err
 	}
@@ -107,27 +107,27 @@ func GetKubeClient(testConfig *TestConfig, kubeConfigPath string) error {
 }
 
 func GetRestConfig(kubeConfigPath string) *rest.Config {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	if err != nil {
 		return nil
 	}
-	return config
+	return restConfig
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyz")
 
 func RandSeq(n int) string {
-	//rand.Seed(time.Now().UnixNano()) - not needed as of go 1.20 - automatically seeded
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letters[r.Intn(len(letters))]
+	// rand.Seed(time.Now().UnixNano()) - not needed as of go 1.20 - automatically seeded
+	randomValue := rand.New(rand.NewSource(time.Now().UnixNano()))
+	runeArray := make([]rune, n)
+	for i := range runeArray {
+		runeArray[i] = letters[randomValue.Intn(len(letters))]
 	}
-	return string(b)
+	return string(runeArray)
 }
 
 func DeleteStorageClass(ctx context.Context, scName string, clientSet *kubernetes.Clientset) (err error) {
-	err = clientSet.StorageV1().StorageClasses().Delete(context.TODO(), scName, metav1.DeleteOptions{})
+	err = clientSet.StorageV1().StorageClasses().Delete(ctx, scName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -135,15 +135,15 @@ func DeleteStorageClass(ctx context.Context, scName string, clientSet *kubernete
 }
 
 func DeleteNamespace(ctx context.Context, nsName string, clientSet *kubernetes.Clientset) (err error) {
-	err = clientSet.CoreV1().Namespaces().Delete(context.TODO(), nsName, metav1.DeleteOptions{})
+	err = clientSet.CoreV1().Namespaces().Delete(ctx, nsName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func GetVolumeSnapshot(ctx context.Context, ns string, snapshotName string, snapshotClient *snapshotv6.Clientset) error {
-	_, err := snapshotClient.SnapshotV1().VolumeSnapshots(ns).Get(context.TODO(), snapshotName, metav1.GetOptions{})
+func GetVolumeSnapshot(ctx context.Context, namespace string, snapshotName string, snapshotClient *snapshotv6.Clientset) error {
+	_, err := snapshotClient.SnapshotV1().VolumeSnapshots(namespace).Get(ctx, snapshotName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -158,16 +158,16 @@ func DeleteVolumeSnapshotClass(ctx context.Context, snapshotClassName string, sn
 	return nil
 }
 
-func DeleteVolumeSnapshot(ctx context.Context, ns string, snapshotName string, snapshotClient *snapshotv6.Clientset) error {
-	err := snapshotClient.SnapshotV1().VolumeSnapshots(ns).Delete(ctx, snapshotName, metav1.DeleteOptions{})
+func DeleteVolumeSnapshot(ctx context.Context, namespace string, snapshotName string, snapshotClient *snapshotv6.Clientset) error {
+	err := snapshotClient.SnapshotV1().VolumeSnapshots(namespace).Delete(ctx, snapshotName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func DeletePVC(ctx context.Context, ns string, pvcName string, clientSet *kubernetes.Clientset) (err error) {
-	err = clientSet.CoreV1().PersistentVolumeClaims(ns).Delete(ctx, pvcName, metav1.DeleteOptions{})
+func DeletePVC(ctx context.Context, namespace string, pvcName string, clientSet *kubernetes.Clientset) (err error) {
+	err = clientSet.CoreV1().PersistentVolumeClaims(namespace).Delete(ctx, pvcName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -181,12 +181,12 @@ func DeletePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientse
 	return nil
 }
 
-func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubernetes.Clientset) (err error) {
+func DeletePod(ctx context.Context, namespace string, podName string, clientSet *kubernetes.Clientset) (err error) {
 	var sec int64
-	opts := metav1.DeleteOptions{
+	deleteOptions := metav1.DeleteOptions{
 		GracePeriodSeconds: &sec,
 	}
-	err = clientSet.CoreV1().Pods(ns).Delete(ctx, podName, opts)
+	err = clientSet.CoreV1().Pods(namespace).Delete(ctx, podName, deleteOptions)
 	if err != nil {
 		return err
 	}
@@ -194,40 +194,36 @@ func DeletePod(ctx context.Context, ns string, podName string, clientSet *kubern
 }
 
 func UpdatePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientset) error {
-
-	pv, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
+	persistentVolume, err := clientSet.CoreV1().PersistentVolumes().Get(ctx, pvName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	pv.Spec.ClaimRef = nil
-	pv.Spec.AccessModes = make([]corev1.PersistentVolumeAccessMode, 1)
-	pv.Spec.AccessModes[0] = corev1.ReadOnlyMany
+	persistentVolume.Spec.ClaimRef = nil
+	persistentVolume.Spec.AccessModes = make([]corev1.PersistentVolumeAccessMode, 1)
+	persistentVolume.Spec.AccessModes[0] = corev1.ReadOnlyMany
 
-	_, err = clientSet.CoreV1().PersistentVolumes().Update(ctx, pv, metav1.UpdateOptions{})
+	_, err = clientSet.CoreV1().PersistentVolumes().Update(ctx, persistentVolume, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-//***************** Storage Class ***************** //
-
 func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
-
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	sc := &storagev1.StorageClass{}
+	storageClass := &storagev1.StorageClass{}
 
-	err = yaml.Unmarshal(fileContent, sc)
+	err = yaml.Unmarshal(fileContent, storageClass)
 	if err != nil {
 		return err
 	}
 
 	if testConfig.NFSPermissions != "" {
-		sc.Parameters[common.SC_NFS_EXPORT_PERMISSIONS] = testConfig.NFSPermissions
+		storageClass.Parameters[common.SC_NFS_EXPORT_PERMISSIONS] = testConfig.NFSPermissions
 	}
 	poolToUse := os.Getenv(ENV_POOL)
 	if poolToUse == "" {
@@ -241,51 +237,51 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	if secretToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_IBOX_SECRET)
 	}
-	sc.Name = testConfig.TestNames.SCName
-	sc.Parameters[common.SC_POOL_NAME] = poolToUse
+	storageClass.Name = testConfig.TestNames.SCName
+	storageClass.Parameters[common.SC_POOL_NAME] = poolToUse
 	if testConfig.Protocol != common.PROTOCOL_FC {
-		sc.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
+		storageClass.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
 	}
 	if testConfig.FSType != "" {
-		sc.Parameters[common.SC_FSTYPE] = testConfig.FSType
+		storageClass.Parameters[common.SC_FSTYPE] = testConfig.FSType
 	}
-	sc.Parameters[common.SC_PROVISIONER_SECRET_NAME] = secretToUse
-	sc.Parameters[common.SC_CONTROLLER_PUBLISH_SECRET_NAME] = secretToUse
-	sc.Parameters[common.SC_NODE_STAGE_SECRET_NAME] = secretToUse
-	sc.Parameters[common.SC_NODE_PUBLISH_SECRET_NAME] = secretToUse
-	sc.Parameters[common.SC_CONTROLLER_EXPAND_SECRET_NAME] = secretToUse
-	sc.Parameters[common.SC_NODE_EXPAND_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.SC_PROVISIONER_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.SC_CONTROLLER_PUBLISH_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.SC_NODE_STAGE_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.SC_NODE_PUBLISH_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.SC_CONTROLLER_EXPAND_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.SC_NODE_EXPAND_SECRET_NAME] = secretToUse
 	if testConfig.UseFsGroup {
-		delete(sc.Parameters, common.SC_UID)
-		delete(sc.Parameters, common.SC_GID)
-		delete(sc.Parameters, common.SC_UNIX_PERMISSIONS)
+		delete(storageClass.Parameters, common.SC_UID)
+		delete(storageClass.Parameters, common.SC_GID)
+		delete(storageClass.Parameters, common.SC_UNIX_PERMISSIONS)
 	}
 
-	sc.Parameters[common.SC_SNAPDIR_VISIBLE] = strconv.FormatBool(testConfig.UseSnapdirVisible)
+	storageClass.Parameters[common.SC_SNAPDIR_VISIBLE] = strconv.FormatBool(testConfig.UseSnapdirVisible)
 
 	if testConfig.UseRetainStorageClass {
 		rp := corev1.PersistentVolumeReclaimRetain
-		sc.ReclaimPolicy = &rp
+		storageClass.ReclaimPolicy = &rp
 	}
 
 	createOptions := metav1.CreateOptions{}
 
 	allowExpand := true
-	sc.AllowVolumeExpansion = &allowExpand
+	storageClass.AllowVolumeExpansion = &allowExpand
 
 	protocol := os.Getenv(ENV_PROTOCOL)
 
 	nfsV4 := os.Getenv(ENV_USE_NFS_V4)
 	if nfsV4 != "" {
 		if nfsV4 == "true" && protocol == common.PROTOCOL_NFS {
-			sc.MountOptions = append(sc.MountOptions, "nfsvers=4.1")
-			sc.MountOptions = append(sc.MountOptions, "port=12049")
-			sc.MountOptions = append(sc.MountOptions, "rsize=262144")
-			sc.MountOptions = append(sc.MountOptions, "wsize=262144")
+			storageClass.MountOptions = append(storageClass.MountOptions, "nfsvers=4.1")
+			storageClass.MountOptions = append(storageClass.MountOptions, "port=12049")
+			storageClass.MountOptions = append(storageClass.MountOptions, "rsize=262144")
+			storageClass.MountOptions = append(storageClass.MountOptions, "wsize=262144")
 		}
 	}
 
-	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(context.TODO(), sc, createOptions)
+	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(context.TODO(), storageClass, createOptions)
 	if err != nil {
 		return err
 	}
@@ -294,13 +290,13 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 }
 
 func CreatePVC(config *TestConfig) (err error) {
-	rList := make(map[corev1.ResourceName]resource.Quantity)
-	rList[corev1.ResourceStorage], err = resource.ParseQuantity("1Gi")
+	resourceList := make(map[corev1.ResourceName]resource.Quantity)
+	resourceList[corev1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
 		return err
 	}
 	requirements := corev1.VolumeResourceRequirements{
-		Requests: rList,
+		Requests: resourceList,
 	}
 
 	accessModes := []corev1.PersistentVolumeAccessMode{config.AccessMode}
@@ -347,28 +343,28 @@ func CreatePVC(config *TestConfig) (err error) {
 func CreateNamespace(ctx context.Context, uniqueName string, clientset *kubernetes.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
 
-	m := metav1.ObjectMeta{
+	objectMeta := metav1.ObjectMeta{
 		Name: uniqueName,
 		Labels: map[string]string{
 			"pod-security.kubernetes.io/enforce": "privileged",
 		},
 	}
-	ns := &corev1.Namespace{
-		ObjectMeta: m,
+	namespace := &corev1.Namespace{
+		ObjectMeta: objectMeta,
 	}
-	_, err = clientset.CoreV1().Namespaces().Create(ctx, ns, createOptions)
+	_, err = clientset.CoreV1().Namespaces().Create(ctx, namespace, createOptions)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
-	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
+func WaitForPod(t *testing.T, podName string, namespace string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
-		t.Logf("waiting for infinidat csi test pod to show up in namespace %s", ns)
-		p, err := clientset.CoreV1().Pods(ns).Get(context.TODO(), podName, getOptions)
+		t.Logf("waiting for infinidat csi test pod to show up in namespace %s", namespace)
+		pod, err := clientset.CoreV1().Pods(namespace).Get(t.Context(), podName, getOptions)
 		if err != nil && apierrors.IsNotFound(err) {
 			t.Logf("pod %s pod not found!\n", podName)
 			return false, nil
@@ -377,8 +373,8 @@ func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.C
 			return false, err
 		}
 
-		if p != nil {
-			if kubeapi.IsPodReady(p) {
+		if pod != nil {
+			if kubeapi.IsPodReady(pod) {
 				t.Logf("✓ pod %s is created and ready\n", podName)
 				return true, nil
 			}
@@ -391,14 +387,14 @@ func WaitForPod(t *testing.T, podName string, ns string, clientset *kubernetes.C
 	return err
 }
 
-func WaitForSnapshot(t *testing.T, snapshotName string, ns string, clientset *snapshotv6.Clientset) error {
+func WaitForSnapshot(t *testing.T, snapshotName string, namespace string, clientset *snapshotv6.Clientset) error {
 	pollInterval := 5 * time.Second
 	pollDuration := 2 * time.Minute
-	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
-		t.Logf("waiting for volumesnapshot to show up in namespace %s", ns)
-		p, err := clientset.SnapshotV1().VolumeSnapshots(ns).Get(context.TODO(), snapshotName, getOptions)
+		t.Logf("waiting for volumesnapshot to show up in namespace %s", namespace)
+		volumeSnapshot, err := clientset.SnapshotV1().VolumeSnapshots(namespace).Get(t.Context(), snapshotName, getOptions)
 		if err != nil && apierrors.IsNotFound(err) {
 			t.Logf("volumesnapshot %s not found!\n", snapshotName)
 			return false, nil
@@ -407,8 +403,8 @@ func WaitForSnapshot(t *testing.T, snapshotName string, ns string, clientset *sn
 			return false, err
 		}
 
-		if p != nil {
-			if *p.Status.ReadyToUse {
+		if volumeSnapshot != nil {
+			if *volumeSnapshot.Status.ReadyToUse {
 				t.Logf("✓ volumesnapshot %s is created and ready\n", snapshotName)
 				return true, nil
 			}
@@ -422,7 +418,6 @@ func WaitForSnapshot(t *testing.T, snapshotName string, ns string, clientset *sn
 }
 
 func GetFlags(t *testing.T) {
-
 	flag.Parse()
 
 	if *KubeConfigPath == "" {
@@ -452,27 +447,27 @@ func GetFlags(t *testing.T) {
 	}
 	t.Logf("%s was found\n", VolumeSnapshotClassPath)
 
-	x := os.Getenv(ENV_NAMESPACE)
-	if x == "" {
+	namespace := os.Getenv(ENV_NAMESPACE)
+	if namespace == "" {
 		t.Logf("%s env var not set, using flag value %s", ENV_NAMESPACE, *OperatorNamespace)
 	} else {
-		t.Logf("%s  env var set, using value %s", ENV_NAMESPACE, x)
-		*OperatorNamespace = x
+		t.Logf("%s  env var set, using value %s", ENV_NAMESPACE, namespace)
+		*OperatorNamespace = namespace
 	}
-	y := os.Getenv(ENV_CLEANUP)
-	if y == "" {
+	cleanup := os.Getenv(ENV_CLEANUP)
+	if cleanup == "" {
 		t.Logf("%s env var not set, using flag value %t", ENV_CLEANUP, *CleanUp)
 	} else {
-		t.Logf("%s env var set, using value %s", ENV_CLEANUP, y)
+		t.Logf("%s env var set, using value %s", ENV_CLEANUP, cleanup)
 		var err error
-		*CleanUp, err = strconv.ParseBool(y)
+		*CleanUp, err = strconv.ParseBool(cleanup)
 		if err != nil {
 			t.Fatalf("CLEANUP env var not valid %s\n", err.Error())
 		}
 	}
 }
 
-func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
+func CreatePod(testConfig *TestConfig, namespace string, podName string) (err error) {
 	pvcName := fmt.Sprintf(PVC_NAME, testConfig.Protocol)
 	if testConfig.TestNames.PVCName != "" {
 		pvcName = testConfig.TestNames.PVCName
@@ -480,17 +475,14 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 	createOptions := metav1.CreateOptions{}
 	podFSGroup := int64(POD_FS_GROUP)
 
-	var m metav1.ObjectMeta
+	var objectMeta metav1.ObjectMeta
 
 	if testConfig.UseAntiAffinity { // if this pod checks affinity, don't use a label
-
-		m = metav1.ObjectMeta{
+		objectMeta = metav1.ObjectMeta{
 			Name: podName,
 		}
-
 	} else {
-
-		m = metav1.ObjectMeta{
+		objectMeta = metav1.ObjectMeta{
 			Name: podName,
 			Labels: map[string]string{ // used for multi-pod antiaffinity test
 				"security": "s1",
@@ -593,12 +585,10 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 			},
 		},
 	}
-
 	// determine which affinity for pod here, so correct one is assigned below.
-
 	if testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
 		pod = corev1.Pod{
-			ObjectMeta: m,
+			ObjectMeta: objectMeta,
 			Spec: corev1.PodSpec{
 				ImagePullSecrets: []corev1.LocalObjectReference{
 					{
@@ -614,11 +604,9 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				},
 			},
 		}
-
 	} else if testConfig.UseFsGroup && testConfig.UseAntiAffinity {
-
 		pod = corev1.Pod{
-			ObjectMeta: m,
+			ObjectMeta: objectMeta,
 			Spec: corev1.PodSpec{
 				Affinity: &podAntiAffinity,
 				ImagePullSecrets: []corev1.LocalObjectReference{
@@ -635,10 +623,9 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				},
 			},
 		}
-
 	} else if !testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
 		pod = corev1.Pod{
-			ObjectMeta: m,
+			ObjectMeta: objectMeta,
 			Spec: corev1.PodSpec{
 				ImagePullSecrets: []corev1.LocalObjectReference{
 					{
@@ -649,10 +636,9 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				Volumes:    []corev1.Volume{volume},
 			},
 		}
-
 	} else if !testConfig.UseFsGroup && testConfig.UseAntiAffinity {
 		pod = corev1.Pod{
-			ObjectMeta: m,
+			ObjectMeta: objectMeta,
 			Spec: corev1.PodSpec{
 				Affinity: &podAntiAffinity,
 				ImagePullSecrets: []corev1.LocalObjectReference{
@@ -664,25 +650,23 @@ func CreatePod(testConfig *TestConfig, ns string, podName string) (err error) {
 				Volumes:    []corev1.Volume{volume},
 			},
 		}
-
 	}
-
-	_, err = testConfig.ClientSet.CoreV1().Pods(ns).Create(context.TODO(), &pod, createOptions)
+	_, err = testConfig.ClientSet.CoreV1().Pods(namespace).Create(context.TODO(), &pod, createOptions)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateSnapshot(pvcName string, vscName string, ns string, clientSet *snapshotv6.Clientset) (err error) {
+func CreateSnapshot(pvcName string, vscName string, namespace string, clientset *snapshotv6.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
 
-	m := metav1.ObjectMeta{
+	objectMeta := metav1.ObjectMeta{
 		Name:      SNAPSHOT_NAME,
-		Namespace: ns,
+		Namespace: namespace,
 	}
 	snapshot := snapshotapi.VolumeSnapshot{
-		ObjectMeta: m,
+		ObjectMeta: objectMeta,
 		Spec: snapshotapi.VolumeSnapshotSpec{
 			VolumeSnapshotClassName: &vscName,
 			Source: snapshotapi.VolumeSnapshotSource{
@@ -690,7 +674,7 @@ func CreateSnapshot(pvcName string, vscName string, ns string, clientSet *snapsh
 			},
 		},
 	}
-	_, err = clientSet.SnapshotV1().VolumeSnapshots(ns).Create(context.TODO(), &snapshot, createOptions)
+	_, err = clientset.SnapshotV1().VolumeSnapshots(namespace).Create(context.TODO(), &snapshot, createOptions)
 	if err != nil {
 		fmt.Printf("error creating snapshot %s", err.Error())
 		return err
@@ -698,53 +682,49 @@ func CreateSnapshot(pvcName string, vscName string, ns string, clientSet *snapsh
 	return nil
 }
 
-func CreateImagePullSecret(t *testing.T, ns string, clientset *kubernetes.Clientset) error {
-	result, err := clientset.CoreV1().Secrets(*OperatorNamespace).Get(context.TODO(), IMAGE_PULL_SECRET, metav1.GetOptions{})
+func CreateImagePullSecret(t *testing.T, namespace string, clientset *kubernetes.Clientset) error {
+	result, err := clientset.CoreV1().Secrets(*OperatorNamespace).Get(t.Context(), IMAGE_PULL_SECRET, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			t.Logf("image pull secret %s not found in operator namespace %s\n", IMAGE_PULL_SECRET, *OperatorNamespace)
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 
 	t.Logf("found image pull secret %s in operator namespace %s\n", IMAGE_PULL_SECRET, "infinidat-csi")
 
-	result.Namespace = ns
+	result.Namespace = namespace
 	result.ResourceVersion = ""
 
-	_, err = clientset.CoreV1().Secrets(ns).Get(context.TODO(), IMAGE_PULL_SECRET, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(namespace).Get(t.Context(), IMAGE_PULL_SECRET, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			t.Logf("image pull secret %s not found in operator namespace %s\n", IMAGE_PULL_SECRET, ns)
+			t.Logf("image pull secret %s not found in operator namespace %s\n", IMAGE_PULL_SECRET, namespace)
 			createOptions := metav1.CreateOptions{}
 
-			_, err = clientset.CoreV1().Secrets(ns).Create(context.TODO(), result, createOptions)
+			_, err = clientset.CoreV1().Secrets(namespace).Create(t.Context(), result, createOptions)
 			if err != nil {
 				return err
 			}
 
-			t.Logf("imagepullsecret %s created in ns %s\n", IMAGE_PULL_SECRET, ns)
+			t.Logf("imagepullsecret %s created in namespace %s\n", IMAGE_PULL_SECRET, namespace)
 			return nil
 		} else {
 			return err
 		}
 	}
 
-	t.Logf("image pull secret %s found in operator namespace %s\n", IMAGE_PULL_SECRET, ns)
+	t.Logf("image pull secret %s found in operator namespace %s\n", IMAGE_PULL_SECRET, namespace)
 
 	return nil
 }
 
 func Setup(testConfig *TestConfig) {
-
 	testConfig.Testt.Log("SETUP STARTS")
 	testConfig.Testt.Log(GetEnvVars())
 
-	var err error
-
-	err = ValidateEnv(testConfig)
+	err := ValidateEnv(testConfig)
 	if err != nil {
 		testConfig.Testt.Fatalf("error validating E2E env vars %s\n", err.Error())
 	}
@@ -843,17 +823,16 @@ func Setup(testConfig *TestConfig) {
 	}
 
 	// get node name that pod is running on
-	p, err := testConfig.ClientSet.CoreV1().Pods(testConfig.TestNames.NSName).Get(context.TODO(), POD_NAME, metav1.GetOptions{})
+	pod, err := testConfig.ClientSet.CoreV1().Pods(testConfig.TestNames.NSName).Get(context.TODO(), POD_NAME, metav1.GetOptions{})
 	if err != nil {
 		testConfig.Testt.Fatalf("error getting pod for nodeName %s\n", err.Error())
 	}
-	testConfig.NodeName = p.Spec.NodeName
-	testConfig.Testt.Logf("running on node %s\n", p.Spec.NodeName)
+	testConfig.NodeName = pod.Spec.NodeName
+	testConfig.Testt.Logf("running on node %s\n", pod.Spec.NodeName)
 	testConfig.Testt.Log("SETUP ENDS")
 }
 
 func TearDown(testConfig *TestConfig) {
-
 	testConfig.Testt.Log("TEARDOWN STARTS")
 	ctx := context.Background()
 
@@ -897,14 +876,14 @@ func TearDown(testConfig *TestConfig) {
 	testConfig.Testt.Log("TEARDOWN ENDS")
 }
 
-func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset *kubernetes.Clientset) error {
+func WaitForDeployment(t *testing.T, deploymentName string, namespace string, clientset *kubernetes.Clientset) error {
 	pollInterval := 5 * time.Second
 	pollDuration := 4 * time.Minute
-	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
-		t.Logf("waiting for deployment %s to show up in namespace %s", deploymentName, ns)
-		p, err := clientset.AppsV1().Deployments(ns).Get(context.TODO(), deploymentName, getOptions)
+		t.Logf("waiting for deployment %s to show up in namespace %s", deploymentName, namespace)
+		deployment, err := clientset.AppsV1().Deployments(namespace).Get(t.Context(), deploymentName, getOptions)
 		if err != nil && apierrors.IsNotFound(err) {
 			t.Logf("deployment %s pod not found!\n", deploymentName)
 			return false, nil
@@ -913,8 +892,8 @@ func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset
 			return false, err
 		}
 
-		if p != nil {
-			status := p.Status
+		if deployment != nil {
+			status := deployment.Status
 			if status.AvailableReplicas == 1 {
 				t.Logf("✓ deployment %s is created and ready\n", deploymentName)
 				return true, nil
@@ -929,8 +908,7 @@ func WaitForDeployment(t *testing.T, deploymentName string, ns string, clientset
 }
 
 func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
-
-	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := clientset.CoreV1().Nodes().List(t.Context(), metav1.ListOptions{})
 
 	if err != nil {
 		t.Logf("Error while getting node count: %s", err.Error())
@@ -938,11 +916,11 @@ func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
 	}
 
 	var readyNodes int
-	for _, item := range nodes.Items {
-		for _, cond := range item.Status.Conditions {
+	for _, node := range nodes.Items {
+		for _, cond := range node.Status.Conditions {
 			if cond.Type == corev1.NodeReady && cond.Status == "True" {
 				readyNodes++
-				t.Logf("node %s is Ready", item.Name)
+				t.Logf("node %s is Ready", node.Name)
 			}
 		}
 	}
@@ -951,45 +929,43 @@ func GetTestSystemNodecount(t *testing.T, clientset *kubernetes.Clientset) int {
 
 	t.Logf("Test System Node count: %d, readyCount: %d", nodeCount, readyNodes)
 	return readyNodes
-
 }
 
 func GetEnvVars() string {
+	var stringBuilder strings.Builder
 
-	var sb strings.Builder
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NAMESPACE, os.Getenv(ENV_NAMESPACE)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_POOL, os.Getenv(ENV_POOL)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_PROTOCOL, os.Getenv(ENV_PROTOCOL)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE, os.Getenv(ENV_NETWORK_SPACE)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NAS_NETWORK_SPACE, os.Getenv(ENV_NAS_NETWORK_SPACE)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NVME_NETWORK_SPACE, os.Getenv(ENV_NVME_NETWORK_SPACE)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_ISCSI_NETWORK_SPACE, os.Getenv(ENV_ISCSI_NETWORK_SPACE)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_ISCSI_NETWORK_SPACE2, os.Getenv(ENV_ISCSI_NETWORK_SPACE2)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE2, os.Getenv(ENV_NETWORK_SPACE2)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_SECRET, os.Getenv(ENV_IBOX_SECRET)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_K8S_VERSION, os.Getenv(ENV_K8S_VERSION)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_OCP_VERSION, os.Getenv(ENV_OCP_VERSION)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_CLEANUP, os.Getenv(ENV_CLEANUP)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NFS_EXPORT_PERMISSION, os.Getenv(ENV_NFS_EXPORT_PERMISSION)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_USERNAME, os.Getenv(ENV_IBOX_USERNAME)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_PASSWORD, os.Getenv(ENV_IBOX_PASSWORD)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_HOSTNAME, os.Getenv(ENV_IBOX_HOSTNAME)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME, os.Getenv(ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOXREPLICA_REMOTE_POOL_ID, os.Getenv(ENV_IBOXREPLICA_REMOTE_POOL_ID)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_USE_NFS_V4, os.Getenv(ENV_USE_NFS_V4)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_STRESS_ITERATIONS, os.Getenv(ENV_STRESS_ITERATIONS)))
+	stringBuilder.WriteString(fmt.Sprintf("%s [%s]\n", ENV_STRESS_SLEEP_SECONDS, os.Getenv(ENV_STRESS_SLEEP_SECONDS)))
 
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NAMESPACE, os.Getenv(ENV_NAMESPACE)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_POOL, os.Getenv(ENV_POOL)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_PROTOCOL, os.Getenv(ENV_PROTOCOL)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE, os.Getenv(ENV_NETWORK_SPACE)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NAS_NETWORK_SPACE, os.Getenv(ENV_NAS_NETWORK_SPACE)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NVME_NETWORK_SPACE, os.Getenv(ENV_NVME_NETWORK_SPACE)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_ISCSI_NETWORK_SPACE, os.Getenv(ENV_ISCSI_NETWORK_SPACE)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_ISCSI_NETWORK_SPACE2, os.Getenv(ENV_ISCSI_NETWORK_SPACE2)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NETWORK_SPACE2, os.Getenv(ENV_NETWORK_SPACE2)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_SECRET, os.Getenv(ENV_IBOX_SECRET)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_K8S_VERSION, os.Getenv(ENV_K8S_VERSION)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_OCP_VERSION, os.Getenv(ENV_OCP_VERSION)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_CLEANUP, os.Getenv(ENV_CLEANUP)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_NFS_EXPORT_PERMISSION, os.Getenv(ENV_NFS_EXPORT_PERMISSION)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_USERNAME, os.Getenv(ENV_IBOX_USERNAME)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_PASSWORD, os.Getenv(ENV_IBOX_PASSWORD)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOX_HOSTNAME, os.Getenv(ENV_IBOX_HOSTNAME)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME, os.Getenv(ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_IBOXREPLICA_REMOTE_POOL_ID, os.Getenv(ENV_IBOXREPLICA_REMOTE_POOL_ID)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_USE_NFS_V4, os.Getenv(ENV_USE_NFS_V4)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_STRESS_ITERATIONS, os.Getenv(ENV_STRESS_ITERATIONS)))
-	sb.WriteString(fmt.Sprintf("%s [%s]\n", ENV_STRESS_SLEEP_SECONDS, os.Getenv(ENV_STRESS_SLEEP_SECONDS)))
-
-	return sb.String()
+	return stringBuilder.String()
 }
 
-func WaitForPVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
-	err := wait.PollUntilContextTimeout(context.Background(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
+func WaitForPVC(t *testing.T, pvcName string, namespce string, clientset *kubernetes.Clientset, pollInterval time.Duration, pollDuration time.Duration) error {
+	err := wait.PollUntilContextTimeout(t.Context(), pollInterval, pollDuration, false, func(ctx context.Context) (bool, error) {
 		getOptions := metav1.GetOptions{}
 
-		t.Logf("waiting for infinidat csi test pvc %s to show up in namespace %s", pvcName, ns)
-		p, err := clientset.CoreV1().PersistentVolumeClaims(ns).Get(context.TODO(), pvcName, getOptions)
+		t.Logf("waiting for infinidat csi test pvc %s to show up in namespace %s", pvcName, namespce)
+		pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespce).Get(t.Context(), pvcName, getOptions)
 		if err != nil && apierrors.IsNotFound(err) {
 			t.Logf("PVC %s not found!\n", pvcName)
 			return false, nil
@@ -998,15 +974,14 @@ func WaitForPVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.C
 			return false, err
 		}
 
-		if p != nil {
-			if p.Status.Phase == corev1.ClaimBound {
-
+		if pvc != nil {
+			if pvc.Status.Phase == corev1.ClaimBound {
 				t.Logf("✓ PVC %s is created and bound\n", pvcName)
 				return true, nil
 			}
 		}
-		t.Logf("PVC %s found but not ready, %v\n", pvcName, p.Status.Phase)
-		DescribePVC(t, pvcName, ns, clientset)
+		t.Logf("PVC %s found but not ready, %v\n", pvcName, pvc.Status.Phase)
+		DescribePVC(t, pvcName, namespce, clientset)
 
 		return false, nil
 	})
@@ -1014,40 +989,38 @@ func WaitForPVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.C
 	return err
 }
 
-func DescribePVC(t *testing.T, pvcName string, ns string, clientset *kubernetes.Clientset) {
+func DescribePVC(t *testing.T, pvcName string, namespace string, clientset *kubernetes.Clientset) {
 	listOptions := metav1.ListOptions{FieldSelector: "involvedObject.name=" + pvcName, TypeMeta: metav1.TypeMeta{Kind: "PersistentVolumeClaim"}}
 
-	t.Logf("describe details for infinidat csi test PVC %s in namespace %s", pvcName, ns)
-	events, err := clientset.CoreV1().Events(ns).List(context.TODO(), listOptions)
+	t.Logf("describe details for infinidat csi test PVC %s in namespace %s", pvcName, namespace)
+	events, err := clientset.CoreV1().Events(namespace).List(t.Context(), listOptions)
 	if err != nil {
-		t.Logf("error getting describe details for infinidat csi test PVC %s in namespace %s", pvcName, ns)
+		t.Logf("error getting describe details for infinidat csi test PVC %s in namespace %s", pvcName, namespace)
 		return
 	}
-	for _, item := range events.Items {
-		t.Logf("PVC describe message %s reason %s", item.Message, item.Reason)
+	for _, event := range events.Items {
+		t.Logf("PVC describe message %s reason %s", event.Message, event.Reason)
 	}
-
 }
 
-func DescribePod(t *testing.T, podName string, ns string, clientset *kubernetes.Clientset) {
+func DescribePod(t *testing.T, podName string, namespace string, clientset *kubernetes.Clientset) {
 	listOptions := metav1.ListOptions{FieldSelector: "involvedObject.name=" + podName, TypeMeta: metav1.TypeMeta{Kind: "Pod"}}
 
-	t.Logf("describe details for infinidat csi test Pod %s in namespace %s", podName, ns)
-	events, err := clientset.CoreV1().Events(ns).List(context.TODO(), listOptions)
+	t.Logf("describe details for infinidat csi test Pod %s in namespace %s", podName, namespace)
+	events, err := clientset.CoreV1().Events(namespace).List(t.Context(), listOptions)
 	if err != nil {
-		t.Logf("error getting describe details for infinidat csi test Pod %s in namespace %s", podName, ns)
+		t.Logf("error getting describe details for infinidat csi test Pod %s in namespace %s", podName, namespace)
 		return
 	}
 	for _, item := range events.Items {
 		t.Logf("Pod describe message %s reason %s", item.Message, item.Reason)
 	}
-
 }
 
-func GetPVName(pvcName string, ns string, clientset *kubernetes.Clientset) (string, error) {
+func GetPVName(pvcName string, namespace string, clientset *kubernetes.Clientset) (string, error) {
 	getOptions := metav1.GetOptions{}
 
-	pvc, err := clientset.CoreV1().PersistentVolumeClaims(ns).Get(context.TODO(), pvcName, getOptions)
+	pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), pvcName, getOptions)
 	if err != nil && apierrors.IsNotFound(err) {
 		return "", err
 	}
@@ -1056,7 +1029,6 @@ func GetPVName(pvcName string, ns string, clientset *kubernetes.Clientset) (stri
 }
 
 func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) {
-
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -1093,7 +1065,7 @@ func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) 
 }
 
 func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
-	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		return 0, 0, fmt.Errorf("error getting existing PVC %s", err.Error())
 	}
@@ -1105,7 +1077,7 @@ func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
 	doubledsize, _ := existingResourceQuantity.AsInt64()
 	t.Logf("double PVC size is %+d\n", doubledsize)
 	existingPVC.Spec.Resources.Requests[corev1.ResourceStorage] = existingResourceQuantity
-	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Update(context.TODO(), existingPVC, metav1.UpdateOptions{})
+	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Update(t.Context(), existingPVC, metav1.UpdateOptions{})
 	if err != nil {
 		return 0, 0, fmt.Errorf("error updating existing PVC %s", err.Error())
 	}
@@ -1113,7 +1085,7 @@ func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
 	time.Sleep(time.Second * 15)
 
 	// verify the size changed
-	existingPVC, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		return 0, 0, fmt.Errorf("error getting existing PVC for verify %s", err.Error())
 	}

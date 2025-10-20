@@ -61,7 +61,7 @@ func NewTreeqstorage(capacity int64, comnserv storagecommon.Commonservice) (tree
 func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error {
 	requiredParams := map[string]string{
 		common.SC_NETWORK_SPACE: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-		common.SC_POOL_NAME:     `[a-zA-Z]+`, //match all strings except empty string or blank string
+		common.SC_POOL_NAME:     `[a-zA-Z]+`, // match all strings except empty string or blank string
 	}
 	optionalParams := map[string]string{
 		common.SC_UID:                       `^\d+$`,
@@ -90,7 +90,7 @@ func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error 
 
 func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	zlog.Debug().Msgf("CreateVolume (treeq) - called pvName %s parameters %v - %s", req.GetName(), req.GetParameters(),
-		storagecommon.GetHostInfo(req.GetSecrets(), treeq.NFSstorage.CS.IboxApi))
+		storagecommon.GetHostInfo(req.GetSecrets(), treeq.NFSstorage.CS.IboxAPI))
 
 	params := req.GetParameters()
 
@@ -190,7 +190,7 @@ func (treeq *Treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi
 func (treeq *Treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	volproto := treeq.NFSstorage.CS.VolProto
 	zlog.Debug().Msgf("ControllerUnpublishVolume (treeq) - volproto %+v fileId %d nodeId %s", volproto, volproto.VolumeID, volproto.NodeID)
-	err := treeq.NFSstorage.CS.Api.DeleteExportRule(volproto.VolumeID, volproto.NodeID)
+	err := treeq.NFSstorage.CS.API.DeleteExportRule(volproto.VolumeID, volproto.NodeID)
 	if err != nil {
 		e := fmt.Errorf("ControllerUnpublishVolume (treeq) - DeleteExportRule - failed to delete Export Rule fileystemID %d error %v", volproto.VolumeID, err)
 		zlog.Error().Msg(e.Error())

@@ -36,9 +36,9 @@ func (suite *TreeqControllerSuite) SetupTest() {
 	suite.nfsMountMock = new(storagecommon.MockNfsMounter)
 	suite.storageHelperMock = new(storagecommon.MockStorageHelper)
 	suite.osHelperMock = new(helper.MockOsHelper)
-	suite.iboxapi = new(iboxapi.MockApiService)
+	suite.iboxapi = new(iboxapi.MockAPIService)
 	suite.filesystem = new(FileSystemInterfaceMock)
-	suite.api = new(api.MockApiService)
+	suite.api = new(api.MockAPIService)
 	host := &iboxapi.Host{
 		ID:   1,
 		Name: "host1",
@@ -49,7 +49,7 @@ func (suite *TreeqControllerSuite) SetupTest() {
 		NodeID:   "node1",
 		TreeqID:  1,
 	}
-	suite.cs = &storagecommon.Commonservice{Api: suite.api, VolProto: volProto, IboxApi: suite.iboxapi}
+	suite.cs = &storagecommon.Commonservice{API: suite.api, VolProto: volProto, IboxAPI: suite.iboxapi}
 	suite.someError = errors.New("some error")
 	nfs := nfs.NFSstorage{StorageHelper: suite.storageHelperMock, CS: *suite.cs, Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
 	suite.service = Treeqstorage{TreeqService: suite.filesystem, NFSstorage: nfs}
@@ -59,8 +59,8 @@ type TreeqControllerSuite struct {
 	suite.Suite
 	osHelperMock      *helper.MockOsHelper
 	filesystem        *FileSystemInterfaceMock
-	api               *api.MockApiService
-	iboxapi           *iboxapi.MockApiService
+	api               *api.MockAPIService
+	iboxapi           *iboxapi.MockAPIService
 	cs                *storagecommon.Commonservice
 	storageHelperMock *storagecommon.MockStorageHelper
 	nfsMountMock      *storagecommon.MockNfsMounter

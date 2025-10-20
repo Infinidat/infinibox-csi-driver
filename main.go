@@ -30,7 +30,6 @@ var gitHash string
 
 // starting method of CSI-Driver
 func main() {
-
 	log.CheckForLogLevelOverride()
 
 	// this call effectively initializes the logging system based on environment variables
@@ -116,7 +115,6 @@ func main() {
 }
 
 func getKubeNode() (node v1.Node, nodeCount string, err error) {
-
 	kc, err := clientgo.BuildClient()
 	if err != nil {
 		return node, "", err

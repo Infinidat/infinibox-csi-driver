@@ -27,16 +27,16 @@ type EndpointConfig struct {
 }
 
 type Volume struct {
-	CgId                  int    `json:"cg_id,omitempty"`
+	CGID                  int    `json:"cg_id,omitempty"`
 	RmrTarget             bool   `json:"rmr_target,omitempty"`
 	UpdatedAt             int    `json:"updated_at,omitempty"`
 	NumBlocks             int    `json:"num_blocks,omitempty"`
 	Allocated             int    `json:"allocated,omitempty"`
 	Serial                string `json:"serial,omitempty"`
 	Size                  int64  `json:"size,omitempty"`
-	SsdEnabled            bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled            bool   `json:"ssd_enabled,omitempty"`
 	ID                    int    `json:"id,omitempty"`
-	ParentId              int    `json:"parent_id,omitempty"`
+	ParentID              int    `json:"parent_id,omitempty"`
 	CompressionSuppressed bool   `json:"compression_suppressed,omitempty"`
 	Type                  string `json:"type,omitempty"`
 	RmrSource             bool   `json:"rmr_source,omitempty"`
@@ -49,10 +49,10 @@ type Volume struct {
 	CapacitySavings       int    `json:"capacity_savings,omitempty"`
 	Name                  string `json:"name,omitempty"`
 	CreatedAt             int64  `json:"created_at,omitempty"`
-	PoolId                int    `json:"pool_id,omitempty"`
+	PoolID                int    `json:"pool_id,omitempty"`
 	PoolName              string `json:"pool_name,omitempty"`
 	CompressionEnabled    bool   `json:"compression_enabled,omitempty"`
-	FamilyId              int    `json:"family_id,omitempty"`
+	FamilyID              int    `json:"family_id,omitempty"`
 	Depth                 int    `json:"depth,omitempty"`
 	WriteProtected        bool   `json:"write_protected,omitempty"`
 	Mapped                bool   `json:"mapped,omitempty"`
@@ -61,22 +61,22 @@ type Volume struct {
 }
 
 type VolumeParam struct {
-	PoolId        int    `json:"pool_id,omitempty"`
+	PoolID        int    `json:"pool_id,omitempty"`
 	VolumeSize    int64  `json:"size,omitempty"`
 	Name          string `json:"name,omitempty"`
 	ProvisionType string `json:"provtype,omitempty"`
-	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled    bool   `json:"ssd_enabled,omitempty"`
 }
 
 type VolumeResp struct {
 	ID int `json:"id"`
 }
 
-type VolumeQeryIdByKeyParam struct {
+type VolumeQueryIDByKeyParam struct {
 	Name string `json:"name"`
 }
 
-type VolumeQeryBySelectedIdsParam struct {
+type VolumeQueryBySelectedIDsParam struct {
 	IDs []string `json:"ids"`
 }
 
@@ -92,7 +92,7 @@ type StoragePool struct {
 	State                    string   `json:"state"`
 	ReservedCapacity         int      `json:"reserved_capacity"`
 	MaxExtend                int      `json:"max_extend"`
-	SsdEnabled               bool     `json:"ssd_enabled"`
+	SSDEnabled               bool     `json:"ssd_enabled"`
 	CompressionEnabled       bool     `json:"compression_enabled"`
 	CapacitySavings          int      `json:"capacity_savings"`
 	VolumesCount             int      `json:"volumes_count"`
@@ -110,7 +110,7 @@ type StoragePool struct {
 type SnapshotVolumesResp struct {
 	SnapShotID int    `json:"id,omitempty"`
 	Size       int64  `json:"size,omitempty"`
-	SsdEnabled bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled bool   `json:"ssd_enabled,omitempty"`
 	ParentID   int    `json:"parent_id,omitempty"`
 	PoolID     int    `json:"pool_id,omitempty"`
 	Name       string `json:"name,omitempty"`
@@ -119,16 +119,16 @@ type SnapshotVolumesResp struct {
 type NetworkSpace struct {
 	Properties          NetworkSpaceProperty `json:"properties,omitempty"`
 	Service             string               `json:"service,omitempty"`
-	Tenant_ID           int                  `json:"tenant_id,omitempty"`
-	AutomaticIpFailback bool                 `json:"automatic_ip_failback,omitempty"`
+	TenantID            int                  `json:"tenant_id,omitempty"`
+	AutomaticIPFailback bool                 `json:"automatic_ip_failback,omitempty"`
 	Interfaces          interface{}          `json:"interfaces,omitempty"`
 	RateLimit           interface{}          `json:"rate_limit,omitempty"`
 	ID                  int                  `json:"id,omitempty"`
 	Portals             []Portal             `json:"ips,omitempty"`
-	Mtu                 int                  `json:"mtu,omitempty"`
+	MTU                 int                  `json:"mtu,omitempty"`
 	NetworkConfig       NetworkConfigDetails `json:"network_config,omitempty"`
 	Name                string               `json:"name,omitempty"`
-	Vmac_Addresses      []VmacAddress        `json:"vmac_addresses,omitempty"`
+	VmacAddresses       []VmacAddress        `json:"vmac_addresses,omitempty"`
 	Routes              []Route              `json:"routes,omitempty"`
 }
 
@@ -140,14 +140,14 @@ type Route struct {
 }
 
 type VmacAddress struct {
-	Role         string `json:"role,omitempty"`
-	Vmac_Address string `json:"vmac_address,omitempty"`
+	Role        string `json:"role,omitempty"`
+	VmacAddress string `json:"vmac_address,omitempty"`
 }
 
 type Portal struct {
 	Type        string `json:"type,omitempty"`
 	Tpgt        int    `json:"tpgt,omitempty"`
-	IpAdress    string `json:"ip_address,omitempty"`
+	IPAddress   string `json:"ip_address,omitempty"`
 	VlanID      int    `json:"vlan_id,omitempty"`
 	Enabled     bool   `json:"enabled,omitempty"`
 	Reserved    bool   `json:"reserved,omitempty"`
@@ -161,10 +161,10 @@ type NetworkConfigDetails struct {
 }
 
 type NetworkSpaceProperty struct {
-	IscsiServer         interface{} `json:"iscsi_isns_servers,omitempty"`
-	IscsiIqn            string      `json:"iscsi_iqn,omitempty"`
-	IscsiTcpPort        int         `json:"iscsi_tcp_port,omitempty"`
-	IscsiSecurityMethod string      `json:"iscsi_default_security_method,omitempty"`
+	ISCSIServer         interface{} `json:"iscsi_isns_servers,omitempty"`
+	ISCSIIqn            string      `json:"iscsi_iqn,omitempty"`
+	ISCSITcpPort        int         `json:"iscsi_tcp_port,omitempty"`
+	ISCSISecurityMethod string      `json:"iscsi_default_security_method,omitempty"`
 }
 
 type HostCluster struct {
@@ -198,13 +198,13 @@ type LunInfo struct {
 }
 
 type ExportFileSys struct {
-	FilesystemID        int                      `json:"filesystem_id,omitempty"`
-	Name                string                   `json:"name,omitempty"`
-	Transport_protocols string                   `json:"transport_protocols,omitempty"`
-	Privileged_port     bool                     `json:"privileged_port"`
-	Export_path         string                   `json:"export_path,omitempty"`
-	Permissionsput      []map[string]interface{} `json:"permissions,omitempty"`
-	SnapdirVisible      bool                     `json:"snapdir_visible"`
+	FilesystemID       int                      `json:"filesystem_id,omitempty"`
+	Name               string                   `json:"name,omitempty"`
+	TransportProtocols string                   `json:"transport_protocols,omitempty"`
+	PrivilegedPort     bool                     `json:"privileged_port"`
+	ExportPath         string                   `json:"export_path,omitempty"`
+	Permissionsput     []map[string]interface{} `json:"permissions,omitempty"`
+	SnapdirVisible     bool                     `json:"snapdir_visible"`
 }
 
 type ExportResponse struct {
@@ -214,7 +214,7 @@ type ExportResponse struct {
 	PrefRead              int           `json:"pref_read,omitempty"`
 	MaxRead               int           `json:"max_read,omitempty"`
 	Permissions           []Permissions `json:"permissions,omitempty"`
-	TenantId              int           `json:"tenant_id,omitempty"`
+	TenantID              int           `json:"tenant_id,omitempty"`
 	CreatedAt             int           `json:"created_at,omitempty"`
 	PrefReaddir           int           `json:"pref_readdir,omitempty"`
 	Enabled               bool          `json:"enabled,omitempty"`
@@ -222,9 +222,9 @@ type ExportResponse struct {
 	MakeAllUsersAnonymous bool          `json:"make_all_users_anonymous,omitempty"`
 	SnapdirVisible        bool          `json:"snapdir_visible,omitempty"`
 	TransportProtocols    string        `json:"transport_protocols,omitempty"`
-	AnonymousGid          int           `json:"anonymous_gid,omitempty"`
-	AnonymousUid          int           `json:"anonymous_uid,omitempty"`
-	FilesystemId          int           `json:"filesystem_id,omitempty"`
+	AnonymousGID          int           `json:"anonymous_gid,omitempty"`
+	AnonymousUID          int           `json:"anonymous_uid,omitempty"`
+	FilesystemID          int           `json:"filesystem_id,omitempty"`
 	MaxWrite              int           `json:"max_write,omitempty"`
 	PrivilegedPort        bool          `json:"privileged_port,omitempty"`
 	ID                    int           `json:"id,omitempty"`
@@ -239,7 +239,7 @@ type Permissions struct {
 
 type FilesystemRef struct {
 	AtimeMode string `json:"atime_mode,omitempty"`
-	PoolId    int    `json:"pool_id,omitempty"`
+	PoolID    int    `json:"pool_id,omitempty"`
 	Name      string `json:"name,omitempty"`
 	Provtype  string `json:"provtype,omitempty"`
 	Size      int    `json:"size,omitempty"`
@@ -249,7 +249,7 @@ type FileSystem struct {
 	ID            int    `json:"id,omitempty"`
 	PoolID        int    `json:"pool_id,omitempty"`
 	Name          string `json:"name,omitempty"`
-	SsdEnabled    bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled    bool   `json:"ssd_enabled,omitempty"`
 	Provtype      string `json:"provtype,omitempty"`
 	Size          int64  `json:"size,omitempty"`
 	ParentID      int    `json:"parent_id,omitempty"`
@@ -279,7 +279,7 @@ type ExportPathRef struct {
 	MaxRead            int           `json:"max_read,omitempty"`
 	PrefReaddir        int           `json:"pref_readdir,omitempty"`
 	TransportProtocols string        `json:"transport_protocols,omitempty"`
-	FilesystemId       int           `json:"filesystem_id,omitempty"`
+	FilesystemID       int           `json:"filesystem_id,omitempty"`
 	MaxWrite           int           `json:"max_write,omitempty"`
 	PrivilegedPort     bool          `json:"privileged_port"`
 	ExportPath         string        `json:"export_path,omitempty"`
@@ -289,7 +289,7 @@ type ExportPathRef struct {
 
 type Metadata struct {
 	ID         int    `json:"id,omitempty"`
-	ObjectId   int    `json:"object_id,omitempty"`
+	ObjectID   int    `json:"object_id,omitempty"`
 	Key        string `json:"key,omitempty"`
 	Value      string `json:"value,omitempty"`
 	ObjectType string `json:"object_type,omitempty"`
@@ -300,7 +300,7 @@ type FileSystemSnapshot struct {
 	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
-	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled     bool   `json:"ssd_enabled,omitempty"`
 }
 type FileSystemSnapshotLocked struct {
 	ParentID       int    `json:"parent_id"`
@@ -314,7 +314,7 @@ type FileSystemSnapshotResponse struct {
 	SnapshotID  int    `json:"id"`
 	Name        string `json:"name,omitempty"`
 	DatasetType string `json:"dataset_type,omitempty"`
-	ParentId    int    `json:"parent_id,omitempty"`
+	ParentID    int    `json:"parent_id,omitempty"`
 	Size        int64  `json:"size,omitempty"`
 	CreatedAt   int64  `json:"created_at,omitempty"`
 }
@@ -333,7 +333,7 @@ type VolumeSnapshot struct {
 	ParentID       int    `json:"parent_id"`
 	SnapshotName   string `json:"name"`
 	WriteProtected bool   `json:"write_protected"`
-	SsdEnabled     bool   `json:"ssd_enabled,omitempty"`
+	SSDEnabled     bool   `json:"ssd_enabled,omitempty"`
 	LockExpiresAt  int64  `json:"lock_expires_at"`
 }
 

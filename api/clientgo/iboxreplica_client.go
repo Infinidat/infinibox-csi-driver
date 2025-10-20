@@ -30,9 +30,7 @@ var (
 func init() {
 	utilruntime.Must(v1.AddToScheme(schemeForReplica))
 	//+kubebuilder:scaffold:scheme
-
 	zlog = log.Get()
-
 }
 
 func (kc *kubeclient) GetIboxreplicas() (v1.IboxreplicaList, error) {

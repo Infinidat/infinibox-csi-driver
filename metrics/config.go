@@ -30,7 +30,7 @@ const (
 	METRIC_POOL_USED_CAP      = "ibox_pool_used_cap"
 	METRIC_POOL_PCT_UTILIZED  = "ibox_pool_pct_utilized"
 
-	// pool metric general infomation
+	// pool metric general information
 	METRIC_POOL_NAME             = "pool_name"
 	METRIC_POOL_PROVISION_TYPE   = "pool_provision_type"
 	METRIC_POOL_SSD_ENABLED      = "pool_ssd_enabled"
@@ -62,7 +62,7 @@ const (
 	METRIC_IBOX_NODE_NAME      = "node"
 	METRIC_IBOX_SYSTEM_METRICS = "ibox_system_metrics"
 
-	METRIC_IBOX_ERROR_RATES                         = "ibox_error_rates" //TODO
+	METRIC_IBOX_ERROR_RATES                         = "ibox_error_rates" // TODO
 	METRIC_IBOX_ACTIVE_CACHE_SSD_DEVICES            = "ibox_active_cache_ssd_devices"
 	METRIC_IBOX_ACTIVE_DRIVES                       = "ibox_active_drives"
 	METRIC_IBOX_ACTIVE_ENCRYPTED_CACHE_SSD_DEVICES  = "ibox_active_encrypted_cache_ssd_devices"
@@ -97,7 +97,7 @@ const (
 
 type IboxCredentials struct {
 	IboxHostname  string
-	IboxIpAddress string
+	IboxIPAddress string
 	IboxPassword  string
 	IboxUsername  string
 }
@@ -116,7 +116,6 @@ type MetricsConfig struct {
 }
 
 func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
-	var config MetricsConfig
 	zlog.Trace().Msg("getting metrics configuration...")
 	PortFlag = flag.String("port", "11007", "metrics port")
 
@@ -126,6 +125,7 @@ func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 	}
 	zlog.Trace().Msgf("raw metrics configuration...%s", string(configFileData))
 
+	var config MetricsConfig
 	err = yaml.Unmarshal(configFileData, &config)
 	if err != nil {
 		return nil, err
@@ -141,7 +141,7 @@ func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 
 	config.Ibox = make([]IboxCredentials, 0)
 
-	for i := 0; i < len(secrets); i++ {
+	for i := range secrets {
 		sMap := secrets[i]
 		ibox := IboxCredentials{
 			IboxHostname: sMap[common.CRED_HOSTNAME],
@@ -150,10 +150,10 @@ func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 		}
 		ips, err := net.LookupIP(ibox.IboxHostname)
 		if err != nil {
-			ibox.IboxIpAddress = "unknown"
+			ibox.IboxIPAddress = "unknown"
 		} else {
 			for _, ip := range ips {
-				ibox.IboxIpAddress = ip.String()
+				ibox.IboxIPAddress = ip.String()
 			}
 		}
 		config.Ibox = append(config.Ibox, ibox)
@@ -164,7 +164,7 @@ func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 
 func (c *MetricsConfig) GetDuration(name string) time.Duration {
 	metrics := c.Spec.Metrics
-	for i := 0; i < len(metrics); i++ {
+	for i := range metrics {
 		if metrics[i].Name == name {
 			t, e := time.ParseDuration(metrics[i].Duration)
 			if e != nil {
@@ -182,18 +182,18 @@ func (c *MetricsConfig) GetDuration(name string) time.Duration {
 func (c *MetricsConfig) Validate() bool {
 	errorFound := false
 	metrics := c.Spec.Metrics
-	for i := 0; i < len(metrics); i++ {
-		_, e := time.ParseDuration(metrics[i].Duration)
+	for _, metric := range metrics {
+		_, e := time.ParseDuration(metric.Duration)
 		if e != nil {
 			errorFound = true
-			zlog.Error().Msgf("error:  duration found for metrics config %s did not parse, %s", metrics[i].Name, e.Error())
+			zlog.Error().Msgf("error:  duration found for metrics config %s did not parse, %s", metric.Name, e.Error())
 		}
 
-		switch metrics[i].Name {
+		switch metric.Name {
 		case METRIC_POOL_METRICS, METRIC_PV_METRICS, METRIC_IBOX_PERFORMANCE_METRICS, METRIC_IBOX_SYSTEM_METRICS:
 		default:
 			errorFound = true
-			zlog.Error().Msgf("error:  metric name %s invalid", metrics[i].Name)
+			zlog.Error().Msgf("error:  metric name %s invalid", metric.Name)
 		}
 	}
 

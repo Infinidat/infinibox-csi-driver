@@ -24,7 +24,7 @@ import (
 type Portal struct {
 	Type        string `json:"type,omitempty"`
 	Tpgt        int    `json:"tpgt,omitempty"`
-	IpAdress    string `json:"ip_address,omitempty"`
+	IPAddress   string `json:"ip_address,omitempty"`
 	VlanID      int    `json:"vlan_id,omitempty"`
 	Enabled     bool   `json:"enabled,omitempty"`
 	Reserved    bool   `json:"reserved,omitempty"`
@@ -32,10 +32,10 @@ type Portal struct {
 }
 
 type NetworkSpaceProperty struct {
-	IscsiServer         interface{} `json:"iscsi_isns_servers,omitempty"`
-	IscsiIqn            string      `json:"iscsi_iqn,omitempty"`
-	IscsiTcpPort        int         `json:"iscsi_tcp_port,omitempty"`
-	IscsiSecurityMethod string      `json:"iscsi_default_security_method,omitempty"`
+	ISCSIServer         interface{} `json:"iscsi_isns_servers,omitempty"`
+	ISCSIIqn            string      `json:"iscsi_iqn,omitempty"`
+	ISCSITCPPort        int         `json:"iscsi_tcp_port,omitempty"`
+	ISCSISecurityMethod string      `json:"iscsi_default_security_method,omitempty"`
 }
 type NetworkConfigDetails struct {
 	Netmask        int    `json:"netmask,omitempty"`
@@ -43,8 +43,8 @@ type NetworkConfigDetails struct {
 	DefaultGateway string `json:"default_gateway,omitempty"`
 }
 type VmacAddress struct {
-	Role         string `json:"role,omitempty"`
-	Vmac_Address string `json:"vmac_address,omitempty"`
+	Role        string `json:"role,omitempty"`
+	VmacAddress string `json:"vmac_address,omitempty"`
 }
 type Route struct {
 	Netmask     int    `json:"netmask,omitempty"`
@@ -56,8 +56,8 @@ type Route struct {
 type NetworkSpace struct {
 	Properties          NetworkSpaceProperty `json:"properties,omitempty"`
 	Service             string               `json:"service,omitempty"`
-	Tenant_ID           int                  `json:"tenant_id,omitempty"`
-	AutomaticIpFailback bool                 `json:"automatic_ip_failback,omitempty"`
+	TenantID            int                  `json:"tenant_id,omitempty"`
+	AutomaticIPFailback bool                 `json:"automatic_ip_failback,omitempty"`
 	Interfaces          interface{}          `json:"interfaces,omitempty"`
 	RateLimit           interface{}          `json:"rate_limit,omitempty"`
 	ID                  int                  `json:"id,omitempty"`
@@ -65,7 +65,7 @@ type NetworkSpace struct {
 	Mtu                 int                  `json:"mtu,omitempty"`
 	NetworkConfig       NetworkConfigDetails `json:"network_config,omitempty"`
 	Name                string               `json:"name,omitempty"`
-	Vmac_Addresses      []VmacAddress        `json:"vmac_addresses,omitempty"`
+	VmacAddresses       []VmacAddress        `json:"vmac_addresses,omitempty"`
 	Routes              []Route              `json:"routes,omitempty"`
 }
 
@@ -76,18 +76,18 @@ type GetNetworkSpaceByNameResponse struct {
 }
 
 func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networkSpace *NetworkSpace, err error) {
-	const FN = "GetNetworkSpaceByName"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/network/spaces")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "net space Name", netspaceName)
+	const functionName = "GetNetworkSpaceByName"
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/network/spaces")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "net space Name", netspaceName)
 
 	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(FN, "page", page, "totalPages", totalPages)
+		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
-			return nil, fmt.Errorf("%s - NewRequest - error %w", FN, err)
+			return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
 
 		values := req.URL.Query()
@@ -98,32 +98,32 @@ func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networ
 
 		SetAuthHeader(req, iboxClient.Creds)
 
-		resp, err := iboxClient.HttpClient.Do(req)
+		resp, err := iboxClient.HTTPClient.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("%s - Do - error %w", FN, err)
+			return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("%s - ReadAll - error %w", FN, err)
+			return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
 		var responseObject GetNetworkSpaceByNameResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return nil, fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+			return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
 		if responseObject.Error.Code != "" {
-			//TODO check for NOT FOUND?  return ErrNotFound for callers?
-			return nil, fmt.Errorf("%s - ibox API - error code %s message %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+			// TODO check for NOT FOUND?  return ErrNotFound for callers?
+			return nil, fmt.Errorf("%s - ibox API - error code %s message %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 		}
 		if len(responseObject.Result) > 0 {
 			networkSpace = &responseObject.Result[0]
 		} else {
-			return nil, &IboxAPIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - netspace name '%s' not found", FN, netspaceName)}
+			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - netspace name '%s' not found", functionName, netspaceName)}
 		}
 
 		if page == 1 {

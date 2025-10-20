@@ -50,45 +50,45 @@ type CreateEventResult struct {
 }
 
 func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
-	const FN = "CreateEvent"
+	const functionName = "CreateEvent"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.Url, "api/rest/events")
-	iboxClient.Log.V(TRACE_LEVEL).Info(FN, "URL", url, "event", eventRequest)
+	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/events")
+	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "event", eventRequest)
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
-		return fmt.Errorf("%s - Marshal - error %w", FN, err)
+		return fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("%s - NewRequest - error %w", FN, err)
+		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	SetAuthHeader(request, iboxClient.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HttpClient.Do(request)
+	response, err := iboxClient.HTTPClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("%s - Do - error %w", FN, err)
+		return fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, FN, "error in Close()", err.Error())
+			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("%s - ReadAll - error %w", FN, err)
+		return fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
 
 	var responseObject CreateEventResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return fmt.Errorf("%s - Unmarshal - error %w", FN, err)
+		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	iboxClient.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", FN, responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return nil
 }

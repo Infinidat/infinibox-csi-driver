@@ -26,8 +26,11 @@ import (
 
 var zlog = log.Get() // grab the logger for package use
 
-const NVME_VERSION_260 = "2.6.0"
-const NVME_VERSION_211 = "2.11.0"
+const (
+	NVME_VERSION_260    = "2.6.0"
+	NVME_VERSION_211    = "2.11.0"
+	NVME_DISCOVERY_PORT = 8009
+)
 
 type NVME211 struct {
 	Devices []Devices211 `json:"Devices"`
@@ -96,10 +99,7 @@ type NVMEDevices struct {
 	Devices []Device `json:"Devices"`
 }
 
-const NVME_DISCOVERY_PORT = 8009
-
 func getHostNQN() (string, error) {
-
 	fileContent, err := os.ReadFile("/host/etc/nvme/hostnqn")
 	if err != nil {
 		zlog.Error().Msgf("getHostNQN (nvme) - failed to read hostnqn file %s", err.Error())
@@ -140,7 +140,6 @@ func getNVMENamespaces() (devices NVMEDevices, err error) {
 			return devices, err
 		}
 		devices = parseNVME211Devices(nvme211Output)
-
 	}
 	return devices, nil
 }
@@ -214,27 +213,26 @@ func getNVMEVersion() (version string, err error) {
 		e := fmt.Errorf("getNVMEVersion - parsing rawOutput %s failed not enough parts %d", rawOutput, len(parts))
 		zlog.Error().Msgf("%s", e.Error())
 		return "", e
-
 	}
 	versionParts := parts[2]
 	majorMinorPatch := strings.Split(versionParts, ".")
 	zlog.Debug().Msgf("versionParts %s major.minor.patch %s len %d", versionParts, majorMinorPatch, len(majorMinorPatch))
 	if len(majorMinorPatch) < 3 {
-		versionParts = versionParts + ".0" // add a patch number to make it semver
+		versionParts += ".0" // add a patch number to make it semver
 	}
 
 	// convert the nvme version into a semver representation so we can compare
-	var v1, v2 semver.Version
-	v1, err = semver.Make(versionParts)
+	var versionPart1, versionPart2 semver.Version
+	versionPart1, err = semver.Make(versionParts)
 	if err != nil {
 		zlog.Error().Msgf("error converting %s to semver %s", versionParts, err.Error())
 		return "", err
 	}
-	v2, err = semver.Make(NVME_VERSION_211)
+	versionPart2, err = semver.Make(NVME_VERSION_211)
 	if err != nil {
 		zlog.Error().Msgf("error converting %s to semver %s", NVME_VERSION_211, err.Error())
 	}
-	value := v1.Compare(v2)
+	value := versionPart1.Compare(versionPart2)
 	if value < 0 {
 		// if parsed version is less than 2.11, assume it will parse into the default (2.6) structure
 		zlog.Debug().Msgf("nvme version %s is less than %s", versionParts, NVME_VERSION_211)
@@ -269,7 +267,6 @@ func parseNVME211Devices(nvme211Output NVME211) (devices NVMEDevices) {
 				}
 
 				devices.Devices = append(devices.Devices, device)
-
 			}
 		}
 	}

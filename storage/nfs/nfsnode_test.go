@@ -33,12 +33,12 @@ import (
 
 func (suite *NodeSuite) SetupTest() {
 	suite.nfsMountMock = new(storagecommon.MockNfsMounter)
-	suite.api = new(api.MockApiService)
-	suite.iboxapi = new(iboxapi.MockApiService)
+	suite.api = new(api.MockAPIService)
+	suite.iboxapi = new(iboxapi.MockAPIService)
 	suite.osmock = new(helper.MockOsHelper)
 	suite.storageHelperMock = new(storagecommon.MockStorageHelper)
 	suite.accessMock = new(helper.MockAccessModesHelper)
-	suite.cs = &storagecommon.Commonservice{IboxApi: suite.iboxapi, Api: suite.api, AccessModesHelper: suite.accessMock}
+	suite.cs = &storagecommon.Commonservice{IboxAPI: suite.iboxapi, API: suite.api, AccessModesHelper: suite.accessMock}
 	suite.cs.VolProto = &api.VolumeProtocolConfig{
 		VolumeID: 1,
 	}
@@ -50,8 +50,8 @@ func (suite *NodeSuite) SetupTest() {
 type NodeSuite struct {
 	suite.Suite
 	nfsMountMock      *storagecommon.MockNfsMounter
-	api               *api.MockApiService
-	iboxapi           *iboxapi.MockApiService
+	api               *api.MockAPIService
+	iboxapi           *iboxapi.MockAPIService
 	osmock            *helper.MockOsHelper
 	accessMock        *helper.MockAccessModesHelper
 	storageHelperMock *storagecommon.MockStorageHelper

@@ -13,6 +13,7 @@ limitations under the License.
 package common
 
 import (
+	"errors"
 	"fmt"
 	"infinibox-csi-driver/common"
 	"os"
@@ -24,8 +25,7 @@ import (
 const RESIZE2FS_DELAY = "RESIZE2FS_DELAY"
 
 /*
-*
-blockExpandVolume
+BlockExpandVolume
 
 here are the linux host steps required to resize the block volume, these commands
 are implemented in the golang code....
@@ -91,7 +91,7 @@ func BlockExpandVolume(volumePath string) error {
 	multipathDevice := "/dev" + deviceNameParts[0]
 	zlog.Debug().Msgf("findmnt output is [%v] multipathDevice=[%s]", output, multipathDevice)
 
-	//multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
+	// multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
 	wildcards := "\"%n_/%d_\""
 	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceNameParts[0]+"_")
 	zlog.Debug().Msgf("command is [%s]", multipathCommand)
@@ -101,7 +101,7 @@ func BlockExpandVolume(volumePath string) error {
 	}
 
 	if out == "" {
-		return fmt.Errorf("error getting multipath command output")
+		return errors.New("error getting multipath command output")
 	}
 	zlog.Debug().Msgf("multipathd show maps output is [%v]", out)
 	if out == "" {
@@ -120,7 +120,7 @@ func BlockExpandVolume(volumePath string) error {
 	zlog.Debug().Msgf("multipathd show paths command [%s]", multipathdCommand)
 
 	if out == "" {
-		return fmt.Errorf("error getting multipathd command output")
+		return errors.New("error getting multipathd command output")
 	}
 	zlog.Debug().Msgf("multipathd output is [%v]", out)
 	devices := make([]string, 0)
@@ -134,7 +134,7 @@ func BlockExpandVolume(volumePath string) error {
 		devices = append(devices, devicePart)
 	}
 	zlog.Debug().Msgf("multipathd devices [%v] ", devices)
-	for i := 0; i < len(devices); i++ {
+	for i := range devices {
 		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", devices[i])
 		echoCommand := fmt.Sprintf("echo 1 > %s", rescanPath)
 		zlog.Debug().Msgf("%s", echoCommand)
@@ -142,14 +142,14 @@ func BlockExpandVolume(volumePath string) error {
 		if err != nil {
 			return fmt.Errorf("error writing rescan on multipath devices %s", err.Error())
 		}
-		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(string(out)))
+		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(out))
 	}
 	resizeCommand := fmt.Sprintf("multipathd resize map %s 2> /dev/null", userFriendlyName)
 	out, _, err = ExecCommand.Command(resizeCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd resize map command %s - %s", resizeCommand, err.Error())
 	}
-	zlog.Debug().Msgf("resize output is [%s]\n", strings.TrimSpace(string(out)))
+	zlog.Debug().Msgf("resize output is [%s]\n", strings.TrimSpace(out))
 
 	return nil
 }
@@ -183,5 +183,4 @@ func ExpandFileSystem(multipathDevice string, fsType string) error {
 	}
 	zlog.Debug().Msgf("command output is [%s]\n", strings.TrimSpace(string(out)))
 	return nil
-
 }
