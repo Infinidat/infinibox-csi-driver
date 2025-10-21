@@ -211,16 +211,17 @@ type Replica struct {
 // we want when not specifying ACTIVE_ACTIVE (e.g. when we specify ASYNC)
 // sync_interval and rpo_value is applicable when ASYNC, not ACTIVE_ACTIVE
 type CreateReplicaRequest struct {
-	IsPreferred     *bool  `json:"is_preferred,omitempty"`
-	SyncInterval    int    `json:"sync_interval,omitempty"`
-	Description     string `json:"description"`
-	EntityType      string `json:"entity_type"`
-	LocalEntityID   int    `json:"local_entity_id"`
-	ReplicationType string `json:"replication_type"`
-	BaseAction      string `json:"base_action"`
-	LinkID          int    `json:"link_id"`
-	RpoValue        int    `json:"rpo_value,omitempty"`
-	RemotePoolID    int    `json:"remote_pool_id"`
+	IsPreferred      *bool  `json:"is_preferred,omitempty"`
+	SyncInterval     int    `json:"sync_interval,omitempty"`
+	Description      string `json:"description"`
+	EntityType       string `json:"entity_type"`
+	RemoteEntityName string `json:"remote_entity_name,omitempty"`
+	LocalEntityID    int    `json:"local_entity_id"`
+	ReplicationType  string `json:"replication_type"`
+	BaseAction       string `json:"base_action"`
+	LinkID           int    `json:"link_id"`
+	RpoValue         int    `json:"rpo_value,omitempty"`
+	RemotePoolID     int    `json:"remote_pool_id"`
 }
 
 type GetReplicaResponse struct {

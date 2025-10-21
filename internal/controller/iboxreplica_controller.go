@@ -148,10 +148,11 @@ func (r *IboxreplicaReconciler) handleFinalizer(ctx context.Context, obj csidriv
 
 func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.Iboxreplica) error {
 	// set defaults for optional CR fields
-	// we only support ASYNC and ACTIVE_ACTIVE for replication types
+	// we support SYNC, ASYNC, and ACTIVE_ACTIVE for replication types
 	switch replica.Spec.ReplicationType {
 	case common.IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE:
 	case common.IBOXREPLICA_REPLICA_TYPE_ASYNC:
+	case common.IBOXREPLICA_REPLICA_TYPE_SYNC:
 		replica.Spec.IsPreferred = nil
 		thislog.Info("creating replica", "setting is_preferred to nil", replica.Name)
 	default:
@@ -356,16 +357,17 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 
 	thislog.Info("creating replica", "link look up worked", link.ID)
 	request := iboxapi.CreateReplicaRequest{
-		IsPreferred:     replica.Spec.IsPreferred,
-		SyncInterval:    replica.Spec.SyncInterval,
-		Description:     replica.Spec.Description,
-		EntityType:      replica.Spec.EntityType,
-		LocalEntityID:   localEntityID,
-		ReplicationType: replica.Spec.ReplicationType,
-		BaseAction:      replica.Spec.BaseAction,
-		LinkID:          link.ID,
-		RpoValue:        replica.Spec.RpoValue,
-		RemotePoolID:    replica.Spec.RemotePoolID,
+		IsPreferred:      replica.Spec.IsPreferred,
+		SyncInterval:     replica.Spec.SyncInterval,
+		Description:      replica.Spec.Description,
+		EntityType:       replica.Spec.EntityType,
+		LocalEntityID:    localEntityID,
+		ReplicationType:  replica.Spec.ReplicationType,
+		BaseAction:       replica.Spec.BaseAction,
+		LinkID:           link.ID,
+		RpoValue:         replica.Spec.RpoValue,
+		RemotePoolID:     replica.Spec.RemotePoolID,
+		RemoteEntityName: replica.Spec.RemoteEntityName,
 	}
 
 	response, err := clientsvc.IboxAPI.CreateReplica(request)

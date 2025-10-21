@@ -33,6 +33,7 @@ type IboxreplicaSpec struct {
 	Description          string `json:"description,omitempty"`
 	EntityType           string `json:"entity_type,omitempty"`
 	LocalEntityName      string `json:"local_entity_name,omitempty"`
+	RemoteEntityName     string `json:"remote_entity_name,omitempty"`
 	ReplicationType      string `json:"replication_type,omitempty"`
 	BaseAction           string `json:"base_action,omitempty"`
 	LinkRemoteSystemName string `json:"link_remote_system_name,omitempty"`

@@ -51,6 +51,8 @@ spec:
                 type: string
               local_entity_name:
                 type: string
+              remote_entity_name:
+                type: string
               remote_pool_id:
                 type: integer
               replication_type:

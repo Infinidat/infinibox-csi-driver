@@ -1,0 +1,14 @@
+## iboxreplica SYNC examples
+
+edit and create these to test iboxreplica controller logic, these examples are for SYNC replication type.  You
+can create a replica based on a VOLUME, CG, or FILESYSTEM using SYNC replication type.
+
+The 'local_entity-name' is the PV (volume) name that you want to replicate.
+
+The 'link_remote_system_name' has to be looked up using the Ibox API (get links) call.  This is the name
+given to the link, not always the same as the remote ibox host name.
+
+The 'remote_pool_id' has to be looked up on the remote ibox host using the Ibox API prior to creating
+the iboxreplica resource.  
+
+
