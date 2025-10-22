@@ -19,8 +19,8 @@ func cleanupNFSPerms(volumeID int) {
 	const functionName = "cleanupNFSPerms"
 
 	// get the node name and IP which we'l use for identifying this node
-	nodeName := os.Getenv(common.ENV_VAR_KUBE_NODE_NAME)
-	nodeIP := os.Getenv(common.ENV_VAR_NODE_IP)
+	nodeName := os.Getenv(common.EnvVarKubeNodeName)
+	nodeIP := os.Getenv(common.EnvVarNodeIP)
 	zlog.Debug().Msgf("%s - volumeID %d node %s node IP %s", functionName, volumeID, nodeName, nodeIP)
 
 	// get a connection to the kube api
@@ -35,13 +35,12 @@ func cleanupNFSPerms(volumeID int) {
 	// use the PV to obtain the ibox credentials used to create the volume
 	// this is necessary because the unmount stage of CSI doesn't pass the
 	// ibox credentials down as secrets as other CSI stages do
-	persistentVolume, err := kubeClient.GetPVByVolumeID(volumeID, common.PROTOCOL_NFS)
+	persistentVolume, err := kubeClient.GetPVByVolumeID(volumeID, common.ProtocolNFS)
 	if err != nil {
 		zlog.Error().Msgf("%s - could not get pv by volumeID %s", functionName, err.Error())
 		return
-	} else {
-		zlog.Debug().Msgf("%s - pv by volumeID %s", functionName, persistentVolume.Name)
 	}
+	zlog.Debug().Msgf("%s - pv by volumeID %s", functionName, persistentVolume.Name)
 	secretMap, err := kubeClient.GetSecret(persistentVolume.Spec.CSI.ControllerExpandSecretRef.Name, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Namespace)
 	if err != nil {
 		zlog.Error().Msgf("%s - could not get kube secret %s", functionName, err.Error())
@@ -93,7 +92,7 @@ func cleanupNFSPerms(volumeID int) {
 			zlog.Error().Msgf("%s  - error executing nfsstat %s", functionName, err.Error())
 			return
 		}
-		zlog.Debug().Msgf("%s - nfsstat output is [%s]", functionName, strings.TrimSpace(string(out)))
+		zlog.Debug().Msgf("%s - nfsstat output is [%s]", functionName, strings.TrimSpace(out))
 
 		volumeMounted := isVolumeMounted(out, fileSystem.Name)
 		zlog.Debug().Msgf("%s - volumeMounted [%t]", functionName, volumeMounted)
@@ -172,7 +171,7 @@ func isVolumeMounted(nfsstatOutput string, fsName string) bool {
 // determine if the installation has enabled the
 // cleanup NFS perms feature
 func isCleanupNFSPermsSet() bool {
-	envVarText := os.Getenv(common.ENV_VAR_CLEANUP_NFS_PERMS)
+	envVarText := os.Getenv(common.EnvVarCleanupNFSPerms)
 	if envVarText == "" {
 		return false
 	}

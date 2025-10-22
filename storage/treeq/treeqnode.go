@@ -38,22 +38,22 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Debug().Msgf("NodePublishVolume (treeq) - with targetPath %s volumeId %s\n", hostTargetPath, req.GetVolumeId())
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - with targetPath %s volumeID %s\n", hostTargetPath, req.GetVolumeId())
 
-	fileSystemId, treeqId, err := getVolumeIDs(req.GetVolumeId())
+	fileSystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("NodePublishVolume (treeq) - getVolumeIDs - error parsing fileSystemId %v from %s", err, req.GetVolumeId())
+		e := fmt.Errorf("NodePublishVolume (treeq) - getVolumeIDs - error parsing fileSystemID %v from %s", err, req.GetVolumeId())
 		zlog.Err(e)
 		return nil, e
 	}
-	zlog.Debug().Msgf("NodePublishVolume (treeq) - fileSystemId %d treeqId %d", fileSystemId, treeqId)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - fileSystemID %d treeqID %d", fileSystemID, treeqID)
 	zlog.Debug().Msgf("NodePublishVolume (treeq) - volumeContext=%+v", req.GetVolumeContext())
 	zlog.Debug().Msgf("NodePublishVolume (treeq) - treeq.nfsstorage.configmap=%+v", treeq.NFSstorage.StorageClassParameters)
 
 	treeq.NFSstorage.SnapdirVisible = false
 	treeq.NFSstorage.UsePrivilegedPorts = false
 
-	snapDirVisible := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
+	snapDirVisible := req.GetVolumeContext()[common.StorageClassSnapDirVisible]
 	if snapDirVisible != "" {
 		treeq.NFSstorage.SnapdirVisible, err = strconv.ParseBool(snapDirVisible)
 		if err != nil {
@@ -62,7 +62,7 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			return nil, e
 		}
 	}
-	privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
+	privPorts := req.GetVolumeContext()[common.StorageClassPrivPorts]
 	if privPorts != "" {
 		treeq.NFSstorage.UsePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
@@ -73,13 +73,13 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 
 	// only update the export if this is the only treeq since treeq's share a single export
-	exports, err := treeq.NFSstorage.CS.IboxAPI.GetExportsByFileSystemID(fileSystemId)
+	exports, err := treeq.NFSstorage.CS.IboxAPI.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
 		e := fmt.Errorf("NodePublishVolume (treeq) - GetExportByFileSystem - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	zlog.Debug().Msgf("NodePublishVolume (treeq) - exports count %d on filesystemId %d", len(exports), fileSystemId)
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - exports count %d on filesystemID %d", len(exports), fileSystemID)
 
 	if len(exports) == 0 {
 		exportAccess := "RW"
@@ -88,11 +88,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			exportAccess = "RO"
 		}
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
-		if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] != "" {
-			exportPerms = req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
-			zlog.Debug().Msgf("NodePublishVolume (treeq) - %s was specified %s, will not create default export rule, will create this rule instead", common.SC_NFS_EXPORT_PERMISSIONS, exportPerms)
+		if req.GetVolumeContext()[common.StorageClassNFSExportPermissions] != "" {
+			exportPerms = req.GetVolumeContext()[common.StorageClassNFSExportPermissions]
+			zlog.Debug().Msgf("NodePublishVolume (treeq) - %s was specified %s, will not create default export rule, will create this rule instead", common.StorageClassNFSExportPermissions, exportPerms)
 		}
-		err = treeq.NFSstorage.UpdateExport(fileSystemId, exportPerms)
+		err = treeq.NFSstorage.UpdateExport(fileSystemID, exportPerms)
 		if err != nil {
 			e := fmt.Errorf("NodePublishVolume (treeq) - updateExport - error: %s", err.Error())
 			zlog.Error().Msg(e.Error())

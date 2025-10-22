@@ -293,7 +293,7 @@ func WaitForOneDeviceState(hostID string, channel string, target string, lun str
 		if err != nil {
 			zlog.Warn().Msgf("%s - Failed (%d): Cannot check state of device file %s: %s", functionName, sleepIteration, hostPath, err)
 		}
-		deviceState := strings.TrimSpace(string(hostOutput))
+		deviceState := strings.TrimSpace(hostOutput)
 
 		// Get wwid of device
 		wwidOutput, _, err := ExecCommand.Command("cat", wwidPath)
@@ -427,21 +427,19 @@ func GetPortInfo() (ports []PortInfo) {
 	return ports
 }
 
-func removeMultipathDevices(devices []string) error {
-	zlog.Debug().Msgf("removeMultipathDevices() called with hosts %+v", devices)
+func removeMultipathDevices(device string) error {
+	zlog.Debug().Msgf("removeMultipathDevices() called with hosts %s", device)
 
-	for _, device := range devices {
-		command := fmt.Sprintf("multipathd del path %s", device)
-		pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
+	command := fmt.Sprintf("multipathd del path %s", device)
+	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
 
-		// we only care about the stdout, you can get stderr output from multipath.conf (invalid and deprecated lines)
-		out, err := exec.Command("bash", "-c", pipefailCmd).Output()
-		if err != nil {
-			zlog.Error().Msgf("%s command failed %s", command, err.Error())
-		} else {
-			zlog.Debug().Msgf("%s command succeeded %s", command, out)
-		}
+	// we only care about the stdout, you can get stderr output from multipath.conf (invalid and deprecated lines)
+	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
+	if err != nil {
+		zlog.Error().Msgf("%s command failed %s", command, err.Error())
+		return err
 	}
+	zlog.Debug().Msgf("%s command succeeded %s", command, out)
 	return nil
 }
 
@@ -456,9 +454,9 @@ func removeWWIDEntry(mpath string) error {
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
 		zlog.Error().Msgf("%s command failed %s", command, err.Error())
-	} else {
-		zlog.Debug().Msgf("%s command succeeded: %s", command, out)
+		return err
 	}
+	zlog.Debug().Msgf("%s command succeeded: %s", command, out)
 	return nil
 }
 
@@ -592,9 +590,11 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 		}
 
 		// 3
-		err = removeMultipathDevices(devices)
-		if err != nil {
-			zlog.Debug().Msgf("%s - error from removeMultipathDevices but continuing: %s", functionName, err.Error())
+		for _, device := range devices {
+			err = removeMultipathDevices(device)
+			if err != nil {
+				zlog.Debug().Msgf("%s - error from removeMultipathDevices but continuing: %s", functionName, err.Error())
+			}
 		}
 
 		// 4
@@ -635,7 +635,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 			zlog.Error().Msgf("%s - error: cannot check state of %s", functionName, statePath)
 			return
 		}
-		deviceState := strings.TrimSpace(string(output))
+		deviceState := strings.TrimSpace(output)
 		if deviceState == "blocked" {
 			if sleepIteration == 5 {
 				err = fmt.Errorf("%s - Device %s is blocked", functionName, statePath)

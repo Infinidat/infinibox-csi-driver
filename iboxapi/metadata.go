@@ -92,7 +92,7 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata", objectID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)

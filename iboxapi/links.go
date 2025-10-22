@@ -78,7 +78,7 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/links")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)

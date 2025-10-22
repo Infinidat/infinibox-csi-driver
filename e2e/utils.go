@@ -223,14 +223,14 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	}
 
 	if testConfig.NFSPermissions != "" {
-		storageClass.Parameters[common.SC_NFS_EXPORT_PERMISSIONS] = testConfig.NFSPermissions
+		storageClass.Parameters[common.StorageClassNFSExportPermissions] = testConfig.NFSPermissions
 	}
 	poolToUse := os.Getenv(ENV_POOL)
 	if poolToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
 	networkSpaceToUse := testConfig.NetworkSpaceToUse
-	if networkSpaceToUse == "" && testConfig.Protocol != common.PROTOCOL_FC {
+	if networkSpaceToUse == "" && testConfig.Protocol != common.ProtocolFC {
 		return fmt.Errorf("network space env var is not set and is required")
 	}
 	secretToUse := os.Getenv(ENV_IBOX_SECRET)
@@ -238,26 +238,26 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 		return fmt.Errorf("%s env var is not set and is required", ENV_IBOX_SECRET)
 	}
 	storageClass.Name = testConfig.TestNames.SCName
-	storageClass.Parameters[common.SC_POOL_NAME] = poolToUse
-	if testConfig.Protocol != common.PROTOCOL_FC {
-		storageClass.Parameters[common.SC_NETWORK_SPACE] = networkSpaceToUse
+	storageClass.Parameters[common.StorageClassPoolName] = poolToUse
+	if testConfig.Protocol != common.ProtocolFC {
+		storageClass.Parameters[common.StorageClassNetworkSpace] = networkSpaceToUse
 	}
 	if testConfig.FSType != "" {
-		storageClass.Parameters[common.SC_FSTYPE] = testConfig.FSType
+		storageClass.Parameters[common.CSIFSType] = testConfig.FSType
 	}
-	storageClass.Parameters[common.SC_PROVISIONER_SECRET_NAME] = secretToUse
-	storageClass.Parameters[common.SC_CONTROLLER_PUBLISH_SECRET_NAME] = secretToUse
-	storageClass.Parameters[common.SC_NODE_STAGE_SECRET_NAME] = secretToUse
-	storageClass.Parameters[common.SC_NODE_PUBLISH_SECRET_NAME] = secretToUse
-	storageClass.Parameters[common.SC_CONTROLLER_EXPAND_SECRET_NAME] = secretToUse
-	storageClass.Parameters[common.SC_NODE_EXPAND_SECRET_NAME] = secretToUse
+	storageClass.Parameters[common.CSIProvisionerSecretName] = secretToUse
+	storageClass.Parameters[common.CSIControllerPublishSecretName] = secretToUse
+	storageClass.Parameters[common.CSINodeStageSecretName] = secretToUse
+	storageClass.Parameters[common.CSINodePublishSecretName] = secretToUse
+	storageClass.Parameters[common.CSIControllerExpandSecretName] = secretToUse
+	storageClass.Parameters[common.CSINodeExpandSecretName] = secretToUse
 	if testConfig.UseFsGroup {
-		delete(storageClass.Parameters, common.SC_UID)
-		delete(storageClass.Parameters, common.SC_GID)
-		delete(storageClass.Parameters, common.SC_UNIX_PERMISSIONS)
+		delete(storageClass.Parameters, common.StorageClassUID)
+		delete(storageClass.Parameters, common.StorageClassGID)
+		delete(storageClass.Parameters, common.StorageClassUNIXPermissions)
 	}
 
-	storageClass.Parameters[common.SC_SNAPDIR_VISIBLE] = strconv.FormatBool(testConfig.UseSnapdirVisible)
+	storageClass.Parameters[common.StorageClassSnapDirVisible] = strconv.FormatBool(testConfig.UseSnapdirVisible)
 
 	if testConfig.UseRetainStorageClass {
 		rp := corev1.PersistentVolumeReclaimRetain
@@ -273,7 +273,7 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 
 	nfsV4 := os.Getenv(ENV_USE_NFS_V4)
 	if nfsV4 != "" {
-		if nfsV4 == "true" && protocol == common.PROTOCOL_NFS {
+		if nfsV4 == "true" && protocol == common.ProtocolNFS {
 			storageClass.MountOptions = append(storageClass.MountOptions, "nfsvers=4.1")
 			storageClass.MountOptions = append(storageClass.MountOptions, "port=12049")
 			storageClass.MountOptions = append(storageClass.MountOptions, "rsize=262144")
@@ -316,13 +316,13 @@ func CreatePVC(config *TestConfig) (err error) {
 	if config.PVCAnnotations != nil {
 		pvc.Annotations = make(map[string]string)
 		if config.PVCAnnotations.IboxNetworkSpace != "" {
-			pvc.Annotations[common.PVC_ANNOTATION_NETWORK_SPACE] = config.PVCAnnotations.IboxNetworkSpace
+			pvc.Annotations[common.PVCAnnotationNetworkSpace] = config.PVCAnnotations.IboxNetworkSpace
 		}
 		if config.PVCAnnotations.IboxSecret != "" {
-			pvc.Annotations[common.PVC_ANNOTATION_IBOX_SECRET] = config.PVCAnnotations.IboxSecret
+			pvc.Annotations[common.PVCAnnotationIBOXSecret] = config.PVCAnnotations.IboxSecret
 		}
 		if config.PVCAnnotations.IboxPool != "" {
-			pvc.Annotations[common.PVC_ANNOTATION_POOL_NAME] = config.PVCAnnotations.IboxPool
+			pvc.Annotations[common.PVCAnnotationPoolName] = config.PVCAnnotations.IboxPool
 		}
 	}
 	if config.UseBlock {
@@ -710,9 +710,8 @@ func CreateImagePullSecret(t *testing.T, namespace string, clientset *kubernetes
 
 			t.Logf("imagepullsecret %s created in namespace %s\n", IMAGE_PULL_SECRET, namespace)
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
 
 	t.Logf("image pull secret %s found in operator namespace %s\n", IMAGE_PULL_SECRET, namespace)
@@ -1046,13 +1045,13 @@ func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) 
 	vsc.DeletionPolicy = snapshotapi.VolumeSnapshotContentDelete
 
 	if testConfig.UseSnapshotLock {
-		vsc.Parameters[common.LOCK_EXPIRES_AT_PARAMETER] = "1 Hours"
+		vsc.Parameters[common.LockExpiresAtParameter] = "1 Hours"
 	}
 	secretToUse := os.Getenv(ENV_IBOX_SECRET)
 	if secretToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_IBOX_SECRET)
 	}
-	vsc.Parameters[common.VOLUME_SNAPSHOT_CLASS_SECRET_NAME] = secretToUse
+	vsc.Parameters[common.CSISnapshotterSecretName] = secretToUse
 
 	createOptions := metav1.CreateOptions{}
 

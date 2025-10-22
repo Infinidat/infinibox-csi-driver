@@ -57,14 +57,14 @@ func NewISCSIstorage(capacity int64, cs storagecommon.Commonservice) (iscsi *ISC
 
 func (iscsi *ISCSIstorage) ValidateStorageClass(params map[string]string) error {
 	requiredISCSIParams := map[string]string{
-		common.SC_POOL_NAME:     `[a-zA-Z]+`, // match all strings except empty string or blank string
-		common.SC_USE_CHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
-		common.SC_NETWORK_SPACE: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
+		common.StorageClassUseCHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
+		common.StorageClassNetworkSpace: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}
 	optionalISCSIParams := map[string]string{
-		common.SC_PROVISION_TYPE: `(?i)\A(THICK|THIN)\z`,
-		common.SC_UID:            `^\d+$`,
-		common.SC_GID:            `^\d+$`,
+		common.StorageClassProvisionType: `(?i)\A(THICK|THIN)\z`,
+		common.StorageClassUID:           `^\d+$`,
+		common.StorageClassGID:           `^\d+$`,
 	}
 
 	// validate required parameters
@@ -86,7 +86,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// Volume name to be created - already verified earlier
 	name := req.GetName()
 
-	poolName := params[common.SC_POOL_NAME]
+	poolName := params[common.StorageClassPoolName]
 
 	targetVol, err := iscsi.CS.IboxAPI.GetVolumeByName(name)
 	if err != nil {
@@ -118,9 +118,9 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return iscsi.createVolumeFromContentSource(req, name, iscsi.Capacity, poolName)
 	}
 
-	volType, provided := params[common.SC_PROVISION_TYPE]
+	volType, provided := params[common.StorageClassProvisionType]
 	if !provided {
-		volType = common.SC_THIN_PROVISION_TYPE
+		volType = common.StorageClassThinProvision
 	}
 
 	volumeParam := &api.VolumeParam{
@@ -128,7 +128,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		ProvisionType: volType,
 	}
 
-	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(params[common.SC_SSD_ENABLED], poolName, iscsi.CS.IboxAPI)
+	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(params[common.StorageClassSSDEnabled], poolName, iscsi.CS.IboxAPI)
 	if err != nil {
 		e := status.Errorf(codes.Internal, "%s (iscsi) - determineSSDValue - error when creating volume %s storagepool %s, err: %s", functionName, name, poolName, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -238,32 +238,32 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	zlog.Debug().Msgf("%s (iscsi) node ID: %s volume ID: %s %s", functionName, req.GetNodeId(), req.GetVolumeId(),
 		storagecommon.GetHostInfo(req.GetSecrets(), iscsi.CS.IboxAPI))
 
-	volIdStr := req.GetVolumeId()
-	volproto, err := storagecommon.ValidateVolumeID(volIdStr)
+	volumeIDString := req.GetVolumeId()
+	volumePrototype, err := storagecommon.ValidateVolumeID(volumeIDString)
 	if err != nil {
-		e := fmt.Errorf("%s (iscsi) - ValidateVolumeID - failed to validate storage type for volume ID: %s, err: %v", functionName, volIdStr, err)
+		e := fmt.Errorf("%s (iscsi) - ValidateVolumeID - failed to validate storage type for volume ID: %s, err: %v", functionName, volumeIDString, err)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
-	zlog.Debug().Msgf("volID: %d", volproto.VolumeID)
-	volume, err := iscsi.CS.IboxAPI.GetVolume(volproto.VolumeID)
+	zlog.Debug().Msgf("volID: %d", volumePrototype.VolumeID)
+	volume, err := iscsi.CS.IboxAPI.GetVolume(volumePrototype.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("%s (iscsi) - GetVolume volume ID '%d' - error: %s", functionName, volproto.VolumeID, err.Error())
+		e := fmt.Errorf("%s (iscsi) - GetVolume volume ID '%d' - error: %s", functionName, volumePrototype.VolumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	_, err = iscsi.CS.AccessModesHelper.IsValidAccessMode(volume, req)
 	if err != nil {
-		e := fmt.Errorf("%s (iscsi) - IsValidAccessMode volume ID '%d' - error: %s", functionName, volproto.VolumeID, err.Error())
+		e := fmt.Errorf("%s (iscsi) - IsValidAccessMode volume ID '%d' - error: %s", functionName, volumePrototype.VolumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("%s (iscsi) - DetermineHostName volume ID '%d' - error: %s", functionName, volproto.VolumeID, err.Error())
+		e := fmt.Errorf("%s (iscsi) - DetermineHostName volume ID '%d' - error: %s", functionName, volumePrototype.VolumeID, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
@@ -296,29 +296,29 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 	zlog.Debug().Msgf("%s (iscsi) got LUNs for host: %s, LUNs: %+v", functionName, host.Name, lunList)
 	for _, lun := range lunList {
-		if lun.VolumeID == volproto.VolumeID {
+		if lun.VolumeID == volumePrototype.VolumeID {
 			publishVolCtxt := map[string]string{
 				storagecommon.LUN_PUBLISH_CONTEXT:        strconv.Itoa(lun.Lun),
 				storagecommon.HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
 				storagecommon.HOST_PORTS_PUBLISH_CONTEXT: ports,
 			}
-			zlog.Debug().Msgf("%s (iscsi) vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", functionName, volproto.VolumeID, host.Name, host.ID, lun.Lun, ports)
+			zlog.Debug().Msgf("%s (iscsi) vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", functionName, volumePrototype.VolumeID, host.Name, host.ID, lun.Lun, ports)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: publishVolCtxt,
 			}, nil
 		}
 	}
 
-	maxVolsPerHostStr := req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST]
+	maxVolsPerHostStr := req.GetVolumeContext()[common.StorageClassMaxVolsPerHost]
 	if maxVolsPerHostStr != "" {
 		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
 		if err != nil {
-			e := fmt.Errorf("%s (iscsi) - invalid parameter %s error:  %v", functionName, common.SC_MAX_VOLS_PER_HOST, err)
+			e := fmt.Errorf("%s (iscsi) - invalid parameter %s error:  %v", functionName, common.StorageClassMaxVolsPerHost, err)
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Errorf("%s (iscsi) - invalid parameter %s error:  required to be greater than 0", functionName, common.SC_MAX_VOLS_PER_HOST)
+			e := fmt.Errorf("%s (iscsi) - invalid parameter %s error:  required to be greater than 0", functionName, common.StorageClassMaxVolsPerHost)
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
@@ -331,8 +331,8 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 
 	// map volume to host
-	zlog.Debug().Msgf("%s (iscsi) - mapping volume %d to host %s", functionName, volproto.VolumeID, host.Name)
-	luninfo, err := iscsi.CS.MapVolumeTohost(volproto.VolumeID, host.ID)
+	zlog.Debug().Msgf("%s (iscsi) - mapping volume %d to host %s", functionName, volumePrototype.VolumeID, host.Name)
+	luninfo, err := iscsi.CS.MapVolumeTohost(volumePrototype.VolumeID, host.ID)
 	if err != nil {
 		e := fmt.Errorf("%s (iscsi) - mapVolumeToHost host ID %d - error: %s", functionName, host.ID, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -345,7 +345,7 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 		storagecommon.HOST_PORTS_PUBLISH_CONTEXT: ports,
 		SECURITY_METHOD_PUBLISH_CONTEXT:          host.SecurityMethod,
 	}
-	zlog.Debug().Msgf("%s (iscsi) mapped volume %d, publish context: %v", functionName, volproto.VolumeID, publishVolCtxt)
+	zlog.Debug().Msgf("%s (iscsi) mapped volume %d, publish context: %v", functionName, volumePrototype.VolumeID, publishVolCtxt)
 
 	zlog.Debug().Msgf("%s (iscsi) completed node ID: %s volume ID: %s", functionName, req.GetNodeId(), req.GetVolumeId())
 	return &csi.ControllerPublishVolumeResponse{
@@ -361,7 +361,7 @@ func (iscsi *ISCSIstorage) ControllerUnpublishVolume(ctx context.Context, req *c
 	zlog.Debug().Msgf("%s (iscsi) unmapping host's luns: host id: %d, name: %s lun count %d", functionName, host.ID, host.Name, len(host.Luns))
 	if len(host.Luns) > 0 {
 		zlog.Debug().Msgf("%s (iscsi) unmap volume %d from host %d", functionName, iscsi.CS.VolProto.VolumeID, host.ID)
-		err = iscsi.CS.UnmapVolumeFromHost(host.ID, int(iscsi.CS.VolProto.VolumeID))
+		err = iscsi.CS.UnmapVolumeFromHost(host.ID, iscsi.CS.VolProto.VolumeID)
 		if err != nil {
 			e := fmt.Errorf("%s (iscsi) - unmapVolumeFromHost volume ID %d host %d- error: %s", functionName, iscsi.CS.VolProto.VolumeID, host.ID, err.Error())
 			zlog.Err(e)
@@ -434,7 +434,7 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, status.Error(codes.AlreadyExists, e.Error())
 	}
 
-	parentVolume, err := iscsi.CS.IboxAPI.GetVolume(int(iscsi.CS.VolProto.VolumeID))
+	parentVolume, err := iscsi.CS.IboxAPI.GetVolume(iscsi.CS.VolProto.VolumeID)
 	if err != nil {
 		e := fmt.Errorf("%s (iscsi) - GetVolume - volume id %d, error: %s", functionName, iscsi.CS.VolProto.VolumeID, err.Error())
 		zlog.Err(e)
@@ -448,7 +448,7 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		SSDEnabled:     parentVolume.SsdEnabled,
 	}
 
-	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
+	lockExpiresAtParameter := req.Parameters[common.LockExpiresAtParameter]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := iscsi.CS.IboxAPI.GetNtpStatus()
@@ -533,7 +533,7 @@ func (iscsi *ISCSIstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	}
 
 	// this applies for when we are evaluating a snapshot volume
-	if vol.LockState == common.LOCKED_STATE {
+	if vol.LockState == common.LockedState {
 		return status.Errorf(codes.Aborted, "%s (iscsi) - volume %d was locked, can not delete till expire date is reached at %s", functionName, volumeID, time.UnixMilli(vol.LockExpiresAt))
 	}
 
@@ -606,7 +606,7 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	volumeID := iscsi.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("%s (iscsi) volume ID %d", functionName, volumeID)
 
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if capacity < storagecommon.GIB {
 		capacity = storagecommon.GIB
 		zlog.Warn().Msgf("%s (iscsi) - volume minimum capacity should be greater 1 GB", functionName)
@@ -629,7 +629,7 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	}, nil
 }
 
-func (st *ISCSIstorage) ControllerGetVolume(_ context.Context, _ *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+func (iscsi *ISCSIstorage) ControllerGetVolume(_ context.Context, _ *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -663,7 +663,7 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	}
 
 	// Validate the size is the same.
-	if int64(srcVol.Size) != sizeInBytes {
+	if srcVol.Size != sizeInBytes {
 		msg := fmt.Sprintf("%s (iscsi) %s %s has incompatible size. size is %d bytes with requested size %d bytes", functionName, restoreType, volumeContentID, srcVol.Size, sizeInBytes)
 		zlog.Error().Msg(msg)
 		return nil, status.Errorf(codes.InvalidArgument, "%s", msg)
@@ -678,14 +678,14 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	if pool.ID != srcVol.PoolId {
+	if pool.ID != srcVol.PoolID {
 		msg = fmt.Sprintf("%s (iscsi) volume storage pool is different than the requested storage pool %s", functionName, storagePool)
 		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	// Parse ssd enabled flag
-	ssd := params[common.SC_SSD_ENABLED]
+	ssd := params[common.StorageClassSSDEnabled]
 	if ssd == "" {
 		ssd = strconv.FormatBool(false)
 	}

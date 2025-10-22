@@ -51,7 +51,7 @@ type Volume struct {
 	CapacitySavings       int    `json:"capacity_savings,omitempty"`
 	Name                  string `json:"name,omitempty"`
 	CreatedAt             int64  `json:"created_at,omitempty"`
-	PoolId                int    `json:"pool_id,omitempty"`
+	PoolID                int    `json:"pool_id,omitempty"`
 	PoolName              string `json:"pool_name,omitempty"`
 	CompressionEnabled    bool   `json:"compression_enabled,omitempty"`
 	FamilyID              int    `json:"family_id,omitempty"`
@@ -134,7 +134,7 @@ func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, 
 	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/volumes", volumeID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
@@ -266,7 +266,7 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/volumes")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume Name", volumeName)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
@@ -456,7 +456,7 @@ func (iboxClient *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volu
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/volumes")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "parent ID", parentID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)

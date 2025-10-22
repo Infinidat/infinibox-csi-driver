@@ -254,7 +254,7 @@ func (iboxClient *IboxClient) GetMembersByCGID(cgID int) (memberInfo []MemberInf
 	url := fmt.Sprintf("%s%s/%d/members", iboxClient.Creds.URL, "api/rest/cgs", cgID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "cg ID", cgID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
@@ -355,7 +355,7 @@ func (iboxClient *IboxClient) GetConsistencyGroupByName(name string) (cg *Consis
 
 	values := req.URL.Query()
 	values.Add("name", name)
-	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOX_DEFAULT_QUERY_PAGE_SIZE))
+	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOXDefaultQueryPageSize))
 	values.Add(PARAMETER_PAGE, strconv.Itoa(1))
 	req.URL.RawQuery = values.Encode()
 

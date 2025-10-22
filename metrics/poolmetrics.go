@@ -50,11 +50,11 @@ func RecordPoolMetrics(config *MetricsConfig) {
 
 				for _, poolInfo := range poolInfoList {
 					labels := prometheus.Labels{
-						METRIC_POOL_NAME:             poolInfo.storageClass.Parameters[common.SC_POOL_NAME],
-						METRIC_POOL_PROVISION_TYPE:   poolInfo.storageClass.Parameters[common.SC_PROVISION_TYPE],
-						METRIC_POOL_SSD_ENABLED:      poolInfo.storageClass.Parameters[common.SC_SSD_ENABLED],
-						METRIC_POOL_NETWORK_SPACE:    poolInfo.storageClass.Parameters[common.SC_NETWORK_SPACE],
-						METRIC_POOL_STORAGE_PROTOCOL: poolInfo.storageClass.Parameters[common.SC_STORAGE_PROTOCOL],
+						METRIC_POOL_NAME:             poolInfo.storageClass.Parameters[common.StorageClassPoolName],
+						METRIC_POOL_PROVISION_TYPE:   poolInfo.storageClass.Parameters[common.StorageClassProvisionType],
+						METRIC_POOL_SSD_ENABLED:      poolInfo.storageClass.Parameters[common.StorageClassSSDEnabled],
+						METRIC_POOL_NETWORK_SPACE:    poolInfo.storageClass.Parameters[common.StorageClassNetworkSpace],
+						METRIC_POOL_STORAGE_PROTOCOL: poolInfo.storageClass.Parameters[common.StorageClassStorageProtocol],
 					}
 					MetricPoolAvailableCapGauge.With(labels).Set(float64(poolInfo.pool.PhysicalCapacity))  // pool - physical_capacity
 					MetricPoolUsedCapGauge.With(labels).Set(float64(poolInfo.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
@@ -84,7 +84,7 @@ func getPoolInfo(ibox IboxCredentials) ([]PoolInfo, error) {
 		return poolInfo, err
 	}
 	for _, storageClass := range *storageClasses {
-		pool, err := lookupPool(allPools, storageClass.Parameters[common.SC_POOL_NAME])
+		pool, err := lookupPool(allPools, storageClass.Parameters[common.StorageClassPoolName])
 		if err != nil {
 			zlog.Error().Msgf("pool_name not found from storage classes %s", storageClass.Parameters["pool_name"])
 		} else {
@@ -123,11 +123,11 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 		if storageClass.Provisioner == "infinibox-csi-driver" {
 			// this is a storageclass used by our driver
 			zlog.Debug().Msgf("storageclass name %s", storageClass.Name)
-			zlog.Debug().Msgf("storage_protocol %s", storageClass.Parameters[common.SC_STORAGE_PROTOCOL])
-			zlog.Debug().Msgf("network_space %s", storageClass.Parameters[common.SC_NETWORK_SPACE])
-			zlog.Debug().Msgf("pool_name %s", storageClass.Parameters[common.SC_POOL_NAME])
-			zlog.Debug().Msgf("provision_type %s", storageClass.Parameters[common.SC_PROVISION_TYPE])
-			zlog.Debug().Msgf("ssd_enabled %s", storageClass.Parameters[common.SC_SSD_ENABLED])
+			zlog.Debug().Msgf("storage_protocol %s", storageClass.Parameters[common.StorageClassStorageProtocol])
+			zlog.Debug().Msgf("network_space %s", storageClass.Parameters[common.StorageClassNetworkSpace])
+			zlog.Debug().Msgf("pool_name %s", storageClass.Parameters[common.StorageClassPoolName])
+			zlog.Debug().Msgf("provision_type %s", storageClass.Parameters[common.StorageClassProvisionType])
+			zlog.Debug().Msgf("ssd_enabled %s", storageClass.Parameters[common.StorageClassSSDEnabled])
 			zlog.Debug().Msgf("--------------------------------------")
 			ourStorageClasses = append(ourStorageClasses, storageClass)
 		}

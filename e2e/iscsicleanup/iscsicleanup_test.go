@@ -17,7 +17,7 @@ import (
 
 func TestISCSICleanup(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

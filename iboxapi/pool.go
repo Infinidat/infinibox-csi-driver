@@ -71,7 +71,7 @@ func (iboxClient *IboxClient) GetPoolByName(name string) (pool *PoolResult, err 
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 	values := req.URL.Query()
-	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOX_DEFAULT_QUERY_PAGE_SIZE))
+	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOXDefaultQueryPageSize))
 	values.Add(PARAMETER_PAGE, strconv.Itoa(1))
 	values.Add("name", name)
 	req.URL.RawQuery = values.Encode()

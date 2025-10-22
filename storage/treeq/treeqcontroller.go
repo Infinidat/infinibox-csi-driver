@@ -32,7 +32,7 @@ import (
 type Treeqstorage struct {
 	csi.ControllerServer
 	csi.NodeServer
-	TreeqService TreeqInterface
+	TreeqService Interface
 	NFSstorage   nfs.NFSstorage
 }
 
@@ -47,7 +47,7 @@ func NewTreeqstorage(capacity int64, comnserv storagecommon.Commonservice) (tree
 		OSHelper:               helper.Service{},
 		Mounter:                mount.NewWithoutSystemd(""),
 	}
-	service := &TreeqService{
+	service := &Service{
 		NFSstorage: nfs,
 		CS:         comnserv,
 	}
@@ -60,15 +60,15 @@ func NewTreeqstorage(capacity int64, comnserv storagecommon.Commonservice) (tree
 
 func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error {
 	requiredParams := map[string]string{
-		common.SC_NETWORK_SPACE: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
-		common.SC_POOL_NAME:     `[a-zA-Z]+`, // match all strings except empty string or blank string
+		common.StorageClassNetworkSpace: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
 	}
 	optionalParams := map[string]string{
-		common.SC_UID:                       `^\d+$`,
-		common.SC_GID:                       `^\d+$`,
-		common.SC_MAX_FILESYSTEMS:           `^\d+$`,
-		common.SC_MAX_TREEQS_PER_FILESYSTEM: `^\d+$`,
-		common.SC_MAX_FILESYSTEM_SIZE:       `\A.*\z`, // TODO: add more specific pattern
+		common.StorageClassUID:               `^\d+$`,
+		common.StorageClassGID:               `^\d+$`,
+		common.StorageClassMaxFilesystems:    `^\d+$`,
+		common.StorageClassMaxTreeqsPerFS:    `^\d+$`,
+		common.StorageClassMaxFilesystemSize: `\A.*\z`, // TODO: add more specific pattern
 	}
 
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, params)
@@ -96,18 +96,18 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("CreateVolume (treeq) - GetBlock - block access requested for %s PV %s", params[common.SC_STORAGE_PROTOCOL], req.GetName())
+			e := fmt.Errorf("CreateVolume (treeq) - GetBlock - block access requested for %s PV %s", params[common.StorageClassStorageProtocol], req.GetName())
 			zlog.Err(e)
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
 	}
 
 	treeq.NFSstorage.StorageClassParameters = params
-	fsPrefix := params[common.SC_FS_PREFIX]
+	fsPrefix := params[common.StorageClassFSPrefix]
 	if fsPrefix == "" {
-		fsPrefix = common.SC_FS_PREFIX_DEFAULT
+		fsPrefix = common.StorageClassFSPrefixDefault
 	}
-	treeqVolumeContext, err := treeq.TreeqService.IsTreeqAlreadyExist(params[common.SC_POOL_NAME], strings.Trim(params[common.SC_NETWORK_SPACE], ""), req.GetName(), fsPrefix)
+	treeqVolumeContext, err := treeq.TreeqService.IsTreeqAlreadyExist(params[common.StorageClassPoolName], strings.Trim(params[common.StorageClassNetworkSpace], ""), req.GetName(), fsPrefix)
 	if err != nil {
 		e := fmt.Errorf("CreateVolume (treeq) - IsTreeqAlreadyExist - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
@@ -122,10 +122,10 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	treeqVolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = params[common.SC_NFS_EXPORT_PERMISSIONS]
-	treeqVolumeContext[common.SC_STORAGE_PROTOCOL] = params[common.SC_STORAGE_PROTOCOL]
-	treeqVolumeContext[common.SC_UID] = params[common.SC_UID]
-	treeqVolumeContext[common.SC_GID] = params[common.SC_GID]
+	treeqVolumeContext[common.StorageClassNFSExportPermissions] = params[common.StorageClassNFSExportPermissions]
+	treeqVolumeContext[common.StorageClassStorageProtocol] = params[common.StorageClassStorageProtocol]
+	treeqVolumeContext[common.StorageClassUID] = params[common.StorageClassUID]
+	treeqVolumeContext[common.StorageClassGID] = params[common.StorageClassGID]
 
 	volumeID := treeqVolumeContext["ID"] + "#" + treeqVolumeContext["TREEQID"]
 	zlog.Debug().Msgf("CreateVolume (treeq) -  final treeqVolumeMap %v volumeID %s", treeqVolumeContext, volumeID)
@@ -210,7 +210,7 @@ func (treeq *Treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
 	zlog.Debug().Msgf("ControllerExpandVolume (treeq) starts")
 
-	maxFileSystemSize := treeq.NFSstorage.StorageClassParameters[common.SC_MAX_FILESYSTEM_SIZE]
+	maxFileSystemSize := treeq.NFSstorage.StorageClassParameters[common.StorageClassMaxFilesystemSize]
 	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("ControllerExpandVolume (treeq) - getVolumeIDs - invalid volume id %v", err)
@@ -218,7 +218,7 @@ func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if capacity < storagecommon.GIB {
 		capacity = storagecommon.GIB
 		zlog.Warn().Msg("ControllerExpandVolume (treeq) - volume minimum capacity should be greater 1 GB")

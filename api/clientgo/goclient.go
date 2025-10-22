@@ -144,7 +144,7 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 		persistentVolumeName := persistentVolume.GetName()
 		provisionedBy := persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"]
 		zlog.Trace().Msgf("pv name: %+v\n", persistentVolumeName)
-		if provisionedBy == common.SERVICE_NAME {
+		if provisionedBy == common.ServiceName {
 			zlog.Trace().Msgf("pv %s provisioned by Infinidat CSI driver", persistentVolumeName)
 			infiPersistentVolumeList.Items = append(infiPersistentVolumeList.Items, persistentVolume)
 		} else {

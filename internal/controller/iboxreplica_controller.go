@@ -150,14 +150,14 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	// set defaults for optional CR fields
 	// we support SYNC, ASYNC, and ACTIVE_ACTIVE for replication types
 	switch replica.Spec.ReplicationType {
-	case common.IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE:
-	case common.IBOXREPLICA_REPLICA_TYPE_ASYNC:
-	case common.IBOXREPLICA_REPLICA_TYPE_SYNC:
+	case common.IboxreplicaReplicaTypeACTIVE_ACTIVE:
+	case common.IboxreplicaReplicaTypeASYNC:
+	case common.IboxreplicaReplicaTypeSYNC:
 		replica.Spec.IsPreferred = nil
 		thislog.Info("creating replica", "setting is_preferred to nil", replica.Name)
 	default:
 		err := fmt.Errorf("error invalid ReplicationType in CR %s", replica.Spec.ReplicationType)
-		thislog.Error(err, fmt.Sprintf("supported values include %s and %s", common.IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE, common.IBOXREPLICA_REPLICA_TYPE_ASYNC))
+		thislog.Error(err, fmt.Sprintf("supported values include %s and %s", common.IboxreplicaReplicaTypeACTIVE_ACTIVE, common.IboxreplicaReplicaTypeASYNC))
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
@@ -185,7 +185,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	}
 
 	// rpo_value and sync_interval are 0 for AA replication type so they should be left as 0 values
-	if replica.Spec.ReplicationType == common.IBOXREPLICA_REPLICA_TYPE_ASYNC {
+	if replica.Spec.ReplicationType == common.IboxreplicaReplicaTypeASYNC {
 		if replica.Spec.RpoValue == 0 {
 			replica.Spec.RpoValue = IBOXREPLICA_RPO_VALUE_DEFAULT
 		}
@@ -210,7 +210,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	var localEntityID int
 
 	switch replica.Spec.EntityType {
-	case common.REPLICA_ENTITY_CONSISTENCY_GROUP:
+	case common.ReplicaEntityCG:
 		// look up the CG ID
 		consistencyGroup, err := clientsvc.IboxAPI.GetConsistencyGroupByName(replica.Spec.LocalEntityName)
 		if err != nil {
@@ -224,7 +224,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 			return err
 		}
 		localEntityID = consistencyGroup.ID
-	case common.REPLICA_ENTITY_VOLUME:
+	case common.ReplicaEntityVolume:
 		// look up the volume ID
 		volume, err := clientsvc.IboxAPI.GetVolumeByName(replica.Spec.LocalEntityName)
 		if err != nil {
@@ -238,7 +238,7 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 			return err
 		}
 		localEntityID = volume.ID
-	case common.REPLICA_ENTITY_FILESYSTEM:
+	case common.ReplicaEntityFilesystem:
 		// look up the filesystem ID
 		fileSystem, err := clientsvc.IboxAPI.GetFileSystemByName(replica.Spec.LocalEntityName)
 		if err != nil {
@@ -466,8 +466,8 @@ func (r *IboxreplicaReconciler) updateIboxreplicaState(replica *csidriverinfinid
 
 func getClientService(replica *csidriverinfinidatcomv1.Iboxreplica) (*api.ClientService, error) {
 	// get secret
-	secretName := replica.Annotations[common.PVC_ANNOTATION_SECRET_NAME]
-	secretNamespace := replica.Annotations[common.PVC_ANNOTATION_SECRET_NAMESPACE]
+	secretName := replica.Annotations[common.PVCAnnotationSecretName]
+	secretNamespace := replica.Annotations[common.PVCAnnotationSecretNamespace]
 
 	if secretName == "" || secretNamespace == "" {
 		return nil, fmt.Errorf("annotations for secret name and namespace are required")

@@ -74,22 +74,22 @@ func main() {
 	kubeVersion := node.Status.NodeInfo.KubeletVersion
 
 	// set the env vars so we can get it in other parts of the driver to create events
-	err = os.Setenv(common.ENV_VAR_CSI_DRIVER_VERSION, version)
+	err = os.Setenv(common.EnvVarCSIDriverVersion, version)
 	if err != nil {
 		zlog.Error().Msgf("error in setenv %s", err.Error())
 		os.Exit(1)
 	}
-	err = os.Setenv(common.ENV_VAR_OS_VERSION, osVersion)
+	err = os.Setenv(common.EnvVarOSVersion, osVersion)
 	if err != nil {
 		zlog.Error().Msgf("error in setenv %s", err.Error())
 		os.Exit(1)
 	}
-	err = os.Setenv(common.ENV_VAR_KUBE_VERSION, kubeVersion)
+	err = os.Setenv(common.EnvVarKubeVersion, kubeVersion)
 	if err != nil {
 		zlog.Error().Msgf("error in setenv %s", err.Error())
 		os.Exit(1)
 	}
-	err = os.Setenv(common.ENV_VAR_NODE_COUNT, nodeCount)
+	err = os.Setenv(common.EnvVarNodeCount, nodeCount)
 	if err != nil {
 		zlog.Error().Msgf("error in setenv %s", err.Error())
 		os.Exit(1)

@@ -38,10 +38,10 @@ func RecordPVMetrics(config *MetricsConfig) {
 				labels := prometheus.Labels{
 					METRIC_PV_NAME:             persistentVolume.PVol.Name,
 					METRIC_PV_STORAGE_CLASS:    persistentVolume.SClass.Name,
-					METRIC_PV_PROVISION_TYPE:   persistentVolume.SClass.Parameters[common.SC_PROVISION_TYPE],
-					METRIC_PV_SSD_ENABLED:      persistentVolume.SClass.Parameters[common.SC_SSD_ENABLED],
-					METRIC_PV_NETWORK_SPACE:    persistentVolume.SClass.Parameters[common.SC_NETWORK_SPACE],
-					METRIC_PV_STORAGE_PROTOCOL: persistentVolume.SClass.Parameters[common.SC_STORAGE_PROTOCOL],
+					METRIC_PV_PROVISION_TYPE:   persistentVolume.SClass.Parameters[common.StorageClassProvisionType],
+					METRIC_PV_SSD_ENABLED:      persistentVolume.SClass.Parameters[common.StorageClassSSDEnabled],
+					METRIC_PV_NETWORK_SPACE:    persistentVolume.SClass.Parameters[common.StorageClassNetworkSpace],
+					METRIC_PV_STORAGE_PROTOCOL: persistentVolume.SClass.Parameters[common.StorageClassStorageProtocol],
 				}
 				MetricPVTotalSizeGauge.With(labels).Set(float64(persistentVolume.PVol.Spec.Capacity.Storage().Value()))
 			}

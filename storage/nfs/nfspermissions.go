@@ -29,18 +29,18 @@ const (
 	NFS_EXPORT_PERM_ACCESS         = "access"
 )
 
-type NFSStorageHelper interface {
+type StorageHelper interface {
 	GetNFSMountOptions(req *csi.NodePublishVolumeRequest) ([]string, error)
 }
 
-type NFSStorageService struct{}
+type StorageService struct{}
 
 func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	permissionFixed := strings.ReplaceAll(permission, "'", "\"")
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
-		zlog.Error().Msgf("invalid %s format %v raw [%s] fixed [%s]", common.SC_NFS_EXPORT_PERMISSIONS, err, permission, permissionFixed)
+		zlog.Error().Msgf("invalid %s format %v raw [%s] fixed [%s]", common.StorageClassNFSExportPermissions, err, permission, permissionFixed)
 		return permissionsMapArray, err
 	}
 
@@ -76,17 +76,15 @@ func convertToExportRulePermissions(permissionsMapArray []map[string]interface{}
 // gid should be integer >= -1, if set to -1, then it means don't change
 // unix_permissions should be valid octal value
 func ValidateNFSExportPermissions(scParameters map[string]string) error {
-	if scParameters[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
-		// the case when nfs_export_permissions is not set by a user in the SC
-	} else {
-		permissionsMapArray, err := getPermissionMaps(scParameters[common.SC_NFS_EXPORT_PERMISSIONS])
+	if scParameters[common.StorageClassNFSExportPermissions] != "" {
+		permissionsMapArray, err := getPermissionMaps(scParameters[common.StorageClassNFSExportPermissions])
 		if err != nil {
 			zlog.Err(err)
 			return err
 		}
 
 		// validation for uid,gid,unix_permissions
-		if scParameters[common.SC_UID] != "" || scParameters[common.SC_GID] != "" || scParameters[common.SC_UNIX_PERMISSIONS] != "" {
+		if scParameters[common.StorageClassUID] != "" || scParameters[common.StorageClassGID] != "" || scParameters[common.StorageClassUNIXPermissions] != "" {
 			if len(permissionsMapArray) > 0 {
 				noRootSquash := permissionsMapArray[0][NFS_EXPORT_PERM_NO_ROOT_SQUASH]
 				if noRootSquash == false {

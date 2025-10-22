@@ -14,137 +14,137 @@ package common
 
 // storage class parameter keys
 const (
-	NODE_ROOT_DIR = "/host"
+	NodeRootDir = "/host"
 
-	FS_TYPE_EXT3 = "ext3"
-	FS_TYPE_EXT4 = "ext4"
-	FS_TYPE_XFS  = "xfs"
+	FSTypeExt3 = "ext3"
+	FSTypeExt4 = "ext4"
+	FSTypeXFS  = "xfs"
 
-	SC_NFS_EXPORT_PERMISSIONS = "nfs_export_permissions"
-	SC_PRIV_PORTS             = "privileged_ports_only"
-	SC_SNAPDIR_VISIBLE        = "snapdir_visible"
-	SC_UID                    = "uid"
-	SC_GID                    = "gid"
-	SC_UNIX_PERMISSIONS       = "unix_permissions"
-	SC_ROUND_UP               = "round_up_requested_size"
+	StorageClassNFSExportPermissions = "nfs_export_permissions"
+	StorageClassPrivPorts            = "privileged_ports_only"
+	StorageClassSnapDirVisible       = "snapdir_visible"
+	StorageClassUID                  = "uid"
+	StorageClassGID                  = "gid"
+	StorageClassUNIXPermissions      = "unix_permissions"
+	StorageClassRoundup              = "round_up_requested_size"
 
-	SC_SSD_ENABLED          = "ssd_enabled"
-	SC_PROVISION_TYPE       = "provision_type"
-	SC_POOL_NAME            = "pool_name"
-	SC_NETWORK_SPACE        = "network_space"
-	SC_STORAGE_PROTOCOL     = "storage_protocol"
-	SC_FS_PREFIX            = "fs_prefix"
-	SC_FS_PREFIX_DEFAULT    = "csit_"
-	SC_MAX_VOLS_PER_HOST    = "max_vols_per_host"
-	SC_USE_CHAP             = "useCHAP"
-	SC_THIN_PROVISION_TYPE  = "THIN"
-	SC_THICK_PROVISION_TYPE = "THICK"
+	StorageClassSSDEnabled      = "ssd_enabled"
+	StorageClassProvisionType   = "provision_type"
+	StorageClassPoolName        = "pool_name"
+	StorageClassNetworkSpace    = "network_space"
+	StorageClassStorageProtocol = "storage_protocol"
+	StorageClassFSPrefix        = "fs_prefix"
+	StorageClassFSPrefixDefault = "csit_"
+	StorageClassMaxVolsPerHost  = "max_vols_per_host"
+	StorageClassUseCHAP         = "useCHAP"
+	StorageClassThinProvision   = "THIN"
+	StorageClassThickProvision  = "THICK"
 
 	// ibox namespace services - indicate what protocol is available for a namespace.
-	NS_NFS_SVC         = "NAS_SERVICE"
-	NS_ISCSI_SVC       = "ISCSI_SERVICE"
-	NS_REPLICATION_SVC = "RMR_SERVICE"
-	NS_NVME_SVC        = "SAN_SERVICE"
+	NetworkSpaceNFSService         = "NAS_SERVICE"
+	NetworkSpaceISCSIService       = "ISCSI_SERVICE"
+	NetworkSpaceReplicationService = "RMR_SERVICE"
+	NetworkSpaceNVMEService        = "SAN_SERVICE"
 
-	SC_MAX_TREEQS_PER_FILESYSTEM = "max_treeqs_per_filesystem"
-	SC_MAX_FILESYSTEMS           = "max_filesystems"
-	SC_MAX_FILESYSTEM_SIZE       = "max_filesystem_size"
+	StorageClassMaxTreeqsPerFS    = "max_treeqs_per_filesystem"
+	StorageClassMaxFilesystems    = "max_filesystems"
+	StorageClassMaxFilesystemSize = "max_filesystem_size"
 
-	SC_PROTOCOL_SECRET_AUTO_ORDER = "preferred_auto_order" // a comma separated list of protocols
+	StorageClassProtocolSecretAutoOrder = "preferred_auto_order" // a comma separated list of protocols
 )
 
 // storage protocols
 const (
-	PROTOCOL_NFS   = "nfs"
-	PROTOCOL_TREEQ = "nfs_treeq"
-	PROTOCOL_ISCSI = "iscsi"
-	PROTOCOL_FC    = "fc"
-	PROTOCOL_NVME  = "nvme"
-	PROTOCOL_AUTO  = "auto" // either fc, iscsi, or nvme - heuristically determined
+	ProtocolNFS   = "nfs"
+	ProtocolTreeq = "nfs_treeq"
+	ProtocolISCSI = "iscsi"
+	ProtocolFC    = "fc"
+	ProtocolNVME  = "nvme"
+	ProtocolAuto  = "auto" // either fc, iscsi, or nvme - heuristically determined
 )
 
 // Service name in
 const (
-	SERVICE_NAME                 = "infinibox-csi-driver"
-	IBOX_DEFAULT_QUERY_PAGE_SIZE = 1000
+	ServiceName              = "infinibox-csi-driver"
+	IBOXDefaultQueryPageSize = 1000
 )
 
-const LOCK_EXPIRES_AT_PARAMETER = "lock_expires_at"
-const LOCKED_STATE = "LOCKED"
+const LockExpiresAtParameter = "lock_expires_at"
+const LockedState = "LOCKED"
 
 // PVC annotations
 const (
-	PVC_ANNOTATION_POOL_NAME     = "infinidat.com/pool_name"
-	PVC_ANNOTATION_NETWORK_SPACE = "infinidat.com/network_space"
-	PVC_ANNOTATION_IBOX_SECRET   = "infinidat.com/ibox_secret"
+	PVCAnnotationPoolName     = "infinidat.com/pool_name"
+	PVCAnnotationNetworkSpace = "infinidat.com/network_space"
+	PVCAnnotationIBOXSecret   = "infinidat.com/ibox_secret"
 )
 
 const BytesInOneGibibyte = 1073741824
 
 // for iscsi and fc host metadata
-const CSI_CREATED_HOST = "csi-created-host"
+const CSICreatedHost = "csi-created-host"
 
 // iboxreplica controller
 const (
-	PVC_ANNOTATION_SECRET_NAME      = "infinidat.com/secret_name"
-	PVC_ANNOTATION_SECRET_NAMESPACE = "infinidat.com/secret_namespace"
+	PVCAnnotationSecretName      = "infinidat.com/secret_name"
+	PVCAnnotationSecretNamespace = "infinidat.com/secret_namespace"
 
-	REPLICA_ENTITY_CONSISTENCY_GROUP = "CONSISTENCY_GROUP"
-	REPLICA_ENTITY_VOLUME            = "VOLUME"
-	REPLICA_ENTITY_FILESYSTEM        = "FILESYSTEM"
-	REPLICATION_TYPE_ASYNC           = "ASYNC"
-	REPLICATION_BASE_ACTION_NEW      = "NEW"
+	ReplicaEntityCG          = "CONSISTENCY_GROUP"
+	ReplicaEntityVolume      = "VOLUME"
+	ReplicaEntityFilesystem  = "FILESYSTEM"
+	ReplicationTypeASYNC     = "ASYNC"
+	ReplicationBaseActionNew = "NEW"
 )
 
 const (
-	SC_FSTYPE                              = "csi.storage.k8s.io/fstype"
-	SC_PROVISIONER_SECRET_NAME             = "csi.storage.k8s.io/provisioner-secret-name"
-	SC_PROVISIONER_SECRET_NAMESPACE        = "csi.storage.k8s.io/provisioner-secret-namespace"
-	SC_CONTROLLER_PUBLISH_SECRET_NAME      = "csi.storage.k8s.io/controller-publish-secret-name"
-	SC_CONTROLLER_PUBLISH_SECRET_NAMESPACE = "csi.storage.k8s.io/controller-publish-secret-namespace"
-	SC_NODE_STAGE_SECRET_NAME              = "csi.storage.k8s.io/node-stage-secret-name"
-	SC_NODE_STAGE_SECRET_NAMESPACE         = "csi.storage.k8s.io/node-stage-secret-namespace"
-	SC_NODE_PUBLISH_SECRET_NAME            = "csi.storage.k8s.io/node-publish-secret-name"
-	SC_NODE_PUBLISH_SECRET_NAMESPACE       = "csi.storage.k8s.io/node-publish-secret-namespace"
-	SC_CONTROLLER_EXPAND_SECRET_NAME       = "csi.storage.k8s.io/controller-expand-secret-name"
-	SC_CONTROLLER_EXPAND_SECRET_NAMESPACE  = "csi.storage.k8s.io/controller-expand-secret-namespace"
-	SC_NODE_EXPAND_SECRET_NAME             = "csi.storage.k8s.io/node-expand-secret-name"
-	SC_NODE_EXPAND_SECRET_NAMESPACE        = "csi.storage.k8s.io/node-expand-secret-namespace"
-	VOLUME_SNAPSHOT_CLASS_SECRET_NAME      = "csi.storage.k8s.io/snapshotter-secret-name"
+	CSIFSType                           = "csi.storage.k8s.io/fstype"
+	CSIProvisionerSecretName            = "csi.storage.k8s.io/provisioner-secret-name"
+	CSIProvisionerSecretNamespace       = "csi.storage.k8s.io/provisioner-secret-namespace"
+	CSIControllerPublishSecretName      = "csi.storage.k8s.io/controller-publish-secret-name"
+	CSIControllerPublishSecretNamespace = "csi.storage.k8s.io/controller-publish-secret-namespace"
+	CSINodeStageSecretName              = "csi.storage.k8s.io/node-stage-secret-name"
+	CSINodeStageSecretNamespace         = "csi.storage.k8s.io/node-stage-secret-namespace"
+	CSINodePublishSecretName            = "csi.storage.k8s.io/node-publish-secret-name"
+	CSINodePublishSecretNamespace       = "csi.storage.k8s.io/node-publish-secret-namespace"
+	CSIControllerExpandSecretName       = "csi.storage.k8s.io/controller-expand-secret-name"
+	CSIControllerExpandSecretNamespace  = "csi.storage.k8s.io/controller-expand-secret-namespace"
+	CSINodeExpandSecretName             = "csi.storage.k8s.io/node-expand-secret-name"
+	CSINodeExpandSecretNamespace        = "csi.storage.k8s.io/node-expand-secret-namespace"
+	CSISnapshotterSecretName            = "csi.storage.k8s.io/snapshotter-secret-name"
 )
 
 const (
-	ENV_VAR_CSI_DRIVER_VERSION = "CSI_DRIVER_VERSION"
-	ENV_VAR_CREATE_EVENTS      = "CREATE_EVENTS"
-	ENV_VAR_OS_VERSION         = "OS_VERSION"
-	ENV_VAR_KUBE_VERSION       = "KUBE_VERSION"
-	ENV_VAR_NODE_COUNT         = "NODE_COUNT"
+	EnvVarCSIDriverVersion = "CSI_DRIVER_VERSION"
+	EnvVarCreateEvents     = "CREATE_EVENTS"
+	EnvVarOSVersion        = "OS_VERSION"
+	EnvVarKubeVersion      = "KUBE_VERSION"
+	EnvVarNodeCount        = "NODE_COUNT"
 
-	ENV_VAR_PROTOCOL_SECRET    = "PROTOCOL_SECRET"
-	ENV_VAR_POD_NAMESPACE      = "POD_NAMESPACE"
-	ENV_VAR_CLEANUP_NFS_PERMS  = "CLEANUP_NFS_PERMS"
-	ENV_VAR_KUBE_NODE_NAME     = "KUBE_NODE_NAME"
-	ENV_VAR_NODE_IP            = "NODE_IP"
-	ENV_VAR_REMOVE_DOMAIN_NAME = "REMOVE_DOMAIN_NAME"
+	EnvVarProtocolSecret   = "PROTOCOL_SECRET"
+	EnvVarPodNamespace     = "POD_NAMESPACE"
+	EnvVarCleanupNFSPerms  = "CLEANUP_NFS_PERMS"
+	EnvVarKubeNodeName     = "KUBE_NODE_NAME"
+	EnvVarNodeIP           = "NODE_IP"
+	EnvVarRemoveDomainName = "REMOVE_DOMAIN_NAME"
 )
 
 const (
-	CUSTOM_EVENT_CAPACITY    = "capacity"
-	CUSTOM_EVENT_VOLUME_CAPS = "volume_caps"
-	CUSTOM_EVENT_NFS_VERSION = "nfs_version"
-	CUSTOM_EVENT_VOLUME_ID   = "volume_id"
-	CUSTOM_EVENT_VOLUME_NAME = "volume_name"
-	CUSTOM_EVENT_ACTION      = "csi_action"
+	CustomEventCapacity   = "capacity"
+	CustomEventVolumeCaps = "volume_caps"
+	CustomEventNFSVersion = "nfs_version"
+	CusstomEventVolumeID  = "volume_id"
+	CustomEventVolumeName = "volume_name"
+	CustomEventAction     = "csi_action"
 )
 
 const (
-	CRED_HOSTNAME = "hostname"
-	CRED_USERNAME = "username"
-	CRED_PASSWORD = "password"
+	CredentialHostname = "hostname"
+	CredentialUsername = "username"
+	CredentialPassword = "password"
 )
 
 const (
-	IBOXREPLICA_REPLICA_TYPE_SYNC          = "SYNC"
-	IBOXREPLICA_REPLICA_TYPE_ASYNC         = "ASYNC"
-	IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE = "ACTIVE_ACTIVE"
+	IboxreplicaReplicaTypeSYNC          = "SYNC"
+	IboxreplicaReplicaTypeASYNC         = "ASYNC"
+	IboxreplicaReplicaTypeACTIVE_ACTIVE = "ACTIVE_ACTIVE"
 )

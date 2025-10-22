@@ -9,10 +9,10 @@ import (
 
 // used to look up expected service for protocol
 var protoToServiceMap = map[string]string{
-	common.PROTOCOL_NFS:   common.NS_NFS_SVC,
-	common.PROTOCOL_TREEQ: common.NS_NFS_SVC,
-	common.PROTOCOL_ISCSI: common.NS_ISCSI_SVC,
-	common.PROTOCOL_NVME:  common.NS_NVME_SVC,
+	common.ProtocolNFS:   common.NetworkSpaceNFSService,
+	common.ProtocolTreeq: common.NetworkSpaceNFSService,
+	common.ProtocolISCSI: common.NetworkSpaceISCSIService,
+	common.ProtocolNVME:  common.NetworkSpaceNVMEService,
 }
 
 func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSCParameters map[string]string, providedStorageClassParams map[string]string) error {

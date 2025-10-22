@@ -76,24 +76,24 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	// fsGroupIsSet := (fsGroup != "")
 	// zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
 
-	uid_int := -1
-	gid_int := -1
+	UID := -1
+	GID := -1
 
-	tmp := req.GetVolumeContext()[common.SC_UID] // Returns an empty string if key not found
+	tmp := req.GetVolumeContext()[common.StorageClassUID] // Returns an empty string if key not found
 	if tmp != "" {
-		uid_int, err = strconv.Atoi(tmp)
-		if err != nil || uid_int < -1 {
-			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", uid_int, err)
+		UID, err = strconv.Atoi(tmp)
+		if err != nil || UID < -1 {
+			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", UID, err)
 			zlog.Err(e)
 			return e
 		}
 	}
 
-	tmp = req.GetVolumeContext()[common.SC_GID]
+	tmp = req.GetVolumeContext()[common.StorageClassGID]
 	if tmp != "" {
-		gid_int, err = strconv.Atoi(tmp)
-		if err != nil || gid_int < -1 {
-			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", gid_int, err)
+		GID, err = strconv.Atoi(tmp)
+		if err != nil || GID < -1 {
+			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", GID, err)
 			zlog.Err(e)
 			return e
 		}
@@ -103,9 +103,9 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	hostTargetPath := "/host" + targetPath // this is the path inside the csi container
 
 	// chown the mount path with either a user supplied value or the fsGroup value
-	if uid_int != -1 || gid_int != -1 {
-		zlog.Debug().Msgf("user specified uid or gid in StorageClass parameters, chown mount %s uid=%d gid=%d", hostTargetPath, uid_int, gid_int)
-		err = os.Chown(hostTargetPath, uid_int, gid_int)
+	if UID != -1 || GID != -1 {
+		zlog.Debug().Msgf("user specified uid or gid in StorageClass parameters, chown mount %s uid=%d gid=%d", hostTargetPath, UID, GID)
+		err = os.Chown(hostTargetPath, UID, GID)
 		if err != nil {
 			e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
 			zlog.Err(e)
@@ -113,7 +113,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		}
 	}
 
-	unixPermissions := req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS]
+	unixPermissions := req.GetVolumeContext()[common.StorageClassUNIXPermissions]
 
 	if unixPermissions != "" {
 		zlog.Debug().Msgf("user specified unix_permissions in StorageClass parameters, chmod mount %s perms=%s", hostTargetPath, unixPermissions)

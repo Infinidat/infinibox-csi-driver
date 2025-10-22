@@ -18,7 +18,7 @@ import (
 
 func TestNvmeSnapshotLocking(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -65,7 +65,7 @@ func TestNvmeSnapshotLocking(t *testing.T) {
 
 func TestNvmeSnapshot(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -98,7 +98,7 @@ func TestNvmeSnapshot(t *testing.T) {
 
 func TestNvme(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -115,7 +115,7 @@ func TestNvme(t *testing.T) {
 
 func TestNvmeFsGroup(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -159,7 +159,7 @@ func TestNvmeFsGroup(t *testing.T) {
 
 func TestNvmeBlock(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -176,7 +176,7 @@ func TestNvmeBlock(t *testing.T) {
 }
 
 func TestNvmeROX(t *testing.T) {
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -274,7 +274,7 @@ func TestNvmeROX(t *testing.T) {
 }
 
 func TestNvmeRO(t *testing.T) {
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -333,7 +333,7 @@ func TestNvmeRO(t *testing.T) {
 
 func TestNvmeClone(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -381,9 +381,9 @@ func TestNvmeClone(t *testing.T) {
 
 func TestNvmeExpand(t *testing.T) {
 
-	supportedFileSystems := []string{common.FS_TYPE_EXT3, common.FS_TYPE_EXT4, common.FS_TYPE_XFS}
+	supportedFileSystems := []string{common.FSTypeExt3, common.FSTypeExt4, common.FSTypeXFS}
 	for _, fsType := range supportedFileSystems {
-		testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+		testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 		if err != nil {
 			t.Fatalf("error getting TestConfig %s\n", err.Error())
 		}
@@ -423,7 +423,7 @@ func TestNvmeExpand(t *testing.T) {
 
 func TestNvmeBlockExpand(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -465,7 +465,7 @@ func TestNvmeBlockExpand(t *testing.T) {
 }
 func TestNVMENetworkSpace(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -499,7 +499,7 @@ func TestNVMENetworkSpace(t *testing.T) {
 }
 func TestNVMEPool(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

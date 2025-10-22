@@ -17,7 +17,7 @@ import (
 
 func TestIscsiSnapshotLocking(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -69,7 +69,7 @@ func TestIscsiSnapshotLocking(t *testing.T) {
 
 func TestIscsiSnapshot(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -106,7 +106,7 @@ func TestIscsiSnapshot(t *testing.T) {
 
 func TestIscsi(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -127,7 +127,7 @@ func TestIscsi(t *testing.T) {
 
 func TestIscsiFsGroup(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -175,7 +175,7 @@ func TestIscsiFsGroup(t *testing.T) {
 
 func TestIscsiBlock(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -196,7 +196,7 @@ func TestIscsiBlock(t *testing.T) {
 }
 
 func TestIscsiROX(t *testing.T) {
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -299,7 +299,7 @@ func TestIscsiROX(t *testing.T) {
 }
 
 func TestIscsiRO(t *testing.T) {
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -365,7 +365,7 @@ func TestIscsiBrokenLink(t *testing.T) {
 	// we use the fsgroup example as the basis for this test since its where
 	// recursive chown is executed which will test this use case (broken sym link)
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -440,7 +440,7 @@ func TestIscsiBrokenLink(t *testing.T) {
 
 func TestIscsiClone(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -492,9 +492,9 @@ func TestIscsiClone(t *testing.T) {
 
 func TestIscsiExpand(t *testing.T) {
 
-	supportedFileSystems := []string{common.FS_TYPE_EXT3, common.FS_TYPE_EXT4, common.FS_TYPE_XFS}
+	supportedFileSystems := []string{common.FSTypeExt3, common.FSTypeExt4, common.FSTypeXFS}
 	for _, fsType := range supportedFileSystems {
-		testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+		testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 		if err != nil {
 			t.Fatalf("error getting TestConfig %s\n", err.Error())
 		}
@@ -539,7 +539,7 @@ func TestIscsiExpand(t *testing.T) {
 
 func TestIscsiBlockExpand(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

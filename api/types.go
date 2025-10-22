@@ -45,7 +45,7 @@ type Volume struct {
 	HasChildren           bool   `json:"has_children,omitempty"`
 	DatasetType           string `json:"dataset_type,omitempty"`
 	Provtype              string `json:"provtype,omitempty"`
-	RmrSnapshotGuid       string `json:"rmr_snapshot_guid,omitempty"`
+	RmrSnapshotGUID       string `json:"rmr_snapshot_guid,omitempty"`
 	CapacitySavings       int    `json:"capacity_savings,omitempty"`
 	Name                  string `json:"name,omitempty"`
 	CreatedAt             int64  `json:"created_at,omitempty"`

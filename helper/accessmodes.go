@@ -66,7 +66,7 @@ func (a AccessMode) IsValidAccessMode(volume *iboxapi.Volume, req *csi.Controlle
 
 func (a AccessMode) IsValidAccessModeNfs(req *csi.ControllerPublishVolumeRequest) (bool, error) {
 	// Compare the export permissions on IBox to the requested access mode. Return an error if incompatible.
-	nfsExportPermission := req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS]
+	nfsExportPermission := req.GetVolumeContext()[common.StorageClassNFSExportPermissions]
 	isIboxExportReadonly := strings.Contains(nfsExportPermission, "'access':'RO'") // Could also contain "'access':'RW'"
 
 	exportVolPathd := req.GetVolumeContext()["volPathd"]

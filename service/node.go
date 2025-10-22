@@ -80,7 +80,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodePublishVolume", req.GetVolumeId())
 
-	storageProtocol := req.GetVolumeContext()[common.SC_STORAGE_PROTOCOL]
+	storageProtocol := req.GetVolumeContext()[common.StorageClassStorageProtocol]
 
 	fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
 
@@ -97,7 +97,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	// the storageclass is required to specify node-publish secrets as a parameter,this will cause
 	// the secret values (hostname, password, username) to be passed down to the NodePublishVolume function
-	err = validateSecret("NodePublishVolume", req.GetVolumeId(), common.SC_NODE_PUBLISH_SECRET_NAME, common.SC_NODE_PUBLISH_SECRET_NAMESPACE, req.GetSecrets())
+	err = validateSecret("NodePublishVolume", req.GetVolumeId(), common.CSINodePublishSecretName, common.CSINodePublishSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -109,7 +109,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
+	storageNode, err := storage.NewStorageNode(comnserv)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -125,7 +125,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	if storageProtocol == common.PROTOCOL_NFS {
+	if storageProtocol == common.ProtocolNFS {
 		mountOptions := req.GetVolumeCapability().GetMount().GetMountFlags()
 		nfsVersion, nfsPort := nfs.GetNFSVersionPort(mountOptions)
 		zlog.Debug().Msgf("%s - nfs mount options are [%v], nfs version [%s] port [%s]", functionName, mountOptions, nfsVersion, nfsPort)
@@ -172,7 +172,7 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto}, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto})
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -272,7 +272,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	zlog.Debug().Msgf("%s volumeContext %+v storageProtocol is %s", functionName, req.GetVolumeContext(), volProto.StorageType)
 
-	err = validateSecret("NodeStageVolume", req.GetVolumeId(), common.SC_NODE_STAGE_SECRET_NAME, common.SC_NODE_STAGE_SECRET_NAMESPACE, req.GetSecrets())
+	err = validateSecret("NodeStageVolume", req.GetVolumeId(), common.CSINodeStageSecretName, common.CSINodeStageSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -284,7 +284,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
+	storageNode, err := storage.NewStorageNode(comnserv)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", functionName, volumeId, err)
 		zlog.Error().Msg(e.Error())
@@ -334,7 +334,7 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto}, nil, nil)
+	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto})
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -459,7 +459,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	// the storageclass is required to specify node-expand secrets as a parameter,this will cause
 	// the secret values (hostname, password, username) to be passed down to the NodeExpandVolume function
-	err = validateSecret("NodeExpandVolume", req.GetVolumeId(), common.SC_NODE_EXPAND_SECRET_NAME, common.SC_NODE_EXPAND_SECRET_NAMESPACE, req.GetSecrets())
+	err = validateSecret("NodeExpandVolume", req.GetVolumeId(), common.CSINodeExpandSecretName, common.CSINodeExpandSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -471,7 +471,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageNode, err := storage.NewStorageNode(comnserv, config, req.GetSecrets())
+	storageNode, err := storage.NewStorageNode(comnserv)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())

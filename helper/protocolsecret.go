@@ -12,8 +12,8 @@ import (
 
 func GetProtocolSecret() (protocolSecret map[string]string, found bool, err error) {
 	const functionName = "GetProtocolSecret"
-	secretName := os.Getenv(common.ENV_VAR_PROTOCOL_SECRET)
-	secretNamespace := os.Getenv(common.ENV_VAR_POD_NAMESPACE)
+	secretName := os.Getenv(common.EnvVarProtocolSecret)
+	secretNamespace := os.Getenv(common.EnvVarPodNamespace)
 
 	if secretName == "" {
 		return protocolSecret, false, nil
@@ -43,19 +43,19 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	storageProtocol := protocolSecret[common.SC_STORAGE_PROTOCOL]
+	storageProtocol := protocolSecret[common.StorageClassStorageProtocol]
 	// validate what the user entered for the protocol
 	switch storageProtocol {
-	case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
+	case common.ProtocolNFS, common.ProtocolTreeq:
 		/**
 		e := fmt.Errorf("%s - error - nfs and treeq are unsupported when using a protocol secret %s", functionName, storageProtocol)
 		zlog.Error().Msg(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 		*/
-	case common.PROTOCOL_NVME:
-	case common.PROTOCOL_FC:
-	case common.PROTOCOL_ISCSI:
-	case common.PROTOCOL_AUTO:
+	case common.ProtocolNVME:
+	case common.ProtocolFC:
+	case common.ProtocolISCSI:
+	case common.ProtocolAuto:
 	default:
 		e := fmt.Errorf("%s - error - unsupported protocol specified %s", functionName, storageProtocol)
 		zlog.Error().Msg(e.Error())

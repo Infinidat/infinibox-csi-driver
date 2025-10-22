@@ -13,7 +13,7 @@ import (
 
 func TestFcBlockRWX(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

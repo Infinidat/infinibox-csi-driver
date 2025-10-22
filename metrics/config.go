@@ -144,9 +144,9 @@ func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
 	for i := range secrets {
 		sMap := secrets[i]
 		ibox := IboxCredentials{
-			IboxHostname: sMap[common.CRED_HOSTNAME],
-			IboxPassword: sMap[common.CRED_PASSWORD],
-			IboxUsername: sMap[common.CRED_USERNAME],
+			IboxHostname: sMap[common.CredentialHostname],
+			IboxPassword: sMap[common.CredentialPassword],
+			IboxUsername: sMap[common.CredentialUsername],
 		}
 		ips, err := net.LookupIP(ibox.IboxHostname)
 		if err != nil {

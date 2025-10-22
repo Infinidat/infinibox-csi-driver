@@ -54,12 +54,12 @@ func (fc *FCstorage) ValidateStorageClass(params map[string]string) error {
 	const functionName = "ValidateStorageClass"
 
 	requiredFCParams := map[string]string{
-		common.SC_POOL_NAME: `[a-zA-Z]+`, // match all strings except empty string or blank string
+		common.StorageClassPoolName: `[a-zA-Z]+`, // match all strings except empty string or blank string
 	}
 	optionalFCParams := map[string]string{
-		common.SC_PROVISION_TYPE: `(?i)\A(THICK|THIN)\z`,
-		common.SC_UID:            `^\d+$`,
-		common.SC_GID:            `^\d+$`,
+		common.StorageClassProvisionType: `(?i)\A(THICK|THIN)\z`,
+		common.StorageClassUID:           `^\d+$`,
+		common.StorageClassGID:           `^\d+$`,
 	}
 
 	// validate required parameters
@@ -82,7 +82,7 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// Volume name to be created - already verified in controller.go
 	name := req.GetName()
 
-	poolName := params[common.SC_POOL_NAME]
+	poolName := params[common.StorageClassPoolName]
 
 	targetVol, err := fc.CS.IboxAPI.GetVolumeByName(name)
 	if err != nil {
@@ -116,9 +116,9 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		return fc.createVolumeFromVolumeContent(req, name, fc.Capacity, poolName)
 	}
 
-	volType, provided := params[common.SC_PROVISION_TYPE]
+	volType, provided := params[common.StorageClassProvisionType]
 	if !provided {
-		volType = common.SC_THIN_PROVISION_TYPE
+		volType = common.StorageClassThinProvision
 	}
 
 	volumeParam := &api.VolumeParam{
@@ -127,7 +127,7 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		ProvisionType: volType,
 	}
 
-	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(params[common.SC_SSD_ENABLED], poolName, fc.CS.IboxAPI)
+	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(params[common.StorageClassSSDEnabled], poolName, fc.CS.IboxAPI)
 	if err != nil {
 		e := fmt.Sprintf("%s (fc) - determineSSDValue - error when creating volume %s storagepool %s, err: %s", functionName, name, poolName, err.Error())
 		zlog.Error().Msg(e)
@@ -159,9 +159,9 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	attributes := map[string]string{
 		"ID":              strconv.Itoa(volumeResp.ID),
 		"Name":            volumeResp.Name,
-		"StoragePoolID":   strconv.Itoa(volumeResp.PoolId),
+		"StoragePoolID":   strconv.Itoa(volumeResp.PoolID),
 		"StoragePoolName": volumeResp.PoolName,
-		"CreationTime":    time.Unix(int64(volumeResp.CreatedAt), 0).String(),
+		"CreationTime":    time.Unix(volumeResp.CreatedAt, 0).String(),
 		"targetWWNs":      req.GetParameters()["targetWWNs"],
 	}
 	newVolume := &csi.Volume{
@@ -297,16 +297,16 @@ func (fc *FCstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	}
 
 	// the max_vols_per_host storageclass parameter is not mandatory
-	maxAllowedVolString := req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST]
+	maxAllowedVolString := req.GetVolumeContext()[common.StorageClassMaxVolsPerHost]
 	if maxAllowedVolString != "" {
 		maxAllowedVol, err := strconv.Atoi(maxAllowedVolString)
 		if err != nil {
-			e := fmt.Sprintf("%s (fc) - invalid parameter %s error:  %v", functionName, common.SC_MAX_VOLS_PER_HOST, err)
+			e := fmt.Sprintf("%s (fc) - invalid parameter %s error:  %v", functionName, common.StorageClassMaxVolsPerHost, err)
 			zlog.Error().Msg(e)
 			return nil, status.Error(codes.Internal, e)
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Sprintf("%s (fc) - invalid parameter %s error:  required to be greater than 0", functionName, common.SC_MAX_VOLS_PER_HOST)
+			e := fmt.Sprintf("%s (fc) - invalid parameter %s error:  required to be greater than 0", functionName, common.StorageClassMaxVolsPerHost)
 			zlog.Error().Msg(e)
 			return nil, status.Error(codes.Internal, e)
 		}
@@ -344,7 +344,7 @@ func (fc *FCstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.Con
 	host := fc.CS.VolProto.Host
 	if len(host.Luns) > 0 {
 		zlog.Debug().Msgf("%s (fc) - unmap volume ID: %d from host: %d", functionName, fc.CS.VolProto.VolumeID, host.ID)
-		err = fc.CS.UnmapVolumeFromHost(host.ID, int(fc.CS.VolProto.VolumeID))
+		err = fc.CS.UnmapVolumeFromHost(host.ID, fc.CS.VolProto.VolumeID)
 		if err != nil {
 			e := fmt.Sprintf("%s (fc) - unmapVolumeFromHost - error unmapping volume %d from host %d error %v", functionName, fc.CS.VolProto.VolumeID, host.ID, err)
 			zlog.Error().Msg(e)
@@ -430,7 +430,7 @@ func (fc *FCstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 		SSDEnabled:     parentVolume.SsdEnabled,
 	}
 
-	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
+	lockExpiresAtParameter := req.Parameters[common.LockExpiresAtParameter]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := fc.CS.IboxAPI.GetNtpStatus()
@@ -495,7 +495,7 @@ func (fc *FCstorage) ValidateDeleteVolume(volumeID int) (err error) {
 		return status.Error(codes.Internal, e)
 	}
 
-	if vol.LockState == common.LOCKED_STATE {
+	if vol.LockState == common.LockedState {
 		e := fmt.Sprintf("%s (fc) - volume ID: %d was locked, can not delete till expire date %s is reached", functionName, volumeID, time.UnixMilli(vol.LockExpiresAt))
 		zlog.Error().Msg(e)
 		return status.Error(codes.Aborted, e)
@@ -562,7 +562,7 @@ func (fc *FCstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	volumeID := fc.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("%s (fc) - volume ID: %d", functionName, volumeID)
 
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if capacity < storagecommon.GIB {
 		capacity = storagecommon.GIB
 		zlog.Warn().Msgf("%s (fc) - Volume Minimum capacity should be greater 1 GB", functionName)
@@ -623,7 +623,7 @@ func (fc *FCstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	}
 
 	// Validate the size is the same.
-	if int64(srcVol.Size) != sizeInKbytes {
+	if srcVol.Size != sizeInKbytes {
 		return nil, status.Errorf(codes.InvalidArgument,
 			restoreType+" %s has incompatible size %d kbytes with requested %d kbytes",
 			volumeContentID, srcVol.Size, sizeInKbytes)
@@ -636,12 +636,12 @@ func (fc *FCstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 		zlog.Error().Msg(e)
 		return nil, status.Error(codes.Internal, e)
 	}
-	if pool.ID != srcVol.PoolId {
+	if pool.ID != srcVol.PoolID {
 		e := fmt.Sprintf("%s (fc) - volume storage pool is different than requested storage pool %s", functionName, storagePool)
 		zlog.Error().Msg(e)
 		return nil, status.Error(codes.InvalidArgument, e)
 	}
-	ssd := req.GetParameters()[common.SC_SSD_ENABLED]
+	ssd := req.GetParameters()[common.StorageClassSSDEnabled]
 	if ssd == "" {
 		ssd = strconv.FormatBool(false)
 	}

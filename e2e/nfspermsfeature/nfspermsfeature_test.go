@@ -17,7 +17,7 @@ import (
 
 func TestNfsPermsFeatureRemoveSinglePerm(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -112,7 +112,7 @@ func TestNfsPermsFeatureRemoveSinglePerm(t *testing.T) {
 
 func TestNfsPermsFeatureRemoveExport(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

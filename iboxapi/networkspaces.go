@@ -80,7 +80,7 @@ func (iboxClient *IboxClient) GetNetworkSpaceByName(netspaceName string) (networ
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/network/spaces")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "net space Name", netspaceName)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)

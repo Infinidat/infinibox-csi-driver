@@ -75,51 +75,51 @@ func (suite *TreeqControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
 	parameterMap := map[string]string{
-		common.SC_POOL_NAME: "  ",
+		common.StorageClassPoolName: "  ",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid pool sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidNetworkSpace() {
 	parameterMap := map[string]string{
-		common.SC_NETWORK_SPACE: "  ",
+		common.StorageClassNetworkSpace: "  ",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid network space sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Pool() {
 	parameterMap := getTreeqCreateVolumeParameters()
-	delete(parameterMap, common.SC_POOL_NAME)
+	delete(parameterMap, common.StorageClassPoolName)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: treeq missing pool sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Network_Space() {
 	parameterMap := getTreeqCreateVolumeParameters()
-	delete(parameterMap, common.SC_NETWORK_SPACE)
+	delete(parameterMap, common.StorageClassNetworkSpace)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: treeq missing network space sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_Missing_Max_Filesystems() {
 	parameterMap := getTreeqCreateVolumeParameters()
-	delete(parameterMap, common.SC_MAX_FILESYSTEMS)
+	delete(parameterMap, common.StorageClassMaxFilesystems)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.Nil(suite.T(), err, "expected to pass: treeq missing max filesystems sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_Missing_Max_Treeqs() {
 	parameterMap := getTreeqCreateVolumeParameters()
-	delete(parameterMap, common.SC_MAX_TREEQS_PER_FILESYSTEM)
+	delete(parameterMap, common.StorageClassMaxTreeqsPerFS)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.Nil(suite.T(), err, "expected to pass: treeq missing max treeqs sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Invalid_GID() {
 	parameterMap := getTreeqCreateVolumeParameters()
-	parameterMap[common.SC_GID] = "abc"
+	parameterMap[common.StorageClassGID] = "abc"
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid gid sc parameter")
 }
 func (suite *TreeqControllerSuite) Test_ValidateStorageClass_InvalidParameter_Invalid_UID() {
 	parameterMap := getTreeqCreateVolumeParameters()
-	parameterMap[common.SC_UID] = "abc"
+	parameterMap[common.StorageClassUID] = "abc"
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: treeq invalid uid sc parameter")
 }
@@ -304,17 +304,17 @@ func (m *FileSystemInterfaceMock) IsTreeqAlreadyExist(pool_name, network_space, 
 
 func getTreeqCreateVolumeParameters() map[string]string {
 	return map[string]string{
-		common.SC_GID:                       "2468",
-		common.SC_MAX_VOLS_PER_HOST:         "19",
-		common.SC_NETWORK_SPACE:             "network_space1",
-		common.SC_POOL_NAME:                 "pool_name1",
-		common.SC_PROVISION_TYPE:            common.SC_THIN_PROVISION_TYPE,
-		common.SC_SSD_ENABLED:               "true",
-		common.SC_STORAGE_PROTOCOL:          "iscsi",
-		common.SC_UID:                       "1234",
-		common.SC_UNIX_PERMISSIONS:          "0777",
-		common.SC_USE_CHAP:                  "none",
-		common.SC_MAX_FILESYSTEMS:           "1234",
-		common.SC_MAX_TREEQS_PER_FILESYSTEM: "1234",
+		common.StorageClassGID:             "2468",
+		common.StorageClassMaxVolsPerHost:  "19",
+		common.StorageClassNetworkSpace:    "network_space1",
+		common.StorageClassPoolName:        "pool_name1",
+		common.StorageClassProvisionType:   common.StorageClassThinProvision,
+		common.StorageClassSSDEnabled:      "true",
+		common.StorageClassStorageProtocol: "iscsi",
+		common.StorageClassUID:             "1234",
+		common.StorageClassUNIXPermissions: "0777",
+		common.StorageClassUseCHAP:         "none",
+		common.StorageClassMaxFilesystems:  "1234",
+		common.StorageClassMaxTreeqsPerFS:  "1234",
 	}
 }

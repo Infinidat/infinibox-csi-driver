@@ -154,7 +154,7 @@ func (iboxClient *IboxClient) GetExportsByFileSystemID(fsID int) (results []Expo
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/exports")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "filesystem ID", fsID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)

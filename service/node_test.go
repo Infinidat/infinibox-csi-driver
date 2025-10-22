@@ -23,7 +23,7 @@ func TestNodeTestSuite(t *testing.T) {
 
 func (suite *NodeTestSuite) Test_NodePublishVolume_invalid_protocol() {
 	nodePublishReq := getNodeNodePublishVolumeRequest()
-	nodePublishReq.VolumeContext = map[string]string{common.SC_STORAGE_PROTOCOL: "unknown"}
+	nodePublishReq.VolumeContext = map[string]string{common.StorageClassStorageProtocol: "unknown"}
 	cs := NodeServer{
 		Driver: &Driver{
 			nodeID: "n",
@@ -67,7 +67,7 @@ func (suite *NodeTestSuite) Test_NodeGetInfo() {
 
 func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 	nodeStageReq := getNodeStageVolumeRequest()
-	nodeStageReq.VolumeContext = map[string]string{common.SC_STORAGE_PROTOCOL: "unknown"}
+	nodeStageReq.VolumeContext = map[string]string{common.StorageClassStorageProtocol: "unknown"}
 	cs := NodeServer{
 		Driver: &Driver{
 			nodeID: "n",
@@ -110,7 +110,7 @@ func getNodeExpandVolumeRequest() *csi.NodeExpandVolumeRequest {
 func getNodeStageVolumeRequest() *csi.NodeStageVolumeRequest {
 	return &csi.NodeStageVolumeRequest{
 		VolumeId:      "100$$nfs",
-		VolumeContext: map[string]string{common.SC_STORAGE_PROTOCOL: "nfs"},
+		VolumeContext: map[string]string{common.StorageClassStorageProtocol: "nfs"},
 		Secrets:       tests.GetSecret(),
 	}
 }
@@ -124,7 +124,7 @@ func getNodeUnpublishVolumeRequest() *csi.NodeUnpublishVolumeRequest {
 func getNodeNodePublishVolumeRequest() *csi.NodePublishVolumeRequest {
 	return &csi.NodePublishVolumeRequest{
 		VolumeId:      "100$$nfs",
-		VolumeContext: map[string]string{common.SC_STORAGE_PROTOCOL: "nfs"},
+		VolumeContext: map[string]string{common.StorageClassStorageProtocol: "nfs"},
 		Secrets:       tests.GetSecret(),
 	}
 }

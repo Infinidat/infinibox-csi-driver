@@ -53,21 +53,21 @@ func TestFCControllerSuite(t *testing.T) {
 
 func (suite *FCControllerSuite) Test_ValidateStorageClass_InvalidProvisionType_Fail() {
 	parameterMap := map[string]string{
-		common.SC_PROVISION_TYPE: "somethinginvalid",
+		common.StorageClassProvisionType: "somethinginvalid",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: fc invalid provision type sc parameter")
 }
 func (suite *FCControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
 	parameterMap := map[string]string{
-		common.SC_POOL_NAME: "my-test-pool",
+		common.StorageClassPoolName: "my-test-pool",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.Nil(suite.T(), err, "expected to pass: fc invalid pool name sc parameter")
 }
 func (suite *FCControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
 	parameterMap := map[string]string{
-		common.SC_POOL_NAME: "",
+		common.StorageClassPoolName: "",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: fc CreateVolume invalid parameter")
@@ -256,7 +256,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.StorageClassMaxVolsPerHost: "AA"}
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerPublishVolume invalid max_vols_per_host value")
 }
@@ -270,7 +270,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.StorageClassMaxVolsPerHost: "0"}
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: fc ControllerPublishVolume max_vols_per_host exceeded")
 }
@@ -394,10 +394,10 @@ func (suite *FCControllerSuite) Test_GetCapacity() {
 
 func getFCCreateVolumeParameter() map[string]string {
 	return map[string]string{
-		common.SC_MAX_VOLS_PER_HOST: "19",
-		common.SC_POOL_NAME:         "pool_name1",
-		common.SC_PROVISION_TYPE:    "THIN",
-		common.SC_SSD_ENABLED:       "true",
-		common.SC_STORAGE_PROTOCOL:  "fc",
+		common.StorageClassMaxVolsPerHost:  "19",
+		common.StorageClassPoolName:        "pool_name1",
+		common.StorageClassProvisionType:   "THIN",
+		common.StorageClassSSDEnabled:      "true",
+		common.StorageClassStorageProtocol: "fc",
 	}
 }

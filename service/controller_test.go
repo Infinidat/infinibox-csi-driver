@@ -61,7 +61,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_NoParameters_Fail() {
 
 func (suite *ControllerTestSuite) Test_CreateVolume_MissingStorageProtocol() {
 	parameterMap := getControllerCreateVolumeParameters()
-	delete(parameterMap, common.SC_STORAGE_PROTOCOL)
+	delete(parameterMap, common.StorageClassStorageProtocol)
 	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 	cs := ControllerServer{
 		Driver: &Driver{
@@ -74,7 +74,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_MissingStorageProtocol() {
 
 func (suite *ControllerTestSuite) Test_CreateVolume_InvalidStorageProtocol() {
 	parameterMap := getControllerCreateVolumeParameters()
-	parameterMap[common.SC_STORAGE_PROTOCOL] = "unknown"
+	parameterMap[common.StorageClassStorageProtocol] = "unknown"
 	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 	cs := ControllerServer{
 		Driver: &Driver{
@@ -415,8 +415,8 @@ func getControllerValidateVolumeCapabilitiesRequest() *csi.ValidateVolumeCapabil
 
 func getControllerCreateVolumeParameters() map[string]string {
 	return map[string]string{
-		common.SC_STORAGE_PROTOCOL:       "nfs",
-		common.SC_POOL_NAME:              "pool_name1",
-		common.SC_NETWORK_SPACE:          "network_space1",
-		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
+		common.StorageClassStorageProtocol:      "nfs",
+		common.StorageClassPoolName:             "pool_name1",
+		common.StorageClassNetworkSpace:         "network_space1",
+		common.StorageClassNFSExportPermissions: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]"}
 }

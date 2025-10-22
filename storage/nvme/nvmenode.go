@@ -91,7 +91,7 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 }
 
 func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	zlog.Debug().Msgf("NodePublishVolume (nvme) - volume ID %s, network_space %s mode %s readOnly %t %s", req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
+	zlog.Debug().Msgf("NodePublishVolume (nvme) - volume ID %s, network_space %s mode %s readOnly %t %s", req.GetVolumeId(), req.GetVolumeContext()[common.StorageClassNetworkSpace], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
 		storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxAPI))
 
 	targets, err := nvme.getNVMETargets(req)
@@ -142,10 +142,10 @@ func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 }
 
 func (nvme *NVMEstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	volumeId := req.GetVolumeId()
+	volumeID := req.GetVolumeId()
 	targetPath := req.GetTargetPath()
 
-	zlog.Debug().Msgf("NodeUnpublishVolume (nvme) - volume ID %s and targetPath '%s'", volumeId, targetPath)
+	zlog.Debug().Msgf("NodeUnpublishVolume (nvme) - volume ID %s and targetPath '%s'", volumeID, targetPath)
 
 	err := storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
@@ -300,7 +300,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 		MpathDevice: nvmeDevicePath,
 		VolumeID:    diskMounter.nvmeDiskInfo.VolumeID,
 		IsBlock:     diskMounter.nvmeDiskInfo.isBlock,
-		RootDir:     common.NODE_ROOT_DIR,
+		RootDir:     common.NodeRootDir,
 	}
 
 	zlog.Debug().Msgf("AttachDisk (nvme) - diskinf %v", diskinf)
@@ -403,7 +403,7 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 }
 
 func (nvme *NVMEstorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {
-	networkSpaces := strings.Split(req.GetVolumeContext()[common.SC_NETWORK_SPACE], ",")
+	networkSpaces := strings.Split(req.GetVolumeContext()[common.StorageClassNetworkSpace], ",")
 	if len(networkSpaces) == 0 {
 		return targets, fmt.Errorf("getNVMETargets (nvme) - no network spaces found")
 	}

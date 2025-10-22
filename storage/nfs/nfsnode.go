@@ -47,13 +47,13 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
 	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s %s", functionName, nfs.CS.VolProto.VolumeID, hostTargetPath, storagecommon.GetHostInfo(req.GetSecrets(), nfs.CS.IboxAPI))
-	fileSystemId := nfs.CS.VolProto.VolumeID
+	fileSystemID := nfs.CS.VolProto.VolumeID
 
 	nfs.SnapdirVisible = false
 	nfs.UsePrivilegedPorts = false
 	var err error
 	// see if user is setting snapDirVisible in the StorageClass
-	snapDir := req.GetVolumeContext()[common.SC_SNAPDIR_VISIBLE]
+	snapDir := req.GetVolumeContext()[common.StorageClassSnapDirVisible]
 	if snapDir != "" {
 		nfs.SnapdirVisible, err = strconv.ParseBool(snapDir)
 		if err != nil {
@@ -62,7 +62,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			return nil, e
 		}
 	}
-	privPorts := req.GetVolumeContext()[common.SC_PRIV_PORTS]
+	privPorts := req.GetVolumeContext()[common.StorageClassPrivPorts]
 	if privPorts != "" {
 		nfs.UsePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
@@ -72,21 +72,21 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		}
 	}
 
-	if req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS] == "" {
+	if req.GetVolumeContext()[common.StorageClassNFSExportPermissions] == "" {
 		exportAccess := "RW"
 		if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 			zlog.Debug().Msgf("%s (nfs) - detected read-only, setting export to RO", functionName)
 			exportAccess = "RO"
 		}
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
-		err = nfs.UpdateExport(fileSystemId, exportPerms)
+		err = nfs.UpdateExport(fileSystemID, exportPerms)
 		if err != nil {
 			e := fmt.Errorf("%s (nfs) - updateExport - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, e
 		}
 	} else {
-		zlog.Trace().Msgf("%s (nfs) - nfs_export_permissions was specified %s, will not create default export rule", functionName, req.GetVolumeContext()[common.SC_NFS_EXPORT_PERMISSIONS])
+		zlog.Trace().Msgf("%s (nfs) - nfs_export_permissions was specified %s, will not create default export rule", functionName, req.GetVolumeContext()[common.StorageClassNFSExportPermissions])
 	}
 
 	_, err = os.Stat(hostTargetPath)
@@ -206,7 +206,7 @@ func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err e
 		return status.Error(codes.Internal, e.Error())
 	}
 
-	// use the volumeId to get the filesystem information,
+	// use the volumeID to get the filesystem information,
 	// example export {'access':'RW','client':'192.168.0.110', 'no_root_squash':true}
 	exportFileSystem := iboxapi.CreateExportRequest{
 		FilesystemID:       fileSystemID,
@@ -227,7 +227,7 @@ func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err e
 
 	existingExports, err := nfs.CS.IboxAPI.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - error from GetExportByFileSystem filesystemId %d %v", functionName, fileSystemID, err)
+		e := fmt.Errorf("%s (nfs) - error from GetExportByFileSystem fileSystemID %d %v", functionName, fileSystemID, err)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
@@ -253,7 +253,7 @@ func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err e
 			}
 			_, err = nfs.CS.IboxAPI.UpdateExportPermissions(existingExport, exportPathRef)
 			if err != nil {
-				e := fmt.Errorf("%s (nfs) - error from UpdateExport ID %d filesystemId %d %v", functionName, existingExport.ID, fileSystemID, err)
+				e := fmt.Errorf("%s (nfs) - error from UpdateExport ID %d filesystemID %d %v", functionName, existingExport.ID, fileSystemID, err)
 				zlog.Error().Msg(e.Error())
 				return e
 			}

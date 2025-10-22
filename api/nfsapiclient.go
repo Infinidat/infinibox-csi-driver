@@ -100,7 +100,7 @@ func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) err
 		permissionList := export.Permissions
 		for _, permission := range permissionList {
 			if permission.Client == ipAddress {
-				_, err = c.DeleteNodeFromExport(export, permission.Access, permission.NoRootSquash, ipAddress)
+				_, err = c.DeleteNodeFromExport(export, permission.NoRootSquash, ipAddress)
 				if err != nil {
 					zlog.Error().Msgf("Error occurred while getting export path : %s", err)
 					return err
@@ -113,7 +113,7 @@ func (c *ClientService) DeleteExportRule(fileSystemID int, ipAddress string) err
 }
 
 // DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
-func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ipAddress string) (*iboxapi.Export, error) {
+func (c *ClientService) DeleteNodeFromExport(export iboxapi.Export, noRootSquash bool, ipAddress string) (*iboxapi.Export, error) {
 	zlog.Trace().Msgf("Delete node from export with export ID %d", export.ID)
 	flag := false
 	var index int
@@ -205,9 +205,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	// 1. Delete export path
 	exportResp, err := c.IboxAPI.GetExportsByFileSystemID(fileSystemID)
 	if err != nil {
-		if strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
-			err = nil
-		} else {
+		if !strings.Contains(err.Error(), "EXPORT_NOT_FOUND") {
 			zlog.Error().Msgf("failed to delete export path %v", err)
 			return
 		}
@@ -216,9 +214,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 		_, err = c.IboxAPI.DeleteExport(export.ID)
 		if err != nil {
 			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
-				err = nil
-			} else {
+			if ok && re.Code != iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 				zlog.Error().Msgf("failed to delete export path %v", err)
 				return
 			}
@@ -230,9 +226,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 	// 2.delete metadata
 	_, err = c.IboxAPI.DeleteMetadata(fileSystemID)
 	if err != nil {
-		if strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
-			err = nil
-		} else {
+		if !strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			zlog.Error().Msgf("failed to delete metadata %v", err)
 			return
 		}

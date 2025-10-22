@@ -63,7 +63,7 @@ func TestTreeqServiceSuite(t *testing.T) {
 
 func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_maxfilesystem() {
 	nfs := nfs.NFSstorage{Capacity: 209951162777600}
-	service := &TreeqService{
+	service := &Service{
 		CS:         *suite.cs,
 		NFSstorage: nfs,
 	}
@@ -73,9 +73,9 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_maxfilesystem() {
 
 func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_getMaxSize_error() {
 	nfs := nfs.NFSstorage{Capacity: 209951162777600}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	configmap := map[string]string{
-		common.SC_MAX_FILESYSTEM_SIZE: "4mib",
+		common.StorageClassMaxFilesystemSize: "4mib",
 	}
 	service.NFSstorage.StorageClassParameters = configmap
 	_, err := service.getExpectedFileSystemID(10)
@@ -87,7 +87,7 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FileSystemByPoolID_
 	expectedErr := errors.New("some error")
 	suite.iboxapi.On("GetFileSystemsByPool", mock.Anything, mock.Anything).Return(nil, expectedErr)
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.getExpectedFileSystemID(1000)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -99,7 +99,7 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_FilesytemTreeqCount
 	suite.iboxapi.On("GetTreeqsByFileSystem", mock.Anything).Return(mock.Anything, expectedErr)
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
 	nfs := nfs.NFSstorage{Capacity: 100}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	_, err := service.getExpectedFileSystemID(9999990)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -119,7 +119,7 @@ func (suite *TreeqServiceSuite) Test_getExpectedFileSystemID_Success() {
 	suite.iboxapi.On("GetExportsByFileSystemID", fsID).Return(exportResp, nil)
 	fsMetada2 := getfsMetadata2()
 	suite.iboxapi.On("GetFileSystemsByPool", poolID, mock.Anything).Return(fsMetada2, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 
 	service.NFSstorage.Capacity = 1000
 	service.NFSstorage.ExportPath = "/exportPath"
@@ -162,7 +162,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_Success() {
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(*metadataResp, nil)
 
 	suite.iboxapi.On("UpdateFileSystem", fsID, mock.Anything).Return(nil, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 
 	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
@@ -197,7 +197,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_Error() {
 	suite.iboxapi.On("CreateTreeq", mock.Anything, mock.Anything).Return(nil, nil)
 
 	nfs := nfs.NFSstorage{Capacity: 100, CS: *suite.cs}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	service.TreeqCnt = -1
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
@@ -231,7 +231,7 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_FileSystemCount_notAllowe
 	suite.iboxapi.On("PutMetadata", mock.Anything, mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("CreateTreeq", mock.Anything, mock.Anything).Return(nil, nil)
 	nfs := nfs.NFSstorage{Capacity: 100, CS: *suite.cs}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	service.TreeqCnt = -1
 
 	var capacity int64 = 1000
@@ -261,12 +261,12 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_CreateFileSystem_Error() 
 	suite.iboxapi.On("CreateTreeq", 10, mock.Anything).Return(nil, expectedErr)
 
 	nfs := nfs.NFSstorage{Capacity: 100, CS: *suite.cs}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	// CreateVolumeRequest parameter values to filesystemService
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap[common.SC_FS_PREFIX] = "csit_"
+	configMap[common.StorageClassFSPrefix] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -295,11 +295,11 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_ExportFileSystem_Error() 
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
 
 	nfs := nfs.NFSstorage{Capacity: 100, CS: *suite.cs}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap[common.SC_FS_PREFIX] = "csit_"
+	configMap[common.StorageClassFSPrefix] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -331,11 +331,11 @@ func (suite *TreeqServiceSuite) Test_CreateTreeqVolume_metadata_Error() {
 	suite.iboxapi.On("GetMaxTreeqPerFs").Return(10000, nil)
 
 	nfs := nfs.NFSstorage{Capacity: 100, CS: *suite.cs}
-	service := TreeqService{CS: *suite.cs, NFSstorage: nfs}
+	service := Service{CS: *suite.cs, NFSstorage: nfs}
 	var capacity int64 = 1000
 	pVName := "csi-TestTreeq"
 	configMap := getCreateTreeqVolumeParameter()
-	configMap[common.SC_FS_PREFIX] = "csit_"
+	configMap[common.StorageClassFSPrefix] = "csit_"
 
 	_, err := service.CreateTreeqVolume(configMap, capacity, pVName)
 	assert.NotNil(suite.T(), err, "failed to get filecount")
@@ -350,7 +350,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqCnt_Success1() {
 	}
 	suite.iboxapi.On("GetTreeqsByFileSystem", fsID).Return(treeqs, nil)
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(*metadataResp, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	cnt, err := service.UpdateTreeqCnt(fsID, IncrementTreeqCount, 0)
 	assert.Nil(suite.T(), err, "empty object")
 	assert.Equal(suite.T(), expectedCnt, cnt, "treeq count shoude be same")
@@ -362,7 +362,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqCnt_Success2() {
 	currentTreeqCnt := 9
 	metadataResp := storagecommon.GetMetadataResponse()
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(*metadataResp, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	cnt, err := service.UpdateTreeqCnt(fsID, IncrementTreeqCount, currentTreeqCnt)
 	assert.Nil(suite.T(), err, "empty object")
 	assert.Equal(suite.T(), expectedCnt, cnt, "treeq count shoude be same")
@@ -373,7 +373,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqCnt_Error1() {
 	currentTreeqCnt := 9
 	expectedErr := errors.New("some error")
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.UpdateTreeqCnt(fsID, IncrementTreeqCount, currentTreeqCnt)
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
@@ -385,7 +385,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqCnt_Error2() {
 		{ID: 1},
 	}
 	suite.iboxapi.On("GetTreeqsByFileSystem", fsID).Return(treeqs, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.UpdateTreeqCnt(fsID, IncrementTreeqCount, 0)
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
@@ -395,9 +395,9 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error() {
 	treeqID := 10
 	expectedErr := errors.New("TREEQ_ID_DOES_NOT_EXIST")
 	suite.iboxapi.On("GetTreeq", fsID, treeqID).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
-	assert.Nil(suite.T(), err, "empty object")
+	assert.NotNil(suite.T(), err, "empty object")
 }
 
 func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error2() {
@@ -405,13 +405,13 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error2() {
 	treeqID := 10
 	expectedErr := errors.New("some other error")
 	suite.iboxapi.On("GetTreeq", fsID, treeqID).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
 }
 
 func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_GetTreeq_treeqNotEmpty() {
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	fsID := 11
 	treeqID := 10
 	suite.iboxapi.On("DeleteTreeq", fsID, treeqID).Return(nil, nil)
@@ -436,7 +436,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_TreeqCount_fail() {
 		{ID: treeqID},
 	}
 	suite.iboxapi.On("GetTreeqsByFileSystem", fsID).Return(treeqs, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -453,7 +453,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_TreeqCount_fail2() {
 	suite.iboxapi.On("GetTreeq", fsID, treeqID).Return(expectedResponse, nil)
 	suite.iboxapi.On("GetTreeqsByFileSystem", fsID).Return(treeqs, nil)
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -471,7 +471,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_success() {
 	suite.iboxapi.On("GetTreeqsByFileSystem", fsID).Return(treeqs, nil)
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("DeleteTreeq", fsID, treeqID).Return(nil, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.Nil(suite.T(), err, "empty object")
 }
@@ -491,7 +491,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_Error() {
 	}
 	suite.iboxapi.On("GetTreeqsByFileSystem", mock.Anything).Return(treeqs, expectedErr)
 
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -510,7 +510,7 @@ func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_DeleteTreeq_errorToDelete
 	suite.iboxapi.On("PutMetadata", fsID, mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("DeleteTreeq", fsID, treeqID).Return(nil, nil)
 	suite.api.On("DeleteFileSystemComplete", fsID).Return(expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(fsID, treeqID)
 	assert.NotNil(suite.T(), err, "empty object")
 }
@@ -521,7 +521,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetFileSystemByID_error()
 	var maxSize string
 	expectedErr := errors.New("FILESYSTEM_ID_DOES_NOT_EXIST")
 	suite.iboxapi.On("GetFileSystemByID", filesytemID).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Equal(suite.T(), expectedErr, err, "Unexpected error")
 }
@@ -538,7 +538,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeqsByFileSystem_err
 	suite.iboxapi.On("GetTreeq", filesytemID, treeqID).Return(expectedResponse, nil)
 	allTreeqs := make([]iboxapi.Treeq, 0)
 	suite.iboxapi.On("GetTreeqsByFileSystem", filesytemID).Return(allTreeqs, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Equal(suite.T(), expectedErr, err, "Unexpected error")
 }
@@ -553,7 +553,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error(
 	expectedErr := errors.New("TREEQ_ID_DOES_NOT_EXIST")
 	suite.iboxapi.On("GetFileSystemByID", filesytemID).Return(expectedFileSystemResponse, nil)
 	suite.iboxapi.On("GetTreeq", filesytemID, treeqID).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Nil(suite.T(), err, "Response not returned as expected")
 }
@@ -573,7 +573,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateFileSystem_error() 
 	}
 	suite.iboxapi.On("GetTreeqsByFileSystem", filesytemID).Return(allTreeqs, nil)
 	suite.iboxapi.On("UpdateFileSystem", filesytemID, mock.Anything).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
 }
@@ -597,7 +597,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_UpdateTreeq_error() {
 	suite.iboxapi.On("GetTreeqsByFileSystem", filesytemID).Return(allTreeqs, nil)
 	suite.iboxapi.On("UpdateFileSystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
 	suite.iboxapi.On("UpdateTreeq", filesytemID, treeqID, body).Return(nil, expectedErr)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Equal(suite.T(), expectedErr, err, "Response not returned as expected")
 }
@@ -622,7 +622,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_Success() {
 	suite.iboxapi.On("GetTreeqsByFileSystem", filesytemID).Return(allTreeqs, nil)
 	suite.iboxapi.On("UpdateFileSystem", filesytemID, mock.Anything).Return(expectedFileSystemResponse, nil)
 	suite.iboxapi.On("UpdateTreeq", filesytemID, treeqID, body).Return(expectedResponse, nil)
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(filesytemID, treeqID, capacity, maxSize)
 	assert.Nil(suite.T(), err, "empty object")
 }
@@ -632,7 +632,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_Error() {
 	poolResult := &iboxapi.PoolResult{ID: 100}
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, expectedErr)
 
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
@@ -644,7 +644,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_StoragePoolIDByName_Err
 	suite.iboxapi.On("GetPoolByName", mock.Anything).Return(poolResult, expectedErr)
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(storagecommon.GetNetworkspace(), nil)
 
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
@@ -658,7 +658,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_FileSystemsByPoolID_Err
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(storagecommon.GetNetworkspace(), nil)
 	suite.iboxapi.On("GetFileSystemsByPool", poolID, mock.Anything).Return(nil, expectedErr)
 
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.NotNil(suite.T(), err, "err should not be nil")
 }
@@ -677,7 +677,7 @@ func (suite *TreeqServiceSuite) Test_IsTreeqAlreadyExist_GetExportByFileSystem_E
 	suite.iboxapi.On("GetExportsByFileSystemID", fsID).Return(exportResp, nil)
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
 
-	service := TreeqService{CS: *suite.cs}
+	service := Service{CS: *suite.cs}
 	_, err := service.IsTreeqAlreadyExist("pool_name", "network_space", "pVName", "fsPrefix")
 	assert.Nil(suite.T(), err, "err should not be nil")
 }
@@ -698,12 +698,12 @@ func getTreeQResponse(fileSysID int) *iboxapi.Treeq {
 
 func getCreateVolumeRequest() *csi.CreateVolumeRequest {
 	parameters := map[string]string{
-		common.SC_POOL_NAME:         "a_pool",
-		common.SC_MAX_VOLS_PER_HOST: "30",
-		"max_filesystems":           "20",
-		"max_treeqs_per_filesystem": "21",
-		common.SC_NETWORK_SPACE:     "nas",
-		common.SC_STORAGE_PROTOCOL:  common.PROTOCOL_TREEQ,
+		common.StorageClassPoolName:        "a_pool",
+		common.StorageClassMaxVolsPerHost:  "30",
+		"max_filesystems":                  "20",
+		"max_treeqs_per_filesystem":        "21",
+		common.StorageClassNetworkSpace:    "nas",
+		common.StorageClassStorageProtocol: common.ProtocolTreeq,
 	}
 	req := csi.CreateVolumeRequest{
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 100 * storagecommon.GIB},
@@ -736,16 +736,16 @@ func getfsMetadata2() []iboxapi.FileSystem {
 
 func getCreateTreeqVolumeParameter() map[string]string {
 	return map[string]string{
-		common.SC_POOL_NAME:              "pool_name1",
-		common.SC_NETWORK_SPACE:          "network_space1",
-		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		common.StorageClassPoolName:             "pool_name1",
+		common.StorageClassNetworkSpace:         "network_space1",
+		common.StorageClassNFSExportPermissions: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }
 
 func getTreeQTestNetworkSpace() api.NetworkSpace {
 	var nws api.NetworkSpace
 	nws.Name = "testNWS"
-	nws.Service = common.NS_NFS_SVC
+	nws.Service = common.NetworkSpaceNFSService
 
 	return nws
 }

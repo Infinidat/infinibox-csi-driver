@@ -510,7 +510,7 @@ func (iboxClient *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err e
 	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/hosts/", hostID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 
 	for page := 1; page <= totalPages; page++ {
@@ -561,7 +561,7 @@ func (iboxClient *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *Lun
 	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/hosts/", hostID)
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "volume ID", volumeID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 
 	for page := 1; page <= totalPages; page++ {

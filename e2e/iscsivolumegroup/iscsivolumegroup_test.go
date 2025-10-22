@@ -16,7 +16,7 @@ import (
 
 func TestIscsiVolumeGroup(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -52,7 +52,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: vgcsName,
 		},
-		Driver:         common.SERVICE_NAME,
+		Driver:         common.ServiceName,
 		DeletionPolicy: snapshotv1.VolumeSnapshotContentDelete,
 		Parameters: map[string]string{
 			"csi.storage.k8s.io/group-snapshotter-secret-name":      "infinibox-creds",

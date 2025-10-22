@@ -54,7 +54,7 @@ func TestISCSIControllerSuite(t *testing.T) {
 
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidProvisionType_Fail() {
 	parameterMap := map[string]string{
-		common.SC_PROVISION_TYPE: "somethinginvalid",
+		common.StorageClassProvisionType: "somethinginvalid",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi invalid provision type sc parameter")
@@ -66,7 +66,7 @@ func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
 }
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
 	parameterMap := map[string]string{
-		common.SC_POOL_NAME: "",
+		common.StorageClassPoolName: "",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters invalid parameter")
@@ -79,19 +79,19 @@ func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_No
 
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_CHAP() {
 	parameterMap := getISCSICreateVolumeParameters()
-	delete(parameterMap, common.SC_USE_CHAP)
+	delete(parameterMap, common.StorageClassUseCHAP)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters missing parameter")
 }
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Network_Space() {
 	parameterMap := getISCSICreateVolumeParameters()
-	delete(parameterMap, common.SC_NETWORK_SPACE)
+	delete(parameterMap, common.StorageClassNetworkSpace)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters missing parameter")
 }
 func (suite *ISCSIControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Pool() {
 	parameterMap := getISCSICreateVolumeParameters()
-	delete(parameterMap, common.SC_POOL_NAME)
+	delete(parameterMap, common.StorageClassPoolName)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi validate sc parameters missing parameter")
 }
@@ -292,7 +292,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxVolumeError()
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "AA"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.StorageClassMaxVolsPerHost: "AA"}
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume invalid max_vols_per_host value")
 }
@@ -306,7 +306,7 @@ func (suite *ISCSIControllerSuite) Test_ControllerPublishVolume_MaxAllowedError(
 	suite.iboxapi.On("GetVolume", mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.iboxapi.On("CreateHost", mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
-	ctrPublishValReq.VolumeContext = map[string]string{common.SC_MAX_VOLS_PER_HOST: "0"}
+	ctrPublishValReq.VolumeContext = map[string]string{common.StorageClassMaxVolsPerHost: "0"}
 	_, err := suite.service.ControllerPublishVolume(context.Background(), ctrPublishValReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi ControllerPublishVolume max_vols_per_host exceeded")
 }
@@ -419,15 +419,15 @@ func (suite *ISCSIControllerSuite) Test_GetCapacity() {
 
 func getISCSICreateVolumeParameters() map[string]string {
 	return map[string]string{
-		common.SC_GID:               "2468",
-		common.SC_MAX_VOLS_PER_HOST: "19",
-		common.SC_NETWORK_SPACE:     "network_space1",
-		common.SC_POOL_NAME:         "pool_name1",
-		common.SC_PROVISION_TYPE:    common.SC_THIN_PROVISION_TYPE,
-		common.SC_SSD_ENABLED:       "true",
-		common.SC_STORAGE_PROTOCOL:  "iscsi",
-		common.SC_UID:               "1234",
-		common.SC_UNIX_PERMISSIONS:  "0777",
-		common.SC_USE_CHAP:          "none",
+		common.StorageClassGID:             "2468",
+		common.StorageClassMaxVolsPerHost:  "19",
+		common.StorageClassNetworkSpace:    "network_space1",
+		common.StorageClassPoolName:        "pool_name1",
+		common.StorageClassProvisionType:   common.StorageClassThinProvision,
+		common.StorageClassSSDEnabled:      "true",
+		common.StorageClassStorageProtocol: "iscsi",
+		common.StorageClassUID:             "1234",
+		common.StorageClassUNIXPermissions: "0777",
+		common.StorageClassUseCHAP:         "none",
 	}
 }

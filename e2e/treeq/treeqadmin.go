@@ -69,7 +69,7 @@ func CreateAdminTreeqs(config *e2e.TestConfig) (fileSystemID int, err error) {
 		PoolID:   pool.ID,
 		Name:     fileSystemName,
 		Size:     8589934592, // 8Gb
-		Provtype: common.SC_THIN_PROVISION_TYPE,
+		Provtype: common.StorageClassThinProvision,
 	}
 
 	filesystem, err := config.ClientService.IboxAPI.CreateFileSystem(fsRequest)
@@ -129,10 +129,10 @@ func CreatePersistentVolumesForTreeqs(filesystem *iboxapi.FileSystem, treeqIDs [
 		ControllerPublishSecretRef: secretRef,
 		NodePublishSecretRef:       secretRef,
 		NodeStageSecretRef:         secretRef,
-		Driver:                     common.SERVICE_NAME,
+		Driver:                     common.ServiceName,
 		VolumeAttributes: map[string]string{
 			"ipAddress":              networkSpaceIPAddress,
-			"storage_protocol":       common.PROTOCOL_TREEQ,
+			"storage_protocol":       common.ProtocolTreeq,
 			"nfs_export_permissions": `[{"access":"RW","client":"*","no_root_squash":true}]`,
 		},
 	}
@@ -140,7 +140,7 @@ func CreatePersistentVolumesForTreeqs(filesystem *iboxapi.FileSystem, treeqIDs [
 	persistentVolumeSource.CSI = csiSource
 	for index, treeqUser := range treeqUsers {
 		csiSource.VolumeAttributes["volumePath"] = "/" + filesystem.Name + "/" + treeqUser
-		csiSource.VolumeHandle = strconv.Itoa(filesystem.ID) + "#" + strconv.Itoa(treeqIDs[index]) + "$$" + common.PROTOCOL_TREEQ
+		csiSource.VolumeHandle = strconv.Itoa(filesystem.ID) + "#" + strconv.Itoa(treeqIDs[index]) + "$$" + common.ProtocolTreeq
 		persistentVolume := &v1.PersistentVolume{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      treeqUser + "-pv-" + config.TestNames.UniqueSuffix,

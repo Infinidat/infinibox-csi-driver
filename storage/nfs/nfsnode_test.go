@@ -120,12 +120,12 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	req := storagecommon.GetNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = storagecommon.GetVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
-	req.VolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = ""
+	req.VolumeContext[common.StorageClassNFSExportPermissions] = ""
 	req.Secrets = map[string]string{
 		"nodeID": "192.168.0.110",
 	}
-	req.VolumeContext[common.SC_SNAPDIR_VISIBLE] = "true"
-	req.VolumeContext[common.SC_PRIV_PORTS] = "false"
+	req.VolumeContext[common.StorageClassSnapDirVisible] = "true"
+	req.VolumeContext[common.StorageClassPrivPorts] = "false"
 	_, err = suite.service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
@@ -161,10 +161,10 @@ func (suite *NodeSuite) XTest_NodePublishVolume_DefaultExport_PodRestart_success
 	req := storagecommon.GetNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = storagecommon.GetVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
-	req.VolumeContext[common.SC_NFS_EXPORT_PERMISSIONS] = ""
+	req.VolumeContext[common.StorageClassNFSExportPermissions] = ""
 	req.VolumeContext["nodeID"] = "192.168.0.110"
-	req.VolumeContext[common.SC_SNAPDIR_VISIBLE] = "true"
-	req.VolumeContext[common.SC_PRIV_PORTS] = "false"
+	req.VolumeContext[common.StorageClassSnapDirVisible] = "true"
+	req.VolumeContext[common.StorageClassPrivPorts] = "false"
 	_, err = suite.service.NodePublishVolume(context.Background(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")

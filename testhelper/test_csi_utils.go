@@ -17,7 +17,7 @@ func GetSecret() map[string]string {
 
 func GetHostMetadata() (results []iboxapi.GetMetadataResult) {
 	metadata := iboxapi.GetMetadataResult{
-		Key:   common.CSI_CREATED_HOST,
+		Key:   common.CSICreatedHost,
 		Value: "true",
 	}
 	results = append(results, metadata)

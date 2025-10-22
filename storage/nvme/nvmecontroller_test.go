@@ -55,7 +55,7 @@ func TestNVMEControllerSuite(t *testing.T) {
 
 func (suite *NVMEControllerSuite) Test_ValidateStorageClass_InvalidProvisionType_Fail() {
 	parameterMap := map[string]string{
-		common.SC_PROVISION_TYPE: "somethinginvalid",
+		common.StorageClassProvisionType: "somethinginvalid",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme invalid provision type sc parameter")
@@ -67,7 +67,7 @@ func (suite *NVMEControllerSuite) Test_ValidateStorageClass_ValidPoolName() {
 }
 func (suite *NVMEControllerSuite) Test_ValidateStorageClass_InvalidPoolName() {
 	parameterMap := map[string]string{
-		common.SC_POOL_NAME: "",
+		common.StorageClassPoolName: "",
 	}
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme CreateVolume invalid parameter")
@@ -80,27 +80,27 @@ func (suite *NVMEControllerSuite) Test_ValidateStorageClass_InvalidParameter_No_
 
 func (suite *NVMEControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Network_Space() {
 	parameterMap := getNVMECreateVolumeParameters()
-	delete(parameterMap, common.SC_NETWORK_SPACE)
+	delete(parameterMap, common.StorageClassNetworkSpace)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme CreateVolumeValidate missing parameter")
 }
 func (suite *NVMEControllerSuite) Test_ValidateStorageClass_InvalidParameter_Missing_Pool() {
 	parameterMap := getNVMECreateVolumeParameters()
-	delete(parameterMap, common.SC_POOL_NAME)
+	delete(parameterMap, common.StorageClassPoolName)
 	err := suite.service.ValidateStorageClass(parameterMap)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme CreateVolumeValidate missing parameter")
 }
 func getNVMECreateVolumeParameters() map[string]string {
 	return map[string]string{
-		common.SC_GID:               "2468",
-		common.SC_MAX_VOLS_PER_HOST: "19",
-		common.SC_NETWORK_SPACE:     "network_space1",
-		common.SC_POOL_NAME:         "pool_name1",
-		common.SC_PROVISION_TYPE:    common.SC_THIN_PROVISION_TYPE,
-		common.SC_SSD_ENABLED:       "true",
-		common.SC_STORAGE_PROTOCOL:  "nvme",
-		common.SC_UID:               "1234",
-		common.SC_UNIX_PERMISSIONS:  "0777",
+		common.StorageClassGID:             "2468",
+		common.StorageClassMaxVolsPerHost:  "19",
+		common.StorageClassNetworkSpace:    "network_space1",
+		common.StorageClassPoolName:        "pool_name1",
+		common.StorageClassProvisionType:   common.StorageClassThinProvision,
+		common.StorageClassSSDEnabled:      "true",
+		common.StorageClassStorageProtocol: "nvme",
+		common.StorageClassUID:             "1234",
+		common.StorageClassUNIXPermissions: "0777",
 	}
 }
 
@@ -261,7 +261,7 @@ func getNVMEControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeId:      "1$$nvme",
 		NodeId:        "10.20.20.50$$nvme",
-		VolumeContext: map[string]string{common.SC_MAX_VOLS_PER_HOST: "10"},
+		VolumeContext: map[string]string{common.StorageClassMaxVolsPerHost: "10"},
 	}
 }
 

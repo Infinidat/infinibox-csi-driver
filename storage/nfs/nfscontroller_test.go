@@ -31,7 +31,7 @@ func (suite *NFSControllerSuite) SetupTest() {
 
 	suite.service = NFSstorage{CS: cs, Capacity: 100 * storagecommon.GIB}
 	suite.service.StorageClassParameters = map[string]string{
-		common.SC_POOL_NAME: "somepoolname",
+		common.StorageClassPoolName: "somepoolname",
 	}
 	suite.someError = errors.New("Some error")
 }
@@ -51,7 +51,7 @@ func TestNfsControllerSuite(t *testing.T) {
 
 func (suite *NFSControllerSuite) Test_CreateVolume_parameterValidation_Fail() {
 	parameterMap := getCreateVolumeParameter()
-	delete(parameterMap, common.SC_POOL_NAME)
+	delete(parameterMap, common.StorageClassPoolName)
 
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
@@ -75,7 +75,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_GetFileSystemByName_Error() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
 	poolResult := &iboxapi.PoolResult{ID: 100}
-	suite.iboxapi.On("GetPoolByName", parameterMap[common.SC_POOL_NAME]).Return(poolResult, nil)
+	suite.iboxapi.On("GetPoolByName", parameterMap[common.StorageClassPoolName]).Return(poolResult, nil)
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
 
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
@@ -162,7 +162,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
 	poolResult := &iboxapi.PoolResult{ID: 1000}
-	suite.iboxapi.On("GetPoolByName", parameterMap[common.SC_POOL_NAME]).Return(poolResult, nil)
+	suite.iboxapi.On("GetPoolByName", parameterMap[common.StorageClassPoolName]).Return(poolResult, nil)
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
 	pool := iboxapi.PoolResult{
 		Name: "pool_name1",
@@ -187,7 +187,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_success() {
 	createVolReq := getNFSCreateVolumeRequest("PVName", parameterMap)
 
 	poolResult := &iboxapi.PoolResult{ID: 100}
-	suite.iboxapi.On("GetPoolByName", parameterMap[common.SC_POOL_NAME]).Return(poolResult, nil)
+	suite.iboxapi.On("GetPoolByName", parameterMap[common.StorageClassPoolName]).Return(poolResult, nil)
 	pool := iboxapi.PoolResult{
 		Name: "pool_name1",
 	}
@@ -740,16 +740,16 @@ func getCreateVolumeCloneRequest(name string, parameterMap map[string]string) *c
 
 func getCreateVolumeParameter() map[string]string {
 	return map[string]string{
-		common.SC_STORAGE_PROTOCOL:       "nfs",
-		common.SC_POOL_NAME:              "pool_name1",
-		common.SC_NETWORK_SPACE:          "network_space1",
-		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		common.StorageClassStorageProtocol:      "nfs",
+		common.StorageClassPoolName:             "pool_name1",
+		common.StorageClassNetworkSpace:         "network_space1",
+		common.StorageClassNFSExportPermissions: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }
 
 func getPublishVolumeParameter() map[string]string {
 	return map[string]string{
-		"exportID":                       "1",
-		common.SC_NFS_EXPORT_PERMISSIONS: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
+		"exportID":                              "1",
+		common.StorageClassNFSExportPermissions: "[{'access':'RW','client':'192.168.147.190-192.168.147.199','no_root_squash':false},{'access':'RW','client':'192.168.147.10-192.168.147.20','no_root_squash':'false'}]",
 	}
 }

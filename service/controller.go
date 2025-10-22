@@ -68,8 +68,8 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageProtocol := reqParameters[common.SC_STORAGE_PROTOCOL]
-	networkSpace := reqParameters[common.SC_NETWORK_SPACE]
+	storageProtocol := reqParameters[common.StorageClassStorageProtocol]
+	networkSpace := reqParameters[common.StorageClassNetworkSpace]
 
 	// if the user supplies a storage_protocol in the StorageClass, then use that instead of the protocol secret
 
@@ -80,8 +80,8 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 
 		if protocolSecretInUse {
-			storageProtocol = protocolSecretMap[common.SC_STORAGE_PROTOCOL]
-			if storageProtocol == common.PROTOCOL_AUTO {
+			storageProtocol = protocolSecretMap[common.StorageClassStorageProtocol]
+			if storageProtocol == common.ProtocolAuto {
 				calculatedProtocol, _, err := DetermineProtocol()
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
@@ -91,21 +91,21 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 			var useCHAP, nfsExportPerms string
 			switch storageProtocol {
-			case common.PROTOCOL_ISCSI:
-				useCHAP = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_USE_CHAP]
-				networkSpace = protocolSecretMap[common.PROTOCOL_ISCSI+"."+common.SC_NETWORK_SPACE]
-			case common.PROTOCOL_NVME:
-				networkSpace = protocolSecretMap[common.PROTOCOL_NVME+"."+common.SC_NETWORK_SPACE]
-			case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
-				networkSpace = protocolSecretMap[common.PROTOCOL_NFS+"."+common.SC_NETWORK_SPACE]
-				nfsExportPerms = protocolSecretMap[common.PROTOCOL_NFS+"."+common.SC_NFS_EXPORT_PERMISSIONS]
+			case common.ProtocolISCSI:
+				useCHAP = protocolSecretMap[common.ProtocolISCSI+"."+common.StorageClassUseCHAP]
+				networkSpace = protocolSecretMap[common.ProtocolISCSI+"."+common.StorageClassNetworkSpace]
+			case common.ProtocolNVME:
+				networkSpace = protocolSecretMap[common.ProtocolNVME+"."+common.StorageClassNetworkSpace]
+			case common.ProtocolNFS, common.ProtocolTreeq:
+				networkSpace = protocolSecretMap[common.ProtocolNFS+"."+common.StorageClassNetworkSpace]
+				nfsExportPerms = protocolSecretMap[common.ProtocolNFS+"."+common.StorageClassNFSExportPermissions]
 			default:
 			}
 
-			zlog.Debug().Msgf("%s - protocol secret %s:%s %s:%s %s:%s %s:%s", functionName, common.SC_STORAGE_PROTOCOL, storageProtocol, common.SC_NETWORK_SPACE, networkSpace, common.SC_USE_CHAP, useCHAP, common.SC_NFS_EXPORT_PERMISSIONS, nfsExportPerms)
-			reqParameters[common.SC_NETWORK_SPACE] = networkSpace
-			reqParameters[common.SC_USE_CHAP] = useCHAP
-			reqParameters[common.SC_NFS_EXPORT_PERMISSIONS] = nfsExportPerms
+			zlog.Debug().Msgf("%s - protocol secret %s:%s %s:%s %s:%s %s:%s", functionName, common.StorageClassStorageProtocol, storageProtocol, common.StorageClassNetworkSpace, networkSpace, common.StorageClassUseCHAP, useCHAP, common.StorageClassNFSExportPermissions, nfsExportPerms)
+			reqParameters[common.StorageClassNetworkSpace] = networkSpace
+			reqParameters[common.StorageClassUseCHAP] = useCHAP
+			reqParameters[common.StorageClassNFSExportPermissions] = nfsExportPerms
 		}
 	}
 
@@ -123,7 +123,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
-	if storageProtocol != common.PROTOCOL_FC && len(networkSpace) == 0 {
+	if storageProtocol != common.ProtocolFC && len(networkSpace) == 0 {
 		e := fmt.Errorf("%s - network space empty ", functionName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
@@ -146,17 +146,17 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
-	if reqParameters[common.SC_POOL_NAME] == "" {
-		e := fmt.Errorf("%s - %s empty", functionName, common.SC_POOL_NAME)
+	if reqParameters[common.StorageClassPoolName] == "" {
+		e := fmt.Errorf("%s - %s empty", functionName, common.StorageClassPoolName)
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	// TODO: move non-protocol-specific capacity request validation here too, verifyVolumeSize function etc
 
 	configparams := map[string]string{
-		"nodeid":                         s.Driver.nodeID,
-		"driverversion":                  s.Driver.version,
-		common.SC_NFS_EXPORT_PERMISSIONS: reqParameters[common.SC_NFS_EXPORT_PERMISSIONS],
+		"nodeid":                                s.Driver.nodeID,
+		"driverversion":                         s.Driver.version,
+		common.StorageClassNFSExportPermissions: reqParameters[common.StorageClassNFSExportPermissions],
 	}
 
 	pvcAnnotations := make(map[string]string)
@@ -172,7 +172,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	secretsToUse := req.GetSecrets()
 
-	pvcAnnoSecret := pvcAnnotations[common.PVC_ANNOTATION_IBOX_SECRET]
+	pvcAnnoSecret := pvcAnnotations[common.PVCAnnotationIBOXSecret]
 	if pvcAnnoSecret != "" {
 		secretsToUse, err = kubernetesClient.GetSecret(pvcAnnoSecret, os.Getenv("POD_NAMESPACE"))
 		if err != nil {
@@ -185,11 +185,11 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	capacity := req.GetCapacityRange().RequiredBytes
 
 	roundUp := true // default to always rounding up, users can set the StorageClass parameter to false if for some reason they want
-	roundUpParameter := req.Parameters[common.SC_ROUND_UP]
+	roundUpParameter := req.Parameters[common.StorageClassRoundup]
 	if roundUpParameter != "" {
 		roundUp, err = strconv.ParseBool(roundUpParameter)
 		if err != nil {
-			e := fmt.Errorf("%s - name %s param %s parse %s - error %s", functionName, volName, roundUpParameter, common.SC_ROUND_UP, err.Error())
+			e := fmt.Errorf("%s - name %s param %s parse %s - error %s", functionName, volName, roundUpParameter, common.StorageClassRoundup, err.Error())
 			zlog.Error().Msg(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -205,7 +205,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	err = validateSecret("CreateVolume", "", common.SC_PROVISIONER_SECRET_NAME, common.SC_PROVISIONER_SECRET_NAMESPACE, req.GetSecrets())
+	err = validateSecret("CreateVolume", "", common.CSIProvisionerSecretName, common.CSIProvisionerSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -217,7 +217,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageController, err := storage.NewStorageController(commonService, capacity, storageProtocol, configparams, secretsToUse)
+	storageController, err := storage.NewStorageController(commonService, capacity, storageProtocol)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("%s - NewStorageController - name %s error %s", functionName, volName, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -231,17 +231,17 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	req.Parameters[common.PVC_ANNOTATION_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE]
-	req.Parameters[common.PVC_ANNOTATION_POOL_NAME] = pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME]
+	req.Parameters[common.PVCAnnotationNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace]
+	req.Parameters[common.PVCAnnotationPoolName] = pvcAnnotations[common.PVCAnnotationPoolName]
 
-	if pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] != "" {
-		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME])
-		req.Parameters[common.SC_POOL_NAME] = pvcAnnotations[common.PVC_ANNOTATION_POOL_NAME] // overwrite what was in the storageclass if any
+	if pvcAnnotations[common.PVCAnnotationPoolName] != "" {
+		zlog.Debug().Msgf("%s is specified in the PVC, this will be used instead of the pool_name in the StorageClass", pvcAnnotations[common.PVCAnnotationPoolName])
+		req.Parameters[common.StorageClassPoolName] = pvcAnnotations[common.PVCAnnotationPoolName] // overwrite what was in the storageclass if any
 	}
 
-	if pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] != "" {
-		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE])
-		reqParameters[common.SC_NETWORK_SPACE] = pvcAnnotations[common.PVC_ANNOTATION_NETWORK_SPACE] // overwrite what was in the storageclass if any
+	if pvcAnnotations[common.PVCAnnotationNetworkSpace] != "" {
+		zlog.Debug().Msgf("network_space %s is specified in the PVC, this will be used instead of the network_space in the StorageClass", pvcAnnotations[common.PVCAnnotationNetworkSpace])
+		reqParameters[common.StorageClassNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace] // overwrite what was in the storageclass if any
 	}
 
 	// perform protocol specific StorageClass validations
@@ -337,7 +337,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType, config, secretsToUse)
+	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", functionName, volumeID, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -396,17 +396,17 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	if volproto.StorageType == common.PROTOCOL_AUTO {
+	if volproto.StorageType == common.ProtocolAuto {
 		zlog.Debug().Msgf("%s protocol auto detected", functionName)
 		calculatedProtocol, protocolSecret, err := DetermineProtocol()
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		if calculatedProtocol == common.PROTOCOL_ISCSI {
-			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["iscsi.network_space"]
+		if calculatedProtocol == common.ProtocolISCSI {
+			req.VolumeContext[common.StorageClassNetworkSpace] = protocolSecret["iscsi.network_space"]
 		}
-		if calculatedProtocol == common.PROTOCOL_NVME {
-			req.VolumeContext[common.SC_NETWORK_SPACE] = protocolSecret["nvme.network_space"]
+		if calculatedProtocol == common.ProtocolNVME {
+			req.VolumeContext[common.StorageClassNetworkSpace] = protocolSecret["nvme.network_space"]
 		}
 		// need to determine the protocol based on user defined protocol order
 		// need to look up the network_space for this protocol as defined in the protocol secret
@@ -428,7 +428,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	config := make(map[string]string)
 
-	err = validateSecret("ControllerPublishVolume", req.GetVolumeId(), common.SC_CONTROLLER_PUBLISH_SECRET_NAME, common.SC_CONTROLLER_PUBLISH_SECRET_NAMESPACE, req.GetSecrets())
+	err = validateSecret("ControllerPublishVolume", req.GetVolumeId(), common.CSIControllerPublishSecretName, common.CSIControllerPublishSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -440,7 +440,7 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("%s - NewStorageController - volume ID: %s type %v error: %s", functionName, req.GetVolumeId(), volproto, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -503,8 +503,8 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	volproto.NodeID = req.GetNodeId()
 
-	if volproto.StorageType != common.PROTOCOL_NFS && volproto.StorageType != common.PROTOCOL_TREEQ {
-		if volproto.StorageType == common.PROTOCOL_NVME {
+	if volproto.StorageType != common.ProtocolNFS && volproto.StorageType != common.ProtocolTreeq {
+		if volproto.StorageType == common.ProtocolNVME {
 			hostName += nvme.NVME_HOST_SUFFIX
 		}
 		volproto.Host, err = commonService.IboxAPI.GetHostByName(hostName)
@@ -519,7 +519,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 		}
 	}
 
-	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(commonService, 0, volproto.StorageType)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -575,7 +575,7 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (summary string,
 			}
 
 			switch file.FsType {
-			case "", common.FS_TYPE_EXT3, common.FS_TYPE_EXT4, common.FS_TYPE_XFS:
+			case "", common.FSTypeExt3, common.FSTypeExt4, common.FSTypeXFS:
 			default:
 				return "", fmt.Errorf("fstype [%s] is not supported", file.FsType)
 			}
@@ -632,7 +632,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	}
 
 	scParameters := req.Parameters
-	protocol := scParameters[common.SC_STORAGE_PROTOCOL]
+	protocol := scParameters[common.StorageClassStorageProtocol]
 
 	//	if protocol != common.PROTOCOL_NFS && protocol != common.PROTOCOL_TREEQ {
 	protocolSecretMap, protocolSecretInUse, err := helper.GetProtocolSecret()
@@ -642,11 +642,11 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	if protocolSecretInUse {
-		protocol = protocolSecretMap[common.SC_STORAGE_PROTOCOL]
+		protocol = protocolSecretMap[common.StorageClassStorageProtocol]
 	}
 	//}
 
-	if protocol == common.PROTOCOL_NFS || protocol == common.PROTOCOL_TREEQ {
+	if protocol == common.ProtocolNFS || protocol == common.ProtocolTreeq {
 		var fileSystem *iboxapi.FileSystem
 		fileSystem, err = commonService.IboxAPI.GetFileSystemByID(volproto.VolumeID)
 		if err != nil {
@@ -712,7 +712,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 		zlog.Info().Msgf("pv capacity : %#v", persistentVolume.Spec.Capacity)
 		zlog.Info().Msgf("pv name: %#v", persistentVolume.GetName())
 		zlog.Info().Msgf("pv anno: %#v", persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"])
-		if persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.SERVICE_NAME {
+		if persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.ServiceName {
 			var status csi.ListVolumesResponse_VolumeStatus
 			status.PublishedNodeIds = append(status.PublishedNodeIds, persistentVolume.GetName())
 			// TODO Handle csi.ListVolumesResponse_VolumeStatus.VolumeCondition?
@@ -723,9 +723,9 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 			volume.CapacityBytes = persistentVolume.Spec.Capacity.Storage().AsDec().UnscaledBig().Int64()
 			volume.VolumeId = persistentVolume.GetName()
 			volume.VolumeContext = map[string]string{
-				common.SC_NETWORK_SPACE:    persistentVolume.Spec.CSI.VolumeAttributes[common.SC_NETWORK_SPACE],
-				common.SC_POOL_NAME:        persistentVolume.Spec.CSI.VolumeAttributes[common.SC_POOL_NAME],
-				common.SC_STORAGE_PROTOCOL: persistentVolume.Spec.CSI.VolumeAttributes[common.SC_STORAGE_PROTOCOL],
+				common.StorageClassNetworkSpace:    persistentVolume.Spec.CSI.VolumeAttributes[common.StorageClassNetworkSpace],
+				common.StorageClassPoolName:        persistentVolume.Spec.CSI.VolumeAttributes[common.StorageClassPoolName],
+				common.StorageClassStorageProtocol: persistentVolume.Spec.CSI.VolumeAttributes[common.StorageClassStorageProtocol],
 			}
 			volume.ContentSource = nil
 			volume.AccessibleTopology = nil
@@ -913,7 +913,7 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
-	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageController - snapshot name: %s source volume ID: %s error: %s", functionName, req.GetName(), req.GetSourceVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -953,7 +953,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType, config, req.GetSecrets())
+	storageController, err := storage.NewStorageController(comnserv, 0, volproto.StorageType)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageController - snapshot ID: %s error %s", functionName, req.GetSnapshotId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -993,9 +993,9 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	capacity := req.GetCapacityRange().GetRequiredBytes()
 
-	err = validateSecret("ControllerExpandVolume", req.GetVolumeId(), common.SC_CONTROLLER_EXPAND_SECRET_NAME, common.SC_CONTROLLER_EXPAND_SECRET_NAMESPACE, req.GetSecrets())
+	err = validateSecret("ControllerExpandVolume", req.GetVolumeId(), common.CSIControllerExpandSecretName, common.CSIControllerExpandSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -1006,7 +1006,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	storageController, err := storage.NewStorageController(comnserv, capacity, volproto.StorageType, configparams, req.GetSecrets())
+	storageController, err := storage.NewStorageController(comnserv, capacity, volproto.StorageType)
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageController - volume ID: %s error: %s", functionName, req.GetVolumeId(), err)
 		zlog.Error().Msg(e.Error())
@@ -1056,15 +1056,15 @@ func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 }
 
 func validateCommonStorageClassParameters(comnserv storagecommon.Commonservice, scParameters map[string]string, protocol string) error {
-	poolName := scParameters[common.SC_POOL_NAME]
+	poolName := scParameters[common.StorageClassPoolName]
 	_, err := comnserv.IboxAPI.GetPoolByName(poolName)
 	if err != nil {
 		return err
 	}
 
 	// skip validation of network space when FC
-	if protocol != common.PROTOCOL_FC {
-		networkspace := scParameters[common.SC_NETWORK_SPACE]
+	if protocol != common.ProtocolFC {
+		networkspace := scParameters[common.StorageClassNetworkSpace]
 		arrayofNetworkSpaces := strings.Split(networkspace, ",")
 
 		for _, name := range arrayofNetworkSpaces {
@@ -1082,51 +1082,51 @@ func validateCommonStorageClassParameters(comnserv storagecommon.Commonservice, 
 	}
 
 	// validate optional uid and gid parameters
-	gidProvided := scParameters[common.SC_GID]
+	gidProvided := scParameters[common.StorageClassGID]
 	if gidProvided != "" {
 		gid_int, err := strconv.Atoi(gidProvided)
 		if err != nil || gid_int < -1 {
-			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.SC_GID, gidProvided)
+			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.StorageClassGID, gidProvided)
 		}
 	}
 
-	uidProvided := scParameters[common.SC_UID]
+	uidProvided := scParameters[common.StorageClassUID]
 	if uidProvided != "" {
 		uid_int, err := strconv.Atoi(uidProvided)
 		if err != nil || uid_int < -1 {
-			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.SC_UID, uidProvided)
+			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.StorageClassUID, uidProvided)
 		}
 	}
 
-	unixPermissionsProvided := scParameters[common.SC_UNIX_PERMISSIONS]
+	unixPermissionsProvided := scParameters[common.StorageClassUNIXPermissions]
 	if unixPermissionsProvided != "" {
 		_, err := strconv.ParseUint(unixPermissionsProvided, 8, 32)
 		if err != nil {
-			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.SC_UNIX_PERMISSIONS, unixPermissionsProvided)
+			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.StorageClassUNIXPermissions, unixPermissionsProvided)
 		}
 	}
 
-	maxVolsProvided := scParameters[common.SC_MAX_VOLS_PER_HOST]
+	maxVolsProvided := scParameters[common.StorageClassMaxVolsPerHost]
 	if maxVolsProvided != "" {
 		maxVols_int, err := strconv.Atoi(maxVolsProvided)
 		if err != nil || maxVols_int < -1 {
-			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid integer, value entered was %s", common.SC_MAX_VOLS_PER_HOST, maxVolsProvided)
+			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid integer, value entered was %s", common.StorageClassMaxVolsPerHost, maxVolsProvided)
 		}
 	}
 
-	provTypeProvided := scParameters[common.SC_PROVISION_TYPE]
+	provTypeProvided := scParameters[common.StorageClassProvisionType]
 	if provTypeProvided != "" {
 		p := strings.ToUpper(provTypeProvided)
-		if p != common.SC_THICK_PROVISION_TYPE && p != common.SC_THIN_PROVISION_TYPE {
-			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid value, value entered was %s", common.SC_PROVISION_TYPE, provTypeProvided)
+		if p != common.StorageClassThickProvision && p != common.StorageClassThinProvision {
+			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid value, value entered was %s", common.StorageClassProvisionType, provTypeProvided)
 		}
 	}
 
-	ssdEnabledProvided := scParameters[common.SC_SSD_ENABLED]
+	ssdEnabledProvided := scParameters[common.StorageClassSSDEnabled]
 	if ssdEnabledProvided != "" {
 		_, err := strconv.ParseBool(ssdEnabledProvided)
 		if err != nil {
-			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid boolean, value entered was %s", common.SC_SSD_ENABLED, ssdEnabledProvided)
+			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid boolean, value entered was %s", common.StorageClassSSDEnabled, ssdEnabledProvided)
 		}
 	}
 
@@ -1136,9 +1136,9 @@ func validateCommonStorageClassParameters(comnserv storagecommon.Commonservice, 
 func validateSecret(functionName, volumeID, secretName, secretNamespace string, secrets map[string]string) error {
 	// the storageclass is required to specify various secrets as CSI parameters,this will cause
 	// the secret values (hostname, password, username) to be passed down to the various CSI workflow functions
-	u := secrets[common.CRED_USERNAME]
-	p := secrets[common.CRED_PASSWORD]
-	h := secrets[common.CRED_HOSTNAME]
+	u := secrets[common.CredentialUsername]
+	p := secrets[common.CredentialPassword]
+	h := secrets[common.CredentialHostname]
 	if u == "" || p == "" || h == "" {
 		e := fmt.Errorf("%s - volumeID - %s - hostname/username/password secrets are not found and are required - verify your StorageClass has the %s and %s parameters", functionName, volumeID, secretName, secretNamespace)
 		zlog.Error().Msg(e.Error())
@@ -1162,8 +1162,8 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 	if !protocolSecretInUse {
 		return "", protocolSecret, fmt.Errorf("%s error: protocol secret not in use", functionName)
 	}
-	preferredOrder := []string{common.PROTOCOL_FC, common.PROTOCOL_NVME, common.PROTOCOL_ISCSI}
-	userPreferredOrder := protocolSecret[common.SC_PROTOCOL_SECRET_AUTO_ORDER]
+	preferredOrder := []string{common.ProtocolFC, common.ProtocolNVME, common.ProtocolISCSI}
+	userPreferredOrder := protocolSecret[common.StorageClassProtocolSecretAutoOrder]
 	if userPreferredOrder != "" {
 		preferredOrder = strings.Split(userPreferredOrder, ",")
 		zlog.Debug().Msgf("%s user preferred auto order %v", functionName, preferredOrder)
@@ -1240,19 +1240,19 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 			iscsiEnabled = isISCSI(iscsiOutput)
 		}
 	}
-	zlog.Debug().Msgf("%s protocol test results [%s=%t] [%s=%t] [%s=%t]", functionName, common.PROTOCOL_FC, fcEnabled, common.PROTOCOL_NVME, nvmeEnabled, common.PROTOCOL_ISCSI, iscsiEnabled)
+	zlog.Debug().Msgf("%s protocol test results [%s=%t] [%s=%t] [%s=%t]", functionName, common.ProtocolFC, fcEnabled, common.ProtocolNVME, nvmeEnabled, common.ProtocolISCSI, iscsiEnabled)
 
 	for _, orderValue := range preferredOrder {
 		switch orderValue {
-		case common.PROTOCOL_FC:
+		case common.ProtocolFC:
 			if fcEnabled {
 				return orderValue, protocolSecret, nil
 			}
-		case common.PROTOCOL_ISCSI:
+		case common.ProtocolISCSI:
 			if iscsiEnabled {
 				return orderValue, protocolSecret, nil
 			}
-		case common.PROTOCOL_NVME:
+		case common.ProtocolNVME:
 			if nvmeEnabled {
 				return orderValue, protocolSecret, nil
 			}
@@ -1261,7 +1261,7 @@ func DetermineProtocol() (protocol string, protocolSecret map[string]string, err
 
 	// out of ideas? pick FC and cross fingers
 	zlog.Warn().Msgf("%s could not determine protocol based on heuristics, defaulting to FC", functionName)
-	return common.PROTOCOL_FC, protocolSecret, nil
+	return common.ProtocolFC, protocolSecret, nil
 }
 
 func isFC(output string) bool {

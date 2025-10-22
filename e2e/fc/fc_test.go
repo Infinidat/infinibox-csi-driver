@@ -17,7 +17,7 @@ import (
 
 func TestFcSnapshotLocking(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -64,7 +64,7 @@ func TestFcSnapshotLocking(t *testing.T) {
 
 func TestFcSnapshot(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -97,7 +97,7 @@ func TestFcSnapshot(t *testing.T) {
 
 func TestFc(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -114,7 +114,7 @@ func TestFc(t *testing.T) {
 
 func TestFsGroupFc(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -158,7 +158,7 @@ func TestFsGroupFc(t *testing.T) {
 
 func TestFcBlock(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -177,7 +177,7 @@ func TestFcBlock(t *testing.T) {
 
 func TestFcClone(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -225,9 +225,9 @@ func TestFcClone(t *testing.T) {
 
 func TestFcExpand(t *testing.T) {
 
-	supportedFileSystems := []string{common.FS_TYPE_EXT3, common.FS_TYPE_EXT4, common.FS_TYPE_XFS}
+	supportedFileSystems := []string{common.FSTypeExt3, common.FSTypeExt4, common.FSTypeXFS}
 	for _, fsType := range supportedFileSystems {
-		testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+		testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 		if err != nil {
 			t.Fatalf("error getting TestConfig %s\n", err.Error())
 		}
@@ -267,7 +267,7 @@ func TestFcExpand(t *testing.T) {
 
 func TestFcBlockExpand(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -310,7 +310,7 @@ func TestFcBlockExpand(t *testing.T) {
 }
 
 func TestROX(t *testing.T) {
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_FC)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolFC)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

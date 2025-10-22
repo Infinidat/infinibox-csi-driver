@@ -44,11 +44,11 @@ func init() {
 	EventRandomHour = rand.Intn(maxHour-minHour+1) + minHour
 
 	EventPublishedVolumes = map[string]int{
-		common.PROTOCOL_FC:    0,
-		common.PROTOCOL_NFS:   0,
-		common.PROTOCOL_TREEQ: 0,
-		common.PROTOCOL_NVME:  0,
-		common.PROTOCOL_ISCSI: 0,
+		common.ProtocolFC:    0,
+		common.ProtocolNFS:   0,
+		common.ProtocolTreeq: 0,
+		common.ProtocolNVME:  0,
+		common.ProtocolISCSI: 0,
 	}
 	EventNFSVersions = map[string]int{}
 
@@ -77,14 +77,14 @@ func ProcessEventCounters() {
 			if EventCreatedVolumes > 0 {
 				eventData = make([]iboxapi.EventRequestData, 0)
 				actionData = iboxapi.EventRequestData{
-					Name:  common.CUSTOM_EVENT_ACTION,
+					Name:  common.CustomEventAction,
 					Type:  "String",
 					Value: "Created Volume",
 				}
 				eventData = append(eventData, actionData)
 
 				eventDesc = fmt.Sprintf("CSI - Created Volumes: %d", EventCreatedVolumes)
-				eventErr = CreateEvent(EventAPIClient, EventIboxAPIClient, eventDesc, eventData)
+				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
 					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
 					// only log errors if custom event fails
@@ -96,14 +96,14 @@ func ProcessEventCounters() {
 			if EventCreatedSnapshots > 0 {
 				eventData = make([]iboxapi.EventRequestData, 0)
 				actionData = iboxapi.EventRequestData{
-					Name:  common.CUSTOM_EVENT_ACTION,
+					Name:  common.CustomEventAction,
 					Type:  "String",
 					Value: "Created Snapshot",
 				}
 				eventData = append(eventData, actionData)
 
 				eventDesc = fmt.Sprintf("CSI - Created Snapshots: %d", EventCreatedSnapshots)
-				eventErr = CreateEvent(EventAPIClient, EventIboxAPIClient, eventDesc, eventData)
+				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
 					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
 					// only log errors if custom event fails
@@ -113,33 +113,33 @@ func ProcessEventCounters() {
 			}
 
 			pubCount :=
-				EventPublishedVolumes[common.PROTOCOL_NFS] +
-					EventPublishedVolumes[common.PROTOCOL_TREEQ] +
-					EventPublishedVolumes[common.PROTOCOL_ISCSI] +
-					EventPublishedVolumes[common.PROTOCOL_FC] +
-					EventPublishedVolumes[common.PROTOCOL_NVME]
+				EventPublishedVolumes[common.ProtocolNFS] +
+					EventPublishedVolumes[common.ProtocolTreeq] +
+					EventPublishedVolumes[common.ProtocolISCSI] +
+					EventPublishedVolumes[common.ProtocolFC] +
+					EventPublishedVolumes[common.ProtocolNVME]
 
 			if pubCount > 0 {
 				eventData = make([]iboxapi.EventRequestData, 0)
 				actionData = iboxapi.EventRequestData{
-					Name:  common.CUSTOM_EVENT_ACTION,
+					Name:  common.CustomEventAction,
 					Type:  "String",
 					Value: "Published Volumes",
 				}
 				eventData = append(eventData, actionData)
 
 				eventDesc = fmt.Sprintf("CSI - Published [%s,%s,%s,%s,%s] [%d,%d,%d,%d,%d] Volumes",
-					common.PROTOCOL_NFS,
-					common.PROTOCOL_TREEQ,
-					common.PROTOCOL_ISCSI,
-					common.PROTOCOL_FC,
-					common.PROTOCOL_NVME,
-					EventPublishedVolumes[common.PROTOCOL_NFS],
-					EventPublishedVolumes[common.PROTOCOL_TREEQ],
-					EventPublishedVolumes[common.PROTOCOL_ISCSI],
-					EventPublishedVolumes[common.PROTOCOL_FC],
-					EventPublishedVolumes[common.PROTOCOL_NVME])
-				eventErr = CreateEvent(EventAPIClient, EventIboxAPIClient, eventDesc, eventData)
+					common.ProtocolNFS,
+					common.ProtocolTreeq,
+					common.ProtocolISCSI,
+					common.ProtocolFC,
+					common.ProtocolNVME,
+					EventPublishedVolumes[common.ProtocolNFS],
+					EventPublishedVolumes[common.ProtocolTreeq],
+					EventPublishedVolumes[common.ProtocolISCSI],
+					EventPublishedVolumes[common.ProtocolFC],
+					EventPublishedVolumes[common.ProtocolNVME])
+				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
 					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
 					// only log errors if custom event fails
@@ -151,14 +151,14 @@ func ProcessEventCounters() {
 			if len(EventNFSVersions) > 0 {
 				eventData = make([]iboxapi.EventRequestData, 0)
 				actionData = iboxapi.EventRequestData{
-					Name:  common.CUSTOM_EVENT_ACTION,
+					Name:  common.CustomEventAction,
 					Type:  "String",
 					Value: "NFS Versions",
 				}
 				eventData = append(eventData, actionData)
 
 				eventDesc = fmt.Sprintf("CSI - NFS Versions [%v]", EventNFSVersions)
-				eventErr = CreateEvent(EventAPIClient, EventIboxAPIClient, eventDesc, eventData)
+				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
 					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
 					// only log errors if custom event fails
@@ -169,11 +169,11 @@ func ProcessEventCounters() {
 
 			EventCreatedVolumes = 0
 			EventCreatedSnapshots = 0
-			EventPublishedVolumes[common.PROTOCOL_NFS] = 0
-			EventPublishedVolumes[common.PROTOCOL_TREEQ] = 0
-			EventPublishedVolumes[common.PROTOCOL_ISCSI] = 0
-			EventPublishedVolumes[common.PROTOCOL_FC] = 0
-			EventPublishedVolumes[common.PROTOCOL_NVME] = 0
+			EventPublishedVolumes[common.ProtocolNFS] = 0
+			EventPublishedVolumes[common.ProtocolTreeq] = 0
+			EventPublishedVolumes[common.ProtocolISCSI] = 0
+			EventPublishedVolumes[common.ProtocolFC] = 0
+			EventPublishedVolumes[common.ProtocolNVME] = 0
 			EventNFSVersions = map[string]int{}
 		}
 
@@ -184,16 +184,16 @@ func ProcessEventCounters() {
 	}
 }
 
-func CreateEvent(client api.Client, iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventRequestData) error {
+func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventRequestData) error {
 	zlog.Debug().Msgf("CreateEvent: %s", desc)
 
 	// verify creating events is enabled
 	createEvent := true
-	tmp := os.Getenv(common.ENV_VAR_CREATE_EVENTS)
+	tmp := os.Getenv(common.EnvVarCreateEvents)
 	if tmp != "" {
 		boolValue, err := strconv.ParseBool(tmp)
 		if err != nil {
-			zlog.Error().Msgf("%s env var is not a valid boolean value, [%s] was entered", common.ENV_VAR_CREATE_EVENTS, tmp)
+			zlog.Error().Msgf("%s env var is not a valid boolean value, [%s] was entered", common.EnvVarCreateEvents, tmp)
 			return err
 		}
 		createEvent = boolValue
@@ -202,10 +202,10 @@ func CreateEvent(client api.Client, iboxAPI iboxapi.Client, desc string, eventDa
 		return nil
 	}
 
-	version := os.Getenv(common.ENV_VAR_CSI_DRIVER_VERSION)
-	osVersion := os.Getenv(common.ENV_VAR_OS_VERSION)
-	kubeVersion := os.Getenv(common.ENV_VAR_KUBE_VERSION)
-	kubeNodeCount := os.Getenv(common.ENV_VAR_NODE_COUNT)
+	version := os.Getenv(common.EnvVarCSIDriverVersion)
+	osVersion := os.Getenv(common.EnvVarOSVersion)
+	kubeVersion := os.Getenv(common.EnvVarKubeVersion)
+	kubeNodeCount := os.Getenv(common.EnvVarNodeCount)
 	data := make([]iboxapi.EventRequestData, 0)
 
 	data = append(data, eventData...)

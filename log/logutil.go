@@ -144,13 +144,13 @@ func SetupKlog() {
 // node in a production setting where there are possibly many nodes and you only want debug level logging for
 // a specific node, to use it, create the file on the node, then restart the node's Pod
 func CheckForLogLevelOverride() {
-	const LOGLEVEL_FILE = "/host/etc/infinidat-csi-loglevel"
-	buf, err := os.ReadFile(LOGLEVEL_FILE)
+	const logLevelFile = "/host/etc/infinidat-csi-loglevel"
+	buf, err := os.ReadFile(logLevelFile)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return
 		}
-		fmt.Printf("error reading %s %s\n", LOGLEVEL_FILE, err.Error())
+		fmt.Printf("error reading %s %s\n", logLevelFile, err.Error())
 		return
 	}
 	logLevel := strings.TrimSpace(string(buf))
@@ -158,5 +158,5 @@ func CheckForLogLevelOverride() {
 	if err != nil {
 		fmt.Printf("error setting APP_LOG_LEVEL env var %s\n", err.Error())
 	}
-	fmt.Printf("overriding log level from %s with [%s]\n", LOGLEVEL_FILE, logLevel)
+	fmt.Printf("overriding log level from %s with [%s]\n", logLevelFile, logLevel)
 }

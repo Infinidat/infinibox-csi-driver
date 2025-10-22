@@ -36,8 +36,8 @@ func TestValidationSuite(t *testing.T) {
 
 // test NFS and TREEQ protocal validate with network space.
 func (suite *ValidationSuite) Test_Network_Protocol_Match_NFS_TREEQ_Success() {
-	networkSpace := &iboxapi.NetworkSpace{Service: common.NS_NFS_SVC}
-	var scProtocol = common.PROTOCOL_NFS
+	networkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceNFSService}
+	var scProtocol = common.ProtocolNFS
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
@@ -47,7 +47,7 @@ func (suite *ValidationSuite) Test_Network_Protocol_Match_NFS_TREEQ_Success() {
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 
 	// validate TREEQ
-	scProtocol = common.PROTOCOL_TREEQ
+	scProtocol = common.ProtocolTreeq
 	err = ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 }
@@ -57,8 +57,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_Match_ISCSI_Success() {
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
 	// validate ISCSI
-	scProtocol := common.PROTOCOL_ISCSI
-	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	scProtocol := common.ProtocolISCSI
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
 	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
@@ -69,8 +69,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_ISCSI_Failure() {
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
 	// validate ISCSI
-	scProtocol := common.PROTOCOL_ISCSI
-	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_NFS_SVC}
+	scProtocol := common.ProtocolISCSI
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceNFSService}
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
 	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
@@ -82,8 +82,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_NFS_Failure() {
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
 	// validate ISCSI
-	scProtocol := common.PROTOCOL_NFS
-	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	scProtocol := common.ProtocolNFS
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
 	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
@@ -93,8 +93,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_NFS_Failure() {
 func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_FC_ISCSI_Failure() {
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
-	scProtocol := common.PROTOCOL_FC
-	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	scProtocol := common.ProtocolFC
+	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
 	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
@@ -104,8 +104,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_FC_ISCSI_Failure() 
 func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_FC_NFS_Failure() {
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
-	scProtocol := common.PROTOCOL_FC
-	networkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	scProtocol := common.ProtocolFC
+	networkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
@@ -115,9 +115,9 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_FC_NFS_Failure() {
 func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_NAMESPACES_Failure() {
 	scNetSpace := []string{"someiscsiSpace", "someNfsSpace"}
 
-	scProtocol := common.PROTOCOL_ISCSI
-	iscsiNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
-	nfsNetworkSpace := &iboxapi.NetworkSpace{Service: common.NS_NFS_SVC}
+	scProtocol := common.ProtocolISCSI
+	iscsiNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
+	nfsNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceNFSService}
 
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iscsiNetworkSpace, nil).Once()
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(nfsNetworkSpace, nil).Once()
@@ -128,8 +128,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_NAMESPACES_Failure(
 // validate NFS protocol with no network spaces fails
 func (suite *ValidationSuite) Test_Network_Protocol_NFS_NO_NETWORKSPACES_Failure() {
 	scNetSpace := []string{} // no network spaces
-	scProtocol := common.PROTOCOL_FC
-	networkSpace := &iboxapi.NetworkSpace{Service: common.NS_ISCSI_SVC}
+	scProtocol := common.ProtocolFC
+	networkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 
 	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
 	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)

@@ -13,7 +13,7 @@ import (
 
 func TestNvme(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NVME)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNVME)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

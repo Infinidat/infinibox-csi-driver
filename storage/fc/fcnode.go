@@ -40,7 +40,7 @@ type fcDevice struct {
 	isBlock   bool
 }
 
-type FCMounter struct {
+type Mounter struct {
 	ReadOnly     bool
 	FsType       string
 	MountOptions []string
@@ -131,7 +131,7 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	zlog.Debug().Msgf("%s (fc) volume ID: %s volumecontext %v %s", functionName, req.GetVolumeId(), req.GetVolumeContext(),
 		storagecommon.GetHostInfo(req.GetSecrets(), fc.CS.IboxAPI))
-	zlog.Debug().Msgf("%s (fc) uid: %s gid: %s unix_perm: %s", functionName, req.GetVolumeContext()[common.SC_UID], req.GetVolumeContext()[common.SC_GID], req.GetVolumeContext()[common.SC_UNIX_PERMISSIONS])
+	zlog.Debug().Msgf("%s (fc) uid: %s gid: %s unix_perm: %s", functionName, req.GetVolumeContext()[common.StorageClassUID], req.GetVolumeContext()[common.StorageClassGID], req.GetVolumeContext()[common.StorageClassUNIXPermissions])
 
 	fcDetails, err := fc.getFCDiskDetails(req)
 	if err != nil {
@@ -212,13 +212,13 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	if err2 != nil {
 		zlog.Debug().Msgf("ls error: %s", err2)
 	} else {
-		zlog.Debug().Msgf("ls output: %s", string(out))
+		zlog.Debug().Msgf("ls output: %s", out)
 	}
 	var mpathDevice string
 
 	dskInfo := storagecommon.DiskInfo{
 		VolumeID: fc.CS.VolProto.VolumeID,
-		RootDir:  common.NODE_ROOT_DIR,
+		RootDir:  common.NodeRootDir,
 	}
 
 	// load fc disk config from json file
@@ -247,7 +247,7 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	}
 
 	// remove multipath device
-	err := storagecommon.DetachMpathDevice(mpathDevice, common.PROTOCOL_FC)
+	err := storagecommon.DetachMpathDevice(mpathDevice, common.ProtocolFC)
 	if err != nil {
 		zlog.Error().Msgf("%s (fc) - detachMpathDevice - error: %s", functionName, err.Error())
 		zlog.Warn().Msgf("%s (fc) -  cannot detach volume with ID %s: %+v", functionName, req.GetVolumeId(), err)
@@ -361,7 +361,7 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(string(out)))
+	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(out))
 
 	// 5 - run resize2fs or xfs_growfs on /dev/mapper/mpathwi
 	fsType := req.GetVolumeCapability().GetMount().FsType
@@ -375,7 +375,7 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	return &response, nil
 }
 
-func (fc *FCstorage) MountFCDisk(mounter FCMounter, devicePath string) error {
+func (fc *FCstorage) MountFCDisk(mounter Mounter, devicePath string) error {
 	const functionName = "MountFCDisk"
 	defer helper.TimeTrack(zlog, time.Now())
 	zlog.Debug().Msgf("%s - called - request %+v devicePath %s", functionName, mounter, devicePath)
@@ -384,7 +384,7 @@ func (fc *FCstorage) MountFCDisk(mounter FCMounter, devicePath string) error {
 		MpathDevice: devicePath,
 		IsBlock:     mounter.fcDisk.isBlock,
 		VolumeID:    mounter.fcDisk.connector.VolumeID,
-		RootDir:     common.NODE_ROOT_DIR,
+		RootDir:     common.NodeRootDir,
 	}
 	err := storagecommon.MountLogic(diskInfo, mounter.TargetPath, devicePath, mounter.StagePath, mounter.FsType, mounter.MountOptions, mounter.fcDisk.isBlock, mounter.ReadOnly)
 	if err != nil {
@@ -395,7 +395,7 @@ func (fc *FCstorage) MountFCDisk(mounter FCMounter, devicePath string) error {
 
 	if strings.HasPrefix(devicePath, "/dev/dm-") && !mounter.ReadOnly {
 		dskinfo := storagecommon.DiskInfo{
-			RootDir:     common.NODE_ROOT_DIR,
+			RootDir:     common.NodeRootDir,
 			MpathDevice: devicePath,
 			IsBlock:     mounter.fcDisk.isBlock,
 			VolumeID:    mounter.fcDisk.connector.VolumeID,
@@ -452,7 +452,7 @@ func (fc *FCstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDev
 	}, nil
 }
 
-func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) (*FCMounter, error) {
+func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) (*Mounter, error) {
 	reqVolCapability := req.GetVolumeCapability()
 
 	// check accessMode - where we will eventually police R/W etc (CSIC-343)
@@ -503,7 +503,7 @@ func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
 
-	return &FCMounter{
+	return &Mounter{
 		fcDisk:       fcDetails,
 		ReadOnly:     readOnly,
 		FsType:       fstype,

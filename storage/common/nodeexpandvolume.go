@@ -171,7 +171,7 @@ func ExpandFileSystem(multipathDevice string, fsType string) error {
 
 	command := fmt.Sprintf("resize2fs %s", multipathDevice)
 	zlog.Debug().Msgf("ExpandFileSystem - volume fsType is %s", fsType)
-	if fsType == common.FS_TYPE_XFS {
+	if fsType == common.FSTypeXFS {
 		command = fmt.Sprintf("xfs_growfs %s", multipathDevice)
 	}
 	out, _, err := ExecCommand.Command(command, "")
@@ -181,6 +181,6 @@ func ExpandFileSystem(multipathDevice string, fsType string) error {
 		zlog.Error().Msg(e.Error())
 		return e
 	}
-	zlog.Debug().Msgf("command output is [%s]\n", strings.TrimSpace(string(out)))
+	zlog.Debug().Msgf("command output is [%s]\n", strings.TrimSpace(out))
 	return nil
 }

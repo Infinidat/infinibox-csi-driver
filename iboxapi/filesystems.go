@@ -188,7 +188,7 @@ func (iboxClient *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) 
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "pool ID", poolID, "fsprefix", fsPrefix)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
@@ -325,7 +325,7 @@ func (iboxClient *IboxClient) GetFileSystemByName(name string) (*FileSystem, err
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "name", name)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	page := 1
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
@@ -376,7 +376,7 @@ func (iboxClient *IboxClient) GetFileSystemsByParentID(parentID int) (results []
 	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/filesystems")
 	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "parent ID", parentID)
 
-	pageSize := common.IBOX_DEFAULT_QUERY_PAGE_SIZE
+	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
 		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)

@@ -53,8 +53,8 @@ func NewNVMEstorage(capacity int64, cs storagecommon.Commonservice) (nvme *NVMEs
 
 func (nvme *NVMEstorage) ValidateStorageClass(params map[string]string) error {
 	requiredNVMEParams := map[string]string{
-		common.SC_POOL_NAME:     `[a-zA-Z]+`, // match all strings except empty string or blank string
-		common.SC_NETWORK_SPACE: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
+		common.StorageClassNetworkSpace: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 	}
 	optionalNVMEParams := map[string]string{}
 
@@ -76,7 +76,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	// Volume name to be created - already verified earlier
 	name := req.GetName()
 
-	poolName := params[common.SC_POOL_NAME]
+	poolName := params[common.StorageClassPoolName]
 
 	targetVolume, err := nvme.CS.IboxAPI.GetVolumeByName(name)
 	if err != nil {
@@ -109,9 +109,9 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 		return nvme.createVolumeFromContentSource(req, name, nvme.Capacity, poolName)
 	}
 
-	volumeType, provided := params[common.SC_PROVISION_TYPE]
+	volumeType, provided := params[common.StorageClassProvisionType]
 	if !provided {
-		volumeType = common.SC_THIN_PROVISION_TYPE
+		volumeType = common.StorageClassThinProvision
 	}
 
 	volumeParam := &api.VolumeParam{
@@ -120,7 +120,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 		ProvisionType: volumeType,
 	}
 
-	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(params[common.SC_SSD_ENABLED], poolName, nvme.CS.IboxAPI)
+	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(params[common.StorageClassSSDEnabled], poolName, nvme.CS.IboxAPI)
 	if err != nil {
 		e := status.Errorf(codes.Internal, "CreateVolume (nvme) - determineSSDValue - error when creating volume %s storagepool %s, err: %s", name, poolName, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -203,11 +203,10 @@ func (nvme *NVMEstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolume
 		re, ok := err.(*iboxapi.APIError)
 		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
 			return &csi.DeleteVolumeResponse{}, nil
-		} else {
-			e := fmt.Errorf("DeleteVolume (nvme) - validateDeleteVolume - failed to delete volume: %s", err.Error())
-			zlog.Error().Msg(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
 		}
+		e := fmt.Errorf("DeleteVolume (nvme) - validateDeleteVolume - failed to delete volume: %s", err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	zlog.Debug().Msgf("DeleteVolume (nvme) - successfully deleted volume with ID %s", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
@@ -293,16 +292,16 @@ func (nvme *NVMEstorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 		}
 	}
 
-	maxVolsPerHostStr := req.GetVolumeContext()[common.SC_MAX_VOLS_PER_HOST]
+	maxVolsPerHostStr := req.GetVolumeContext()[common.StorageClassMaxVolsPerHost]
 	if maxVolsPerHostStr != "" {
 		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
 		if err != nil {
-			e := fmt.Errorf("ControllerPublishVolume (nvme) - parse max vols per host - invalid parameter %s error:  %v", common.SC_MAX_VOLS_PER_HOST, err)
+			e := fmt.Errorf("ControllerPublishVolume (nvme) - parse max vols per host - invalid parameter %s error:  %v", common.StorageClassMaxVolsPerHost, err)
 			zlog.Err(e)
 			return nil, e
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Errorf("ControllerPublishVolume (nvme) - parse  max allowed - invalid parameter %s error:  required to be greater than 0", common.SC_MAX_VOLS_PER_HOST)
+			e := fmt.Errorf("ControllerPublishVolume (nvme) - parse  max allowed - invalid parameter %s error:  required to be greater than 0", common.StorageClassMaxVolsPerHost)
 			zlog.Err(e)
 			return nil, e
 		}
@@ -343,7 +342,7 @@ func (nvme *NVMEstorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 	zlog.Debug().Msgf("ControllerUnpublishVolume (nvme) - unmapping host's luns: host id: %d, name: %s lun count %d", host.ID, host.Name, len(host.Luns))
 	if len(host.Luns) > 0 {
 		zlog.Debug().Msgf("ControllerUnpublishVolume (nvme) - unmap volume %d from host %d", nvme.CS.VolProto.VolumeID, host.ID)
-		err = nvme.CS.UnmapVolumeFromHost(host.ID, int(nvme.CS.VolProto.VolumeID))
+		err = nvme.CS.UnmapVolumeFromHost(host.ID, nvme.CS.VolProto.VolumeID)
 		if err != nil {
 			e := fmt.Errorf("ControllerUnpublishVolume (nvme) - unmapVolumeFromHost - failed to unmap volume with ID %d from host with ID %d. Error: %v", nvme.CS.VolProto.VolumeID, host.ID, err)
 			zlog.Err(e)
@@ -432,7 +431,7 @@ func (nvme *NVMEstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 		WriteProtected: true,
 	}
 
-	lockExpiresAtParameter := req.Parameters[common.LOCK_EXPIRES_AT_PARAMETER]
+	lockExpiresAtParameter := req.Parameters[common.LockExpiresAtParameter]
 	var lockExpiresAt int64
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := nvme.CS.IboxAPI.GetNtpStatus()
@@ -515,7 +514,7 @@ func (nvme *NVMEstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	}
 
 	// this applies for when we are evaluating a snapshot volume
-	if vol.LockState == common.LOCKED_STATE {
+	if vol.LockState == common.LockedState {
 		return status.Errorf(codes.Aborted, "ValidateDeleteVolume (nvme) - volume %d was locked, can not delete till expire date is reached at %s", volumeID, time.UnixMilli(vol.LockExpiresAt))
 	}
 
@@ -583,7 +582,7 @@ func (nvme *NVMEstorage) ControllerExpandVolume(ctx context.Context, req *csi.Co
 	volumeID := nvme.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("ControllerExpandVolume (nvme) - called volume ID %d", volumeID)
 
-	capacity := int64(req.GetCapacityRange().GetRequiredBytes())
+	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if capacity < storagecommon.GIB {
 		capacity = storagecommon.GIB
 		zlog.Warn().Msgf("ControllerExpandVolume (nvme) - volume minimum capacity should be greater 1 GB")
@@ -605,7 +604,7 @@ func (nvme *NVMEstorage) ControllerExpandVolume(ctx context.Context, req *csi.Co
 	}, nil
 }
 
-func (st *NVMEstorage) ControllerGetVolume(
+func (nvme *NVMEstorage) ControllerGetVolume(
 	_ context.Context, _ *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
 	// Infinidat does not support ControllerGetVolume
@@ -644,7 +643,7 @@ func (nvme *NVMEstorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 	}
 
 	// Validate the size is the same.
-	if int64(srcVol.Size) != sizeInBytes {
+	if srcVol.Size != sizeInBytes {
 		msg := fmt.Sprintf("createVolumeFromContentSource (nvme) - %s %s has incompatible size. size is %d bytes with requested size %d bytes", restoreType, volumeContentID, srcVol.Size, sizeInBytes)
 		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
@@ -659,8 +658,8 @@ func (nvme *NVMEstorage) createVolumeFromContentSource(req *csi.CreateVolumeRequ
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	if pool.ID != srcVol.PoolId {
-		msg = fmt.Sprintf("createVolumeFromContentSource (nvme) - volume storage pool is different than the requested storage pool %s %d %d", storagePool, pool.ID, srcVol.PoolId)
+	if pool.ID != srcVol.PoolID {
+		msg = fmt.Sprintf("createVolumeFromContentSource (nvme) - volume storage pool is different than the requested storage pool %s %d %d", storagePool, pool.ID, srcVol.PoolID)
 		zlog.Error().Msg(msg)
 		return nil, status.Error(codes.InvalidArgument, msg)
 	}

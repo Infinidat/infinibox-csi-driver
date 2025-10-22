@@ -14,7 +14,7 @@ import (
 func GetVolume() *iboxapi.Volume {
 	vol := iboxapi.Volume{
 		ID:       100,
-		PoolId:   10,
+		PoolID:   10,
 		ParentID: 1001,
 		Name:     "volName",
 		PoolName: "poolName",
@@ -100,7 +100,7 @@ func GetNetworkspace() api.NetworkSpace {
 	nspace.Properties = netProp
 	pArry = append(pArry, portal)
 	nspace.Portals = append(nspace.Portals, pArry...)
-	nspace.Service = common.NS_ISCSI_SVC
+	nspace.Service = common.NetworkSpaceISCSIService
 	return nspace
 }
 
@@ -175,7 +175,7 @@ func GetFileSystem() *iboxapi.FileSystem {
 
 func GetNetworkSpace() *iboxapi.NetworkSpace {
 	portalArry := []iboxapi.Portal{{IPAddress: "10.20.20.50"}}
-	return &iboxapi.NetworkSpace{Portals: portalArry, Service: common.NS_NFS_SVC}
+	return &iboxapi.NetworkSpace{Portals: portalArry, Service: common.NetworkSpaceNFSService}
 }
 
 func GetNodeUnPublishVolumeRequest(tagetPath string, volumeID string) *csi.NodeUnpublishVolumeRequest {
@@ -211,7 +211,7 @@ func GetPublishContexMap() map[string]string {
 
 func GetVolumeContexMap() map[string]string {
 	contextMap := map[string]string{
-		common.SC_NFS_EXPORT_PERMISSIONS: "{'access':'RW','client':'*','no_root_squash':true}",
+		common.StorageClassNFSExportPermissions: "{'access':'RW','client':'*','no_root_squash':true}",
 	}
 	return contextMap
 }
@@ -284,7 +284,7 @@ func (m *MockStorageHelper) GetNFSMountOptions(req *csi.NodePublishVolumeRequest
 func GetIboxapiCreateVolumeResponse() *iboxapi.Volume {
 	vol := iboxapi.Volume{
 		ID:       100,
-		PoolId:   10,
+		PoolID:   10,
 		ParentID: 1001,
 		Name:     "volName",
 		PoolName: "poolName",
@@ -298,7 +298,7 @@ func GetISCSIControllerPublishVolumeRequest() *csi.ControllerPublishVolumeReques
 	return &csi.ControllerPublishVolumeRequest{
 		VolumeId:      "1$$iscsi",
 		NodeId:        "10.20.20.50$$iscsi",
-		VolumeContext: map[string]string{common.SC_MAX_VOLS_PER_HOST: "10"},
+		VolumeContext: map[string]string{common.StorageClassMaxVolsPerHost: "10"},
 	}
 }
 func GetISCSIControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {

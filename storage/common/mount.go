@@ -131,7 +131,7 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 			return err
 		}
 
-		if fsType == common.FS_TYPE_XFS {
+		if fsType == common.FSTypeXFS {
 			zlog.Debug().Msgf("%s - device %s is of type xfs, mounting using 'nouuid' option.", function, devicePath)
 			options = append(options, "nouuid")
 		}

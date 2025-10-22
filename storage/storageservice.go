@@ -38,40 +38,40 @@ type StorageOperations interface {
 }
 
 // NewStorageController : To return specific implementation of storage
-func NewStorageController(comnserv storagecommon.Commonservice, capacity int64, storageProtocol string, configparams ...map[string]string) (StorageOperations, error) {
+func NewStorageController(commonService storagecommon.Commonservice, capacity int64, storageProtocol string) (StorageOperations, error) {
 	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
 
 	switch storageProtocol {
-	case common.PROTOCOL_FC:
-		return fc.NewFCstorage(capacity, comnserv), nil
-	case common.PROTOCOL_ISCSI:
-		return iscsi.NewISCSIstorage(capacity, comnserv), nil
-	case common.PROTOCOL_NVME:
-		return nvme.NewNVMEstorage(capacity, comnserv), nil
-	case common.PROTOCOL_NFS:
-		return nfs.NewNFSstorage(capacity, comnserv), nil
-	case common.PROTOCOL_TREEQ:
-		return treeq.NewTreeqstorage(capacity, comnserv), nil
+	case common.ProtocolFC:
+		return fc.NewFCstorage(capacity, commonService), nil
+	case common.ProtocolISCSI:
+		return iscsi.NewISCSIstorage(capacity, commonService), nil
+	case common.ProtocolNVME:
+		return nvme.NewNVMEstorage(capacity, commonService), nil
+	case common.ProtocolNFS:
+		return nfs.NewNFSstorage(capacity, commonService), nil
+	case common.ProtocolTreeq:
+		return treeq.NewTreeqstorage(capacity, commonService), nil
 	}
 	return nil, errors.New("Error: Invalid storage protocol - " + storageProtocol)
 }
 
 // NewStorageNode : To return specific implementation of storage
-func NewStorageNode(comnserv storagecommon.Commonservice, configparams ...map[string]string) (StorageOperations, error) {
-	volProto := comnserv.VolProto
+func NewStorageNode(commonService storagecommon.Commonservice) (StorageOperations, error) {
+	volProto := commonService.VolProto
 
 	storageProtocol := volProto.StorageType
 	switch storageProtocol {
-	case common.PROTOCOL_FC:
-		return fc.NewFCstorage(0, comnserv), nil
-	case common.PROTOCOL_ISCSI:
-		return iscsi.NewISCSIstorage(0, comnserv), nil
-	case common.PROTOCOL_NVME:
-		return nvme.NewNVMEstorage(0, comnserv), nil
-	case common.PROTOCOL_NFS:
-		return nfs.NewNFSstorage(0, comnserv), nil
-	case common.PROTOCOL_TREEQ:
-		return treeq.NewTreeqstorage(0, comnserv), nil
+	case common.ProtocolFC:
+		return fc.NewFCstorage(0, commonService), nil
+	case common.ProtocolISCSI:
+		return iscsi.NewISCSIstorage(0, commonService), nil
+	case common.ProtocolNVME:
+		return nvme.NewNVMEstorage(0, commonService), nil
+	case common.ProtocolNFS:
+		return nfs.NewNFSstorage(0, commonService), nil
+	case common.ProtocolTreeq:
+		return treeq.NewTreeqstorage(0, commonService), nil
 	default:
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}

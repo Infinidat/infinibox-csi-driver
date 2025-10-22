@@ -54,76 +54,76 @@ const (
 	LUN_PUBLISH_CONTEXT        = "lun"
 )
 
-func BuildCommonService(config map[string]string, secretMap map[string]string, volProto *api.VolumeProtocolConfig) (Commonservice, error) {
-	commonserv := Commonservice{}
+func BuildCommonService(config map[string]string, secretMap map[string]string, volumePrototype *api.VolumeProtocolConfig) (Commonservice, error) {
+	commonService := Commonservice{}
 	if config != nil {
 		if len(secretMap) < 3 {
 			zlog.Error().Msgf("Api client cannot be initialized without proper secrets")
-			return commonserv, errors.New("secrets are missing or not valid")
+			return commonService, errors.New("secrets are missing or not valid")
 		}
-		hostnameURL, err := url.Parse(secretMap[common.CRED_HOSTNAME])
+		hostnameURL, err := url.Parse(secretMap[common.CredentialHostname])
 
 		if err != nil {
 			zlog.Error().Msgf("Error parsing IBox hostname: %s", err.Error())
-			return commonserv, errors.New("secret hostname is missing or not valid")
+			return commonService, errors.New("secret hostname is missing or not valid")
 		}
 
 		// check for scheme, add if missing.
-		urlScheme := hostnameURL.Scheme
+		URLScheme := hostnameURL.Scheme
 
-		var apiHost string
-		if urlScheme == "" {
+		var APIHost string
+		if URLScheme == "" {
 			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
-			apiHost = "https://" + secretMap[common.CRED_HOSTNAME] + "/"
+			APIHost = "https://" + secretMap[common.CredentialHostname] + "/"
 		} else {
-			apiHost = hostnameURL.String()
+			APIHost = hostnameURL.String()
 		}
 
 		// check for URI validity.
-		hostnameURL, err = url.ParseRequestURI(apiHost)
+		hostnameURL, err = url.ParseRequestURI(APIHost)
 		if err != nil {
 			zlog.Error().Msgf("IBox hostname %s is invalid URI: %s", hostnameURL.String(), err.Error())
 		} else {
-			zlog.Trace().Msgf("IBox URL: %s", apiHost)
+			zlog.Trace().Msgf("IBox URL: %s", APIHost)
 		}
 		creds := iboxapi.Credentials{
-			Username: secretMap[common.CRED_USERNAME],
-			Password: secretMap[common.CRED_PASSWORD],
-			URL:      apiHost,
+			Username: secretMap[common.CredentialUsername],
+			Password: secretMap[common.CredentialPassword],
+			URL:      APIHost,
 		}
-		var iboxApiLog = zerologr.New(&zlog)
+		var iboxAPILog = zerologr.New(&zlog)
 
-		iboxapiClient := iboxapi.NewIboxClient(iboxApiLog, creds)
-		commonserv = Commonservice{
+		iboxAPIClient := iboxapi.NewIboxClient(iboxAPILog, creds)
+		commonService = Commonservice{
 			API: &api.ClientService{
 				SecretsMap: secretMap,
 			},
-			IboxAPI:  iboxapiClient,
-			VolProto: volProto,
+			IboxAPI:  iboxAPIClient,
+			VolProto: volumePrototype,
 		}
-		err = commonserv.verifyApiClient()
+		err = commonService.verifyAPIClient()
 		if err != nil {
 			zlog.Error().Msgf("API client not initialized, err: %v", err)
-			return commonserv, err
+			return commonService, err
 		}
-		commonserv.driverVersion = config["driverversion"]
-		commonserv.AccessModesHelper = helper.AccessMode{}
+		commonService.driverVersion = config["driverversion"]
+		commonService.AccessModesHelper = helper.AccessMode{}
 	}
 	zlog.Trace().Msgf("buildCommonService commonservice configuration done. config %+v", config)
-	return commonserv, nil
+	return commonService, nil
 }
 
-func (cs *Commonservice) MapVolumeTohost(volumeID int, hostID int) (luninfo *iboxapi.LunInfo, err error) {
-	luninfo, err = cs.IboxAPI.MapVolumeToHost(hostID, volumeID, -1)
+func (cs *Commonservice) MapVolumeTohost(volumeID int, hostID int) (lunInfo *iboxapi.LunInfo, err error) {
+	lunInfo, err = cs.IboxAPI.MapVolumeToHost(hostID, volumeID, -1)
 	if err != nil {
 		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
-			luninfo, err = cs.IboxAPI.GetLunByHostVolume(hostID, volumeID)
+			lunInfo, err = cs.IboxAPI.GetLunByHostVolume(hostID, volumeID)
 		}
 		if err != nil {
-			return luninfo, err
+			return lunInfo, err
 		}
 	}
-	return luninfo, nil
+	return lunInfo, nil
 }
 
 func (cs *Commonservice) UnmapVolumeFromHost(hostID, volumeID int) (err error) {
@@ -169,7 +169,7 @@ func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 func (cs *Commonservice) ValidateHost(hostName string) (*iboxapi.Host, error) {
 	const functionName = "validateHost"
 	zlog.Debug().Msgf("%s - Check if host available, create if not available", functionName)
-	removeDomainName := os.Getenv(common.ENV_VAR_REMOVE_DOMAIN_NAME)
+	removeDomainName := os.Getenv(common.EnvVarRemoveDomainName)
 	if removeDomainName != "" && removeDomainName == "true" {
 		shortName := strings.Split(hostName, ".")
 		zlog.Debug().Msgf("%s - REMOVE_DOMAIN_NAME set to true, %s resulting in %s", functionName, hostName, shortName[0])
@@ -188,7 +188,7 @@ func (cs *Commonservice) ValidateHost(hostName string) (*iboxapi.Host, error) {
 			}
 
 			metadata := map[string]interface{}{
-				common.CSI_CREATED_HOST: true,
+				common.CSICreatedHost: true,
 			}
 			_, err = cs.IboxAPI.PutMetadata(host.ID, metadata)
 			if err != nil {
@@ -210,21 +210,21 @@ func (cs *Commonservice) GetCSIResponse(vol *iboxapi.Volume, req *csi.CreateVolu
 	zlog.Debug().Msgf("getCSIResponse called with volume %+v", vol)
 	storagePoolName := vol.PoolName
 	if storagePoolName == "" {
-		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolId)
+		storagePoolName = cs.getStoragePoolNameFromID(vol.PoolID)
 	}
-	// Make the additional volume attributes
-	attributes := map[string]string{
+	// Make the additional volume volumeAttributes
+	volumeAttributes := map[string]string{
 		"ID":              strconv.Itoa(vol.ID),
 		"Name":            vol.Name,
-		"StoragePoolID":   strconv.Itoa(vol.PoolId),
+		"StoragePoolID":   strconv.Itoa(vol.PoolID),
 		"StoragePoolName": storagePoolName,
-		"CreationTime":    time.Unix(int64(vol.CreatedAt), 0).String(),
+		"CreationTime":    time.Unix(vol.CreatedAt, 0).String(),
 		"targetWWNs":      req.GetParameters()["targetWWNs"],
 	}
 	volume := &csi.Volume{
 		VolumeId:      strconv.Itoa(vol.ID),
 		CapacityBytes: vol.Size,
-		VolumeContext: attributes,
+		VolumeContext: volumeAttributes,
 		ContentSource: req.GetVolumeContentSource(),
 	}
 	return volume
@@ -232,16 +232,16 @@ func (cs *Commonservice) GetCSIResponse(vol *iboxapi.Volume, req *csi.CreateVolu
 
 func (cs *Commonservice) GetNetworkSpaceIP(networkSpace string) (string, error) {
 	const functionName = "getNetworkSpaceIP"
-	nspace, err := cs.IboxAPI.GetNetworkSpaceByName(networkSpace)
+	existingNetworkSpace, err := cs.IboxAPI.GetNetworkSpaceByName(networkSpace)
 	if err != nil {
 		return "", err
 	}
-	if len(nspace.Portals) == 0 {
-		return "", fmt.Errorf("%s - error ip address not found", functionName)
+	if len(existingNetworkSpace.Portals) == 0 {
+		return "", fmt.Errorf("%s - error IP address not found", functionName)
 	}
 
-	index := GetRandomIndex(len(nspace.Portals))
-	return nspace.Portals[index].IPAddress, nil
+	index := GetRandomIndex(len(existingNetworkSpace.Portals))
+	return existingNetworkSpace.Portals[index].IPAddress, nil
 }
 
 func GetRandomIndex(maxIndex int) int {
@@ -364,7 +364,7 @@ func PortalMounter(portal string) string {
 }
 
 // Used for debugging. Log a path, found by debugWalkDir, to log.
-func DebugLogPath(path string, info os.FileInfo, err error) error {
+func DebugLogPath(path string, _ os.FileInfo, err error) error {
 	if err != nil {
 		zlog.Err(err)
 		return err
@@ -390,7 +390,7 @@ func GetHostInfo(secrets map[string]string, client iboxapi.Client) (iboxInfo str
 	if sys != nil {
 		serialNumber = sys.SerialNumber
 	}
-	return fmt.Sprintf(" - ibox %s (%d)", secrets[common.CRED_HOSTNAME], serialNumber)
+	return fmt.Sprintf(" - ibox %s (%d)", secrets[common.CredentialHostname], serialNumber)
 }
 
 func ValidatePublishContext(publishContext map[string]string) (hostID int, ports string, err error) {
@@ -421,7 +421,7 @@ func HostCleanup(iboxClient iboxapi.Client, hostID int, hostName string) error {
 	}
 	var createdByCSI bool
 	for i := range meta {
-		if meta[i].Key == common.CSI_CREATED_HOST {
+		if meta[i].Key == common.CSICreatedHost {
 			createdByCSI = true
 		}
 	}
@@ -454,7 +454,7 @@ func DetermineHostName(nodeID string) (hostName string, err error) {
 	}
 	hostName = nodeNameIP[0]
 
-	removeDomainName := os.Getenv(common.ENV_VAR_REMOVE_DOMAIN_NAME)
+	removeDomainName := os.Getenv(common.EnvVarRemoveDomainName)
 	if removeDomainName == "true" {
 		shortName := strings.Split(hostName, ".")
 		if len(shortName) > 0 {
@@ -486,7 +486,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 	volprotoconf.StorageType = volproto[1]
 
 	// treeq is a special formatting case
-	if volprotoconf.StorageType == common.PROTOCOL_TREEQ {
+	if volprotoconf.StorageType == common.ProtocolTreeq {
 		// example: volproto[0] == 2942184#20000
 		tmp := strings.Split(volproto[0], "#")
 		if len(tmp) != 2 {
@@ -540,7 +540,7 @@ func (cs *Commonservice) getStoragePoolNameFromID(poolID int) string {
 	}
 	return storagePoolName
 }
-func (cs *Commonservice) verifyApiClient() error {
+func (cs *Commonservice) verifyAPIClient() error {
 	zlog.Trace().Msgf("verifying api client")
 	c, err := cs.API.NewClient()
 	if err != nil {

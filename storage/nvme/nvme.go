@@ -95,7 +95,7 @@ type Device struct {
 	SectorSize   int    `json:"SectorSize"`
 }
 
-type NVMEDevices struct {
+type Devices struct {
 	Devices []Device `json:"Devices"`
 }
 
@@ -111,7 +111,7 @@ func getHostNQN() (string, error) {
 	return hostnqn, nil
 }
 
-func getNVMENamespaces() (devices NVMEDevices, err error) {
+func getNVMENamespaces() (devices Devices, err error) {
 	cmd := "nvme list -o json"
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
@@ -243,7 +243,7 @@ func getNVMEVersion() (version string, err error) {
 }
 
 // parse out the standard NVME device information from nvme 2.11 output
-func parseNVME211Devices(nvme211Output NVME211) (devices NVMEDevices) {
+func parseNVME211Devices(nvme211Output NVME211) (devices Devices) {
 	devices.Devices = make([]Device, 0)
 	for _, device211 := range nvme211Output.Devices {
 		subsystems := device211.Subsystems

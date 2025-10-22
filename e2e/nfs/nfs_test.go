@@ -19,7 +19,7 @@ import (
 
 func TestNfsSnapshotLocking(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -65,7 +65,7 @@ func TestNfsSnapshotLocking(t *testing.T) {
 
 func TestNfsSnapshot(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -97,7 +97,7 @@ func TestNfsSnapshot(t *testing.T) {
 
 func TestNfs(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -113,7 +113,7 @@ func TestNfs(t *testing.T) {
 
 func TestNfsFsGroup(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -155,7 +155,7 @@ func TestNfsFsGroup(t *testing.T) {
 
 func TestNfsROX(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -180,7 +180,7 @@ func TestNfsROX(t *testing.T) {
 }
 
 func TestNfsRO(t *testing.T) {
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -205,7 +205,7 @@ func TestNfsRO(t *testing.T) {
 
 func TestNfsFsGroupWithSnapdir(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -248,7 +248,7 @@ func TestNfsFsGroupWithSnapdir(t *testing.T) {
 
 func TestNfsClone(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -295,7 +295,7 @@ func TestNfsClone(t *testing.T) {
 
 func TestNfsExpand(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -333,7 +333,7 @@ func TestNfsExpand(t *testing.T) {
 
 func TestNfsIpRangePermissions(t *testing.T) {
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_NFS)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolNFS)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}

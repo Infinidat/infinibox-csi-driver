@@ -26,7 +26,7 @@ type Client interface {
 
 	// for nfs
 	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error)
-	DeleteNodeFromExport(export iboxapi.Export, access string, noRootSquash bool, ip string) (*iboxapi.Export, error)
+	DeleteNodeFromExport(export iboxapi.Export, noRootSquash bool, ip string) (*iboxapi.Export, error)
 	DeleteFileSystemComplete(fileSystemID int) (err error)
 	DeleteParentFileSystem(fileSystemID int) (err error)
 	DeleteExportRule(fileSystemID int, ipAddress string) (err error)

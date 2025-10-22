@@ -137,7 +137,7 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	}
 
 	hostSecurity := req.GetPublishContext()["securityMethod"]
-	useChap := req.GetVolumeContext()[common.SC_USE_CHAP]
+	useChap := req.GetVolumeContext()[common.StorageClassUseCHAP]
 	zlog.Debug().Msgf("%s (iscsi) - Publishing volume to host with hostID %d", functionName, hostID)
 
 	initiatorName := getInitiatorName()
@@ -208,7 +208,7 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	const functionName = "NodePublishVolume"
-	zlog.Debug().Msgf("%s (iscsi) - volume ID %s, network_space %s mode %s readOnly %t %s", functionName, req.GetVolumeId(), req.GetVolumeContext()[common.SC_NETWORK_SPACE], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
+	zlog.Debug().Msgf("%s (iscsi) - volume ID %s, network_space %s mode %s readOnly %t %s", functionName, req.GetVolumeId(), req.GetVolumeContext()[common.StorageClassNetworkSpace], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
 		storagecommon.GetHostInfo(req.GetSecrets(), iscsi.CS.IboxAPI))
 
 	targets, err := iscsi.getISCSITargets(req)
@@ -286,7 +286,7 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Load iscsi disk config from json file
 	dskInfo := storagecommon.DiskInfo{
 		VolumeID: diskUnmounter.iscsiDiskInfo.VolumeID,
-		RootDir:  common.NODE_ROOT_DIR,
+		RootDir:  common.NodeRootDir,
 	}
 	if err := storagecommon.LoadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
@@ -318,7 +318,7 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	}
 
 	// remove multipath
-	err = storagecommon.DetachMpathDevice(mpathDevice, common.PROTOCOL_ISCSI)
+	err = storagecommon.DetachMpathDevice(mpathDevice, common.ProtocolISCSI)
 	if err != nil {
 		zlog.Warn().Msgf("%s (iscsi) - cannot detach volume with ID %s: %+v", functionName, req.GetVolumeId(), err)
 	}
@@ -469,7 +469,7 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 				zlog.Error().Msg(e.Error())
 				return nil, e
 			}
-			zlog.Debug().Msgf("%s (iscsi) rescan output is [%s]\n", functionName, strings.TrimSpace(string(out)))
+			zlog.Debug().Msgf("%s (iscsi) rescan output is [%s]\n", functionName, strings.TrimSpace(out))
 		}
 	}
 
@@ -487,7 +487,7 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 		zlog.Error().Msg(e.Error())
 		return nil, e
 	}
-	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(string(out)))
+	zlog.Debug().Msgf("multipathd resize map output is [%s]", strings.TrimSpace(out))
 
 	// 5 - run resize2fs or xfs_growfs on /dev/mapper/mpathwi
 	fsType := req.GetVolumeCapability().GetMount().FsType
@@ -513,13 +513,13 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	isToLogOutput := false
 	commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", diskMounter.Iface), isToLogOutput)
 	if err != nil {
-		e := fmt.Errorf("%s (iscsi) cannot read interface: %s output: %s error: %v", functionName, diskMounter.Iface, string(commandOutput), err)
+		e := fmt.Errorf("%s (iscsi) cannot read interface: %s output: %s error: %v", functionName, diskMounter.Iface, commandOutput, err)
 		zlog.Error().Msg(e.Error())
 		return "", e
 	}
 	zlog.Debug().Msgf("%s (iscsi) provided interface '%s': ", functionName, diskMounter.Iface) // , out)
 
-	iscsiTransport = iscsi.extractTransportName(string(commandOutput))
+	iscsiTransport = iscsi.extractTransportName(commandOutput)
 	zlog.Debug().Msgf("%s (iscsi) iscsiTransport: %s", functionName, iscsiTransport)
 	if iscsiTransport == "" {
 		e := fmt.Errorf("%s (iscsi) could not find transport name in iface %s", functionName, diskMounter.Iface) // TODO - b.Iface here really should be newIface...or does it matter?
@@ -692,7 +692,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	config := storagecommon.DiskInfo{
 		VolumeID:    diskMounter.VolumeID,
 		MpathDevice: thisMpath,
-		RootDir:     common.NODE_ROOT_DIR,
+		RootDir:     common.NodeRootDir,
 	}
 
 	devicePath = devMapperDir + thisMpath
@@ -735,7 +735,7 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 		return nil, fmt.Errorf("getISCSIDisk (iscsi) iscsi: LUN is missing")
 	}
 
-	useChap := volContext[common.SC_USE_CHAP]
+	useChap := volContext[common.StorageClassUseCHAP]
 	var chapSession bool
 	if useChap != "none" {
 		chapSession = true
@@ -875,7 +875,7 @@ func (iscsi *ISCSIstorage) updateISCSINode(diskMounter iscsiDiskMounter, iqn str
 	zlog.Debug().Msgf("%s (iscsi) update node with CHAP", functionName)
 	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
 	if err != nil {
-		e := fmt.Errorf("%s (iscsi): failed to update node with CHAP, output: %v", functionName, string(out))
+		e := fmt.Errorf("%s (iscsi): failed to update node with CHAP, output: %v", functionName, out)
 		zlog.Error().Msg(e.Error())
 		return e
 	}
@@ -886,7 +886,7 @@ func (iscsi *ISCSIstorage) updateISCSINode(diskMounter iscsiDiskMounter, iqn str
 			zlog.Debug().Msgf("%s (iscsi) update node session key/value", functionName)
 			out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, credential, v))
 			if err != nil {
-				e := fmt.Errorf("%s (iscsi): failed to update node session key %q with value %q error: %v", functionName, credential, v, string(out))
+				e := fmt.Errorf("%s (iscsi): failed to update node session key %q with value %q error: %v", functionName, credential, v, out)
 				zlog.Error().Msg(e.Error())
 				return e
 			}
@@ -938,16 +938,16 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", diskMounter.Iface))
 	if err != nil {
 		zlog.Error().Msgf("%s", err.Error())
-		lastErr = fmt.Errorf("%s (iscsi): failed to show iface records: %s (%v)", functionName, string(out), err)
+		lastErr = fmt.Errorf("%s (iscsi): failed to show iface records: %s (%v)", functionName, out, err)
 		return lastErr
 	}
 	zlog.Debug().Msgf("%s (iscsi) - pre-configured iface records found: %s", functionName, out)
 
 	// parse obtained records
-	params, err := iscsi.parseIscsiadmShow(string(out))
+	params, err := iscsi.parseIscsiadmShow(out)
 	if err != nil {
 		zlog.Error().Msgf("%s (iscsi) - parse - error: %s", functionName, err.Error())
-		lastErr = fmt.Errorf("%s (iscsi): Failed to parse iface records: %s (%v)", functionName, string(out), err)
+		lastErr = fmt.Errorf("%s (iscsi): Failed to parse iface records: %s (%v)", functionName, out, err)
 		return lastErr
 	}
 	// update initiatorname
@@ -956,7 +956,7 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 	zlog.Debug().Msgf("%s (iscsi) - create new interface", functionName)
 	out, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op new", newIface))
 	if err != nil {
-		lastErr = fmt.Errorf("%s (iscsi): failed to create new iface: %s (%v)", functionName, string(out), err)
+		lastErr = fmt.Errorf("%s (iscsi): failed to create new iface: %s (%v)", functionName, out, err)
 		return lastErr
 	}
 
@@ -972,7 +972,7 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 				return lastErr
 			}
 
-			lastErr = fmt.Errorf("%s (iscsi): failed to update iface records: %s (%v). iface(%s) will be used", functionName, string(out), err, diskMounter.Iface)
+			lastErr = fmt.Errorf("%s (iscsi): failed to update iface records: %s (%v). iface(%s) will be used", functionName, out, err, diskMounter.Iface)
 			break
 		}
 	}
@@ -981,7 +981,7 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 
 func (iscsi *ISCSIstorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (targets []iscsiTarget, err error) {
 	const functionName = "getISCSITargets"
-	networkSpaces := strings.Split(req.GetVolumeContext()[common.SC_NETWORK_SPACE], ",")
+	networkSpaces := strings.Split(req.GetVolumeContext()[common.StorageClassNetworkSpace], ",")
 	if len(networkSpaces) == 0 {
 		return targets, fmt.Errorf("%s (iscsi) no network spaces found", functionName)
 	}

@@ -50,34 +50,34 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	protocol := os.Getenv(ENV_PROTOCOL)
 
 	switch protocol {
-	case common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME:
+	case common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNFS, common.ProtocolTreeq, common.ProtocolNVME:
 		fmt.Printf("valid protocol found in env vars [%s]\n", protocol)
 	default:
-		return fmt.Errorf("%s env var value not recognized [%s], must be a valid protocol [%s,%s,%s,%s,%s]", ENV_PROTOCOL, protocol, common.PROTOCOL_FC, common.PROTOCOL_ISCSI, common.PROTOCOL_NFS, common.PROTOCOL_TREEQ, common.PROTOCOL_NVME)
+		return fmt.Errorf("%s env var value not recognized [%s], must be a valid protocol [%s,%s,%s,%s,%s]", ENV_PROTOCOL, protocol, common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNFS, common.ProtocolTreeq, common.ProtocolNVME)
 	}
 
 	var nsEnvVar string
 
 	switch protocol {
-	case common.PROTOCOL_FC:
-	case common.PROTOCOL_ISCSI:
+	case common.ProtocolFC:
+	case common.ProtocolISCSI:
 		nsEnvVar = ENV_ISCSI_NETWORK_SPACE
 		testConfig.NetworkSpaceToUse = os.Getenv(ENV_ISCSI_NETWORK_SPACE)
-	case common.PROTOCOL_NFS, common.PROTOCOL_TREEQ:
+	case common.ProtocolNFS, common.ProtocolTreeq:
 		nsEnvVar = ENV_NAS_NETWORK_SPACE
 		testConfig.NetworkSpaceToUse = os.Getenv(ENV_NAS_NETWORK_SPACE)
-	case common.PROTOCOL_NVME:
+	case common.ProtocolNVME:
 		nsEnvVar = ENV_NVME_NETWORK_SPACE
 		testConfig.NetworkSpaceToUse = os.Getenv(ENV_NVME_NETWORK_SPACE)
 	}
 
 	// for backward compat only
-	if protocol != common.PROTOCOL_FC && testConfig.NetworkSpaceToUse == "" {
+	if protocol != common.ProtocolFC && testConfig.NetworkSpaceToUse == "" {
 		nsEnvVar = ENV_NETWORK_SPACE
 		testConfig.NetworkSpaceToUse = os.Getenv(ENV_NETWORK_SPACE)
 	}
 
-	if protocol != common.PROTOCOL_FC {
+	if protocol != common.ProtocolFC {
 		if testConfig.NetworkSpaceToUse == "" {
 			return fmt.Errorf("%s env var is not set and is required", nsEnvVar)
 		}

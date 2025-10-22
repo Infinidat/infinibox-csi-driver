@@ -84,8 +84,8 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 					zlog.Error().Msgf("%s - GetVolume - error: %s", functionName, err.Error())
 					return nil, status.Errorf(codes.Internal, "failed to get Volume with ID %d error %v", volumeID, err)
 				}
-				zlog.Debug().Msgf("volume %s found with ID : %d poolID: %d", volume.Name, volumeID, volume.PoolId)
-				poolID = volume.PoolId
+				zlog.Debug().Msgf("volume %s found with ID : %d poolID: %d", volume.Name, volumeID, volume.PoolID)
+				poolID = volume.PoolID
 				allVolumeIDs = append(allVolumeIDs, volumeID)
 			}
 
@@ -332,7 +332,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 
 	resp = &csi.GetVolumeGroupSnapshotResponse{
 		GroupSnapshot: &csi.VolumeGroupSnapshot{
-			GroupSnapshotId: strconv.Itoa(int(snapshotGroupID)),
+			GroupSnapshotId: strconv.Itoa(snapshotGroupID),
 			Snapshots:       snapshots,
 			CreationTime:    creationTime, // TODO fix this with the right creation time
 			ReadyToUse:      true,

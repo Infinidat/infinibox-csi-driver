@@ -25,7 +25,7 @@ func TestIscsiReplica(t *testing.T) {
 	l := log.Get()
 	ctrl.SetLogger(zerologr.New(&l))
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -71,16 +71,16 @@ func TestIscsiReplica(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: replicaName,
 			Annotations: map[string]string{
-				common.PVC_ANNOTATION_SECRET_NAME:      secretName,
-				common.PVC_ANNOTATION_SECRET_NAMESPACE: secretNamespace,
+				common.PVCAnnotationSecretName:      secretName,
+				common.PVCAnnotationSecretNamespace: secretNamespace,
 			},
 		},
 		Spec: v1.IboxreplicaSpec{
 			Description:          "iscsi-test-volume-replica",
-			EntityType:           common.REPLICA_ENTITY_VOLUME,
+			EntityType:           common.ReplicaEntityVolume,
 			LocalEntityName:      existingPVC.Spec.VolumeName,
 			LinkRemoteSystemName: linkRemoteSystemName,
-			ReplicationType:      common.REPLICATION_TYPE_ASYNC,
+			ReplicationType:      common.ReplicationTypeASYNC,
 			RemotePoolID:         poolID,
 		},
 	}
@@ -130,7 +130,7 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 	l := log.Get()
 	ctrl.SetLogger(zerologr.New(&l))
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -180,18 +180,18 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: replicaName,
 			Annotations: map[string]string{
-				common.PVC_ANNOTATION_SECRET_NAME:      secretName,
-				common.PVC_ANNOTATION_SECRET_NAMESPACE: secretNamespace,
+				common.PVCAnnotationSecretName:      secretName,
+				common.PVCAnnotationSecretNamespace: secretNamespace,
 			},
 		},
 		Spec: v1.IboxreplicaSpec{
 			Description:          "iscsi-test-volume-aa-replica",
-			EntityType:           common.REPLICA_ENTITY_VOLUME,
+			EntityType:           common.ReplicaEntityVolume,
 			LocalEntityName:      existingPVC.Spec.VolumeName,
 			LinkRemoteSystemName: linkRemoteSystemName,
 			RemotePoolID:         poolID,
 			IsPreferred:          isPreferredPtr,
-			ReplicationType:      common.IBOXREPLICA_REPLICA_TYPE_ACTIVE_ACTIVE,
+			ReplicationType:      common.IboxreplicaReplicaTypeACTIVE_ACTIVE,
 		},
 	}
 	t.Logf("creating iboxreplica %s", replica.Name)
@@ -239,7 +239,7 @@ func TestIscsiSyncReplica(t *testing.T) {
 	l := log.Get()
 	ctrl.SetLogger(zerologr.New(&l))
 
-	testConfig, err := e2e.GetTestConfig(t, common.PROTOCOL_ISCSI)
+	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
@@ -289,18 +289,18 @@ func TestIscsiSyncReplica(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: replicaName,
 			Annotations: map[string]string{
-				common.PVC_ANNOTATION_SECRET_NAME:      secretName,
-				common.PVC_ANNOTATION_SECRET_NAMESPACE: secretNamespace,
+				common.PVCAnnotationSecretName:      secretName,
+				common.PVCAnnotationSecretNamespace: secretNamespace,
 			},
 		},
 		Spec: v1.IboxreplicaSpec{
 			Description:          "iscsi-test-volume-sync-replica",
-			EntityType:           common.REPLICA_ENTITY_VOLUME,
+			EntityType:           common.ReplicaEntityVolume,
 			LocalEntityName:      existingPVC.Spec.VolumeName,
 			LinkRemoteSystemName: linkRemoteSystemName,
 			RemotePoolID:         poolID,
 			IsPreferred:          isPreferredPtr,
-			ReplicationType:      common.IBOXREPLICA_REPLICA_TYPE_SYNC,
+			ReplicationType:      common.IboxreplicaReplicaTypeSYNC,
 		},
 	}
 	t.Logf("creating iboxreplica %s", replica.Name)
