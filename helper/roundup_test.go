@@ -3,8 +3,9 @@
 package helper
 
 import (
-	"infinibox-csi-driver/common"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
 // TestRoundUp tests that RoundUp() will handle various sizes in bytes

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/log"
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"

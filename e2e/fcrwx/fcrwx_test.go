@@ -3,10 +3,11 @@
 package fcrwx
 
 import (
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 
 	v1 "k8s.io/api/core/v1"
 )

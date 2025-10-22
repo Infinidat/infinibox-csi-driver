@@ -15,10 +15,11 @@ limitations under the License.
 import (
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
 type GetLinksResponse struct {

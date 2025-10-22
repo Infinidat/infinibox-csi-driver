@@ -15,16 +15,17 @@ package treeq
 import (
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/iboxapi"
-	storagecommon "infinibox-csi-driver/storage/common"
-	"infinibox-csi-driver/storage/nfs"
 	"math"
 	"path"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/nfs"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

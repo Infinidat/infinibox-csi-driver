@@ -13,8 +13,9 @@ limitations under the License.
 package service
 
 import (
-	"infinibox-csi-driver/helper"
 	"runtime"
+
+	"github.com/infinidat/infinibox-csi-driver/helper"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/mount-utils"

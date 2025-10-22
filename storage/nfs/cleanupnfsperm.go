@@ -1,15 +1,16 @@
 package nfs
 
 import (
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/api/clientgo"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
-	storagecommon "infinibox-csi-driver/storage/common"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 )
 
 // removed unused NFS permissions for a given IP (node) if there

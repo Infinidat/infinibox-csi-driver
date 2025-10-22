@@ -1,8 +1,8 @@
 package testhelper
 
 import (
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )

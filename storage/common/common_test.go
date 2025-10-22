@@ -3,10 +3,11 @@
 package common
 
 import (
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/iboxapi"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

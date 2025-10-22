@@ -3,7 +3,6 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"io"
 	"os"
 	"os/exec"
@@ -11,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

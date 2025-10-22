@@ -35,8 +35,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	csidriverv1 "infinibox-csi-driver/api/v1"
-	"infinibox-csi-driver/internal/controller"
+	csidriverv1 "github.com/infinidat/infinibox-csi-driver/api/v1"
+	"github.com/infinidat/infinibox-csi-driver/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

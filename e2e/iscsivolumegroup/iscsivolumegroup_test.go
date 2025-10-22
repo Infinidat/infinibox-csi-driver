@@ -4,10 +4,11 @@ package iscsivolumegroup
 
 import (
 	"context"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 
 	"github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumegroupsnapshot/v1beta1"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v8/apis/volumesnapshot/v1"

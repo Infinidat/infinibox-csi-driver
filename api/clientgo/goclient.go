@@ -16,10 +16,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"maps"
 
-	"infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/common"
+
+	"github.com/infinidat/infinibox-csi-driver/log"
 
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"

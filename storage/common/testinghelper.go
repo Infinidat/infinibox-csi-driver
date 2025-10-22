@@ -1,10 +1,11 @@
 package common
 
 import (
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
 	"math/rand"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/mock"

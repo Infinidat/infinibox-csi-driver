@@ -4,11 +4,12 @@ package common
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/iboxapi"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/stretchr/testify/assert"
 

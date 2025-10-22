@@ -4,15 +4,16 @@ package iscsireplica
 
 import (
 	"context"
-	"infinibox-csi-driver/api/clientgo"
-	v1 "infinibox-csi-driver/api/v1"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
-	"infinibox-csi-driver/log"
 	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
+	"github.com/infinidat/infinibox-csi-driver/log"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 

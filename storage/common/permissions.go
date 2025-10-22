@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"infinibox-csi-driver/common"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"

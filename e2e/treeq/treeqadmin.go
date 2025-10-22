@@ -3,13 +3,14 @@ package treeq
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
-	"infinibox-csi-driver/iboxapi"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

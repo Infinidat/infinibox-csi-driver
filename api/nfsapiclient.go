@@ -14,9 +14,10 @@ package api
 
 import (
 	"bytes"
-	"infinibox-csi-driver/iboxapi"
 	"net"
 	"strings"
+
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 )
 
 func compareClientIP(permissionIP, ipAddress string) bool {

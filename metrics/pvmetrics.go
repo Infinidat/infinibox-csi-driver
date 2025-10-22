@@ -2,8 +2,9 @@ package metric
 
 import (
 	"context"
-	"infinibox-csi-driver/common"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"

@@ -28,11 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/api/clientgo"
-	csidriverinfinidatcomv1 "infinibox-csi-driver/api/v1"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	csidriverinfinidatcomv1 "github.com/infinidat/infinibox-csi-driver/api/v1"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 )
 
 const (

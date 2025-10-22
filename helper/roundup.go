@@ -12,7 +12,7 @@ limitations under the License.
 */
 package helper
 
-import "infinibox-csi-driver/common"
+import "github.com/infinidat/infinibox-csi-driver/common"
 
 const Bytes1G = 1000000000
 

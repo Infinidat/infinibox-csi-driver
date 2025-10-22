@@ -2,13 +2,14 @@ package helper
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
 	"math/rand"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 )
 
 // globals that are used by the background thread

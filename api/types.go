@@ -13,8 +13,8 @@ limitations under the License.
 package api
 
 import (
-	"infinibox-csi-driver/iboxapi"
-	"infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/log"
 )
 
 var zlog = log.Get() // grab the logger for package use

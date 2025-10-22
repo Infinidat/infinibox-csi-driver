@@ -14,12 +14,13 @@ package main
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api/clientgo"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/log"
-	"infinibox-csi-driver/service"
 	"os"
 	"strconv"
+
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/service"
 
 	v1 "k8s.io/api/core/v1"
 )

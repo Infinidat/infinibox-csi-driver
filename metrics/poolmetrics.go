@@ -5,11 +5,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"io"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

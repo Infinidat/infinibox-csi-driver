@@ -4,10 +4,11 @@ package iscsistress
 
 import (
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func TestIscsi(t *testing.T) {

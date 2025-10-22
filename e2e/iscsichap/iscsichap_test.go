@@ -3,9 +3,10 @@
 package iscsichap
 
 import (
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func TestIscsi(t *testing.T) {

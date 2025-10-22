@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/helper"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/helper"
 )
 
 const (

@@ -15,11 +15,12 @@ package common
 import (
 	"errors"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
 const RESIZE2FS_DELAY = "RESIZE2FS_DELAY"

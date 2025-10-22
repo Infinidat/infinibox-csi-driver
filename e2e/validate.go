@@ -3,9 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"os"
 	"strconv"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

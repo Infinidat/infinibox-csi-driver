@@ -2,9 +2,10 @@ package common
 
 import (
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
 	"regexp"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 )
 
 // used to look up expected service for protocol

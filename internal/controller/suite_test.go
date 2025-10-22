@@ -33,7 +33,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	csidriverinfinidatcomv1 "infinibox-csi-driver/api/v1"
+	csidriverinfinidatcomv1 "github.com/infinidat/infinibox-csi-driver/api/v1"
 	// +kubebuilder:scaffold:imports
 )
 

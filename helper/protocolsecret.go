@@ -2,9 +2,10 @@ package helper
 
 import (
 	"fmt"
-	"infinibox-csi-driver/api/clientgo"
-	"infinibox-csi-driver/common"
 	"os"
+
+	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

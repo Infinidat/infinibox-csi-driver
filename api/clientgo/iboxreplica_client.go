@@ -14,8 +14,9 @@ package clientgo
 
 import (
 	"context"
-	v1 "infinibox-csi-driver/api/v1"
-	"infinibox-csi-driver/log"
+
+	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
+	"github.com/infinidat/infinibox-csi-driver/log"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"

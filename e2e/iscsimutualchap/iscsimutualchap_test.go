@@ -3,9 +3,10 @@
 package iscsimutualchap
 
 import (
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func TestIscsiMutualChap(t *testing.T) {

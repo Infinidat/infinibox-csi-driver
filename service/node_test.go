@@ -4,9 +4,10 @@ package service
 
 import (
 	"context"
-	"infinibox-csi-driver/common"
-	tests "infinibox-csi-driver/testhelper"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	tests "github.com/infinidat/infinibox-csi-driver/testhelper"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"

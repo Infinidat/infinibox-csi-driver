@@ -14,8 +14,9 @@ package api
 
 import (
 	"errors"
-	"infinibox-csi-driver/iboxapi"
 	"net/url"
+
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/go-logr/zerologr"
 )

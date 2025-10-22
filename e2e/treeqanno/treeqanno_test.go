@@ -3,9 +3,10 @@
 package treeqanno
 
 import (
-	"infinibox-csi-driver/e2e"
 	"os"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func TestTreeq(t *testing.T) {

@@ -15,13 +15,14 @@ package treeq
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/log"
-	storagecommon "infinibox-csi-driver/storage/common"
-	"infinibox-csi-driver/storage/nfs"
 	"strconv"
 	"strings"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/log"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/nfs"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"

@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"infinibox-csi-driver/common"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"k8s.io/client-go/rest"
 

@@ -14,13 +14,14 @@ package storage
 
 import (
 	"errors"
-	"infinibox-csi-driver/common"
-	storagecommon "infinibox-csi-driver/storage/common"
-	"infinibox-csi-driver/storage/fc"
-	"infinibox-csi-driver/storage/iscsi"
-	"infinibox-csi-driver/storage/nfs"
-	"infinibox-csi-driver/storage/nvme"
-	"infinibox-csi-driver/storage/treeq"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/fc"
+	"github.com/infinidat/infinibox-csi-driver/storage/iscsi"
+	"github.com/infinidat/infinibox-csi-driver/storage/nfs"
+	"github.com/infinidat/infinibox-csi-driver/storage/nvme"
+	"github.com/infinidat/infinibox-csi-driver/storage/treeq"
 
 	"strings"
 

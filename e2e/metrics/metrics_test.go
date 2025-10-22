@@ -5,10 +5,11 @@ package metrics
 import (
 	"context"
 	"errors"
-	"infinibox-csi-driver/e2e"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 
 	appsv1 "k8s.io/api/apps/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

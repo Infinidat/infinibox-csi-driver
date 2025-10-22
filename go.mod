@@ -1,4 +1,4 @@
-module infinibox-csi-driver
+module github.com/infinidat/infinibox-csi-driver
 
 go 1.24
 

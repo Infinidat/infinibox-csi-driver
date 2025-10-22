@@ -15,8 +15,9 @@ package nvme
 import (
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/log"
-	storagecommon "infinibox-csi-driver/storage/common"
+
+	"github.com/infinidat/infinibox-csi-driver/log"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
 	"strings"

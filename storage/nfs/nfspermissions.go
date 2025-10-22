@@ -15,10 +15,11 @@ package nfs
 import (
 	"encoding/json"
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/iboxapi"
 	"strconv"
 	"strings"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )

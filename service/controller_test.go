@@ -16,12 +16,13 @@ package service
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/helper"
-	storagecommon "infinibox-csi-driver/storage/common"
-	tests "infinibox-csi-driver/testhelper"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
+	tests "github.com/infinidat/infinibox-csi-driver/testhelper"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"

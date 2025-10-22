@@ -4,10 +4,11 @@ package treeq
 
 import (
 	"context"
-	"infinibox-csi-driver/e2e"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 
 	v1 "k8s.io/api/core/v1"
 )

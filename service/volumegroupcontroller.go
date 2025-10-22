@@ -15,11 +15,12 @@ package service
 import (
 	"context"
 	"errors"
-	"infinibox-csi-driver/iboxapi"
-	storagecommon "infinibox-csi-driver/storage/common"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"

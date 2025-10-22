@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"infinibox-csi-driver/e2e"
 	"os"
+
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func main() {

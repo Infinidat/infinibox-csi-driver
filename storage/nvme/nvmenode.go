@@ -15,9 +15,10 @@ package nvme
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/helper"
-	storagecommon "infinibox-csi-driver/storage/common"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
 	"path"

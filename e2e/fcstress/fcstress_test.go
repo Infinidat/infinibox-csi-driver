@@ -5,10 +5,11 @@ package fcstress
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"testing"
 	"time"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func TestFc(t *testing.T) {

@@ -15,11 +15,12 @@ package nvme
 import (
 	"context"
 	"fmt"
-	"infinibox-csi-driver/api"
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/helper"
-	"infinibox-csi-driver/iboxapi"
-	storagecommon "infinibox-csi-driver/storage/common"
+
+	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"strconv"
 	"time"

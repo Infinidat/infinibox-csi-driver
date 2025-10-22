@@ -3,10 +3,11 @@
 package iscsianno
 
 import (
-	"infinibox-csi-driver/common"
-	"infinibox-csi-driver/e2e"
 	"os"
 	"testing"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
 func TestIscsiMultipleNetworkSpace(t *testing.T) {
