@@ -36,11 +36,11 @@ import (
 )
 
 const (
-	IBOXREPLICA_SYNC_INTERVAL_DEFAULT        = 240000
-	IBOXREPLICA_BASE_ACTION_NEW              = "NEW"
-	IBOXREPLICA_RPO_VALUE_DEFAULT            = 300000
-	IBOXREPLICA_LINK_STATE_UP                = "UP"
-	IBOXREPLICA_LINK_WITNESS_RESILIENCY_MODE = "WITNESS"
+	IboxreplicaSyncIntervalDefault       = 240000
+	IboxreplicaBaseActionNew             = "NEW"
+	IboxreplicaRPOValueDefault           = 300000
+	IboxreplicaLinkStateUp               = "UP"
+	IboxreplicaLinkWitnessResiliencyMode = "WITNESS"
 )
 
 // IboxreplicaReconciler reconciles a Iboxreplica object
@@ -63,14 +63,14 @@ type IboxreplicaReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 
-var thislog logr.Logger
+var logger logr.Logger
 
 func (r *IboxreplicaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
 	// TODO(user): your logic here
 
-	thislog = log.FromContext(ctx)
+	logger = log.FromContext(ctx)
 
 	// TODO(user): your logic here
 	// lookup the Iboxreplica instance for this reconcile request
@@ -81,13 +81,13 @@ func (r *IboxreplicaReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 
 	if err := r.handleFinalizer(ctx, *replica); err != nil {
-		thislog.Error(err, "failed to update finalizer error")
+		logger.Error(err, "failed to update finalizer error")
 		return ctrl.Result{}, err
 	}
 
 	if !replica.DeletionTimestamp.IsZero() {
 		// handle delete and return
-		thislog.Info("cr was deleted", "replica name", req.Name, "namespace", req.Namespace, "replica ID", replica.Status.ID)
+		logger.Info("cr was deleted", "replica name", req.Name, "namespace", req.Namespace, "replica ID", replica.Status.ID)
 		err = r.deleteReplica(replica)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -114,7 +114,7 @@ func (r *IboxreplicaReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	}
 
-	thislog.Info("reconcile worked", "replica name", replica.Name, "namespace", replica.Namespace)
+	logger.Info("reconcile worked", "replica name", replica.Name, "namespace", replica.Namespace)
 
 	return ctrl.Result{}, nil
 }
@@ -132,14 +132,14 @@ func (r *IboxreplicaReconciler) handleFinalizer(ctx context.Context, obj csidriv
 		// add finalizer in case of create/update
 		if !controllerutil.ContainsFinalizer(&obj, name) {
 			ok := controllerutil.AddFinalizer(&obj, name)
-			thislog.Info("Add Finalizer", "name", name, "ok", ok)
+			logger.Info("Add Finalizer", "name", name, "ok", ok)
 			return r.Update(ctx, &obj)
 		}
 	} else {
 		// remove finalizer in case of deletion
 		if controllerutil.ContainsFinalizer(&obj, name) {
 			ok := controllerutil.RemoveFinalizer(&obj, name)
-			thislog.Info("Remove Finalizer", "name", name, "ok", ok)
+			logger.Info("Remove Finalizer", "name", name, "ok", ok)
 			return r.Update(ctx, &obj)
 		}
 	}
@@ -154,32 +154,32 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	case common.IboxreplicaReplicaTypeASYNC:
 	case common.IboxreplicaReplicaTypeSYNC:
 		replica.Spec.IsPreferred = nil
-		thislog.Info("creating replica", "setting is_preferred to nil", replica.Name)
+		logger.Info("creating replica", "setting is_preferred to nil", replica.Name)
 	default:
 		err := fmt.Errorf("error invalid ReplicationType in CR %s", replica.Spec.ReplicationType)
-		thislog.Error(err, fmt.Sprintf("supported values include %s and %s", common.IboxreplicaReplicaTypeACTIVE_ACTIVE, common.IboxreplicaReplicaTypeASYNC))
+		logger.Error(err, fmt.Sprintf("supported values include %s and %s", common.IboxreplicaReplicaTypeACTIVE_ACTIVE, common.IboxreplicaReplicaTypeASYNC))
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 
 	// we only support a base action of NEW, default to NEW if not set by user
 	if replica.Spec.BaseAction == "" {
-		replica.Spec.BaseAction = IBOXREPLICA_BASE_ACTION_NEW
+		replica.Spec.BaseAction = IboxreplicaBaseActionNew
 	}
 
-	if replica.Spec.BaseAction != IBOXREPLICA_BASE_ACTION_NEW {
+	if replica.Spec.BaseAction != IboxreplicaBaseActionNew {
 		err := fmt.Errorf("error invalid base action in CR %s", replica.Spec.BaseAction)
-		thislog.Error(err, fmt.Sprintf("supported values include %s", IBOXREPLICA_BASE_ACTION_NEW))
+		logger.Error(err, fmt.Sprintf("supported values include %s", IboxreplicaBaseActionNew))
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
@@ -187,26 +187,26 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	// rpo_value and sync_interval are 0 for AA replication type so they should be left as 0 values
 	if replica.Spec.ReplicationType == common.IboxreplicaReplicaTypeASYNC {
 		if replica.Spec.RpoValue == 0 {
-			replica.Spec.RpoValue = IBOXREPLICA_RPO_VALUE_DEFAULT
+			replica.Spec.RpoValue = IboxreplicaRPOValueDefault
 		}
 		if replica.Spec.SyncInterval == 0 {
-			replica.Spec.SyncInterval = IBOXREPLICA_SYNC_INTERVAL_DEFAULT
+			replica.Spec.SyncInterval = IboxreplicaSyncIntervalDefault
 		}
 	}
 
 	clientsvc, err := getClientService(replica)
 	if err != nil {
-		thislog.Error(err, "error getting clientService")
+		logger.Error(err, "error getting clientService")
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 
-	thislog.Info("creating replica", "replica.Name", replica.Name)
+	logger.Info("creating replica", "replica.Name", replica.Name)
 	var localEntityID int
 
 	switch replica.Spec.EntityType {
@@ -214,12 +214,12 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		// look up the CG ID
 		consistencyGroup, err := clientsvc.IboxAPI.GetConsistencyGroupByName(replica.Spec.LocalEntityName)
 		if err != nil {
-			thislog.Error(err, "error getting CG", "localEntityName", replica.Spec.LocalEntityName)
+			logger.Error(err, "error getting CG", "localEntityName", replica.Spec.LocalEntityName)
 			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 				State: err.Error(),
 			}
 			if e := r.Status().Update(context.Background(), replica); e != nil {
-				thislog.Error(e, "unable to update iboxreplica state")
+				logger.Error(e, "unable to update iboxreplica state")
 			}
 			return err
 		}
@@ -228,12 +228,12 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		// look up the volume ID
 		volume, err := clientsvc.IboxAPI.GetVolumeByName(replica.Spec.LocalEntityName)
 		if err != nil {
-			thislog.Error(err, "error getting Volume", "localEntityName", replica.Spec.LocalEntityName)
+			logger.Error(err, "error getting Volume", "localEntityName", replica.Spec.LocalEntityName)
 			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 				State: err.Error(),
 			}
 			if e := r.Status().Update(context.Background(), replica); e != nil {
-				thislog.Error(e, "unable to update iboxreplica state")
+				logger.Error(e, "unable to update iboxreplica state")
 			}
 			return err
 		}
@@ -242,39 +242,39 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		// look up the filesystem ID
 		fileSystem, err := clientsvc.IboxAPI.GetFileSystemByName(replica.Spec.LocalEntityName)
 		if err != nil {
-			thislog.Error(err, "error getting file system", "localEntityName", replica.Spec.LocalEntityName)
+			logger.Error(err, "error getting file system", "localEntityName", replica.Spec.LocalEntityName)
 			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 				State: err.Error(),
 			}
 			if e := r.Status().Update(context.Background(), replica); e != nil {
-				thislog.Error(e, "unable to update iboxreplica state")
+				logger.Error(e, "unable to update iboxreplica state")
 			}
 			return err
 		}
 		localEntityID = fileSystem.ID
 	default:
 		err = fmt.Errorf("error getting local entity type, unknown entity type in the CR %s", replica.Spec.EntityType)
-		thislog.Error(err, "error invalid CR entity type")
+		logger.Error(err, "error invalid CR entity type")
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 
-	thislog.Info("creating replica", "entity look up worked", localEntityID)
+	logger.Info("creating replica", "entity look up worked", localEntityID)
 
 	// look up the link ID
 	links, err := clientsvc.IboxAPI.GetLinks()
 	if err != nil {
-		thislog.Error(err, "error getting replication links")
+		logger.Error(err, "error getting replication links")
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
@@ -289,49 +289,49 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	}
 	if !linkFound {
 		err := fmt.Errorf("could not find replication link %s", replica.Spec.LinkRemoteSystemName)
-		thislog.Error(err, "error could not find replication link", "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "error could not find replication link", "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 	if link.ID == 0 {
 		err := fmt.Errorf("link ID was 0 for replication link %s", replica.Spec.LinkRemoteSystemName)
-		thislog.Error(err, "error link ID == 0", "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "error link ID == 0", "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 
 	// validate the link state as being UP
-	if link.LinkState != IBOXREPLICA_LINK_STATE_UP {
+	if link.LinkState != IboxreplicaLinkStateUp {
 		err := fmt.Errorf("replication link state %s was invalid for replication link %s", link.LinkState, replica.Spec.LinkRemoteSystemName)
-		thislog.Error(err, "error invalid replication link state", "state", link.LinkState, "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "error invalid replication link state", "state", link.LinkState, "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 
 	// validate the link supports ACTIVE_ACTIVE
-	if link.ResiliencyMode != IBOXREPLICA_LINK_WITNESS_RESILIENCY_MODE {
+	if link.ResiliencyMode != IboxreplicaLinkWitnessResiliencyMode {
 		err := fmt.Errorf("invalid replication link resiliency mode %s for replication link %s", link.ResiliencyMode, replica.Spec.LinkRemoteSystemName)
-		thislog.Error(err, "error invalid replication link resiliency mode", "resiliency mode", link.ResiliencyMode, "required mode", IBOXREPLICA_LINK_WITNESS_RESILIENCY_MODE)
+		logger.Error(err, "error invalid replication link resiliency mode", "resiliency mode", link.ResiliencyMode, "required mode", IboxreplicaLinkWitnessResiliencyMode)
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
@@ -339,23 +339,23 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 	// verify that a replica for this entity doesn't already exist
 	replicas, err := clientsvc.IboxAPI.GetReplicas()
 	if err != nil {
-		thislog.Error(err, "error getting replicas")
+		logger.Error(err, "error getting replicas")
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 	for i := range replicas {
 		if replicas[i].LocalEntityID == localEntityID {
-			thislog.Info("creating replica", "entity already replicated ", localEntityID)
+			logger.Info("creating replica", "entity already replicated ", localEntityID)
 			return nil
 		}
 	}
 
-	thislog.Info("creating replica", "link look up worked", link.ID)
+	logger.Info("creating replica", "link look up worked", link.ID)
 	request := iboxapi.CreateReplicaRequest{
 		IsPreferred:      replica.Spec.IsPreferred,
 		SyncInterval:     replica.Spec.SyncInterval,
@@ -372,24 +372,24 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 
 	response, err := clientsvc.IboxAPI.CreateReplica(request)
 	if err != nil {
-		thislog.Error(err, "error creating replica")
+		logger.Error(err, "error creating replica")
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
 
 	err = r.Get(context.Background(), types.NamespacedName{Name: replica.Name, Namespace: replica.Namespace}, replica)
 	if err != nil {
-		thislog.Error(err, "error getting replica")
+		logger.Error(err, "error getting replica")
 		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
 			State: err.Error(),
 		}
 		if e := r.Status().Update(context.Background(), replica); e != nil {
-			thislog.Error(e, "unable to update iboxreplica state")
+			logger.Error(e, "unable to update iboxreplica state")
 		}
 		return err
 	}
@@ -399,12 +399,12 @@ func (r *IboxreplicaReconciler) createReplica(replica *csidriverinfinidatcomv1.I
 		ID:    response.ID,
 		State: "created",
 	}
-	thislog.Info("creating replica", "create replica worked - status ID", replica.Status.ID, "response ID", response.ID)
+	logger.Info("creating replica", "create replica worked - status ID", replica.Status.ID, "response ID", response.ID)
 	if err := r.Status().Update(context.Background(), replica); err != nil {
-		thislog.Error(err, "unable to update replica status")
+		logger.Error(err, "unable to update replica status")
 		return err
 	}
-	thislog.Info("cr was updated", "replica Status ID updated", replica.Status.ID)
+	logger.Info("cr was updated", "replica Status ID updated", replica.Status.ID)
 
 	return nil
 }
@@ -417,10 +417,10 @@ func (r *IboxreplicaReconciler) deleteReplica(replica *csidriverinfinidatcomv1.I
 
 	err = clientsvc.IboxAPI.DeleteReplica(replica.Status.ID)
 	if err != nil {
-		thislog.Error(err, "error deleting replica", "ID", replica.Status.ID)
+		logger.Error(err, "error deleting replica", "ID", replica.Status.ID)
 		return err
 	}
-	thislog.Info("DeleteReplica", "replica ID", replica.Status.ID)
+	logger.Info("DeleteReplica", "replica ID", replica.Status.ID)
 
 	return nil
 }
@@ -428,19 +428,19 @@ func (r *IboxreplicaReconciler) deleteReplica(replica *csidriverinfinidatcomv1.I
 func (r *IboxreplicaReconciler) updateIboxreplicaState(replica *csidriverinfinidatcomv1.Iboxreplica) error {
 	clientsvc, err := getClientService(replica)
 	if err != nil {
-		thislog.Error(err, "error getting clientService")
+		logger.Error(err, "error getting clientService")
 		return err
 	}
 
 	rep, err := clientsvc.IboxAPI.GetReplica(replica.Status.ID)
 	if err != nil {
-		thislog.Error(err, "error getting replica")
+		logger.Error(err, "error getting replica")
 		return err
 	}
 
 	err = r.Get(context.Background(), types.NamespacedName{Name: replica.Name, Namespace: replica.Namespace}, replica)
 	if err != nil {
-		thislog.Error(err, "error getting iboxreplica")
+		logger.Error(err, "error getting iboxreplica")
 		return err
 	}
 
@@ -448,10 +448,10 @@ func (r *IboxreplicaReconciler) updateIboxreplicaState(replica *csidriverinfinid
 	replica.Status.State = rep.State
 
 	if err := r.Status().Update(context.Background(), replica); err != nil {
-		thislog.Error(err, "unable to update iboxreplica state")
+		logger.Error(err, "unable to update iboxreplica state")
 		return err
 	}
-	thislog.Info("cr status was updated", "State", replica.Status.State, "ID", replica.Status.ID)
+	logger.Info("cr status was updated", "State", replica.Status.State, "ID", replica.Status.ID)
 
 	// TODO updates by a user to the Iboxreplica are not currently supported, only the status is updated
 	/**
@@ -481,7 +481,7 @@ func getClientService(replica *csidriverinfinidatcomv1.Iboxreplica) (*api.Client
 
 	secret, err := cl.GetSecret(secretName, secretNamespace)
 	if err != nil {
-		thislog.Error(err, "error getting secret", "secret_name", secretName, "secret_namespace", secretNamespace)
+		logger.Error(err, "error getting secret", "secret_name", secretName, "secret_namespace", secretNamespace)
 		return nil, err
 	}
 
@@ -492,7 +492,7 @@ func getClientService(replica *csidriverinfinidatcomv1.Iboxreplica) (*api.Client
 
 	clientsvc, err := x.NewClient()
 	if err != nil {
-		thislog.Error(err, "error getting ClientService")
+		logger.Error(err, "error getting ClientService")
 		return nil, err
 	}
 

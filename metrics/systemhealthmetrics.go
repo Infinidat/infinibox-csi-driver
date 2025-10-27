@@ -12,102 +12,102 @@ import (
 )
 
 var (
-	MetricIboxBBUChargeLevelGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_BBU_CHARGE_LEVEL,
+	BBUChargeLevel = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxBBUChargeLevel,
 		Help: "The ibox BBU charge level",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_NODE_NAME})
-	MetricIboxNodeBBUProtectionGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_NODE_BBU_PROTECTION,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname, MetricIboxNodeName})
+	NodeBBUProtection = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxNodeBBUProtection,
 		Help: "The ibox node BBU protection",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_NODE_NAME})
-	MetricIboxErrorRatesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ERROR_RATES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname, MetricIboxNodeName})
+	ErrorRates = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxErrorRates,
 		Help: "The ibox error rates",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxActiveCacheSSDDevicesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ACTIVE_CACHE_SSD_DEVICES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	ActiveCacheSSDDevices = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxActiveCacheSSDDevices,
 		Help: "The ibox active cache ssd devices",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxActiveDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ACTIVE_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	ActiveDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxActiveDrives,
 		Help: "The ibox active drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxActiveEncryptedCacheSSDDevicesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ACTIVE_ENCRYPTED_CACHE_SSD_DEVICES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	ActiveEncryptedCacheSSDDevices = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxActiveEncryptedCacheSSDDevices,
 		Help: "The ibox active encrypted cache ssd devices",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxActiveEncryptedDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ACTIVE_ENCRYPTED_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	ActiveEncryptedDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxActiveEncryptedDrives,
 		Help: "The ibox active encrypted drivers",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxBBUAggregateChargePctGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_BBU_AGGREGATE_CHARGE_PCT,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	BBUAggregateChargePct = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxBBUAggregateChargePct,
 		Help: "The ibox BBU aggregate charge percentage",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxBBUProtectedNodesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_BBU_PROTECTED_NODES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	BBUProtectedNodes = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxBBUProtectedNodes,
 		Help: "The ibox BBU protected nodes",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxEnclosureFailureSafeDistributionGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ENCLOSURE_FAILURE_SAFE_DISTRIBUTION,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	EnclosureFailureSafeDistribution = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxEnclosureFailureSafeDistribution,
 		Help: "The ibox enclosure failure safe distribution",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxEncryptionEnabledGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_ENCRYPTION_ENABLED,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	EncryptionEnabled = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxEncryptionEnabled,
 		Help: "The ibox encryption enabled",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
 
-	MetricIboxFailedDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_FAILED_DRIVES,
+	FailedDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxFailedDrives,
 		Help: "The ibox failed drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxInactiveNodesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_INACTIVE_NODES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	InactiveNodes = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxInactiveNodes,
 		Help: "The ibox inactive nodes",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxMissingDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_MISSING_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	MissingDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxMissingDrives,
 		Help: "The ibox missing drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxPhasingOutDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_PHASING_OUT_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	PhasingOutDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxPhasingOutDrives,
 		Help: "The ibox phasing out drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxRaidGroupsPendingRebuild1Gauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_RAID_GROUPS_PENDING_REBUILD_1,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	RaidGroupsPendingRebuild1 = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxRAIDGroupsPendingRebuild1,
 		Help: "The ibox raid groups pending rebuild 1",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxRaidGroupsPendingRebuild2Gauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_RAID_GROUPS_PENDING_REBUILD_2,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	RaidGroupsPendingRebuild2 = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxRAIDGroupsPendingRebuild2,
 		Help: "The ibox raid groups pending rebuild 2",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxReadyDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_READY_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	ReadyDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxReadyDrives,
 		Help: "The ibox ready drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxRebuild1InProgressGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_REBUILD_1_INPROGRESS,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	Rebuild1InProgress = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxRebuild1InProgress,
 		Help: "The ibox rebuild 1 in progress",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxRebuild2InProgressGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_REBUILD_2_INPROGRESS,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	Rebuild2InProgress = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxRebuild2InProgress,
 		Help: "The ibox rebuild 2 in progress",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxTestingDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_TESTING_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	TestingDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxTestingDrives,
 		Help: "The ibox testing drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
-	MetricIboxUnknownDrivesGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_UNKNOWN_DRIVES,
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
+	UnknownDrives = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxUnknownDrives,
 		Help: "The ibox unknown drives",
-	}, []string{METRIC_IBOX_NAME, METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME})
+	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
 )
 
 func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 	zlog.Trace().Msgf("system health metrics recording...")
 	go func() {
 		for {
-			time.Sleep(cfg.GetDuration(METRIC_IBOX_SYSTEM_METRICS))
+			time.Sleep(cfg.GetDuration(MetricIboxSystemMetrics))
 
 			for _, credential := range cfg.Ibox {
 				zlog.Trace().Msgf("system health metrics: creating collectors for %s...", credential.IboxHostname)
@@ -118,70 +118,70 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 				}
 
 				labels := prometheus.Labels{
-					METRIC_IBOX_NAME:     results.Name,
-					METRIC_IBOX_IP:       credential.IboxIPAddress,
-					METRIC_IBOX_HOSTNAME: credential.IboxHostname,
+					MetricIboxName:     results.Name,
+					MetricIboxIP:       credential.IboxIPAddress,
+					MetricIboxHostname: credential.IboxHostname,
 				}
-				MetricIboxActiveCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveCacheSsdDevices))
-				MetricIboxActiveDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveDrives))
-				MetricIboxActiveEncryptedCacheSSDDevicesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedCacheSsdDevices))
-				MetricIboxActiveEncryptedDrivesGauge.With(labels).Set(float64(results.HealthState.ActiveEncryptedDrives))
-				MetricIboxBBUAggregateChargePctGauge.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
+				ActiveCacheSSDDevices.With(labels).Set(float64(results.HealthState.ActiveCacheSsdDevices))
+				ActiveDrives.With(labels).Set(float64(results.HealthState.ActiveDrives))
+				ActiveEncryptedCacheSSDDevices.With(labels).Set(float64(results.HealthState.ActiveEncryptedCacheSsdDevices))
+				ActiveEncryptedDrives.With(labels).Set(float64(results.HealthState.ActiveEncryptedDrives))
+				BBUAggregateChargePct.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
 
 				for index, bbuChargeLevel := range results.HealthState.BbuChargeLevel {
 					zlog.Trace().Msgf("bbucharge level k %s v %f", index, bbuChargeLevel)
 					l := prometheus.Labels{
-						METRIC_IBOX_NAME:      results.Name,
-						METRIC_IBOX_IP:        credential.IboxIPAddress,
-						METRIC_IBOX_HOSTNAME:  credential.IboxHostname,
-						METRIC_IBOX_NODE_NAME: index}
-					MetricIboxBBUChargeLevelGauge.With(l).Set(bbuChargeLevel.(float64))
+						MetricIboxName:     results.Name,
+						MetricIboxIP:       credential.IboxIPAddress,
+						MetricIboxHostname: credential.IboxHostname,
+						MetricIboxNodeName: index}
+					BBUChargeLevel.With(l).Set(bbuChargeLevel.(float64))
 				}
-				MetricIboxBBUProtectedNodesGauge.With(labels).Set(float64(results.HealthState.BbuProtectedNodes))
+				BBUProtectedNodes.With(labels).Set(float64(results.HealthState.BbuProtectedNodes))
 				var boolValue int
 				if results.HealthState.EnclosureFailureSafeDistribution {
 					boolValue = 1
 				}
-				MetricIboxEnclosureFailureSafeDistributionGauge.With(labels).Set(float64(boolValue))
+				EnclosureFailureSafeDistribution.With(labels).Set(float64(boolValue))
 				boolValue = 0
 				if results.HealthState.EnclosureFailureSafeDistribution {
 					boolValue = 1
 				}
-				MetricIboxEncryptionEnabledGauge.With(labels).Set(float64(boolValue))
-				MetricIboxFailedDrivesGauge.With(labels).Set(float64(results.HealthState.FailedDrives))
-				MetricIboxInactiveNodesGauge.With(labels).Set(float64(results.HealthState.InactiveNodes))
-				MetricIboxMissingDrivesGauge.With(labels).Set(float64(results.HealthState.MissingDrives))
+				EncryptionEnabled.With(labels).Set(float64(boolValue))
+				FailedDrives.With(labels).Set(float64(results.HealthState.FailedDrives))
+				InactiveNodes.With(labels).Set(float64(results.HealthState.InactiveNodes))
+				MissingDrives.With(labels).Set(float64(results.HealthState.MissingDrives))
 
 				zlog.Trace().Msgf("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
 				for index, nodeBBUProt := range results.HealthState.NodeBbuProtection {
 					zlog.Trace().Msgf("system health: nodebbuprotection k %s v %s", index, nodeBBUProt)
 					label := prometheus.Labels{
-						METRIC_IBOX_NAME:      results.Name,
-						METRIC_IBOX_IP:        credential.IboxIPAddress,
-						METRIC_IBOX_HOSTNAME:  credential.IboxHostname,
-						METRIC_IBOX_NODE_NAME: index}
+						MetricIboxName:     results.Name,
+						MetricIboxIP:       credential.IboxIPAddress,
+						MetricIboxHostname: credential.IboxHostname,
+						MetricIboxNodeName: index}
 					var protectedValue int
 					if nodeBBUProt == "protected" {
 						protectedValue = 1
 					}
-					MetricIboxNodeBBUProtectionGauge.With(label).Set(float64(protectedValue))
+					NodeBBUProtection.With(label).Set(float64(protectedValue))
 				}
-				MetricIboxPhasingOutDrivesGauge.With(labels).Set(float64(results.HealthState.PhasingOutDrives))
-				MetricIboxRaidGroupsPendingRebuild1Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild1))
-				MetricIboxRaidGroupsPendingRebuild2Gauge.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild2))
-				MetricIboxReadyDrivesGauge.With(labels).Set(float64(results.HealthState.ReadyDrives))
+				PhasingOutDrives.With(labels).Set(float64(results.HealthState.PhasingOutDrives))
+				RaidGroupsPendingRebuild1.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild1))
+				RaidGroupsPendingRebuild2.With(labels).Set(float64(results.HealthState.RaidGroupsPendingRebuild2))
+				ReadyDrives.With(labels).Set(float64(results.HealthState.ReadyDrives))
 				boolValue = 0
 				if results.HealthState.Rebuild1Inprogress {
 					boolValue = 1
 				}
-				MetricIboxRebuild1InProgressGauge.With(labels).Set(float64(boolValue))
+				Rebuild1InProgress.With(labels).Set(float64(boolValue))
 				boolValue = 0
 				if results.HealthState.Rebuild2Inprogress {
 					boolValue = 1
 				}
-				MetricIboxRebuild2InProgressGauge.With(labels).Set(float64(boolValue))
-				MetricIboxTestingDrivesGauge.With(labels).Set(float64(results.HealthState.TestingDrives))
-				MetricIboxUnknownDrivesGauge.With(labels).Set(float64(results.HealthState.UnknownDrives))
+				Rebuild2InProgress.With(labels).Set(float64(boolValue))
+				TestingDrives.With(labels).Set(float64(results.HealthState.TestingDrives))
+				UnknownDrives.With(labels).Set(float64(results.HealthState.UnknownDrives))
 			}
 		}
 	}()

@@ -48,11 +48,6 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 	// validate what the user entered for the protocol
 	switch storageProtocol {
 	case common.ProtocolNFS, common.ProtocolTreeq:
-		/**
-		e := fmt.Errorf("%s - error - nfs and treeq are unsupported when using a protocol secret %s", functionName, storageProtocol)
-		zlog.Error().Msg(e.Error())
-		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
-		*/
 	case common.ProtocolNVME:
 	case common.ProtocolFC:
 	case common.ProtocolISCSI:

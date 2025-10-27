@@ -28,16 +28,16 @@ type GetAllSnapshotsResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
+func (client *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 	const functionName = "GetAllSnapshots"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/datasets")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/datasets")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -50,15 +50,15 @@ func (iboxClient *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 		values.Add("type", "SNAPSHOT")
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)

@@ -205,24 +205,24 @@ type GetNtpStatusResponse struct {
 	Error    Error       `json:"error"`
 }
 
-func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
+func (client *IboxClient) GetSystem() (system *SystemDetails, err error) {
 	const functionName = "GetSystem"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/system")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/system")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -242,15 +242,15 @@ func (iboxClient *IboxClient) GetSystem() (system *SystemDetails, err error) {
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
+func (client *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
 	const functionName = "GetNtpStatus"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/system/ntp_status")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/system/ntp_status")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -262,15 +262,15 @@ func (iboxClient *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)

@@ -111,8 +111,8 @@ func (m *MockAPIService) ExportFileSystem(export ExportFileSys) (*ExportResponse
 }
 
 // CreateFileSystemSnapshot
-func (m *MockAPIService) CreateFileSystemSnapshot(snapshotParam *FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
-	args := m.Called(snapshotParam)
+func (m *MockAPIService) CreateFileSystemSnapshot(snapshot *FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
+	args := m.Called(snapshot)
 	resp, _ := args.Get(0).(FileSystemSnapshotResponse)
 	err, _ := args.Get(1).(error)
 	return &resp, err

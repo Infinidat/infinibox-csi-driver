@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	SECURITY_METHOD_PUBLISH_CONTEXT = "securityMethod"
+	SecurityMethodPublishContext = "securityMethod"
 )
 
 var zlog = log.Get() // grab the logger for package use
@@ -92,7 +92,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	targetVol, err := iscsi.CS.IboxAPI.GetVolumeByName(name)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (iscsi) volume with name %s not found, proceeding to create", functionName, name)
 		} else {
 			e := fmt.Errorf("%s (iscsi) - GetVolumeByName name %s - error: %s", functionName, name, err.Error())
@@ -218,7 +218,7 @@ func (iscsi *ISCSIstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	err = iscsi.ValidateDeleteVolume(volproto.VolumeID)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			return &csi.DeleteVolumeResponse{}, nil
 		} else {
 			e := fmt.Errorf("%s (iscsi) - ValidateDeleteVolume - error: %s", functionName, err.Error())
@@ -299,9 +299,9 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	for _, lun := range lunList {
 		if lun.VolumeID == volumePrototype.VolumeID {
 			publishVolCtxt := map[string]string{
-				storagecommon.LUN_PUBLISH_CONTEXT:        strconv.Itoa(lun.Lun),
-				storagecommon.HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
-				storagecommon.HOST_PORTS_PUBLISH_CONTEXT: ports,
+				storagecommon.LunPublishContext:       strconv.Itoa(lun.Lun),
+				storagecommon.HostIDPublishContext:    strconv.Itoa(host.ID),
+				storagecommon.HostPortsPublishContext: ports,
 			}
 			zlog.Debug().Msgf("%s (iscsi) vol: %d already mapped to host:%s id:%d as LUN: %d at ports: %s", functionName, volumePrototype.VolumeID, host.Name, host.ID, lun.Lun, ports)
 			return &csi.ControllerPublishVolumeResponse{
@@ -341,10 +341,10 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	}
 
 	publishVolCtxt := map[string]string{
-		storagecommon.LUN_PUBLISH_CONTEXT:        strconv.Itoa(luninfo.Lun),
-		storagecommon.HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
-		storagecommon.HOST_PORTS_PUBLISH_CONTEXT: ports,
-		SECURITY_METHOD_PUBLISH_CONTEXT:          host.SecurityMethod,
+		storagecommon.LunPublishContext:       strconv.Itoa(luninfo.Lun),
+		storagecommon.HostIDPublishContext:    strconv.Itoa(host.ID),
+		storagecommon.HostPortsPublishContext: ports,
+		SecurityMethodPublishContext:          host.SecurityMethod,
 	}
 	zlog.Debug().Msgf("%s (iscsi) mapped volume %d, publish context: %v", functionName, volumePrototype.VolumeID, publishVolCtxt)
 
@@ -412,7 +412,7 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	volumeSnapshot, err := iscsi.CS.IboxAPI.GetVolumeByName(snapshotName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (iscsi) with name %s not found", functionName, snapshotName)
 		} else {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -505,7 +505,7 @@ func (iscsi *ISCSIstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		}
 
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (iscsi) - snapshot with ID %d not found", functionName, snapshotID)
 			return &csi.DeleteSnapshotResponse{}, nil
 		}
@@ -525,7 +525,7 @@ func (iscsi *ISCSIstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	vol, err := iscsi.CS.IboxAPI.GetVolume(volumeID)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			return err
 		}
 		msg := fmt.Sprintf("%s (iscsi) - failed to get volume: %d, err: %s", functionName, volumeID, err.Error())
@@ -546,7 +546,7 @@ func (iscsi *ISCSIstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	}
 	if len(childVolumes) > 0 {
 		metadata := map[string]interface{}{
-			storagecommon.TOBEDELETED: true,
+			storagecommon.ToBeDeleted: true,
 		}
 		_, err = iscsi.CS.IboxAPI.PutMetadata(vol.ID, metadata)
 		if err != nil {
@@ -639,10 +639,10 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(req *csi.CreateVolumeRe
 	const functionName = "createVolumeFromContentSource"
 	volumecontent := req.GetVolumeContentSource()
 	if volumecontent.GetSnapshot() != nil {
-		restoreType = storagecommon.RESTORE_TYPE_SNAPSHOT
+		restoreType = storagecommon.RestoryTypeSnapshot
 		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
 	} else if volumecontent.GetVolume() != nil {
-		restoreType = storagecommon.RESTORE_TYPE_VOLUME
+		restoreType = storagecommon.RestoreTypeVolume
 		volumeContentID = volumecontent.GetVolume().GetVolumeId()
 	}
 

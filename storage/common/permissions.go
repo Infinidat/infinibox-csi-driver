@@ -30,12 +30,12 @@ type StorageHelper interface {
 
 // When you ask "why?": https://github.com/golang/go/issues/25539#issuecomment-394615058
 const (
-	NFS_MOUNT_OPTION_HARD     = "hard"
-	NFS_MOUNT_OPTION_SOFT     = "soft"
-	K8S_MOUNT_PERMS           = "020000775" // setgid bit
-	StandardMountOptions      = "vers=3,tcp,rsize=262144,wsize=262144"
-	NFS_VERSION_REGEX         = `(nfs){0,1}vers=([0-9]*)`
-	NFS_MOUNT_OPTION_READONLY = "ro"
+	NFSMountOptionHard     = "hard"
+	NFSMountOptionsSoft    = "soft"
+	K8SMountPerms          = "020000775" // setgid bit
+	StandardMountOptions   = "vers=3,tcp,rsize=262144,wsize=262144"
+	NFSVersionRegex        = `(nfs){0,1}vers=([0-9]*)`
+	NFSMountOptionReadonly = "ro"
 )
 
 type StorageService struct{}
@@ -63,7 +63,7 @@ func (sh StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (
 	}
 
 	if req.GetReadonly() || req.VolumeCapability.GetAccessMode().GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		mountOptions = append(mountOptions, NFS_MOUNT_OPTION_READONLY)
+		mountOptions = append(mountOptions, NFSMountOptionReadonly)
 	}
 
 	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
@@ -210,7 +210,7 @@ func LogPermissions(note, hostTargetPath string) {
 
 func UpdateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequest) ([]string, error) {
 	// If vers set to anything but 3 or 4 or 4.1, fail.
-	re := regexp.MustCompile(NFS_VERSION_REGEX)
+	re := regexp.MustCompile(NFSVersionRegex)
 	for _, opt := range mountOptions {
 		matches := re.FindStringSubmatch(opt)
 		if len(matches) > 0 {
@@ -240,20 +240,20 @@ func UpdateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 	var softInMountOptions bool
 	for _, opt := range mountOptions {
 		switch opt {
-		case NFS_MOUNT_OPTION_HARD:
+		case NFSMountOptionHard:
 			hardInMountOptions = true
-		case NFS_MOUNT_OPTION_SOFT:
+		case NFSMountOptionsSoft:
 			softInMountOptions = true
 		}
 	}
 	if !hardInMountOptions && !softInMountOptions {
-		mountOptions = append(mountOptions, NFS_MOUNT_OPTION_HARD)
+		mountOptions = append(mountOptions, NFSMountOptionHard)
 	}
 
 	// Support readonly mount option.
 	if req.GetReadonly() {
 		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
-		mountOptions = append(mountOptions, NFS_MOUNT_OPTION_READONLY)
+		mountOptions = append(mountOptions, NFSMountOptionReadonly)
 	}
 
 	// remove duplicates from this list

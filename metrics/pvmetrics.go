@@ -17,16 +17,22 @@ import (
 
 var (
 	MetricPVTotalSizeGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_PV_TOTAL_SIZE,
+		Name: MetricPVTotalSize,
 		Help: "The persistent volume total size",
-	}, []string{METRIC_PV_NAME, METRIC_PV_STORAGE_CLASS, METRIC_PV_PROVISION_TYPE, METRIC_PV_SSD_ENABLED, METRIC_PV_NETWORK_SPACE, METRIC_PV_STORAGE_PROTOCOL})
+	}, []string{
+		MetricPVName,
+		MetricPVStorageClass,
+		MetricPVProvisionType,
+		MetricPVSSDEnabled,
+		MetricPVNetworkSpace,
+		MetricPVStorageProtocol})
 )
 
 func RecordPVMetrics(config *MetricsConfig) {
 	zlog.Trace().Msgf("pv metrics recording...")
 	go func() {
 		for {
-			time.Sleep(config.GetDuration(METRIC_PV_METRICS))
+			time.Sleep(config.GetDuration(PVMetrics))
 
 			pvInfo, err := getPVInfo()
 			if err != nil {
@@ -37,12 +43,12 @@ func RecordPVMetrics(config *MetricsConfig) {
 			zlog.Trace().Msgf("creating metrics for %d PVs", len(*pvInfo))
 			for _, persistentVolume := range *pvInfo {
 				labels := prometheus.Labels{
-					METRIC_PV_NAME:             persistentVolume.PVol.Name,
-					METRIC_PV_STORAGE_CLASS:    persistentVolume.SClass.Name,
-					METRIC_PV_PROVISION_TYPE:   persistentVolume.SClass.Parameters[common.StorageClassProvisionType],
-					METRIC_PV_SSD_ENABLED:      persistentVolume.SClass.Parameters[common.StorageClassSSDEnabled],
-					METRIC_PV_NETWORK_SPACE:    persistentVolume.SClass.Parameters[common.StorageClassNetworkSpace],
-					METRIC_PV_STORAGE_PROTOCOL: persistentVolume.SClass.Parameters[common.StorageClassStorageProtocol],
+					MetricPVName:            persistentVolume.PVol.Name,
+					MetricPVStorageClass:    persistentVolume.SClass.Name,
+					MetricPVProvisionType:   persistentVolume.SClass.Parameters[common.StorageClassProvisionType],
+					MetricPVSSDEnabled:      persistentVolume.SClass.Parameters[common.StorageClassSSDEnabled],
+					MetricPVNetworkSpace:    persistentVolume.SClass.Parameters[common.StorageClassNetworkSpace],
+					MetricPVStorageProtocol: persistentVolume.SClass.Parameters[common.StorageClassStorageProtocol],
 				}
 				MetricPVTotalSizeGauge.With(labels).Set(float64(persistentVolume.PVol.Spec.Capacity.Storage().Value()))
 			}
@@ -77,12 +83,12 @@ func getPVInfo() (*[]PVInfo, error) {
 		zlog.Err(err)
 		return nil, err
 	}
-	for _, persistentVolume := range persistentVolumes.Items {
-		if persistentVolume.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
-			zlog.Trace().Msgf("pv metrics: pv %s sc %s found", persistentVolume.Name, persistentVolume.Spec.StorageClassName)
-			storageClass, err := clientset.StorageV1().StorageClasses().Get(context.Background(), persistentVolume.Spec.StorageClassName, metav1.GetOptions{})
+	for _, pv := range persistentVolumes.Items {
+		if pv.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
+			zlog.Trace().Msgf("pv metrics: pv %s sc %s found", pv.Name, pv.Spec.StorageClassName)
+			storageClass, err := clientset.StorageV1().StorageClasses().Get(context.Background(), pv.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
-				zlog.Error().Msgf("error getting StorageClass %s error %s", persistentVolume.Spec.StorageClassName, err.Error())
+				zlog.Error().Msgf("error getting StorageClass %s error %s", pv.Spec.StorageClassName, err.Error())
 			} else {
 				/**
 				fmt.Printf("sc details name: %s \n", sc.Name)
@@ -93,7 +99,7 @@ func getPVInfo() (*[]PVInfo, error) {
 				fmt.Println("---------------------")
 				*/
 				info := PVInfo{
-					PVol:   persistentVolume,
+					PVol:   pv,
 					SClass: *storageClass,
 				}
 				pvInfo = append(pvInfo, info)

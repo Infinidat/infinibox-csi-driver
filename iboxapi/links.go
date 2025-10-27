@@ -74,15 +74,15 @@ type Link struct {
 	LinkReplicationType            []string `json:"link_replication_type"`
 }
 
-func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
+func (client *IboxClient) GetLinks() (results []Link, err error) {
 	const functionName = "GetLinks"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/links")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/links")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -94,15 +94,15 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 
@@ -125,24 +125,24 @@ func (iboxClient *IboxClient) GetLinks() (results []Link, err error) {
 	return results, nil
 }
 
-func (iboxClient *IboxClient) GetLink(linkID int) (link *Link, err error) {
+func (client *IboxClient) GetLink(linkID int) (link *Link, err error) {
 	const functionName = "GetLink"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/links", linkID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "link ID", linkID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/links", linkID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "link ID", linkID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)

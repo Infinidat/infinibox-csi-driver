@@ -22,25 +22,25 @@ import (
 )
 
 var (
-	MetricPoolAvailableCapGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_POOL_AVAILABLE_CAP,
+	PoolAvailableCap = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricPoolAvailableCap,
 		Help: "The pool available capacity",
-	}, []string{METRIC_POOL_NAME, METRIC_POOL_PROVISION_TYPE, METRIC_POOL_SSD_ENABLED, METRIC_POOL_NETWORK_SPACE, METRIC_POOL_STORAGE_PROTOCOL})
-	MetricPoolUsedCapGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_POOL_USED_CAP,
+	}, []string{MetricPoolName, MetricPoolProvisionType, MetricPoolSSDEnabled, MetricPoolNetworkSpace, MetricPoolStorageProtocol})
+	PoolUsedCap = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricPoolUsedCap,
 		Help: "The pool used capacity",
-	}, []string{METRIC_POOL_NAME, METRIC_POOL_PROVISION_TYPE, METRIC_POOL_SSD_ENABLED, METRIC_POOL_NETWORK_SPACE, METRIC_POOL_STORAGE_PROTOCOL})
-	MetricPoolPctUtilizedGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_POOL_PCT_UTILIZED,
+	}, []string{MetricPoolName, MetricPoolProvisionType, MetricPoolSSDEnabled, MetricPoolNetworkSpace, MetricPoolStorageProtocol})
+	PoolPctUtilized = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricPoolPctUtilized,
 		Help: "The pool percentage of capacity utilized",
-	}, []string{METRIC_POOL_NAME, METRIC_POOL_PROVISION_TYPE, METRIC_POOL_SSD_ENABLED, METRIC_POOL_NETWORK_SPACE, METRIC_POOL_STORAGE_PROTOCOL})
+	}, []string{MetricPoolName, MetricPoolProvisionType, MetricPoolSSDEnabled, MetricPoolNetworkSpace, MetricPoolStorageProtocol})
 )
 
 func RecordPoolMetrics(config *MetricsConfig) {
 	zlog.Debug().Msgf("pool metrics recording...")
 	go func() {
 		for {
-			time.Sleep(config.GetDuration(METRIC_POOL_METRICS))
+			time.Sleep(config.GetDuration(PoolMetrics))
 			for _, ibox := range config.Ibox {
 				zlog.Trace().Msgf("pool metrics: creating collectors for %s...", ibox.IboxHostname)
 				poolInfoList, err := getPoolInfo(ibox)
@@ -51,16 +51,16 @@ func RecordPoolMetrics(config *MetricsConfig) {
 
 				for _, poolInfo := range poolInfoList {
 					labels := prometheus.Labels{
-						METRIC_POOL_NAME:             poolInfo.storageClass.Parameters[common.StorageClassPoolName],
-						METRIC_POOL_PROVISION_TYPE:   poolInfo.storageClass.Parameters[common.StorageClassProvisionType],
-						METRIC_POOL_SSD_ENABLED:      poolInfo.storageClass.Parameters[common.StorageClassSSDEnabled],
-						METRIC_POOL_NETWORK_SPACE:    poolInfo.storageClass.Parameters[common.StorageClassNetworkSpace],
-						METRIC_POOL_STORAGE_PROTOCOL: poolInfo.storageClass.Parameters[common.StorageClassStorageProtocol],
+						MetricPoolName:            poolInfo.storageClass.Parameters[common.StorageClassPoolName],
+						MetricPoolProvisionType:   poolInfo.storageClass.Parameters[common.StorageClassProvisionType],
+						MetricPoolSSDEnabled:      poolInfo.storageClass.Parameters[common.StorageClassSSDEnabled],
+						MetricPoolNetworkSpace:    poolInfo.storageClass.Parameters[common.StorageClassNetworkSpace],
+						MetricPoolStorageProtocol: poolInfo.storageClass.Parameters[common.StorageClassStorageProtocol],
 					}
-					MetricPoolAvailableCapGauge.With(labels).Set(float64(poolInfo.pool.PhysicalCapacity))  // pool - physical_capacity
-					MetricPoolUsedCapGauge.With(labels).Set(float64(poolInfo.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
+					PoolAvailableCap.With(labels).Set(float64(poolInfo.pool.PhysicalCapacity))  // pool - physical_capacity
+					PoolUsedCap.With(labels).Set(float64(poolInfo.pool.AllocatedPhysicalSpace)) // pool -  allocated_physical_space
 					pct := (poolInfo.pool.AllocatedPhysicalSpace / poolInfo.pool.PhysicalCapacity) * 100.00
-					MetricPoolPctUtilizedGauge.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
+					PoolPctUtilized.With(labels).Set(float64(pct)) // pool - (allocated_physical_space / physical_capacity) * 100.00
 				}
 			}
 		}

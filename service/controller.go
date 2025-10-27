@@ -506,12 +506,12 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	if volproto.StorageType != common.ProtocolNFS && volproto.StorageType != common.ProtocolTreeq {
 		if volproto.StorageType == common.ProtocolNVME {
-			hostName += nvme.NVME_HOST_SUFFIX
+			hostName += nvme.NVMEHostSuffix
 		}
 		volproto.Host, err = commonService.IboxAPI.GetHostByName(hostName)
 		if err != nil {
 			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+			if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
 			e := fmt.Errorf("%s - GetHostByName - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())

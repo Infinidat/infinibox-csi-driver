@@ -30,14 +30,14 @@ const (
 var ERROR_CODE_HOST_NOT_FOUND = "HOST_NOT_FOUND"
 
 const (
-	IBOXAPI_RESOURCE_NOT_FOUND_ERROR = 1
-	PARAMETER_APPROVED               = "approved"
-	PARAMETER_VALUE_TRUE             = "true"
-	PARAMETER_VALUE_FALSE            = "false"
-	CONTENT_TYPE                     = "Content-Type"
-	JSON_CONTENT_TYPE                = "application/json; charset=UTF-8"
-	PARAMETER_PAGE_SIZE              = "page_size"
-	PARAMETER_PAGE                   = "page"
+	RESOURCE_NOT_FOUND    = 1
+	PARAMETER_APPROVED    = "approved"
+	PARAMETER_VALUE_TRUE  = "true"
+	PARAMETER_VALUE_FALSE = "false"
+	CONTENT_TYPE          = "Content-Type"
+	JSON_CONTENT_TYPE     = "application/json; charset=UTF-8"
+	PARAMETER_PAGE_SIZE   = "page_size"
+	PARAMETER_PAGE        = "page"
 )
 
 type APIError struct {

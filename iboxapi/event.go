@@ -49,11 +49,11 @@ type CreateEventResult struct {
 	ID                  int    `json:"id"`
 }
 
-func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
+func (client *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
 	const functionName = "CreateEvent"
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/events")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "event", eventRequest)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/events")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "event", eventRequest)
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
@@ -63,16 +63,16 @@ func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error)
 	if err != nil {
 		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
-	SetAuthHeader(request, iboxClient.Creds)
+	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HTTPClient.Do(request)
+	response, err := client.HTTPClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -86,9 +86,9 @@ func (iboxClient *IboxClient) CreateEvent(eventRequest EventRequest) (err error)
 	if err != nil {
 		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
-	iboxClient.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
+	client.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
 	return nil
 }

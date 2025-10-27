@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const DEFAULT_HOST_MOUNT_POINT = "/host/"
+const DefaultHostMountPoint = "/host/"
 
 func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	zlog.Debug().Msgf("NodePublishVolume (treeq) - started %s", storagecommon.GetHostInfo(req.GetSecrets(), treeq.NFSstorage.CS.IboxAPI))
@@ -35,7 +35,7 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
 	if containerHostMountPoint == "" {
-		containerHostMountPoint = DEFAULT_HOST_MOUNT_POINT
+		containerHostMountPoint = DefaultHostMountPoint
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 

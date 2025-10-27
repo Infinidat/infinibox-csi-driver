@@ -40,10 +40,10 @@ type GetFCPortsResponse struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
+func (client *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 	const functionName = "GetFCPorts"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/components/nodes")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/components/nodes")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -54,15 +54,15 @@ func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 	values.Add("fields", "fc_ports")
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nodes, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -76,7 +76,7 @@ func (iboxClient *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
 		return nodes, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nodes, fmt.Errorf("%s - ibox API - error code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nodes, fmt.Errorf("%s - ibox API - error %v", functionName, responseObject.Error)
 	}
 
 	return responseObject.Result, nil

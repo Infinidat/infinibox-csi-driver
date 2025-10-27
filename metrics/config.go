@@ -21,78 +21,78 @@ var (
 var zlog = log.Get() // grab the logger for package use
 
 const (
-	DEFAULT_INTERVAL = "30s"
+	DefaultInterval = "30s"
 
 	// pool metrics
-	METRIC_POOL_METRICS = "pool_metrics"
+	PoolMetrics = "pool_metrics"
 
-	METRIC_POOL_AVAILABLE_CAP = "ibox_pool_available_cap"
-	METRIC_POOL_USED_CAP      = "ibox_pool_used_cap"
-	METRIC_POOL_PCT_UTILIZED  = "ibox_pool_pct_utilized"
+	MetricPoolAvailableCap = "ibox_pool_available_cap"
+	MetricPoolUsedCap      = "ibox_pool_used_cap"
+	MetricPoolPctUtilized  = "ibox_pool_pct_utilized"
 
 	// pool metric general information
-	METRIC_POOL_NAME             = "pool_name"
-	METRIC_POOL_PROVISION_TYPE   = "pool_provision_type"
-	METRIC_POOL_SSD_ENABLED      = "pool_ssd_enabled"
-	METRIC_POOL_NETWORK_SPACE    = "pool_network_space"
-	METRIC_POOL_STORAGE_PROTOCOL = "pool_storage_protocol"
+	MetricPoolName            = "pool_name"
+	MetricPoolProvisionType   = "pool_provision_type"
+	MetricPoolSSDEnabled      = "pool_ssd_enabled"
+	MetricPoolNetworkSpace    = "pool_network_space"
+	MetricPoolStorageProtocol = "pool_storage_protocol"
 
 	// pv metrics
-	METRIC_PV_METRICS = "pv_metrics"
+	PVMetrics = "pv_metrics"
 
-	METRIC_PV_TOTAL_SIZE = "ibox_pv_total_size"
+	MetricPVTotalSize = "ibox_pv_total_size"
 
 	// pv metric general information
-	METRIC_PV_NAME             = "pv_name"
-	METRIC_PV_STORAGE_CLASS    = "pv_storage_class"
-	METRIC_PV_PROVISION_TYPE   = "pv_provision_type"
-	METRIC_PV_SSD_ENABLED      = "pv_ssd_enabled"
-	METRIC_PV_NETWORK_SPACE    = "pv_network_space"
-	METRIC_PV_STORAGE_PROTOCOL = "pv_storage_protocol"
+	MetricPVName            = "pv_name"
+	MetricPVStorageClass    = "pv_storage_class"
+	MetricPVProvisionType   = "pv_provision_type"
+	MetricPVSSDEnabled      = "pv_ssd_enabled"
+	MetricPVNetworkSpace    = "pv_network_space"
+	MetricPVStorageProtocol = "pv_storage_protocol"
 
 	// ibox performance metrics
-	METRIC_IBOX_PROTOCOL            = "ibox_protocol"
-	METRIC_IBOX_PERFORMANCE_METRICS = "ibox_performance_metrics"
+	MetricIboxProtocol    = "ibox_protocol"
+	MetricIboxPerfMetrics = "ibox_performance_metrics"
 
-	METRIC_IBOX_PERFORMANCE_IOPS       = "ibox_perf_iops"
-	METRIC_IBOX_PERFORMANCE_THROUGHPUT = "ibox_perf_throughput"
-	METRIC_IBOX_PERFORMANCE_LATENCY    = "ibox_perf_latency"
+	MetricIboxPerfIOPS       = "ibox_perf_iops"
+	MetricIboxPerfThroughput = "ibox_perf_throughput"
+	MetricIboxPerfLatency    = "ibox_perf_latency"
 
 	// ibox system metrics
-	METRIC_IBOX_NODE_NAME      = "node"
-	METRIC_IBOX_SYSTEM_METRICS = "ibox_system_metrics"
+	MetricIboxNodeName      = "node"
+	MetricIboxSystemMetrics = "ibox_system_metrics"
 
-	METRIC_IBOX_ERROR_RATES                         = "ibox_error_rates" // TODO
-	METRIC_IBOX_ACTIVE_CACHE_SSD_DEVICES            = "ibox_active_cache_ssd_devices"
-	METRIC_IBOX_ACTIVE_DRIVES                       = "ibox_active_drives"
-	METRIC_IBOX_ACTIVE_ENCRYPTED_CACHE_SSD_DEVICES  = "ibox_active_encrypted_cache_ssd_devices"
-	METRIC_IBOX_ACTIVE_ENCRYPTED_DRIVES             = "ibox_active_encrypted_drives"
-	METRIC_IBOX_BBU_AGGREGATE_CHARGE_PCT            = "ibox_bbu_aggregate_charge_percent"
-	METRIC_IBOX_BBU_CHARGE_LEVEL                    = "ibox_bbu_charge_level"
-	METRIC_IBOX_BBU_PROTECTED_NODES                 = "ibox_bbu_protected_nodes"
-	METRIC_IBOX_ENCLOSURE_FAILURE_SAFE_DISTRIBUTION = "ibox_enclosure_failure_safe_distribution"
-	METRIC_IBOX_ENCRYPTION_ENABLED                  = "ibox_encryption_enabled"
-	METRIC_IBOX_FAILED_DRIVES                       = "ibox_failed_drives"
-	METRIC_IBOX_INACTIVE_NODES                      = "ibox_inactive_nodes"
-	METRIC_IBOX_MISSING_DRIVES                      = "ibox_missing_drives"
-	METRIC_IBOX_NODE_BBU_PROTECTION                 = "ibox_node_bbu_protection"
-	METRIC_IBOX_PHASING_OUT_DRIVES                  = "ibox_phasing_out_drives"
-	METRIC_IBOX_RAID_GROUPS_PENDING_REBUILD_1       = "ibox_raid_groups_pending_rebuild_1"
-	METRIC_IBOX_RAID_GROUPS_PENDING_REBUILD_2       = "ibox_raid_groups_pending_rebuild_2"
-	METRIC_IBOX_READY_DRIVES                        = "ibox_ready_drives"
-	METRIC_IBOX_REBUILD_1_INPROGRESS                = "ibox_rebuild_1_inprogress"
-	METRIC_IBOX_REBUILD_2_INPROGRESS                = "ibox_rebuild_2_inprogress"
-	METRIC_IBOX_TESTING_DRIVES                      = "ibox_testing_drives"
-	METRIC_IBOX_UNKNOWN_DRIVES                      = "ibox_unknown_drives"
+	MetricIboxErrorRates                       = "ibox_error_rates" // TODO
+	MetricIboxActiveCacheSSDDevices            = "ibox_active_cache_ssd_devices"
+	MetricIboxActiveDrives                     = "ibox_active_drives"
+	MetricIboxActiveEncryptedCacheSSDDevices   = "ibox_active_encrypted_cache_ssd_devices"
+	MetricIboxActiveEncryptedDrives            = "ibox_active_encrypted_drives"
+	MetricIboxBBUAggregateChargePct            = "ibox_bbu_aggregate_charge_percent"
+	MetricIboxBBUChargeLevel                   = "ibox_bbu_charge_level"
+	MetricIboxBBUProtectedNodes                = "ibox_bbu_protected_nodes"
+	MetricIboxEnclosureFailureSafeDistribution = "ibox_enclosure_failure_safe_distribution"
+	MetricIboxEncryptionEnabled                = "ibox_encryption_enabled"
+	MetricIboxFailedDrives                     = "ibox_failed_drives"
+	MetricIboxInactiveNodes                    = "ibox_inactive_nodes"
+	MetricIboxMissingDrives                    = "ibox_missing_drives"
+	MetricIboxNodeBBUProtection                = "ibox_node_bbu_protection"
+	MetricIboxPhasingOutDrives                 = "ibox_phasing_out_drives"
+	MetricIboxRAIDGroupsPendingRebuild1        = "ibox_raid_groups_pending_rebuild_1"
+	MetricIboxRAIDGroupsPendingRebuild2        = "ibox_raid_groups_pending_rebuild_2"
+	MetricIboxReadyDrives                      = "ibox_ready_drives"
+	MetricIboxRebuild1InProgress               = "ibox_rebuild_1_inprogress"
+	MetricIboxRebuild2InProgress               = "ibox_rebuild_2_inprogress"
+	MetricIboxTestingDrives                    = "ibox_testing_drives"
+	MetricIboxUnknownDrives                    = "ibox_unknown_drives"
 
 	// ibox metric general information
-	METRIC_IBOX_NAME                      = "ibox_name"
-	METRIC_IBOX_IP                        = "ibox_ip_address"
-	METRIC_IBOX_HOSTNAME                  = "ibox_ip_hostname"
-	METRIC_IBOX_BBU_CHARGE_LEVEL_NAME     = "ibox_bbu_charge_level_name"
-	METRIC_IBOX_BBU_CHARGE_LEVEL_VALUE    = "ibox_bbu_charge_level_value"
-	METRIC_IBOX_NODE_BBU_PROTECTION_NAME  = "ibox_node_bbu_bbu_protection_name"
-	METRIC_IBOX_NODE_BBU_PROTECTION_VALUE = "ibox_node_bbu_protection_value"
+	MetricIboxName                   = "ibox_name"
+	MetricIboxIP                     = "ibox_ip_address"
+	MetricIboxHostname               = "ibox_ip_hostname"
+	MetricIboxBBUChargeLevelName     = "ibox_bbu_charge_level_name"
+	MetricIboxBBUChargeLevelValue    = "ibox_bbu_charge_level_value"
+	MetricIboxNodeBBUProtectionName  = "ibox_node_bbu_bbu_protection_name"
+	MetricIboxNodeBBUProtectionValue = "ibox_node_bbu_protection_value"
 )
 
 type IboxCredentials struct {
@@ -168,14 +168,14 @@ func (c *MetricsConfig) GetDuration(name string) time.Duration {
 		if metrics[i].Name == name {
 			t, e := time.ParseDuration(metrics[i].Duration)
 			if e != nil {
-				zlog.Error().Msgf("error:  duration found for metrics config %s did not parse, using default %s, %s", name, DEFAULT_INTERVAL, e.Error())
-				t, _ = time.ParseDuration(DEFAULT_INTERVAL)
+				zlog.Error().Msgf("parse error:  duration found for metrics config %s, using default %s, %s", name, DefaultInterval, e.Error())
+				t, _ = time.ParseDuration(DefaultInterval)
 			}
 			return t
 		}
 	}
-	zlog.Info().Msgf("warning:  no value found for metrics config %s, using default %s", name, DEFAULT_INTERVAL)
-	t, _ := time.ParseDuration(DEFAULT_INTERVAL)
+	zlog.Info().Msgf("warning:  no value found for metrics config %s, using default %s", name, DefaultInterval)
+	t, _ := time.ParseDuration(DefaultInterval)
 	return t
 }
 
@@ -190,7 +190,7 @@ func (c *MetricsConfig) Validate() bool {
 		}
 
 		switch metric.Name {
-		case METRIC_POOL_METRICS, METRIC_PV_METRICS, METRIC_IBOX_PERFORMANCE_METRICS, METRIC_IBOX_SYSTEM_METRICS:
+		case PoolMetrics, PVMetrics, MetricIboxPerfMetrics, MetricIboxSystemMetrics:
 		default:
 			errorFound = true
 			zlog.Error().Msgf("error:  metric name %s invalid", metric.Name)

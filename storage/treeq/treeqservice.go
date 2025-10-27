@@ -33,15 +33,15 @@ import (
 
 const (
 	// Treeq count
-	TREEQCOUNT = "host.k8s.treeqs"
+	TreeqCount = "host.k8s.treeqs"
 )
 
 // Operation declare for treeq count operation
-type ACTION int
+type Action int
 
 const (
 	// Increment operation
-	IncrementTreeqCount ACTION = 1 + iota
+	IncrementTreeqCount Action = 1 + iota
 	// decrement operation
 	DecrementTreeqCount
 	NONE
@@ -154,7 +154,7 @@ func (ts *Service) CreateTreeqVolume(storageClassParameters map[string]string, c
 	filesys, err = ts.getExpectedFileSystemID(maxFileSystemSize)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("CreateTreeqVolume - getExpectedFilesystemID file system not found")
 		} else {
 			zlog.Error().Msgf("CreateTreeqVolume - error in getExpectedFileSystemID  %v", err)
@@ -330,7 +330,7 @@ func (ts *Service) DeleteTreeqVolume(filesystemID, treeqID int) (err error) {
 }
 
 // UpdateTreeqCnt method
-func (ts *Service) UpdateTreeqCnt(fileSystemID int, action ACTION, treeqCnt int) (treeqCount int, err error) {
+func (ts *Service) UpdateTreeqCnt(fileSystemID int, action Action, treeqCnt int) (treeqCount int, err error) {
 	if treeqCnt == 0 {
 		treeqs, err := ts.CS.IboxAPI.GetTreeqsByFileSystem(fileSystemID)
 		if err != nil {
@@ -347,7 +347,7 @@ func (ts *Service) UpdateTreeqCnt(fileSystemID int, action ACTION, treeqCnt int)
 		treeqCnt--
 	}
 	metadata := map[string]interface{}{
-		TREEQCOUNT: treeqCnt,
+		TreeqCount: treeqCnt,
 	}
 	_, err = ts.CS.IboxAPI.PutMetadata(fileSystemID, metadata)
 	if err != nil {
@@ -484,7 +484,7 @@ func (ts *Service) getExpectedFileSystemID(maxFileSystemSize int64) (filesys *ib
 	}
 	if fileSystemMetaData != nil && len(fileSystemMetaData) == 0 {
 		zlog.Debug().Msgf("NO filesystem found.filesystem array is empty")
-		return nil, &iboxapi.APIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("no filesystem found, array is empty")}
+		return nil, &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("no filesystem found, array is empty")}
 	}
 
 	for _, fileSystem := range fileSystemMetaData {
@@ -509,7 +509,7 @@ func (ts *Service) getExpectedFileSystemID(maxFileSystemSize int64) (filesys *ib
 	}
 	e := fmt.Errorf("NO filesystem found to create treeQ")
 	zlog.Debug().Msg(e.Error())
-	return nil, &iboxapi.APIError{Code: iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: e}
+	return nil, &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: e}
 }
 func (ts *Service) checkTreeqName(fileSystems []iboxapi.FileSystem, persistentVolumeName string) (treeqData *iboxapi.Treeq) {
 	type treeqInfo struct {

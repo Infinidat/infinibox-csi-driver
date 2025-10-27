@@ -61,7 +61,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 	newCG, err = client.IboxAPI.GetConsistencyGroupByName(cgName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			var poolID int
 			var allVolumeIDs []int
 
@@ -124,7 +124,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 	_, err = client.IboxAPI.GetConsistencyGroupByName(vgsName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 		} else {
 			zlog.Error().Msgf("%s - error getting SG CG by name %s", functionName, err.Error())
 			return nil, status.Errorf(codes.Internal, "error getting sg cg %v", err)

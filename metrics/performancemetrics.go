@@ -15,32 +15,32 @@ import (
 )
 
 const (
-	FIELD_OPS         = "ops"
-	FIELD_LATENCY_NAS = "latency"
-	FIELD_LATENCY_SAN = "external_latency_wout_err"
-	FIELD_THROUGHPUT  = "throughput"
+	FieldOps        = "ops"
+	FieldLatencyNAS = "latency"
+	FieldLatencySAN = "external_latency_wout_err"
+	FieldThroughput = "throughput"
 )
 
 var (
-	MetricPerfIOPSGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_PERFORMANCE_IOPS,
+	PerfIOPS = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxPerfIOPS,
 		Help: "The ibox IOPs",
-	}, []string{METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
-	MetricPerfThroughputGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_PERFORMANCE_THROUGHPUT,
+	}, []string{MetricIboxIP, MetricIboxHostname, MetricIboxProtocol})
+	PerfThroughput = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxPerfThroughput,
 		Help: "The ibox throughput",
-	}, []string{METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
-	MetricPerfLatencyGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
-		Name: METRIC_IBOX_PERFORMANCE_LATENCY,
+	}, []string{MetricIboxIP, MetricIboxHostname, MetricIboxProtocol})
+	PerfLatency = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: MetricIboxPerfLatency,
 		Help: "The ibox latency",
-	}, []string{METRIC_IBOX_IP, METRIC_IBOX_HOSTNAME, METRIC_IBOX_PROTOCOL})
+	}, []string{MetricIboxIP, MetricIboxHostname, MetricIboxProtocol})
 )
 
 func RecordPerformanceMetrics(config *MetricsConfig) {
 	zlog.Trace().Msgf("performance metrics recording...")
 	go func() {
 		for {
-			time.Sleep(config.GetDuration(METRIC_IBOX_PERFORMANCE_METRICS))
+			time.Sleep(config.GetDuration(MetricIboxPerfMetrics))
 
 			for i := range config.Ibox {
 				ibox := config.Ibox[i]
@@ -54,22 +54,22 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 				time.Sleep(time.Second * 5) // this is necessary to give the ibox time to fire up the collectors
 
 				zlog.Trace().Msgf("performance metrics: get NAS collector data nasID %d sanID %d", nasID, sanID)
-				nasResponse, err := getCollectorData(nasID, ibox)
+				response, err := getCollectorData(nasID, ibox)
 				if err != nil {
 					zlog.Err(err)
 					continue
 				}
-				zlog.Trace().Msgf("performance metrics: nas data %+v\n", nasResponse)
-				opsAverage, throughputAverage, latencyAverage := getCounterAverages(nasResponse.Result.Collectors[0].Fields, nasResponse.Result.Collectors[0].Data)
+				zlog.Trace().Msgf("performance metrics: nas data %+v\n", response)
+				opsAverage, throughputAverage, latencyAverage := getCounterAverages(response.Result.Collectors[0].Fields, response.Result.Collectors[0].Data)
 				zlog.Trace().Msgf("performance metrics: nas metric averages ops %d throughput %d latency %d\n", opsAverage, throughputAverage, latencyAverage)
 				labels := prometheus.Labels{
-					METRIC_IBOX_IP:       ibox.IboxIPAddress,
-					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
-					METRIC_IBOX_PROTOCOL: "NAS"}
+					MetricIboxIP:       ibox.IboxIPAddress,
+					MetricIboxHostname: ibox.IboxHostname,
+					MetricIboxProtocol: "NAS"}
 
-				MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
-				MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
-				MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
+				PerfIOPS.With(labels).Set(float64(opsAverage))
+				PerfThroughput.With(labels).Set(float64(throughputAverage))
+				PerfLatency.With(labels).Set(float64(latencyAverage))
 
 				sanResponse, err := getCollectorData(sanID, ibox)
 				if err != nil {
@@ -94,13 +94,13 @@ func RecordPerformanceMetrics(config *MetricsConfig) {
 				zlog.Trace().Msgf("performance metrics: deleted SAN collector %d\n", sanID)
 
 				labels = prometheus.Labels{
-					METRIC_IBOX_IP:       ibox.IboxIPAddress,
-					METRIC_IBOX_HOSTNAME: ibox.IboxHostname,
-					METRIC_IBOX_PROTOCOL: "SAN"}
+					MetricIboxIP:       ibox.IboxIPAddress,
+					MetricIboxHostname: ibox.IboxHostname,
+					MetricIboxProtocol: "SAN"}
 
-				MetricPerfIOPSGauge.With(labels).Set(float64(opsAverage))
-				MetricPerfThroughputGauge.With(labels).Set(float64(throughputAverage))
-				MetricPerfLatencyGauge.With(labels).Set(float64(latencyAverage))
+				PerfIOPS.With(labels).Set(float64(opsAverage))
+				PerfThroughput.With(labels).Set(float64(throughputAverage))
+				PerfLatency.With(labels).Set(float64(latencyAverage))
 			}
 		}
 	}()
@@ -154,7 +154,9 @@ func getCollectorData(collectorID int64, ibox IboxCredentials) (*CollectorRespon
 
 	// TODO proper check of error code/message goes here
 
-	// curl -u "csitesting:csitestingisfun" https://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors/data?collector_id=35184372295290 --insecure
+	// curl -u "csitesting:csitestingisfun"
+	// https://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors/data?collector_id=35184372295290
+	// --insecure
 	return response, nil
 }
 
@@ -206,7 +208,7 @@ func createCollectors(ibox IboxCredentials) (nasCollectorID int64, sanCollectorI
 		ProtocolType: "SAN",
 	}
 	params := RequestJSON{
-		CollectedFields: []string{FIELD_OPS, FIELD_THROUGHPUT, FIELD_LATENCY_SAN},
+		CollectedFields: []string{FieldOps, FieldThroughput, FieldLatencySAN},
 		Type:            "COUNTER",
 		Filters:         filters,
 	}
@@ -261,7 +263,7 @@ func createCollectors(ibox IboxCredentials) (nasCollectorID int64, sanCollectorI
 		ProtocolType: "NAS",
 	}
 	params = RequestJSON{
-		CollectedFields: []string{FIELD_OPS, FIELD_THROUGHPUT, FIELD_LATENCY_NAS},
+		CollectedFields: []string{FieldOps, FieldThroughput, FieldLatencyNAS},
 		Type:            "COUNTER",
 		Filters:         filters,
 	}
@@ -413,11 +415,11 @@ func getCounterAverages(fields []string, data [][]int) (opsAverage int, throughp
 	var opsIndex, opsTotal, latencyIndex, latencyTotal, throughputIndex, throughputTotal int
 	for index := range fields {
 		switch fields[index] {
-		case FIELD_OPS:
+		case FieldOps:
 			opsIndex = index
-		case FIELD_LATENCY_NAS, FIELD_LATENCY_SAN:
+		case FieldLatencyNAS, FieldLatencySAN:
 			latencyIndex = index
-		case FIELD_THROUGHPUT:
+		case FieldThroughput:
 			throughputIndex = index
 		}
 	}

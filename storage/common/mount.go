@@ -279,13 +279,15 @@ func UnmountAndCleanUp(targetPath string) (err error) {
 func isMountedByListMethod(targetHostPath string) (bool, error) {
 	// Use List() to search for mount matching targetHostPath
 	// Each mount in the list has this example form:
-	// {/dev/mapper/mpathn /host/var/lib/kubelet/pods/d2f8fcf0-f816-4008-b8fe-5d5f16c854d0/volumes/kubernetes.io~csi/csi-f581f6711d/mount xfs [rw seclabel relatime nouuid attr2 inode64 logbufs=8 logbsize=64k sunit=128 swidth=2048 noquota] 0 0}
+	// {/dev/mapper/mpathn /host/var/lib/kubelet/pods/d2f8fcf0-f816-4008-b8fe-5d5f16c854d0/
+	// volumes/kubernetes.io~csi/csi-f581f6711d/mount xfs [rw seclabel relatime
+	// nouuid attr2 inode64 logbufs=8 logbsize=64k sunit=128 swidth=2048 noquota] 0 0}
 	//
 	// type MountPoint struct {
 	//    Device string
 	//    Path   string
 	//    Type   string
-	//    Opts   []string // Opts may contain sensitive mount options (like passwords) and MUST be treated as such (e|        .g. not logged).
+	//    Opts   []string // Opts may contain sensitive mount options (like passwords)
 	//    Freq   int
 	//    Pass   int
 	// }
@@ -321,7 +323,7 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 		return err
 	}
 	if !isMountEmpty {
-		err := fmt.Errorf("error: mount/ directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
+		err := fmt.Errorf("error: mount directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
 		zlog.Error().Msg(err.Error())
 		return err
 	}

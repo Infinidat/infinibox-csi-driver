@@ -246,15 +246,15 @@ type GetReplicasResponse struct {
 	Error    Error     `json:"error"`
 }
 
-func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
+func (client *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
 	const functionName = "CreateReplica"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/replicas")
-	iboxClient.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "request", req)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/replicas")
+	client.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "request", req)
 
 	if req.IsPreferred == nil {
-		iboxClient.Log.V(DEBUG_LEVEL).Info(functionName, "is_preferred", "says its nil")
+		client.Log.V(DEBUG_LEVEL).Info(functionName, "is_preferred", "says its nil")
 	}
-	iboxClient.Log.V(DEBUG_LEVEL).Info(functionName, "is_preferred", req.IsPreferred)
+	client.Log.V(DEBUG_LEVEL).Info(functionName, "is_preferred", req.IsPreferred)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
@@ -269,16 +269,16 @@ func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica,
 	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
 	request.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(request, iboxClient.Creds)
+	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HTTPClient.Do(request)
+	response, err := client.HTTPClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -290,21 +290,21 @@ func (iboxClient *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica,
 		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "Export ID", responseObject.Result.ID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "Export ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
+func (client *IboxClient) GetReplicas() (results []Replica, err error) {
 	const functionName = "GetReplicas"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/replicas")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/replicas")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -316,15 +316,15 @@ func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
@@ -346,10 +346,10 @@ func (iboxClient *IboxClient) GetReplicas() (results []Replica, err error) {
 	return results, nil
 }
 
-func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
+func (client *IboxClient) DeleteReplica(replicaID int) (err error) {
 	const functionName = "DeleteReplica"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/replicas", replicaID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "replica ID", replicaID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/replicas", replicaID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "replica ID", replicaID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
@@ -360,71 +360,73 @@ func (iboxClient *IboxClient) DeleteReplica(replicaID int) (err error) {
 	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("%s - ReadAll -error %w", functionName, err)
 	}
-	var responseObject DeleteReplicaResponse
-	err = json.Unmarshal(bodyBytes, &responseObject)
+	var response DeleteReplicaResponse
+	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
 		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
-	if responseObject.Error.Code != "" {
-		if responseObject.Error.Code == "REPLICA_NOT_FOUND" {
-			return &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - replica ID '%d' not found", functionName, replicaID)}
+	if response.Error.Code != "" {
+		if response.Error.Code == "REPLICA_NOT_FOUND" {
+			return &APIError{
+				Code: RESOURCE_NOT_FOUND,
+				Err:  fmt.Errorf("%s - replica ID %d not found", functionName, replicaID)}
 		}
 
-		return fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return fmt.Errorf("%s - ibox API - error: %v", functionName, response.Error)
 	}
 	return nil
 }
 
-func (iboxClient *IboxClient) GetReplica(replicaID int) (*Replica, error) {
+func (client *IboxClient) GetReplica(replicaID int) (*Replica, error) {
 	const functionName = "GetReplica"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/replicas", replicaID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "replica ID", replicaID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/replicas", replicaID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "replica ID", replicaID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 	}
-	var responseObject GetReplicaResponse
-	err = json.Unmarshal(bodyBytes, &responseObject)
+	var response GetReplicaResponse
+	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 
-	if responseObject.Error.Code != "" {
-		if responseObject.Error.Code == "REPLICA_NOT_FOUND" {
-			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - export ID '%d' not found", functionName, replicaID)}
+	if response.Error.Code != "" {
+		if response.Error.Code == "REPLICA_NOT_FOUND" {
+			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("%s - export ID %d not found", functionName, replicaID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, response.Error)
 	}
-	return &responseObject.Result, nil
+	return &response.Result, nil
 }

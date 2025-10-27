@@ -44,10 +44,10 @@ type GetMetadataResult struct {
 	ObjectID   int    `json:"object_id"`
 }
 
-func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]interface{}) (r *PutMetadataResponse, err error) {
+func (client *IboxClient) PutMetadata(objectID int, metadata map[string]any) (r *PutMetadataResponse, err error) {
 	const functionName = "PutMetadata"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata/", objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID, "map", metadata)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata/", objectID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID, "map", metadata)
 
 	jsonBytes, err := json.Marshal(metadata)
 	if err != nil {
@@ -58,17 +58,17 @@ func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]inte
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
-	SetAuthHeader(request, iboxClient.Creds)
+	SetAuthHeader(request, client.Creds)
 
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HTTPClient.Do(request)
+	response, err := client.HTTPClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -88,15 +88,15 @@ func (iboxClient *IboxClient) PutMetadata(objectID int, metadata map[string]inte
 	return &responseObject, nil
 }
 
-func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult, err error) {
+func (client *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult, err error) {
 	const functionName = "GetMetadata"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata", objectID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata", objectID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -108,15 +108,15 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
@@ -128,7 +128,7 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 		if err != nil {
 			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "resp", responseObject)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "resp", responseObject)
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {
@@ -139,10 +139,10 @@ func (iboxClient *IboxClient) GetMetadata(objectID int) (results []GetMetadataRe
 	return results, nil
 }
 
-func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
+func (client *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
 	const functionName = "DeleteMetadata"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/metadata", objectID)
-	iboxClient.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata", objectID)
+	client.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
@@ -153,15 +153,15 @@ func (iboxClient *IboxClient) DeleteMetadata(objectID int) (response *DeleteMeta
 	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)

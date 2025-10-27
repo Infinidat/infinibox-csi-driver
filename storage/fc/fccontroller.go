@@ -88,7 +88,7 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	targetVol, err := fc.CS.IboxAPI.GetVolumeByName(name)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (fc) - volume with name %s not found, proceeding to create", functionName, name)
 		} else {
 			e := fmt.Errorf("%s (fc) - GetVolumeByName %s - error: %s", functionName, name, err.Error())
@@ -286,9 +286,9 @@ func (fc *FCstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	for _, lun := range lunList {
 		if lun.VolumeID == volproto.VolumeID {
 			volCtx := map[string]string{
-				storagecommon.LUN_PUBLISH_CONTEXT:        strconv.Itoa(lun.Lun),
-				storagecommon.HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
-				storagecommon.HOST_PORTS_PUBLISH_CONTEXT: ports,
+				storagecommon.LunPublishContext:       strconv.Itoa(lun.Lun),
+				storagecommon.HostIDPublishContext:    strconv.Itoa(host.ID),
+				storagecommon.HostPortsPublishContext: ports,
 			}
 			zlog.Debug().Msgf("%s (fc) - volume Name: %s volumeID: %d already mapped to host: %s", functionName, volume.Name, lun.VolumeID, host.Name)
 			return &csi.ControllerPublishVolumeResponse{
@@ -329,9 +329,9 @@ func (fc *FCstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	}
 
 	volCtx := map[string]string{
-		storagecommon.LUN_PUBLISH_CONTEXT:        strconv.Itoa(luninfo.Lun),
-		storagecommon.HOST_ID_PUBLISH_CONTEXT:    strconv.Itoa(host.ID),
-		storagecommon.HOST_PORTS_PUBLISH_CONTEXT: ports,
+		storagecommon.LunPublishContext:       strconv.Itoa(luninfo.Lun),
+		storagecommon.HostIDPublishContext:    strconv.Itoa(host.ID),
+		storagecommon.HostPortsPublishContext: ports,
 	}
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: volCtx,
@@ -393,7 +393,7 @@ func (fc *FCstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 	volumeSnapshot, err := fc.CS.IboxAPI.GetVolumeByName(snapshotName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (fc) - snapshot with given name not found : %s", functionName, snapshotName)
 		} else {
 			e := fmt.Sprintf("%s (fc) - GetVolumeByName - name: %s error: %s", functionName, snapshotName, err.Error())
@@ -487,7 +487,7 @@ func (fc *FCstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	vol, err := fc.CS.IboxAPI.GetVolume(volumeID)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (fc) - volume ID: %d is already deleted", functionName, volumeID)
 			return nil
 		}
@@ -508,7 +508,7 @@ func (fc *FCstorage) ValidateDeleteVolume(volumeID int) (err error) {
 	}
 	if len(childVolumes) > 0 {
 		metadata := map[string]interface{}{
-			storagecommon.TOBEDELETED: true,
+			storagecommon.ToBeDeleted: true,
 		}
 		_, err = fc.CS.IboxAPI.PutMetadata(vol.ID, metadata)
 		if err != nil {
@@ -601,11 +601,11 @@ func (fc *FCstorage) createVolumeFromVolumeContent(req *csi.CreateVolumeRequest,
 	var volumeContentID string
 	var restoreType string
 	if volumecontent.GetSnapshot() != nil {
-		restoreType = storagecommon.RESTORE_TYPE_SNAPSHOT
+		restoreType = storagecommon.RestoryTypeSnapshot
 		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
 	} else if volumecontent.GetVolume() != nil {
 		volumeContentID = volumecontent.GetVolume().GetVolumeId()
-		restoreType = storagecommon.RESTORE_TYPE_VOLUME
+		restoreType = storagecommon.RestoreTypeVolume
 	}
 
 	// Validate the source content id

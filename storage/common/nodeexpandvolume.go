@@ -23,7 +23,7 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
-const RESIZE2FS_DELAY = "RESIZE2FS_DELAY"
+const Resize2FSDelay = "RESIZE2FS_DELAY"
 
 /*
 BlockExpandVolume
@@ -158,14 +158,14 @@ func BlockExpandVolume(volumePath string) error {
 func ExpandFileSystem(multipathDevice string, fsType string) error {
 	const defaultResizeDelay = 5
 	resizeDelayForThisExecution := defaultResizeDelay
-	tmp := os.Getenv(RESIZE2FS_DELAY)
+	tmp := os.Getenv(Resize2FSDelay)
 	if tmp != "" {
 		userSpecifiedValue, err := strconv.Atoi(tmp)
 		if err != nil {
-			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", RESIZE2FS_DELAY, defaultResizeDelay)
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", Resize2FSDelay, defaultResizeDelay)
 		} else {
 			resizeDelayForThisExecution = userSpecifiedValue
-			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", RESIZE2FS_DELAY, resizeDelayForThisExecution, defaultResizeDelay)
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", Resize2FSDelay, resizeDelayForThisExecution, defaultResizeDelay)
 		}
 	}
 	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))

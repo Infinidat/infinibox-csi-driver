@@ -80,12 +80,12 @@ func (c *ClientService) AddNodeInExport(exportID int, access string, noRootSquas
 		}
 		export, err = c.IboxAPI.UpdateExportPermissions(*export, exportPathRef)
 		if err != nil {
-			zlog.Error().Msgf("Error: updating export rule for export with ID: %d access: %s noRootSquash: %t ip:%s error: %s", exportID, access, noRootSquash, ipAddress, err)
+			zlog.Error().Msgf("Error: updating export rule for export ID: %d access: %s noRootSquash: %t ip:%s error: %s", exportID, access, noRootSquash, ipAddress, err)
 			return nil, err
 		}
-		zlog.Debug().Msgf("Updated export rule for export with ID %d, export Response %v", export.ID, export)
+		zlog.Debug().Msgf("Updated export rule for export ID %d, export Response %v", export.ID, export)
 	}
-	zlog.Debug().Msgf("Completed adding node %s to export with export ID %d: %+v", ipAddress, export.ID, export)
+	zlog.Debug().Msgf("Completed adding node %s to export for export ID %d: %+v", ipAddress, export.ID, export)
 	return export, nil
 }
 
@@ -215,7 +215,7 @@ func (c *ClientService) DeleteFileSystemComplete(fileSystemID int) (err error) {
 		_, err = c.IboxAPI.DeleteExport(export.ID)
 		if err != nil {
 			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code != iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+			if ok && re.Code != iboxapi.RESOURCE_NOT_FOUND {
 				zlog.Error().Msgf("failed to delete export path %v", err)
 				return
 			}

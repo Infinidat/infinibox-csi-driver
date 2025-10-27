@@ -77,9 +77,9 @@ type accessType int
 
 const (
 	// InfiniBox default values
-	NfsExportPermissions = "RW"
+	NFSExportPermissions = "RW"
 	NoRootSquash         = true
-	NfsUnixPermissions   = "777"
+	NFSUnixPermissions   = "777"
 )
 
 func NewNFSstorage(capacity int64, cs storagecommon.Commonservice) (nfs *NFSstorage) {
@@ -191,7 +191,7 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		e := fmt.Errorf("%s (nfs) - GetFileSystemByName pvName %s- error: %s", functionName, pvName, err.Error())
 		zlog.Error().Msg(e.Error())
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s (nfs) - GetFileSystemByName error: %v, will proceed to create it", functionName, err)
 			// return nil, status.Errorf(codes.NotFound, "error CreateVolume failed: %v", err)
 		} else {
@@ -406,7 +406,7 @@ func (nfs *NFSstorage) DeleteNFSVolume() (err error) {
 	}
 	if len(fileSystems) > 0 {
 		metadata := map[string]interface{}{
-			storagecommon.TOBEDELETED: true,
+			storagecommon.ToBeDeleted: true,
 		}
 		_, err = nfs.CS.IboxAPI.PutMetadata(nfs.UniqueID, metadata)
 		if err != nil {
@@ -480,7 +480,7 @@ func (nfs *NFSstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 
 	var access string
 	if len(exportPermissionMapArray) > 0 {
-		access = exportPermissionMapArray[0][NFS_EXPORT_PERM_ACCESS].(string)
+		access = exportPermissionMapArray[0][NFSExportPermAccess].(string)
 	}
 
 	noRootSquash := true // default value
@@ -546,7 +546,7 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	snap, err := nfs.CS.IboxAPI.GetFileSystemByName(snapshotName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 		} else {
 			e := fmt.Errorf("%s (nfs) - GetSnapshotByName %d - error: %v", functionName, nfs.CS.VolProto.VolumeID, err)
 			zlog.Error().Msg(e.Error())

@@ -53,7 +53,7 @@ type Mounter struct {
 	fcDisk       fcDevice
 }
 
-const FC_PORT_ONLINE = "Online"
+const FCPortOnline = "Online"
 
 func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	defer helper.TimeTrack(zlog, time.Now())
@@ -83,7 +83,7 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	var fcOnline bool
 	for _, p := range portInfo {
-		if p.PortState == FC_PORT_ONLINE {
+		if p.PortState == FCPortOnline {
 			fcOnline = true
 		}
 	}
@@ -542,7 +542,7 @@ func (fc *FCstorage) searchDisk(connector Connector) (string, error) {
 	fcHosts := []string{}
 	portInfo := storagecommon.GetPortInfo()
 	for _, p := range portInfo {
-		if p.PortState == FC_PORT_ONLINE {
+		if p.PortState == FCPortOnline {
 			fcHosts = append(fcHosts, p.HostID)
 		}
 	}
@@ -563,14 +563,14 @@ func (fc *FCstorage) searchDisk(connector Connector) (string, error) {
 
 	const defaultTries = 10
 	tries := defaultTries // currently this means a max of 10 seconds which is ample almost always
-	tmp := os.Getenv(storagecommon.FC_SEARCH_DISK_DELAY)
+	tmp := os.Getenv(storagecommon.FCSearchDiskDelay)
 	if tmp != "" {
 		userSelectedValue, err := strconv.Atoi(tmp)
 		if err != nil {
-			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", storagecommon.FC_SEARCH_DISK_DELAY, defaultTries)
+			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", storagecommon.FCSearchDiskDelay, defaultTries)
 		} else {
 			tries = userSelectedValue
-			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", storagecommon.FC_SEARCH_DISK_DELAY, userSelectedValue, defaultTries)
+			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", storagecommon.FCSearchDiskDelay, userSelectedValue, defaultTries)
 		}
 	}
 

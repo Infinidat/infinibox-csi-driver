@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	MULTIPATH_WAIT              = "MULTIPATH_WAIT"
-	mpathDeviceCount        int = 6
-	MULTIPATH_CLEANUP_DELAY     = "MULTIPATH_CLEANUP_DELAY"
-	FC_SEARCH_DISK_DELAY        = "FC_SEARCH_DISK_DELAY"
+	MultipathWait             = "MULTIPATH_WAIT"
+	mpathDeviceCount      int = 6
+	MultipathCleanupDelay     = "MULTIPATH_CLEANUP_DELAY"
+	FCSearchDiskDelay         = "FC_SEARCH_DISK_DELAY"
 )
 
 type PortInfo struct {
@@ -208,7 +208,7 @@ func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 	for _, host := range hosts {
 		wwid, err = WaitForDeviceState(host, lun, "running", diskid)
 		if err != nil {
-			zlog.Error().Msgf("waitForDeviceState hosts failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
+			zlog.Error().Msgf("waitForDeviceState failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
 			return "", err
 		}
 		// wwid that is not empty string means we found a wwid and dont need to look at other devices
@@ -219,7 +219,7 @@ func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 
 	for _, host := range hosts {
 		if err := WaitForMultipath(host, lun); err != nil {
-			zlog.Error().Msgf("Rescan hosts failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
+			zlog.Error().Msgf("Rescan failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
 			return "", err
 		}
 	}
@@ -325,13 +325,13 @@ func WaitForMultipath(hostID string, lun string) error {
 	const defaultMultipathWait = 250
 	var sleepCount time.Duration
 	sleepCount = time.Duration(defaultMultipathWait)
-	tmp := os.Getenv(MULTIPATH_WAIT)
+	tmp := os.Getenv(MultipathWait)
 	if tmp != "" {
 		userSpecifiedValue, err := strconv.Atoi(tmp)
 		if err != nil {
-			zlog.Error().Msgf("%s - error converting user specified env var %s, using default value of %d instead", functionName, MULTIPATH_WAIT, defaultMultipathWait)
+			zlog.Error().Msgf("%s - error converting user specified env var %s, using default of %d", functionName, MultipathWait, defaultMultipathWait)
 		} else {
-			zlog.Warn().Msgf("%s - using non-default value for %s env var, user has specified %d, default is %d", functionName, MULTIPATH_WAIT, userSpecifiedValue, defaultMultipathWait)
+			zlog.Warn().Msgf("%s - using non-default value for %s env var, user specified %d, default %d", functionName, MultipathWait, userSpecifiedValue, defaultMultipathWait)
 			sleepCount = time.Duration(userSpecifiedValue)
 		}
 	}
@@ -564,14 +564,14 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 
 		const defaultSleepAfterFlush = 1
 		sleepAfterFlushThisExecution := defaultSleepAfterFlush
-		tmp := os.Getenv(MULTIPATH_CLEANUP_DELAY)
+		tmp := os.Getenv(MultipathCleanupDelay)
 		if tmp != "" {
 			userSpecifiedValue, err := strconv.Atoi(tmp)
 			if err != nil {
-				zlog.Error().Msgf("%s - conversion of %s env var failed, using default value of %d instead", functionName, MULTIPATH_CLEANUP_DELAY, defaultSleepAfterFlush)
+				zlog.Error().Msgf("%s - conversion of %s env var failed, using default value of %d", functionName, MultipathCleanupDelay, defaultSleepAfterFlush)
 			} else {
 				sleepAfterFlushThisExecution = userSpecifiedValue
-				zlog.Warn().Msgf("%s - using non-default value for %s env var, user has specified %d, default is %d", functionName, MULTIPATH_CLEANUP_DELAY, sleepAfterFlushThisExecution, defaultSleepAfterFlush)
+				zlog.Warn().Msgf("%s - using non-default value for %s env var, user has specified %d, default is %d", functionName, MultipathCleanupDelay, sleepAfterFlushThisExecution, defaultSleepAfterFlush)
 			}
 		}
 		zlog.Debug().Msgf("%s - sleeping in between flush of device and detach of scsi disks for %d seconds", functionName, sleepAfterFlushThisExecution)

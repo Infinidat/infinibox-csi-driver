@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	NFS_EXPORT_PERM_NO_ROOT_SQUASH = "no_root_squash"
-	NFS_EXPORT_PERM_CLIENT         = "client"
-	NFS_EXPORT_PERM_ACCESS         = "access"
+	NFSExportPermNoRootSquash = "no_root_squash"
+	NFSExportPermClient       = "client"
+	NFSExportPermAccess       = "access"
 )
 
 type StorageHelper interface {
@@ -46,14 +46,14 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	}
 
 	for _, pass := range permissionsMapArray {
-		no_root_squash_str, ok := pass[NFS_EXPORT_PERM_NO_ROOT_SQUASH].(string)
+		no_root_squash_str, ok := pass[NFSExportPermNoRootSquash].(string)
 		if ok {
 			rootsq, err := strconv.ParseBool(no_root_squash_str)
 			if err != nil {
 				zlog.Debug().Msgf("failed to cast no_root_squash value in export permission - setting default value 'true'")
 				rootsq = true
 			}
-			pass[NFS_EXPORT_PERM_NO_ROOT_SQUASH] = rootsq
+			pass[NFSExportPermNoRootSquash] = rootsq
 		}
 	}
 	return permissionsMapArray, nil
@@ -65,9 +65,9 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 func convertToExportRulePermissions(permissionsMapArray []map[string]interface{}) (apiPermissions []iboxapi.Permissions) {
 	for _, pass := range permissionsMapArray {
 		ap := iboxapi.Permissions{}
-		ap.NoRootSquash = pass[NFS_EXPORT_PERM_NO_ROOT_SQUASH].(bool)
-		ap.Access = pass[NFS_EXPORT_PERM_ACCESS].(string)
-		ap.Client = pass[NFS_EXPORT_PERM_CLIENT].(string)
+		ap.NoRootSquash = pass[NFSExportPermNoRootSquash].(bool)
+		ap.Access = pass[NFSExportPermAccess].(string)
+		ap.Client = pass[NFSExportPermClient].(string)
 		apiPermissions = append(apiPermissions, ap)
 	}
 	return apiPermissions
@@ -87,7 +87,7 @@ func ValidateNFSExportPermissions(scParameters map[string]string) error {
 		// validation for uid,gid,unix_permissions
 		if scParameters[common.StorageClassUID] != "" || scParameters[common.StorageClassGID] != "" || scParameters[common.StorageClassUNIXPermissions] != "" {
 			if len(permissionsMapArray) > 0 {
-				noRootSquash := permissionsMapArray[0][NFS_EXPORT_PERM_NO_ROOT_SQUASH]
+				noRootSquash := permissionsMapArray[0][NFSExportPermNoRootSquash]
 				if noRootSquash == false {
 					e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
 					zlog.Err(e)

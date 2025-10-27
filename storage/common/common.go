@@ -49,20 +49,20 @@ const (
 	// gib100 int64 = gib * 100
 	TIB int64 = GIB * 1024
 	// tib100 int64 = tib * 100
-	TOBEDELETED                = "host.k8s.to_be_deleted"
-	HOST_ID_PUBLISH_CONTEXT    = "hostID"
-	HOST_PORTS_PUBLISH_CONTEXT = "hostPorts"
-	LUN_PUBLISH_CONTEXT        = "lun"
+	ToBeDeleted             = "host.k8s.to_be_deleted"
+	HostIDPublishContext    = "hostID"
+	HostPortsPublishContext = "hostPorts"
+	LunPublishContext       = "lun"
 )
 
-func BuildCommonService(config map[string]string, secretMap map[string]string, volumePrototype *api.VolumeProtocolConfig) (Commonservice, error) {
+func BuildCommonService(config map[string]string, secrets map[string]string, volumePrototype *api.VolumeProtocolConfig) (Commonservice, error) {
 	commonService := Commonservice{}
 	if config != nil {
-		if len(secretMap) < 3 {
+		if len(secrets) < 3 {
 			zlog.Error().Msgf("Api client cannot be initialized without proper secrets")
 			return commonService, errors.New("secrets are missing or not valid")
 		}
-		hostnameURL, err := url.Parse(secretMap[common.CredentialHostname])
+		hostnameURL, err := url.Parse(secrets[common.CredentialHostname])
 
 		if err != nil {
 			zlog.Error().Msgf("Error parsing IBox hostname: %s", err.Error())
@@ -75,7 +75,7 @@ func BuildCommonService(config map[string]string, secretMap map[string]string, v
 		var APIHost string
 		if URLScheme == "" {
 			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
-			APIHost = "https://" + secretMap[common.CredentialHostname] + "/"
+			APIHost = "https://" + secrets[common.CredentialHostname] + "/"
 		} else {
 			APIHost = hostnameURL.String()
 		}
@@ -88,8 +88,8 @@ func BuildCommonService(config map[string]string, secretMap map[string]string, v
 			zlog.Trace().Msgf("IBox URL: %s", APIHost)
 		}
 		creds := iboxapi.Credentials{
-			Username: secretMap[common.CredentialUsername],
-			Password: secretMap[common.CredentialPassword],
+			Username: secrets[common.CredentialUsername],
+			Password: secrets[common.CredentialPassword],
 			URL:      APIHost,
 		}
 		var iboxAPILog = zerologr.New(&zlog)
@@ -97,7 +97,7 @@ func BuildCommonService(config map[string]string, secretMap map[string]string, v
 		iboxAPIClient := iboxapi.NewIboxClient(iboxAPILog, creds)
 		commonService = Commonservice{
 			API: &api.ClientService{
-				SecretsMap: secretMap,
+				SecretsMap: secrets,
 			},
 			IboxAPI:  iboxAPIClient,
 			VolProto: volumePrototype,
@@ -179,7 +179,7 @@ func (cs *Commonservice) ValidateHost(hostName string) (*iboxapi.Host, error) {
 	host, err := cs.IboxAPI.GetHostByName(hostName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 			zlog.Debug().Msgf("%s - Creating host with name: %s", functionName, hostName)
 			host, err = cs.IboxAPI.CreateHost(hostName)
 			if err != nil {
@@ -395,7 +395,7 @@ func GetHostInfo(secrets map[string]string, client iboxapi.Client) (iboxInfo str
 }
 
 func ValidatePublishContext(publishContext map[string]string) (hostID int, ports string, err error) {
-	hostIDString := publishContext[HOST_ID_PUBLISH_CONTEXT]
+	hostIDString := publishContext[HostIDPublishContext]
 	hostID, err = strconv.Atoi(hostIDString)
 	if err != nil {
 		err := fmt.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
@@ -408,7 +408,7 @@ func ValidatePublishContext(publishContext map[string]string) (hostID int, ports
 		return 0, "", status.Error(codes.Internal, e.Error())
 	}
 
-	ports = publishContext[HOST_PORTS_PUBLISH_CONTEXT]
+	ports = publishContext[HostPortsPublishContext]
 
 	return hostID, ports, nil
 }
@@ -431,7 +431,7 @@ func HostCleanup(iboxClient iboxapi.Client, hostID int, hostName string) error {
 		response, err := iboxClient.DeleteHost(hostID)
 		if err != nil {
 			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code == iboxapi.IBOXAPI_RESOURCE_NOT_FOUND_ERROR {
+			if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 				zlog.Debug().Msgf("hostCleanup: will not delete, host not found %d %+v", hostID, response)
 			} else {
 				zlog.Error().Msgf("hostCleanup: failed to delete host with error %v", err)

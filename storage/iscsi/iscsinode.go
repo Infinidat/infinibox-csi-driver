@@ -40,15 +40,15 @@ import (
 )
 
 const (
-	devMapperDir                string = dmsetup.DevMapperDir // ie /dev/mapper/
-	CHAP_INBOUND_USERNAME              = "security_chap_inbound_username"
-	CHAP_INBOUND_SECRET                = "security_chap_inbound_secret"
-	CHAP_OUTBOUND_USERNAME             = "security_chap_outbound_username"
-	CHAP_OUTBOUND_SECRET               = "security_chap_outbound_secret"
-	SECURITY_METHOD                    = "security_method"
-	SECURITY_METHOD_NONE               = "NONE"
-	SECURITY_METHOD_CHAP               = "CHAP"
-	SECURITY_METHOD_MUTUAL_CHAP        = "MUTUAL_CHAP"
+	devMapperDir             string = dmsetup.DevMapperDir // ie /dev/mapper/
+	CHAPInboundUsername             = "security_chap_inbound_username"
+	CHAPInboundSecret               = "security_chap_inbound_secret"
+	CHAPOutboundUsername            = "security_chap_outbound_username"
+	CHAPOutboundSecret              = "security_chap_outbound_secret"
+	SecurityMethod                  = "security_method"
+	SecurityMethodNONE              = "NONE"
+	SecurityMethodCHAP              = "CHAP"
+	SecurityMethodMutualCHAP        = "MUTUAL_CHAP"
 )
 
 type iscsiDiskUnmounter struct {
@@ -96,21 +96,21 @@ type SessionDetails struct {
 }
 
 const (
-	USE_CHAP            = "chap"
-	USE_CHAP_MUTUAL     = "mutual_chap"
-	ISCSI_TCP_TRANSPORT = "tcp"
-	CHAP_USERNAME       = "node.session.auth.username"
-	CHAP_PASSWORD       = "node.session.auth.password"
-	CHAP_USERNAME_IN    = "node.session.auth.username_in"
-	CHAP_PASSWORD_IN    = "node.session.auth.password_in"
+	UseCHAP           = "chap"
+	UseMutualCHAP     = "mutual_chap"
+	ISCSITransportTCP = "tcp"
+	CHAPUsername      = "node.session.auth.username"
+	CHAPPassword      = "node.session.auth.password"
+	CHAPUsernameIn    = "node.session.auth.username_in"
+	CHAPPasswordIn    = "node.session.auth.password_in"
 )
 
 var (
 	CHAPSessionCredentials = []string{
-		CHAP_USERNAME,
-		CHAP_PASSWORD,
-		CHAP_USERNAME_IN,
-		CHAP_PASSWORD_IN,
+		CHAPUsername,
+		CHAPPassword,
+		CHAPUsernameIn,
+		CHAPPasswordIn,
 	}
 	ifaceTransportNameRe = regexp.MustCompile(`iface.transport_name = (.*)\n`)
 )
@@ -161,22 +161,22 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		secrets := req.GetSecrets()
 		chapCreds := make(map[string]string)
 		if useChap != "none" {
-			if useChap == USE_CHAP || useChap == USE_CHAP_MUTUAL {
-				if secrets[CHAP_USERNAME] != "" && secrets[CHAP_PASSWORD] != "" {
-					chapCreds[CHAP_INBOUND_USERNAME] = secrets[CHAP_USERNAME]
-					chapCreds[CHAP_INBOUND_SECRET] = secrets[CHAP_PASSWORD]
-					chapCreds[SECURITY_METHOD] = SECURITY_METHOD_CHAP
+			if useChap == UseCHAP || useChap == UseMutualCHAP {
+				if secrets[CHAPUsername] != "" && secrets[CHAPPassword] != "" {
+					chapCreds[CHAPInboundUsername] = secrets[CHAPUsername]
+					chapCreds[CHAPInboundSecret] = secrets[CHAPPassword]
+					chapCreds[SecurityMethod] = SecurityMethodCHAP
 				} else {
 					e := fmt.Errorf("%s (iscsi) - iscsi mutual chap credentials not provided", functionName)
 					zlog.Error().Msg(e.Error())
 					return nil, status.Error(codes.Internal, e.Error())
 				}
 			}
-			if useChap == USE_CHAP_MUTUAL {
-				if secrets[CHAP_USERNAME_IN] != "" && secrets[CHAP_PASSWORD_IN] != "" && chapCreds[SECURITY_METHOD] == SECURITY_METHOD_CHAP {
-					chapCreds[CHAP_OUTBOUND_USERNAME] = secrets[CHAP_USERNAME_IN]
-					chapCreds[CHAP_OUTBOUND_SECRET] = secrets[CHAP_PASSWORD_IN]
-					chapCreds[SECURITY_METHOD] = SECURITY_METHOD_MUTUAL_CHAP
+			if useChap == UseMutualCHAP {
+				if secrets[CHAPUsernameIn] != "" && secrets[CHAPPasswordIn] != "" && chapCreds[SecurityMethod] == SecurityMethodCHAP {
+					chapCreds[CHAPOutboundUsername] = secrets[CHAPUsernameIn]
+					chapCreds[CHAPOutboundSecret] = secrets[CHAPPasswordIn]
+					chapCreds[SecurityMethod] = SecurityMethodMutualCHAP
 				} else {
 					e := fmt.Errorf("%s (iscsi) - iscsi mutual chap credentials not provided", functionName)
 					zlog.Error().Msg(e.Error())
@@ -192,9 +192,9 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 					return nil, status.Error(codes.Internal, e.Error())
 				}
 			}
-		} else if hostSecurity != SECURITY_METHOD_NONE {
+		} else if hostSecurity != SecurityMethodNONE {
 			zlog.Debug().Msgf("%s (iscsi) - remove chap authentication for host %d", functionName, hostID)
-			chapCreds[SECURITY_METHOD] = SECURITY_METHOD_NONE
+			chapCreds[SecurityMethod] = SecurityMethodNONE
 			err := addChapSecurityForHost(iscsi.CS, hostID, chapCreds)
 			if err != nil {
 				e := fmt.Errorf("%s (iscsi) - AddChapSecurityForHost - error: %s", functionName, err.Error())
@@ -844,25 +844,25 @@ func (iscsi *ISCSIstorage) parseSessionSecret(useChap string, secretParams map[s
 	const functionName = "parseSessionSecret"
 	secret := make(map[string]string)
 
-	if useChap == USE_CHAP || useChap == USE_CHAP_MUTUAL {
+	if useChap == UseCHAP || useChap == UseMutualCHAP {
 		if len(secretParams) == 0 {
 			return secret, errors.New("parseSessionSecret (iscsi): required chap secrets not provided")
 		}
-		if secret[CHAP_USERNAME], valid = secretParams[CHAP_USERNAME]; !valid {
-			return secret, fmt.Errorf("%s (iscsi): %s not found in secret", functionName, CHAP_USERNAME)
+		if secret[CHAPUsername], valid = secretParams[CHAPUsername]; !valid {
+			return secret, fmt.Errorf("%s (iscsi): %s not found in secret", functionName, CHAPUsername)
 		}
-		if secret[CHAP_PASSWORD], valid = secretParams[CHAP_PASSWORD]; !valid {
-			return secret, fmt.Errorf("%s (iscsi): %s not found in secret", functionName, CHAP_PASSWORD)
+		if secret[CHAPPassword], valid = secretParams[CHAPPassword]; !valid {
+			return secret, fmt.Errorf("%s (iscsi): %s not found in secret", functionName, CHAPPassword)
 		}
-		if useChap == USE_CHAP_MUTUAL {
-			if secret[CHAP_USERNAME_IN], valid = secretParams[CHAP_USERNAME_IN]; !valid {
-				return secret, fmt.Errorf("%s (iscsi): %s not found in secret", functionName, CHAP_USERNAME_IN)
+		if useChap == UseMutualCHAP {
+			if secret[CHAPUsernameIn], valid = secretParams[CHAPUsernameIn]; !valid {
+				return secret, fmt.Errorf("%s (iscsi): %s not found in secret", functionName, CHAPUsernameIn)
 			}
-			if secret[CHAP_PASSWORD_IN], valid = secretParams[CHAP_PASSWORD_IN]; !valid {
-				return secret, fmt.Errorf("%s(iscsi): %s not found in secret", functionName, CHAP_PASSWORD_IN)
+			if secret[CHAPPasswordIn], valid = secretParams[CHAPPasswordIn]; !valid {
+				return secret, fmt.Errorf("%s(iscsi): %s not found in secret", functionName, CHAPPasswordIn)
 			}
 		}
-		secret["SecretsType"] = USE_CHAP
+		secret["SecretsType"] = UseCHAP
 	}
 	return secret, nil
 }
@@ -905,7 +905,7 @@ func (iscsi *ISCSIstorage) extractTransportName(ifaceOutput string) (iscsiTransp
 
 	// While iface.transport_name is a required parameter, handle it being unspecified anyways
 	if iscsiTransport == "<empty>" {
-		iscsiTransport = ISCSI_TCP_TRANSPORT
+		iscsiTransport = ISCSITransportTCP
 	}
 	return iscsiTransport
 }

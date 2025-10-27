@@ -328,7 +328,7 @@ func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDi
 	publishContext := req.GetPublishContext()
 	zlog.Debug().Msgf("getNVMEDisk (nvme) - volume: %d context: %v publish context: %v", volProto.VolumeID, volContext, publishContext)
 
-	lun := publishContext[storagecommon.LUN_PUBLISH_CONTEXT]
+	lun := publishContext[storagecommon.LunPublishContext]
 	if lun == "" {
 		return nil, fmt.Errorf("getNVMEDisk (nvme): LUN is missing")
 	}
@@ -435,13 +435,13 @@ func (nvme *NVMEstorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 				continue
 			}
 
-			err := nvme.StorageHelper.ValidateIPAddress(portal.IPAddress, NVME_DISCOVERY_PORT)
+			err := nvme.StorageHelper.ValidateIPAddress(portal.IPAddress, NVMEDiscoveryPort)
 			if err != nil {
-				zlog.Error().Msgf("getNVMETargets (nvme) - error getting nvme network space %s ip connection to %s %d error: %v", networkSpace, portal.IPAddress, NVME_DISCOVERY_PORT, err)
+				zlog.Error().Msgf("getNVMETargets (nvme) - error getting nvme network space %s ip connection to %s %d error: %v", networkSpace, portal.IPAddress, NVMEDiscoveryPort, err)
 				continue
 			}
 
-			zlog.Debug().Msgf("getNVMETargets (nvme) - adding nvme network space %s ip connection to %s %d list", networkSpace, portal.IPAddress, NVME_DISCOVERY_PORT)
+			zlog.Debug().Msgf("getNVMETargets (nvme) - adding nvme network space %s ip connection to %s %d list", networkSpace, portal.IPAddress, NVMEDiscoveryPort)
 			targets[index].Portals = append(targets[index].Portals, storagecommon.PortalMounter(portal.IPAddress))
 			portalsExist = true
 		}

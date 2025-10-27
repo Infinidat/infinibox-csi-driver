@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const DEFAULT_HOST_MOUNT_POINT = "/host/"
+const DefaultHostMountPoint = "/host/"
 
 func (nfs *NFSstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	return &csi.NodeStageVolumeResponse{}, nil
@@ -43,7 +43,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	// instead of hard-coding, we get he '/host' mount prefix via configuration, this lets us unit test with '/tmp' easier
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
 	if containerHostMountPoint == "" {
-		containerHostMountPoint = DEFAULT_HOST_MOUNT_POINT
+		containerHostMountPoint = DefaultHostMountPoint
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 

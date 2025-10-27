@@ -19,7 +19,7 @@ import (
 	"net/http"
 )
 
-func (iboxClient *IboxClient) GetMaxFileSystems() (cnt int, err error) {
+func (client *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 	const functionName = "GetMaxFileSystems"
 
 	type ParameterResult struct {
@@ -32,8 +32,8 @@ func (iboxClient *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 		} `json:"metadata"`
 	}
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/config/limits")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -44,15 +44,15 @@ func (iboxClient *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 	values.Add("fields", "nas.max_filesystems_in_system")
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -68,7 +68,7 @@ func (iboxClient *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 	return responseObject.Result.NasMaxFilesystemsInSystem, nil
 }
 
-func (iboxClient *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
+func (client *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
 	const functionName = "GetMaxTreeqPerFs"
 
 	type ParameterResult struct {
@@ -81,8 +81,8 @@ func (iboxClient *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
 		} `json:"metadata"`
 	}
 
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/config/limits")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -93,15 +93,15 @@ func (iboxClient *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
 	values.Add("fields", "nas.treeq_max_count_per_filesystem")
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return 0, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)

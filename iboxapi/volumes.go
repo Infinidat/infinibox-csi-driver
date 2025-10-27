@@ -130,15 +130,15 @@ type GetVolumesByParentIDResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err error) {
+func (client *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err error) {
 	const functionName = "GetLunsByVolume"
-	url := fmt.Sprintf("%s%s/%d/luns", iboxClient.Creds.URL, "api/rest/volumes", volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
+	url := fmt.Sprintf("%s%s/%d/luns", client.Creds.URL, "api/rest/volumes", volumeID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -150,15 +150,15 @@ func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, 
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
@@ -180,10 +180,10 @@ func (iboxClient *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, 
 	return results, nil
 }
 
-func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, error) {
+func (client *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, error) {
 	const functionName = "CreateVolume"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/volumes")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
@@ -193,16 +193,16 @@ func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, er
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
-	SetAuthHeader(request, iboxClient.Creds)
+	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HTTPClient.Do(request)
+	response, err := client.HTTPClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -214,16 +214,16 @@ func (iboxClient *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, er
 		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "Volume ID", responseObject.Result.ID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "Volume ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolumeResponse, err error) {
+func (client *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolumeResponse, err error) {
 	const functionName = "DeleteVolume"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/volumes", volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes", volumeID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
@@ -234,15 +234,15 @@ func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolume
 	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
 	req.URL.RawQuery = values.Encode()
 
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -257,20 +257,20 @@ func (iboxClient *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolume
 	}
 	if responseObject.Error.Code != "" {
 		// TODO check for NOT FOUND?  have callers check for ErrNotFound?
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
 	return &responseObject, nil
 }
 
-func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume, err error) {
+func (client *IboxClient) GetVolumeByName(volumeName string) (volume *Volume, err error) {
 	const functionName = "GetVolumeByName"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/volumes")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume Name", volumeName)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume Name", volumeName)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -283,62 +283,62 @@ func (iboxClient *IboxClient) GetVolumeByName(volumeName string) (volume *Volume
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
-		var responseObject GetVolumeByNameResponse
-		err = json.Unmarshal(bodyBytes, &responseObject)
+		var response GetVolumeByNameResponse
+		err = json.Unmarshal(bodyBytes, &response)
 		if err != nil {
 			return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
-		if responseObject.Error.Code != "" {
+		if response.Error.Code != "" {
 			// TODO check for NOT FOUND?  return ErrNotFound for callers?
-			return nil, fmt.Errorf("%s - ibox API - error code %s message %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+			return nil, fmt.Errorf("%s - ibox API - error %v", functionName, response.Error)
 		}
-		if len(responseObject.Result) > 0 {
-			volume = &responseObject.Result[0]
+		if len(response.Result) > 0 {
+			volume = &response.Result[0]
 		} else {
-			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - volume name '%s' not found", functionName, volumeName)}
+			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("%s - volume name '%s' not found", functionName, volumeName)}
 		}
 
 		if page == 1 {
-			totalPages = responseObject.Metadata.PagesTotal
+			totalPages = response.Metadata.PagesTotal
 		}
 	}
 
 	return volume, nil
 }
 
-func (iboxClient *IboxClient) GetVolume(volumeID int) (volume *Volume, err error) {
+func (client *IboxClient) GetVolume(volumeID int) (volume *Volume, err error) {
 	const functionName = "GetVolume"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/volumes", volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes", volumeID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
-	SetAuthHeader(req, iboxClient.Creds)
+	SetAuthHeader(req, client.Creds)
 
-	resp, err := iboxClient.HTTPClient.Do(req)
+	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
@@ -353,17 +353,19 @@ func (iboxClient *IboxClient) GetVolume(volumeID int) (volume *Volume, err error
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "VOLUME_NOT_FOUND" {
-			return nil, &APIError{Code: IBOXAPI_RESOURCE_NOT_FOUND_ERROR, Err: fmt.Errorf("%s - volume ID '%d' not found", functionName, volumeID)}
+			return nil, &APIError{
+				Code: RESOURCE_NOT_FOUND,
+				Err:  fmt.Errorf("%s - volume ID %d not found", functionName, volumeID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+func (client *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
 	const functionName = "UpdateVolume"
-	url := fmt.Sprintf("%s%s/%d", iboxClient.Creds.URL, "api/rest/volumes/", volumeID)
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes/", volumeID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
 	jsonBytes, err := json.Marshal(volume)
 	if err != nil {
@@ -374,17 +376,17 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
 
-	SetAuthHeader(request, iboxClient.Creds)
+	SetAuthHeader(request, client.Creds)
 
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HTTPClient.Do(request)
+	response, err := client.HTTPClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close", err.Error())
 		}
 	}()
 
@@ -400,15 +402,15 @@ func (iboxClient *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume
 	}
 	if responseObject.Error.Code != "" {
 		// TODO check for NOT FOUND?  return ErrNotFound for callers?
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeRequest) (*Snapshot, error) {
+func (client *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeRequest) (*Snapshot, error) {
 	const functionName = "CreateSnapshotVolume"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/volumes")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
@@ -425,16 +427,16 @@ func (iboxClient *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeReque
 		request.URL.RawQuery = values.Encode()
 	}
 
-	SetAuthHeader(request, iboxClient.Creds)
+	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
-	response, err := iboxClient.HTTPClient.Do(request)
+	response, err := client.HTTPClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 		}
 	}()
 
@@ -446,21 +448,21 @@ func (iboxClient *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeReque
 		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "Snapshot ID", responseObject.Result.SnapShotID)
+	client.Log.V(TRACE_LEVEL).Info(functionName, "Snapshot ID", responseObject.Result.SnapShotID)
 	return &responseObject.Result, nil
 }
 
-func (iboxClient *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volume, err error) {
+func (client *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volume, err error) {
 	const functionName = "GetVolumesByParentID"
-	url := fmt.Sprintf("%s%s", iboxClient.Creds.URL, "api/rest/volumes")
-	iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "parent ID", parentID)
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
+	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "parent ID", parentID)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		iboxClient.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -473,33 +475,33 @@ func (iboxClient *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volu
 		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
 		req.URL.RawQuery = values.Encode()
 
-		SetAuthHeader(req, iboxClient.Creds)
+		SetAuthHeader(req, client.Creds)
 
-		resp, err := iboxClient.HTTPClient.Do(req)
+		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
 			return volumes, fmt.Errorf("%s - Do - error %w", functionName, err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				iboxClient.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				client.Log.V(TRACE_LEVEL).Error(err, functionName, "error in Close()", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return volumes, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
 		}
-		var responseObject GetVolumesByParentIDResponse
-		err = json.Unmarshal(bodyBytes, &responseObject)
+		var response GetVolumesByParentIDResponse
+		err = json.Unmarshal(bodyBytes, &response)
 		if err != nil {
 			return volumes, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
 		}
-		if responseObject.Error.Code != "" {
-			return volumes, fmt.Errorf("%s - ibox API - error code %s message %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		if response.Error.Code != "" {
+			return volumes, fmt.Errorf("%s - ibox API - error %v", functionName, response)
 		}
 
-		volumes = append(volumes, responseObject.Result...)
+		volumes = append(volumes, response.Result...)
 		if page == 1 {
-			totalPages = responseObject.Metadata.PagesTotal
+			totalPages = response.Metadata.PagesTotal
 		}
 	}
 

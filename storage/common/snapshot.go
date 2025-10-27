@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	RESTORE_TYPE_VOLUME   = "Volume"
-	RESTORE_TYPE_SNAPSHOT = "Snapshot"
+	RestoreTypeVolume   = "Volume"
+	RestoryTypeSnapshot = "Snapshot"
 )
 
 // validateSnapshotLockingParameter validates an input lock_expires parameter string and returns

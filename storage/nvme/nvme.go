@@ -28,9 +28,9 @@ import (
 var zlog = log.Get() // grab the logger for package use
 
 const (
-	NVME_VERSION_260    = "2.6.0"
-	NVME_VERSION_211    = "2.11.0"
-	NVME_DISCOVERY_PORT = 8009
+	NVMEVersion260    = "2.6.0"
+	NVMEVersion211    = "2.11.0"
+	NVMEDiscoveryPort = 8009
 )
 
 type NVME211 struct {
@@ -127,7 +127,7 @@ func getNVMENamespaces() (devices Devices, err error) {
 		return devices, err
 	}
 
-	if version == NVME_VERSION_260 {
+	if version == NVMEVersion260 {
 		err = json.Unmarshal([]byte(rawOutput), &devices)
 		if err != nil {
 			zlog.Error().Msgf("getNVMENamespaces (nvme) - error unmarshalling %s output - error %s", cmd, err.Error())
@@ -160,7 +160,7 @@ func nvmeConnectAll(ipAddress string) (err error) {
 
 // nvme discover -t tcp -a 172.20.51.170 -s 8009
 func nvmeDiscover(ipAddress string) (err error) {
-	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVME_DISCOVERY_PORT)
+	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVMEDiscoveryPort)
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
 		zlog.Error().Msgf("nvmeDiscover (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
@@ -229,18 +229,18 @@ func getNVMEVersion() (version string, err error) {
 		zlog.Error().Msgf("error converting %s to semver %s", versionParts, err.Error())
 		return "", err
 	}
-	versionPart2, err = semver.Make(NVME_VERSION_211)
+	versionPart2, err = semver.Make(NVMEVersion211)
 	if err != nil {
-		zlog.Error().Msgf("error converting %s to semver %s", NVME_VERSION_211, err.Error())
+		zlog.Error().Msgf("error converting %s to semver %s", NVMEVersion211, err.Error())
 	}
 	value := versionPart1.Compare(versionPart2)
 	if value < 0 {
 		// if parsed version is less than 2.11, assume it will parse into the default (2.6) structure
-		zlog.Debug().Msgf("nvme version %s is less than %s", versionParts, NVME_VERSION_211)
-		return NVME_VERSION_260, nil
+		zlog.Debug().Msgf("nvme version %s is less than %s", versionParts, NVMEVersion211)
+		return NVMEVersion260, nil
 	}
-	zlog.Debug().Msgf("nvme version %s is greater than or equal to %s", versionParts, NVME_VERSION_211)
-	return NVME_VERSION_211, nil
+	zlog.Debug().Msgf("nvme version %s is greater than or equal to %s", versionParts, NVMEVersion211)
+	return NVMEVersion211, nil
 }
 
 // parse out the standard NVME device information from nvme 2.11 output

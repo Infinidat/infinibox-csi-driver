@@ -84,7 +84,7 @@ func (h Service) Remove(name string) error {
 func ValidateUnixPermissions(unixPermissions string) (err error) {
 	err = nil
 	if _, err8 := strconv.ParseUint(unixPermissions, 8, 32); err8 != nil {
-		msg := fmt.Sprintf("Unix permissions [%s] are invalid. Value must be uint32 in octal format. Error: %s", unixPermissions, err8)
+		msg := fmt.Sprintf("Invalid Unix permissions [%s]. Must be uint32 in octal format. Error: %s", unixPermissions, err8)
 		zlog.Error().Msg(msg)
 		err = errors.New(msg)
 	} else {
