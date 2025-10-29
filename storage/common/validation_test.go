@@ -41,15 +41,15 @@ func (suite *ValidationSuite) Test_Network_Protocol_Match_NFS_TREEQ_Success() {
 	var scProtocol = common.ProtocolNFS
 	scNetSpace := []string{"someSpace", "someOtherSpace"}
 
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(networkSpace, nil)
 
 	// validate NFS
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 
 	// validate TREEQ
 	scProtocol = common.ProtocolTreeq
-	err = ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	err = ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 }
 
@@ -60,8 +60,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_Match_ISCSI_Success() {
 	// validate ISCSI
 	scProtocol := common.ProtocolISCSI
 	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.Nil(suite.T(), err, "Expected Nil returned on success ")
 }
 
@@ -72,8 +72,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_ISCSI_Failure() {
 	// validate ISCSI
 	scProtocol := common.ProtocolISCSI
 	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceNFSService}
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -85,8 +85,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_NFS_Failure() {
 	// validate ISCSI
 	scProtocol := common.ProtocolNFS
 	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -96,8 +96,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_FC_ISCSI_Failure() 
 
 	scProtocol := common.ProtocolFC
 	iNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iNetworkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(iNetworkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -107,8 +107,8 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_FC_NFS_Failure() {
 
 	scProtocol := common.ProtocolFC
 	networkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(networkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -120,9 +120,9 @@ func (suite *ValidationSuite) Test_Network_Protocol_MisMatch_NAMESPACES_Failure(
 	iscsiNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 	nfsNetworkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceNFSService}
 
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(iscsiNetworkSpace, nil).Once()
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(nfsNetworkSpace, nil).Once()
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(iscsiNetworkSpace, nil).Once()
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(nfsNetworkSpace, nil).Once()
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected iscsi to not match with NFS service ")
 }
 
@@ -132,7 +132,7 @@ func (suite *ValidationSuite) Test_Network_Protocol_NFS_NO_NETWORKSPACES_Failure
 	scProtocol := common.ProtocolFC
 	networkSpace := &iboxapi.NetworkSpace{Service: common.NetworkSpaceISCSIService}
 
-	suite.iboxapi.On("GetNetworkSpaceByName", mock.Anything).Return(networkSpace, nil)
-	err := ValidateProtocolToNetworkSpace(scProtocol, scNetSpace, suite.cs.IboxAPI)
+	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(networkSpace, nil)
+	err := ValidateProtocolToNetworkSpace(suite.Suite.T().Context(), scProtocol, scNetSpace, suite.cs.IboxAPI)
 	assert.NotNil(suite.T(), err, "Expected non-nil for empty network space list")
 }

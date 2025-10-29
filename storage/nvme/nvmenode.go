@@ -62,7 +62,8 @@ type nvmeDisk struct {
 }
 
 func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s %s", req.GetPublishContext(), storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxAPI))
+	zlog.Debug().Msgf("NodeStageVolume (nvme) - called with publish context: %s %s", req.GetPublishContext(),
+		storagecommon.GetHostInfo(ctx, req.GetSecrets(), nvme.CS.IboxAPI))
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -80,7 +81,7 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 	if !strings.Contains(ports, hostNQN) {
 		zlog.Debug().Msgf("NodeStageVolume (nvme) - host nqn is not created, creating one")
-		err = nvme.CS.AddPortForHost(hostID, "NVME", hostNQN)
+		err = nvme.CS.AddPortForHost(ctx, hostID, "NVME", hostNQN)
 		if err != nil {
 			e := fmt.Errorf("NodeStageVolume (nvme) - AddPortForHost - error: %s", err.Error())
 			zlog.Error().Msg(e.Error())
@@ -93,9 +94,9 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	zlog.Debug().Msgf("NodePublishVolume (nvme) - volume ID %s, network_space %s mode %s readOnly %t %s", req.GetVolumeId(), req.GetVolumeContext()[common.StorageClassNetworkSpace], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
-		storagecommon.GetHostInfo(req.GetSecrets(), nvme.CS.IboxAPI))
+		storagecommon.GetHostInfo(ctx, req.GetSecrets(), nvme.CS.IboxAPI))
 
-	targets, err := nvme.getNVMETargets(req)
+	targets, err := nvme.getNVMETargets(ctx, req)
 	if err != nil {
 		e := fmt.Errorf("NodePublishVolume (nvme) - - getNVMETargets - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
@@ -403,7 +404,7 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 	return diskMounter, nil
 }
 
-func (nvme *NVMEstorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {
+func (nvme *NVMEstorage) getNVMETargets(ctx context.Context, req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {
 	networkSpaces := strings.Split(req.GetVolumeContext()[common.StorageClassNetworkSpace], ",")
 	if len(networkSpaces) == 0 {
 		return targets, fmt.Errorf("getNVMETargets (nvme) - no network spaces found")
@@ -418,7 +419,7 @@ func (nvme *NVMEstorage) getNVMETargets(req *csi.NodePublishVolumeRequest) (targ
 
 	for index, networkSpace := range networkSpaces {
 		zlog.Debug().Msgf("getNVMETargets (nvme) - getting nspace by name: %v", networkSpace)
-		nspace, err := nvme.CS.IboxAPI.GetNetworkSpaceByName(networkSpace)
+		nspace, err := nvme.CS.IboxAPI.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
 			e := fmt.Errorf("getNVMETargets (nvme) - error getting network space: %s error: %v", networkSpace, err)
 			zlog.Error().Msgf("%s", e.Error())

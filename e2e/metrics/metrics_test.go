@@ -44,21 +44,20 @@ func TestMetrics(t *testing.T) {
 		t.Fatalf("error creatingv1 monitoring client %s", err.Error())
 	}
 
-	setup(testConfig, mClientV1)
+	setup(t.Context(), testConfig, mClientV1)
 
 	t.Logf("testing in namespace %+v\n", testConfig.TestNames)
 
 	if *e2e.CleanUp {
-		tearDown(testConfig, mClientV1)
+		tearDown(t.Context(), testConfig, mClientV1)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
 
 }
 
-func setup(config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Interface) {
+func setup(ctx context.Context, config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Interface) {
 	// create a namespace to install into
-	ctx := context.Background()
 	err := e2e.CreateNamespace(ctx, config.TestNames.NSName, config.ClientSet)
 	if err != nil {
 		config.Testt.Fatalf("error setting up e2e namespace %s\n", err.Error())
@@ -202,7 +201,7 @@ func setup(config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Inte
 
 	// create the Deployment
 
-	err = createDeployment(config.TestNames.NSName, config.ClientSet)
+	err = createDeployment(ctx, config.TestNames.NSName, config.ClientSet)
 	if err != nil {
 		config.Testt.Fatalf("error creating Deployment %s\n", err.Error())
 	}
@@ -219,7 +218,7 @@ func setup(config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Inte
 	time.Sleep(time.Second * 90)
 
 	// create the ServiceMonitor (required for Openshift only)
-	err = createServiceMonitor(config.TestNames.NSName, mClientV1)
+	err = createServiceMonitor(ctx, config.TestNames.NSName, mClientV1)
 	if err != nil {
 		config.Testt.Fatalf("could not create ServiceMonitor %s", err.Error())
 	}
@@ -233,8 +232,7 @@ func setup(config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Inte
 
 }
 
-func tearDown(config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Interface) {
-	ctx := context.Background()
+func tearDown(ctx context.Context, config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1Interface) {
 
 	// delete the Deployment
 	err := config.ClientSet.AppsV1().Deployments(config.TestNames.NSName).Delete(ctx, appName, metav1.DeleteOptions{})
@@ -295,7 +293,7 @@ func tearDown(config *e2e.TestConfig, mClientV1 v1monitoringclient.MonitoringV1I
 	config.Testt.Logf("✓ Namespace %s is deleted\n", config.TestNames.NSName)
 }
 
-func createServiceMonitor(ns string, mClientV1 v1monitoringclient.MonitoringV1Interface) error {
+func createServiceMonitor(ctx context.Context, ns string, mClientV1 v1monitoringclient.MonitoringV1Interface) error {
 	sm := &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: serviceMonitorName,
@@ -318,11 +316,11 @@ func createServiceMonitor(ns string, mClientV1 v1monitoringclient.MonitoringV1In
 			},
 		},
 	}
-	_, err := mClientV1.ServiceMonitors(ns).Create(context.Background(), sm, metav1.CreateOptions{})
+	_, err := mClientV1.ServiceMonitors(ns).Create(ctx, sm, metav1.CreateOptions{})
 	return err
 }
 
-func createDeployment(ns string, client *kubernetes.Clientset) error {
+func createDeployment(ctx context.Context, ns string, client *kubernetes.Clientset) error {
 	metricsImage := os.Getenv("METRICS_IMAGE")
 	if metricsImage == "" {
 		return errors.New("METRICS_IMAGE environment variable was not set and is required")
@@ -385,6 +383,6 @@ func createDeployment(ns string, client *kubernetes.Clientset) error {
 		},
 	}
 
-	_, err := client.AppsV1().Deployments(ns).Create(context.Background(), deployment, metav1.CreateOptions{})
+	_, err := client.AppsV1().Deployments(ns).Create(ctx, deployment, metav1.CreateOptions{})
 	return err
 }

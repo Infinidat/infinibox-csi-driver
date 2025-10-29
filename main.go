@@ -13,6 +13,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -65,7 +66,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	node, nodeCount, err := getKubeNode()
+	ctx := context.Background()
+
+	node, nodeCount, err := getKubeNode(ctx)
 	if err != nil {
 		zlog.Error().Msgf("error in getting kube node %s", err.Error())
 		os.Exit(1)
@@ -115,12 +118,12 @@ func main() {
 	d.Run(false)
 }
 
-func getKubeNode() (node v1.Node, nodeCount string, err error) {
+func getKubeNode(ctx context.Context) (node v1.Node, nodeCount string, err error) {
 	kc, err := clientgo.BuildClient()
 	if err != nil {
 		return node, "", err
 	}
-	nodes, err := kc.GetNodes()
+	nodes, err := kc.GetNodes(ctx)
 	if len(nodes) == 0 {
 		return node, "", fmt.Errorf("zero nodes found, problem getting a node")
 	}

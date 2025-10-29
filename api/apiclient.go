@@ -13,6 +13,7 @@ limitations under the License.
 package api
 
 import (
+	"context"
 	"errors"
 	"net/url"
 
@@ -26,11 +27,11 @@ type Client interface {
 	NewClient() (*ClientService, error)
 
 	// for nfs
-	AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error)
-	DeleteNodeFromExport(export iboxapi.Export, noRootSquash bool, ip string) (*iboxapi.Export, error)
-	DeleteFileSystemComplete(fileSystemID int) (err error)
-	DeleteParentFileSystem(fileSystemID int) (err error)
-	DeleteExportRule(fileSystemID int, ipAddress string) (err error)
+	AddNodeInExport(ctx context.Context, exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error)
+	DeleteNodeFromExport(ctx context.Context, export iboxapi.Export, noRootSquash bool, ip string) (*iboxapi.Export, error)
+	DeleteFileSystemComplete(ctx context.Context, fileSystemID int) (err error)
+	DeleteParentFileSystem(ctx context.Context, fileSystemID int) (err error)
+	DeleteExportRule(ctx context.Context, fileSystemID int, ipAddress string) (err error)
 }
 
 // ClientService : struct having reference of rest client and will host methods which need rest operations

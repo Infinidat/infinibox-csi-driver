@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -74,7 +75,7 @@ type Link struct {
 	LinkReplicationType            []string `json:"link_replication_type"`
 }
 
-func (client *IboxClient) GetLinks() (results []Link, err error) {
+func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err error) {
 	const functionName = "GetLinks"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/links")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
@@ -84,7 +85,7 @@ func (client *IboxClient) GetLinks() (results []Link, err error) {
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -125,12 +126,12 @@ func (client *IboxClient) GetLinks() (results []Link, err error) {
 	return results, nil
 }
 
-func (client *IboxClient) GetLink(linkID int) (link *Link, err error) {
+func (client *IboxClient) GetLink(ctx context.Context, linkID int) (link *Link, err error) {
 	const functionName = "GetLink"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/links", linkID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "link ID", linkID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

@@ -11,14 +11,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ValidateEnv(testConfig *TestConfig) (err error) {
+func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	// validate ibox pool
 	poolToUse := os.Getenv(ENV_POOL)
 	if poolToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
 
-	_, err = testConfig.ClientService.IboxAPI.GetPoolByName(poolToUse)
+	_, err = testConfig.ClientService.IboxAPI.GetPoolByName(ctx, poolToUse)
 	if err != nil {
 		return fmt.Errorf("error getting pool by name %s %w", poolToUse, err)
 	}
@@ -82,7 +82,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 		if testConfig.NetworkSpaceToUse == "" {
 			return fmt.Errorf("%s env var is not set and is required", nsEnvVar)
 		}
-		_, err = testConfig.ClientService.IboxAPI.GetNetworkSpaceByName(testConfig.NetworkSpaceToUse)
+		_, err = testConfig.ClientService.IboxAPI.GetNetworkSpaceByName(ctx, testConfig.NetworkSpaceToUse)
 		if err != nil {
 			return fmt.Errorf("error getting network space by name %s %w", testConfig.NetworkSpaceToUse, err)
 		}
@@ -95,7 +95,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 		testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_NETWORK_SPACE2)
 	}
 	if testConfig.NetworkSpaceToUse2 != "" {
-		_, err = testConfig.ClientService.IboxAPI.GetNetworkSpaceByName(testConfig.NetworkSpaceToUse2)
+		_, err = testConfig.ClientService.IboxAPI.GetNetworkSpaceByName(ctx, testConfig.NetworkSpaceToUse2)
 		if err != nil {
 			return fmt.Errorf("error getting network space by name 2 %s %w", testConfig.NetworkSpaceToUse2, err)
 		}
@@ -104,7 +104,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	// validate namespace on the kube
 	namespaceToUse := os.Getenv(ENV_NAMESPACE)
 	if namespaceToUse != "" {
-		_, err := testConfig.ClientSet.CoreV1().Namespaces().Get(context.TODO(), namespaceToUse, metav1.GetOptions{})
+		_, err := testConfig.ClientSet.CoreV1().Namespaces().Get(ctx, namespaceToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting namespace %s %w", namespaceToUse, err)
 		}
@@ -113,7 +113,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	// validate ibox secret on the kube
 	iboxCredentialToUse := os.Getenv(ENV_IBOX_SECRET)
 	if iboxCredentialToUse != "" {
-		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(context.TODO(), iboxCredentialToUse, metav1.GetOptions{})
+		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(ctx, iboxCredentialToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting secrets %s %w", namespaceToUse, err)
 		}
@@ -124,7 +124,7 @@ func ValidateEnv(testConfig *TestConfig) (err error) {
 	// validate ibox secret2 on the kube if set
 	iboxCredential2ToUse := os.Getenv(ENV_IBOX_SECRET2)
 	if iboxCredential2ToUse != "" {
-		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(context.TODO(), iboxCredential2ToUse, metav1.GetOptions{})
+		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(ctx, iboxCredential2ToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting secrets 2 %s %w", namespaceToUse, err)
 		}

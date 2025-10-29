@@ -14,6 +14,7 @@ limitations under the License.
 */
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -130,7 +131,7 @@ type GetVolumesByParentIDResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err error) {
+func (client *IboxClient) GetLunsByVolume(ctx context.Context, volumeID int) (results []LunInfo, err error) {
 	const functionName = "GetLunsByVolume"
 	url := fmt.Sprintf("%s%s/%d/luns", client.Creds.URL, "api/rest/volumes", volumeID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
@@ -140,7 +141,7 @@ func (client *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err 
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -180,7 +181,7 @@ func (client *IboxClient) GetLunsByVolume(volumeID int) (results []LunInfo, err 
 	return results, nil
 }
 
-func (client *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, error) {
+func (client *IboxClient) CreateVolume(ctx context.Context, req CreateVolumeRequest) (*Volume, error) {
 	const functionName = "CreateVolume"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
@@ -189,7 +190,7 @@ func (client *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, error)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -220,12 +221,12 @@ func (client *IboxClient) CreateVolume(req CreateVolumeRequest) (*Volume, error)
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolumeResponse, err error) {
+func (client *IboxClient) DeleteVolume(ctx context.Context, volumeID int) (response *DeleteVolumeResponse, err error) {
 	const functionName = "DeleteVolume"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes", volumeID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -262,7 +263,7 @@ func (client *IboxClient) DeleteVolume(volumeID int) (response *DeleteVolumeResp
 	return &responseObject, nil
 }
 
-func (client *IboxClient) GetVolumeByName(volumeName string) (volume *Volume, err error) {
+func (client *IboxClient) GetVolumeByName(ctx context.Context, volumeName string) (volume *Volume, err error) {
 	const functionName = "GetVolumeByName"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume Name", volumeName)
@@ -272,7 +273,7 @@ func (client *IboxClient) GetVolumeByName(volumeName string) (volume *Volume, er
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -321,12 +322,12 @@ func (client *IboxClient) GetVolumeByName(volumeName string) (volume *Volume, er
 	return volume, nil
 }
 
-func (client *IboxClient) GetVolume(volumeID int) (volume *Volume, err error) {
+func (client *IboxClient) GetVolume(ctx context.Context, volumeID int) (volume *Volume, err error) {
 	const functionName = "GetVolume"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes", volumeID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -362,7 +363,7 @@ func (client *IboxClient) GetVolume(volumeID int) (volume *Volume, err error) {
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume, error) {
+func (client *IboxClient) UpdateVolume(ctx context.Context, volumeID int, volume Volume) (*Volume, error) {
 	const functionName = "UpdateVolume"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes/", volumeID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID)
@@ -371,7 +372,7 @@ func (client *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume, er
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -407,7 +408,7 @@ func (client *IboxClient) UpdateVolume(volumeID int, volume Volume) (*Volume, er
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeRequest) (*Snapshot, error) {
+func (client *IboxClient) CreateSnapshotVolume(ctx context.Context, req CreateSnapshotVolumeRequest) (*Snapshot, error) {
 	const functionName = "CreateSnapshotVolume"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
@@ -416,7 +417,7 @@ func (client *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeRequest) 
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -454,7 +455,7 @@ func (client *IboxClient) CreateSnapshotVolume(req CreateSnapshotVolumeRequest) 
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volume, err error) {
+func (client *IboxClient) GetVolumesByParentID(ctx context.Context, parentID int) (volumes []Volume, err error) {
 	const functionName = "GetVolumesByParentID"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "parent ID", parentID)
@@ -464,7 +465,7 @@ func (client *IboxClient) GetVolumesByParentID(parentID int) (volumes []Volume, 
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return volumes, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}

@@ -1,6 +1,7 @@
 package iboxapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -62,12 +63,12 @@ type PoolResult struct {
 	ThickCapacitySavings             any     `json:"thick_capacity_savings"`
 }
 
-func (client *IboxClient) GetPoolByName(name string) (pool *PoolResult, err error) {
+func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool *PoolResult, err error) {
 	const functionName = "GetPoolByName"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/pools")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "name", name)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -111,12 +112,12 @@ func (client *IboxClient) GetPoolByName(name string) (pool *PoolResult, err erro
 	return pool, nil
 }
 
-func (client *IboxClient) GetPoolByID(poolID int) (pool *PoolResult, err error) {
+func (client *IboxClient) GetPoolByID(ctx context.Context, poolID int) (pool *PoolResult, err error) {
 	const functionName = "GetPoolByID"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/pools", poolID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "id", poolID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

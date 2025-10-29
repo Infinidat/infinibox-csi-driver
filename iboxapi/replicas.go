@@ -14,6 +14,7 @@ limitations under the License.
 */
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -246,7 +247,7 @@ type GetReplicasResponse struct {
 	Error    Error     `json:"error"`
 }
 
-func (client *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, error) {
+func (client *IboxClient) CreateReplica(ctx context.Context, req CreateReplicaRequest) (*Replica, error) {
 	const functionName = "CreateReplica"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/replicas")
 	client.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "request", req)
@@ -260,7 +261,7 @@ func (client *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, err
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -296,7 +297,7 @@ func (client *IboxClient) CreateReplica(req CreateReplicaRequest) (*Replica, err
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) GetReplicas() (results []Replica, err error) {
+func (client *IboxClient) GetReplicas(ctx context.Context) (results []Replica, err error) {
 	const functionName = "GetReplicas"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/replicas")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
@@ -306,7 +307,7 @@ func (client *IboxClient) GetReplicas() (results []Replica, err error) {
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -346,12 +347,12 @@ func (client *IboxClient) GetReplicas() (results []Replica, err error) {
 	return results, nil
 }
 
-func (client *IboxClient) DeleteReplica(replicaID int) (err error) {
+func (client *IboxClient) DeleteReplica(ctx context.Context, replicaID int) (err error) {
 	const functionName = "DeleteReplica"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/replicas", replicaID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "replica ID", replicaID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -392,12 +393,12 @@ func (client *IboxClient) DeleteReplica(replicaID int) (err error) {
 	return nil
 }
 
-func (client *IboxClient) GetReplica(replicaID int) (*Replica, error) {
+func (client *IboxClient) GetReplica(ctx context.Context, replicaID int) (*Replica, error) {
 	const functionName = "GetReplica"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/replicas", replicaID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "replica ID", replicaID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

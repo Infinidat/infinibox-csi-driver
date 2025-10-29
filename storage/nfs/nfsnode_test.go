@@ -15,7 +15,6 @@ limitations under the License.
 package nfs
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -86,7 +85,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_success() {
 	req := storagecommon.GetNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = storagecommon.GetVolumeContexMap()
 	req.VolumeId = "1234$$nfs"
-	_, err = suite.service.NodePublishVolume(context.Background(), req)
+	_, err = suite.service.NodePublishVolume(suite.Suite.T().Context(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -104,6 +103,8 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 		assert.Nil(suite.T(), err)
 	}()
 
+	ctx := suite.Suite.T().Context()
+
 	contex := storagecommon.GetPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 
@@ -111,12 +112,12 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
-	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
+	suite.iboxapi.On("GetFileSystemByID", ctx, mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
-	suite.iboxapi.On("CreateExport", mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
+	suite.iboxapi.On("CreateExport", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
 	exportResp := storagecommon.GetExportResponse()
-	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
-	suite.iboxapi.On("DeleteExport", mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("DeleteExport", suite.Suite.T().Context(), mock.Anything).Return(exportResp, nil)
 
 	req := storagecommon.GetNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = storagecommon.GetVolumeContexMap()
@@ -127,7 +128,7 @@ func (suite *NodeSuite) Test_NodePublishVolume_DefaultExport_success() {
 	}
 	req.VolumeContext[common.StorageClassSnapDirVisible] = "true"
 	req.VolumeContext[common.StorageClassPrivPorts] = "false"
-	_, err = suite.service.NodePublishVolume(context.Background(), req)
+	_, err = suite.service.NodePublishVolume(ctx, req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -154,10 +155,10 @@ func (suite *NodeSuite) XTest_NodePublishVolume_DefaultExport_PodRestart_success
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
-	suite.iboxapi.On("CreateExport", mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
+	suite.iboxapi.On("CreateExport", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
 	tmp := storagecommon.GetExportResponseWithExports()
-	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(tmp, nil)
-	suite.iboxapi.On("DeleteExport", mock.Anything).Return(storagecommon.GetExportResponse(), nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(tmp, nil)
+	suite.iboxapi.On("DeleteExport", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponse(), nil)
 
 	req := storagecommon.GetNodePublishVolumeRequest(targetPath, contex)
 	req.VolumeContext = storagecommon.GetVolumeContexMap()
@@ -166,7 +167,7 @@ func (suite *NodeSuite) XTest_NodePublishVolume_DefaultExport_PodRestart_success
 	req.VolumeContext["nodeID"] = "192.168.0.110"
 	req.VolumeContext[common.StorageClassSnapDirVisible] = "true"
 	req.VolumeContext[common.StorageClassPrivPorts] = "false"
-	_, err = suite.service.NodePublishVolume(context.Background(), req)
+	_, err = suite.service.NodePublishVolume(suite.Suite.T().Context(), req)
 
 	assert.Nil(suite.T(), err, " error should be nil")
 }
@@ -178,17 +179,17 @@ func (suite *NodeSuite) Test_NodePublishVolume_mount_fail() {
 	contex := storagecommon.GetPublishContexMap()
 	contex["csiContainerHostMountPoint"] = "/tmp/"
 	mountErr := errors.New("mount error")
-	suite.iboxapi.On("CreateExport", mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
+	suite.iboxapi.On("CreateExport", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
 	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
 	exportResp := storagecommon.GetExportResponse()
-	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
-	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(&iboxapi.FileSystem{}, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("GetFileSystemByID", suite.Suite.T().Context(), mock.Anything).Return(&iboxapi.FileSystem{}, nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
-	_, err := suite.service.NodePublishVolume(context.Background(), storagecommon.GetNodePublishVolumeRequest(targetPath, contex))
+	_, err := suite.service.NodePublishVolume(suite.Suite.T().Context(), storagecommon.GetNodePublishVolumeRequest(targetPath, contex))
 
 	assert.NotNil(suite.T(), err, " error NOT should be nil")
 }

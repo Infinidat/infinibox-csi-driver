@@ -59,7 +59,7 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	defer helper.TimeTrack(zlog, time.Now())
 	var err error
 	const functionName = "NodeStageVolume"
-	zlog.Debug().Msgf("%s (fc) called with PublishContext: volume ID: %s details: %+v %s", functionName, req.GetVolumeId(), req.GetPublishContext(), storagecommon.GetHostInfo(req.GetSecrets(), fc.CS.IboxAPI))
+	zlog.Debug().Msgf("%s (fc) called with PublishContext: volume ID: %s details: %+v %s", functionName, req.GetVolumeId(), req.GetPublishContext(), storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -100,13 +100,13 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 		zlog.Debug().Msgf("%s (fc) - comparing %s with %s", functionName, ports, fcp)
 		if !strings.Contains(ports, fcp) {
 			zlog.Debug().Msgf("%s (fc) - host port %s is not created, creating it", functionName, fcp)
-			err = fc.CS.AddPortForHost(hostID, "FC", fcp)
+			err = fc.CS.AddPortForHost(ctx, hostID, "FC", fcp)
 			if err != nil {
 				e := fmt.Errorf("%s (fc) - AddPortForHost - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 				zlog.Error().Msg(e.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
-			_, err := fc.CS.IboxAPI.GetHostPort(hostID, fcp)
+			_, err := fc.CS.IboxAPI.GetHostPort(ctx, hostID, fcp)
 			if err != nil {
 				e := fmt.Errorf("%s (fc) - GetHostPort host port %s - volume ID: %s error: %s", functionName, fcp, req.GetVolumeId(), err.Error())
 				zlog.Error().Msg(e.Error())
@@ -131,10 +131,10 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}()
 
 	zlog.Debug().Msgf("%s (fc) volume ID: %s volumecontext %v %s", functionName, req.GetVolumeId(), req.GetVolumeContext(),
-		storagecommon.GetHostInfo(req.GetSecrets(), fc.CS.IboxAPI))
+		storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
 	zlog.Debug().Msgf("%s (fc) uid: %s gid: %s unix_perm: %s", functionName, req.GetVolumeContext()[common.StorageClassUID], req.GetVolumeContext()[common.StorageClassGID], req.GetVolumeContext()[common.StorageClassUNIXPermissions])
 
-	fcDetails, err := fc.getFCDiskDetails(req)
+	fcDetails, err := fc.getFCDiskDetails(ctx, req)
 	if err != nil {
 		e := fmt.Errorf("%s (fc) - getFCDiskDetails - volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -413,13 +413,13 @@ func (fc *FCstorage) MountFCDisk(mounter Mounter, devicePath string) error {
 	return nil
 }
 
-func (fc *FCstorage) getFCDiskDetails(req *csi.NodePublishVolumeRequest) (*fcDevice, error) {
+func (fc *FCstorage) getFCDiskDetails(ctx context.Context, req *csi.NodePublishVolumeRequest) (*fcDevice, error) {
 	const functionName = "getFCDiskDetails"
 	lun := req.GetPublishContext()["lun"]
 	wwids := req.GetVolumeContext()["WWIDs"]
 	wwidList := strings.Split(wwids, ",")
 	targetList := []string{}
-	fcNodes, err := fc.CS.IboxAPI.GetFCPorts()
+	fcNodes, err := fc.CS.IboxAPI.GetFCPorts(ctx)
 	if err != nil {
 		e := fmt.Errorf("%s - error getting fc details - error %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())

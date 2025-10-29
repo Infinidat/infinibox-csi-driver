@@ -34,21 +34,21 @@ func init() {
 	zlog = log.Get()
 }
 
-func (kc *kubeclient) GetIboxreplicas() (v1.IboxreplicaList, error) {
+func (kc *kubeclient) GetIboxreplicas(ctx context.Context) (v1.IboxreplicaList, error) {
 	zlog.Info().Msgf("GetIboxreplicas called")
 	replicas := v1.IboxreplicaList{}
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return replicas, err
 	}
-	err = crClient.List(context.Background(), &replicas)
+	err = crClient.List(ctx, &replicas)
 	if err != nil {
 		return replicas, err
 	}
 	return replicas, nil
 }
 
-func (kc *kubeclient) GetIboxreplica(name string) (v1.Iboxreplica, error) {
+func (kc *kubeclient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxreplica, error) {
 	zlog.Debug().Msgf("GetIboxreplica %s called", name)
 	replica := v1.Iboxreplica{}
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
@@ -58,20 +58,20 @@ func (kc *kubeclient) GetIboxreplica(name string) (v1.Iboxreplica, error) {
 	key := types.NamespacedName{
 		Name: name,
 	} // an iboxreplica is a cluster resource so there is no namespace specified
-	err = crClient.Get(context.Background(), key, &replica)
+	err = crClient.Get(ctx, key, &replica)
 	if err != nil {
 		return replica, err
 	}
 	return replica, nil
 }
 
-func (kc *kubeclient) CreateIboxreplica(replica v1.Iboxreplica) error {
+func (kc *kubeclient) CreateIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
 	zlog.Debug().Msgf("CreateIboxreplica %v called", replica)
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
 	}
-	err = crClient.Create(context.Background(), &replica)
+	err = crClient.Create(ctx, &replica)
 	if err != nil {
 		return err
 	}
@@ -79,13 +79,13 @@ func (kc *kubeclient) CreateIboxreplica(replica v1.Iboxreplica) error {
 	return nil
 }
 
-func (kc *kubeclient) DeleteIboxreplica(replica v1.Iboxreplica) error {
+func (kc *kubeclient) DeleteIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
 	zlog.Debug().Msgf("DeleteIboxreplica %v called", replica)
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
 	}
-	err = crClient.Delete(context.Background(), &replica)
+	err = crClient.Delete(ctx, &replica)
 	if err != nil {
 		return err
 	}

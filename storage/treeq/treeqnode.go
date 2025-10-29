@@ -30,7 +30,7 @@ import (
 const DefaultHostMountPoint = "/host/"
 
 func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	zlog.Debug().Msgf("NodePublishVolume (treeq) - started %s", storagecommon.GetHostInfo(req.GetSecrets(), treeq.NFSstorage.CS.IboxAPI))
+	zlog.Debug().Msgf("NodePublishVolume (treeq) - started %s", storagecommon.GetHostInfo(ctx, req.GetSecrets(), treeq.NFSstorage.CS.IboxAPI))
 
 	targetPath := req.GetTargetPath() // this is the path on the host node
 	containerHostMountPoint := req.PublishContext["csiContainerHostMountPoint"]
@@ -74,7 +74,7 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 
 	// only update the export if this is the only treeq since treeq's share a single export
-	exports, err := treeq.NFSstorage.CS.IboxAPI.GetExportsByFileSystemID(fileSystemID)
+	exports, err := treeq.NFSstorage.CS.IboxAPI.GetExportsByFileSystemID(ctx, fileSystemID)
 	if err != nil {
 		e := fmt.Errorf("NodePublishVolume (treeq) - GetExportByFileSystem - error: %s", err.Error())
 		zlog.Error().Msg(e.Error())
@@ -93,7 +93,7 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			exportPerms = req.GetVolumeContext()[common.StorageClassNFSExportPermissions]
 			zlog.Debug().Msgf("NodePublishVolume (treeq) - %s was specified %s, will not create default export rule, will create this rule instead", common.StorageClassNFSExportPermissions, exportPerms)
 		}
-		err = treeq.NFSstorage.UpdateExport(fileSystemID, exportPerms)
+		err = treeq.NFSstorage.UpdateExport(ctx, fileSystemID, exportPerms)
 		if err != nil {
 			e := fmt.Errorf("NodePublishVolume (treeq) - updateExport - error: %s", err.Error())
 			zlog.Error().Msg(e.Error())

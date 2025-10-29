@@ -33,10 +33,10 @@ func TestFc(t *testing.T) {
 
 	testConfig.PVCAnnotations = pvcAnnotations
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}

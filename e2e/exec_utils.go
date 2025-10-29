@@ -18,12 +18,12 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, expectedValue string) (bool, string, error) {
+func VerifyDirPermsCorrect(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, expectedValue string) (bool, string, error) {
 	time.Sleep(time.Second * 5) // sleep a bit to avoid race conditions where the pod is not quite up
 
 	command := fmt.Sprintf("ls -ld %s", MOUNT_PATH)
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, command, "")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, command, "")
 
 	if err != nil {
 		fmt.Printf("Error happened attempting to exec command in pod: %s\n", err.Error())
@@ -50,19 +50,19 @@ func VerifyDirPermsCorrect(clientSet *kubernetes.Clientset, config *restclient.C
 	return (math.Abs(float64(strings.Compare(actualValue, expectedValue)))) == 0, actualValue, nil
 }
 
-func VerifyGroupIDIsUsed(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
+func VerifyGroupIDIsUsed(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string,
 	expectedValue string) (bool, string, error) {
 	createFileCmd := fmt.Sprintf("touch %s/testfile.txt", MOUNT_PATH)
 	testFileCmd := fmt.Sprintf("ls -l %s/testfile.txt", MOUNT_PATH)
 
-	_, _, err := execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd, "")
+	_, _, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, createFileCmd, "")
 
 	if err != nil {
 		fmt.Println("Error happened creating test file")
 		return false, "", err
 	}
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd, "")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, testFileCmd, "")
 
 	if err != nil {
 		fmt.Println("Error happened reading test file")
@@ -83,12 +83,12 @@ func VerifyGroupIDIsUsed(clientSet *kubernetes.Clientset, config *restclient.Con
 	return (math.Abs(float64(strings.Compare(actualValue, expectedValue)))) == 0, actualValue, nil
 }
 
-func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (bool, string, error) {
+func VerifyBlockWriteInPod(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (bool, string, error) {
 	fmt.Printf("Testing for blockwrite in %s\n", podName)
 
 	nodeNameCmd := "echo $KUBE_NODE_NAME"
 
-	nodeName, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, nodeNameCmd, "")
+	nodeName, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, nodeNameCmd, "")
 
 	if len(stdErr) > 0 {
 		fmt.Printf("Error: %s\n", stdErr)
@@ -111,7 +111,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 
 	// fmt.Printf("Character count is: %d and testCmd: %s\n", charCount, testFileCmd)
 
-	blockRead, stdErr2, err2 := execCmdInPod(clientSet, config, podName, nameSpace, testFileCmd, "")
+	blockRead, stdErr2, err2 := execCmdInPod(ctx, clientSet, config, podName, nameSpace, testFileCmd, "")
 
 	if len(stdErr2) > 0 {
 		fmt.Printf("Error: %s\n", stdErr2)
@@ -131,7 +131,7 @@ func VerifyBlockWriteInPod(clientSet *kubernetes.Clientset, config *restclient.C
 }
 
 // execCmdInPod - exec command on specific pod and wait the command's output.
-func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, command string, containerName string) (string, string, error) {
+func execCmdInPod(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, command string, containerName string) (string, string, error) {
 	stdOut := &bytes.Buffer{}
 	stdErr := &bytes.Buffer{}
 
@@ -165,7 +165,7 @@ func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, po
 	if err != nil {
 		return stdOut.String(), stdErr.String(), err
 	}
-	err = exec.StreamWithContext(context.Background(),
+	err = exec.StreamWithContext(ctx,
 		remotecommand.StreamOptions{
 			Stdin:  nil,
 			Stdout: stdOut,
@@ -175,10 +175,10 @@ func execCmdInPod(clientSet *kubernetes.Clientset, config *restclient.Config, po
 	return stdOut.String(), stdErr.String(), err
 }
 
-func VerifyReadOnlyMount(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) error {
+func VerifyReadOnlyMount(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) error {
 	catFileCmd := "cat /proc/mounts"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {
 		return err
 	}
@@ -208,11 +208,11 @@ func VerifyReadOnlyMount(clientSet *kubernetes.Clientset, config *restclient.Con
 	return fmt.Errorf("could not find ro in the csitesting mount")
 }
 
-func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) error {
+func CreateLinks(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) error {
 	// create a broken link
 	createLinkCmd := "ln -s /tmp/monkey /tmp/csitesting/brokenlink"
 
-	_, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, createLinkCmd, "")
+	_, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, createLinkCmd, "")
 	if err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	validFileName := "/tmp/csitesting/validfile"
 	createFileCmd := fmt.Sprintf("cp /etc/hosts %s", validFileName)
 
-	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createFileCmd, "")
+	_, stdErr, err = execCmdInPod(ctx, clientSet, config, podName, nameSpace, createFileCmd, "")
 	if err != nil {
 		return err
 	}
@@ -241,7 +241,7 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	// create a working sym link
 	createValidLinkCmd := fmt.Sprintf("ln -s %s /tmp/csitesting/validlink", validFileName)
 
-	_, stdErr, err = execCmdInPod(clientSet, config, podName, nameSpace, createValidLinkCmd, "")
+	_, stdErr, err = execCmdInPod(ctx, clientSet, config, podName, nameSpace, createValidLinkCmd, "")
 	if err != nil {
 		return err
 	}
@@ -254,10 +254,10 @@ func CreateLinks(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	return nil
 }
 
-func GetMountSize(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
+func GetMountSize(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
 	catFileCmd := "df -P /tmp/csitesting"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {
 		return 0, err
 	}
@@ -295,10 +295,10 @@ func GetMountSize(clientSet *kubernetes.Clientset, config *restclient.Config, po
 	return int64(byteCount), nil
 }
 
-func GetBlockVolumeSize(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
+func GetBlockVolumeSize(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (int64, error) {
 	catFileCmd := "blockdev --getsize64 /dev/xvda"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, catFileCmd, "")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, catFileCmd, "")
 	if err != nil {
 		return 0, err
 	}
@@ -324,10 +324,10 @@ func GetBlockVolumeSize(clientSet *kubernetes.Clientset, config *restclient.Conf
 	return int64(raw), nil
 }
 
-func GetMpathDevicePath(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (string, error) {
+func GetMpathDevicePath(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string) (string, error) {
 	mountCmd := "mount | grep /tmp/csitesting"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, mountCmd, "")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, mountCmd, "")
 	if err != nil {
 		fmt.Printf("mount command stdErr %s \n", stdErr)
 		return "", err
@@ -346,10 +346,10 @@ func GetMpathDevicePath(clientSet *kubernetes.Clientset, config *restclient.Conf
 	return mpathDevicePath, nil
 }
 
-func MpathExists(clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, mpath string) (bool, error) {
+func MpathExists(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, mpath string) (bool, error) {
 	multipathCommand := "multipathd show multipaths 2> /dev/null | grep " + mpath + " | wc -l"
 
-	stdOut, stdErr, err := execCmdInPod(clientSet, config, podName, nameSpace, multipathCommand, "driver")
+	stdOut, stdErr, err := execCmdInPod(ctx, clientSet, config, podName, nameSpace, multipathCommand, "driver")
 	if err != nil {
 		fmt.Printf("mount command stdErr %s \n", stdErr)
 		return false, err
@@ -370,7 +370,7 @@ func MpathExists(clientSet *kubernetes.Clientset, config *restclient.Config, pod
 	return false, nil
 }
 
-func CleanISCI(testConfig TestConfig) error {
+func CleanISCI(ctx context.Context, testConfig TestConfig) error {
 	// find the csi driver node pod
 	namespace := os.Getenv("_E2E_NAMESPACE")
 	fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
@@ -379,7 +379,7 @@ func CleanISCI(testConfig TestConfig) error {
 		FieldSelector: fieldSelector,
 		LabelSelector: labelSelector,
 	}
-	csiPods, err := testConfig.ClientSet.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
+	csiPods, err := testConfig.ClientSet.CoreV1().Pods(namespace).List(ctx, listOptions)
 	if err != nil {
 		return fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
 	}
@@ -387,7 +387,7 @@ func CleanISCI(testConfig TestConfig) error {
 	for _, pod := range csiPods.Items {
 		fmt.Printf("csi pod that matches is %s\n", pod.Name)
 		iscsiLogoutCommand := "iscsiadm --mode node --logoutall=all"
-		stdOut, stdErr, err := execCmdInPod(testConfig.ClientSet, testConfig.RestConfig, pod.Name, namespace, iscsiLogoutCommand, "driver")
+		stdOut, stdErr, err := execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, pod.Name, namespace, iscsiLogoutCommand, "driver")
 		if err != nil {
 			fmt.Printf("%s command stdOut %s stdErr %s\n", iscsiLogoutCommand, stdOut, stdErr)
 			return err
@@ -396,7 +396,7 @@ func CleanISCI(testConfig TestConfig) error {
 		// wait a bit to give iscsid a chance to work
 		time.Sleep(time.Second * 5)
 		iscsiNodeListCommand := "iscsiadm --mode node"
-		stdOut, stdErr, err = execCmdInPod(testConfig.ClientSet, testConfig.RestConfig, pod.Name, namespace, iscsiNodeListCommand, "driver")
+		stdOut, stdErr, err = execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, pod.Name, namespace, iscsiNodeListCommand, "driver")
 		if err != nil {
 			fmt.Printf("%s command stdErr %s\n", iscsiNodeListCommand, stdErr)
 			return err
@@ -422,7 +422,7 @@ func CleanISCI(testConfig TestConfig) error {
 			// fmt.Printf("iqn [%s]\n", iqnParts[1])
 			cmdBase := fmt.Sprintf("iscsiadm -m node -o delete -T %s -p %s", iqnParts[1], ipAddressParts[0])
 			fmt.Printf("%s\n", cmdBase)
-			stdOut, stdErr, err = execCmdInPod(testConfig.ClientSet, testConfig.RestConfig, pod.Name, namespace, cmdBase, "driver")
+			stdOut, stdErr, err = execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, pod.Name, namespace, cmdBase, "driver")
 			if err != nil {
 				fmt.Printf("error cleaning ISCSI for pod %s on node %s -  %s command stdErr %s stdOut %s\n", pod.Name, testConfig.NodeName, cmdBase, stdErr, stdOut)
 				return err

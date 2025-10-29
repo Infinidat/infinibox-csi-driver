@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -40,12 +41,12 @@ type GetFCPortsResponse struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-func (client *IboxClient) GetFCPorts() (nodes []FCNode, err error) {
+func (client *IboxClient) GetFCPorts(ctx context.Context) (nodes []FCNode, err error) {
 	const functionName = "GetFCPorts"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/components/nodes")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nodes, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

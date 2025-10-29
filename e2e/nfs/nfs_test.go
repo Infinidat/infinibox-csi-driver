@@ -3,7 +3,6 @@
 package nfs
 
 import (
-	"context"
 	"os"
 	"strconv"
 	"strings"
@@ -27,11 +26,11 @@ func TestNfsSnapshotLocking(t *testing.T) {
 
 	testConfig.UseSnapshotLock = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	time.Sleep(time.Second * 5)
 
-	err = e2e.CreateSnapshot(testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
+	err = e2e.CreateSnapshot(t.Context(), testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
 	if err != nil {
 		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
 	}
@@ -44,21 +43,21 @@ func TestNfsSnapshotLocking(t *testing.T) {
 	}
 
 	// the snapshot should be locked so this delete should not work
-	err = e2e.DeleteVolumeSnapshot(context.Background(), testConfig.TestNames.NSName, e2e.SNAPSHOT_NAME, testConfig.SnapshotClient)
+	err = e2e.DeleteVolumeSnapshot(t.Context(), testConfig.TestNames.NSName, e2e.SNAPSHOT_NAME, testConfig.SnapshotClient)
 	if err != nil {
 		testConfig.Testt.Logf("error deleting volume snapshot %s\n", err.Error())
 	}
 	t.Log("delete attempted of VolumeSnapshot")
 
 	// you should be able to get the snapshot since it was not deleted
-	err = e2e.GetVolumeSnapshot(context.Background(), testConfig.TestNames.NSName, e2e.SNAPSHOT_NAME, testConfig.SnapshotClient)
+	err = e2e.GetVolumeSnapshot(t.Context(), testConfig.TestNames.NSName, e2e.SNAPSHOT_NAME, testConfig.SnapshotClient)
 	if err != nil {
 		t.Fatalf("error getting volumesnapshot %s", err.Error())
 	}
 	t.Log("got locked VolumeSnapshot, locking logic worked")
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -73,11 +72,11 @@ func TestNfsSnapshot(t *testing.T) {
 
 	testConfig.UseSnapshot = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	time.Sleep(time.Second * 5)
 
-	err = e2e.CreateSnapshot(testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
+	err = e2e.CreateSnapshot(t.Context(), testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
 	if err != nil {
 		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
 	}
@@ -90,7 +89,7 @@ func TestNfsSnapshot(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -103,10 +102,10 @@ func TestNfs(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -121,10 +120,10 @@ func TestNfsFsGroup(t *testing.T) {
 
 	testConfig.UseFsGroup = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	expectedValue := "drwxrwsr-x"
-	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error verifying dir perms  %s", err.Error())
 	}
@@ -136,7 +135,7 @@ func TestNfsFsGroup(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual, err = e2e.VerifyGroupIDIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIDIsUsed(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifyGroupIdIsUsed %s", err.Error())
 	}
@@ -148,7 +147,7 @@ func TestNfsFsGroup(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -165,16 +164,16 @@ func TestNfsROX(t *testing.T) {
 	testConfig.ReadOnlyPod = true
 	testConfig.ReadOnlyPodVolume = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
-	err = e2e.VerifyReadOnlyMount(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	err = e2e.VerifyReadOnlyMount(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Errorf("error verifying read-only %s\n", err.Error())
 		t.Fail()
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -189,16 +188,16 @@ func TestNfsRO(t *testing.T) {
 	testConfig.ReadOnlyPod = true
 	testConfig.ReadOnlyPodVolume = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
-	err = e2e.VerifyReadOnlyMount(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	err = e2e.VerifyReadOnlyMount(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Errorf("error verifying read-only %s\n", err.Error())
 		t.Fail()
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -214,10 +213,10 @@ func TestNfsFsGroupWithSnapdir(t *testing.T) {
 	testConfig.UseFsGroup = true
 	testConfig.UseSnapdirVisible = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	expectedValue := "drwxrwsr-x"
-	winning, actual, err := e2e.VerifyDirPermsCorrect(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	winning, actual, err := e2e.VerifyDirPermsCorrect(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error verifying dir perms  %s", err.Error())
 	}
@@ -229,7 +228,7 @@ func TestNfsFsGroupWithSnapdir(t *testing.T) {
 	}
 
 	expectedValue = strconv.Itoa(e2e.POD_FS_GROUP)
-	winning, actual, err = e2e.VerifyGroupIDIsUsed(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
+	winning, actual, err = e2e.VerifyGroupIDIsUsed(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName, expectedValue)
 	if err != nil {
 		t.Fatalf("error in VerifyGroupIdIsUsed %s", err.Error())
 	}
@@ -241,7 +240,7 @@ func TestNfsFsGroupWithSnapdir(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -254,12 +253,12 @@ func TestNfsClone(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	// create a PVC that references the previously created PVC
 	// this is what a clone is, a PVC based off of an existing PVC
 
-	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error getting existing PVC %s", err.Error())
 	}
@@ -277,7 +276,7 @@ func TestNfsClone(t *testing.T) {
 	clonePVC.Spec.VolumeMode = nil
 	clonePVC.Spec.VolumeName = ""
 
-	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Create(context.TODO(), clonePVC, metav1.CreateOptions{})
+	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Create(t.Context(), clonePVC, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error creating clone PVC %s", err.Error())
 	}
@@ -288,7 +287,7 @@ func TestNfsClone(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -301,7 +300,7 @@ func TestNfsExpand(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	// we want to patch the PVC size up and then check for an expand of the PVC size
 	// e.g. kubectl patch pvc nfs-pvc --type='merge' -p '{"spec":{"resources":{"requests":{"storage": "2Gi"}}}}'
@@ -314,7 +313,7 @@ func TestNfsExpand(t *testing.T) {
 	// wait an undetermined amount of time for the filesystem to be expanded inside the running pod
 	time.Sleep(time.Second * 5)
 
-	mountSize, err := e2e.GetMountSize(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	mountSize, err := e2e.GetMountSize(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Fatalf("error execing into pod %s", err.Error())
 	}
@@ -326,7 +325,7 @@ func TestNfsExpand(t *testing.T) {
 	t.Logf("updated size matches %d %d in pod", mountSize, updatedSize)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
@@ -352,10 +351,10 @@ func TestNfsIpRangePermissions(t *testing.T) {
 		t.Logf("using nfs ip range permission from env var %s", nfsPermission)
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}

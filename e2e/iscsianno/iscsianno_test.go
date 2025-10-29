@@ -46,17 +46,17 @@ func TestIscsiMultipleNetworkSpace(t *testing.T) {
 
 	testConfig.PVCAnnotations = pvcAnnotations
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	t.Logf("testing with ibox_secret %s network_space %s\n", iboxSecret, networkSpace)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
 
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
@@ -89,17 +89,17 @@ func TestIscsiNetworkSpace(t *testing.T) {
 
 	testConfig.PVCAnnotations = pvcAnnotations
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	t.Logf("testing with ibox_secret %s network_space %s\n", iboxSecret, networkSpace)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
 
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
@@ -128,15 +128,15 @@ func TestIscsiPool(t *testing.T) {
 
 	testConfig.PVCAnnotations = pvcAnnotations
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
 
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
@@ -161,15 +161,15 @@ func TestIscsiSecret(t *testing.T) {
 
 	testConfig.PVCAnnotations = pvcAnnotations
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
 
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}

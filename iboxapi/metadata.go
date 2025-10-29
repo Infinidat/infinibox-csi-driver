@@ -2,6 +2,7 @@ package iboxapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,7 +45,7 @@ type GetMetadataResult struct {
 	ObjectID   int    `json:"object_id"`
 }
 
-func (client *IboxClient) PutMetadata(objectID int, metadata map[string]any) (r *PutMetadataResponse, err error) {
+func (client *IboxClient) PutMetadata(ctx context.Context, objectID int, metadata map[string]any) (r *PutMetadataResponse, err error) {
 	const functionName = "PutMetadata"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata/", objectID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID, "map", metadata)
@@ -53,7 +54,7 @@ func (client *IboxClient) PutMetadata(objectID int, metadata map[string]any) (r 
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -88,7 +89,7 @@ func (client *IboxClient) PutMetadata(objectID int, metadata map[string]any) (r 
 	return &responseObject, nil
 }
 
-func (client *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult, err error) {
+func (client *IboxClient) GetMetadata(ctx context.Context, objectID int) (results []GetMetadataResult, err error) {
 	const functionName = "GetMetadata"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata", objectID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
@@ -98,7 +99,7 @@ func (client *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -139,12 +140,12 @@ func (client *IboxClient) GetMetadata(objectID int) (results []GetMetadataResult
 	return results, nil
 }
 
-func (client *IboxClient) DeleteMetadata(objectID int) (response *DeleteMetadataResponse, err error) {
+func (client *IboxClient) DeleteMetadata(ctx context.Context, objectID int) (response *DeleteMetadataResponse, err error) {
 	const functionName = "DeleteMetadata"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata", objectID)
 	client.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "object ID", objectID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

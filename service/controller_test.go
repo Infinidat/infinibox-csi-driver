@@ -14,7 +14,6 @@ limitations under the License.*/
 package service
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -56,7 +55,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_NoParameters_Fail() {
 	var parameterMap map[string]string
 	createVolumeReq := tests.GetCreateVolumeRequest("", parameterMap, "")
 	cs := ControllerServer{}
-	_, err := cs.CreateVolume(context.Background(), createVolumeReq)
+	_, err := cs.CreateVolume(suite.Suite.T().Context(), createVolumeReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume no parameters")
 }
 
@@ -69,7 +68,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_MissingStorageProtocol() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.CreateVolume(context.Background(), createVolumeReq)
+	_, err := cs.CreateVolume(suite.Suite.T().Context(), createVolumeReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume storage protocol value missing")
 }
 
@@ -82,7 +81,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_InvalidStorageProtocol() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.CreateVolume(context.Background(), createVolumeReq)
+	_, err := cs.CreateVolume(suite.Suite.T().Context(), createVolumeReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume storage_protocol invalid")
 }
 
@@ -95,7 +94,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_No_VolumeCapabilities_fail()
 			nodeID: "n",
 		},
 	}
-	_, err := cs.CreateVolume(context.Background(), createVolumeReq)
+	_, err := cs.CreateVolume(suite.Suite.T().Context(), createVolumeReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateVolume no VolumeCapabilities")
 }
 
@@ -112,7 +111,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_VolumeCapabilities_MultiNode
 	var arr []*csi.VolumeCapability
 	arr = append(arr, &capa)
 	createVolumeReq.VolumeCapabilities = arr
-	_, err := suite.mockController.CreateVolume(context.Background(), createVolumeReq)
+	_, err := suite.mockController.CreateVolume(suite.Suite.T().Context(), createVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume VolumeCapabilities with MULTI_NODE_READER access")
 }
 
@@ -120,7 +119,7 @@ func (suite *ControllerTestSuite) Test_CreateVolume_success() {
 	parameterMap := getControllerCreateVolumeParameters()
 	createVolumeReq := tests.GetCreateVolumeRequest("pvcName", parameterMap, "")
 
-	resp, err := suite.mockController.CreateVolume(context.Background(), createVolumeReq)
+	resp, err := suite.mockController.CreateVolume(suite.Suite.T().Context(), createVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateVolume")
 	assert.NotNil(suite.T(), resp)
 }
@@ -133,7 +132,7 @@ func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidID_success() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.DeleteVolume(context.Background(), deleteVolumeReq)
+	_, err := cs.DeleteVolume(suite.Suite.T().Context(), deleteVolumeReq)
 	fmt.Printf("error is %v\n", err)
 	assert.NotNil(suite.T(), err)
 }
@@ -146,13 +145,13 @@ func (suite *ControllerTestSuite) Test_DeleteVolume_InvalidProtocol() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.DeleteVolume(context.Background(), deleteVolumeReq)
+	_, err := cs.DeleteVolume(suite.Suite.T().Context(), deleteVolumeReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller DeleteVolume with Invalid Protocol")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteVolume_Success() {
 	deleteVolumeReq := getControllerDeleteVolumeRequest()
-	_, err := suite.mockController.DeleteVolume(context.Background(), deleteVolumeReq)
+	_, err := suite.mockController.DeleteVolume(suite.Suite.T().Context(), deleteVolumeReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteVolume")
 }
 
@@ -164,7 +163,7 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_InvalidID() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ControllerPublishVolume(context.Background(), publishVolReq)
+	_, err := cs.ControllerPublishVolume(suite.Suite.T().Context(), publishVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller PublishVolume Invalid volume ID format")
 }
 
@@ -176,7 +175,7 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_Invalid_protocol(
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ControllerPublishVolume(context.Background(), publishVolReq)
+	_, err := cs.ControllerPublishVolume(suite.Suite.T().Context(), publishVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller PublishVolume Invalid volume ID protocol")
 }
 
@@ -184,7 +183,7 @@ func (suite *ControllerTestSuite) Test_ControllerPublishVolume_success() {
 	publishVolReq := getControllerPublishVolumeRequest()
 	publishVolReq.VolumeId = "100$$nfs"
 
-	_, err := suite.mockController.ControllerPublishVolume(context.Background(), publishVolReq)
+	_, err := suite.mockController.ControllerPublishVolume(suite.Suite.T().Context(), publishVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller PublishVolume")
 }
 
@@ -196,7 +195,7 @@ func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_InvalidID() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	_, err := cs.ControllerUnpublishVolume(suite.Suite.T().Context(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller UnpublishVolume Invalid volume ID format")
 }
 
@@ -208,14 +207,14 @@ func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_InvalidProtocol
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	_, err := cs.ControllerUnpublishVolume(suite.Suite.T().Context(), unpublishVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller UnpublishVolume Invalid volume ID protocol")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerUnpublishVolume_success() {
 	unpublishVolReq := getControllerUnpublishVolumeRequest()
 	unpublishVolReq.VolumeId = "100$$nfs"
-	_, err := suite.mockController.ControllerUnpublishVolume(context.Background(), unpublishVolReq)
+	_, err := suite.mockController.ControllerUnpublishVolume(suite.Suite.T().Context(), unpublishVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller UnpublishVolume")
 }
 
@@ -227,7 +226,7 @@ func (suite *ControllerTestSuite) Test_CreateSnapshot_InvalidID() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.CreateSnapshot(context.Background(), createSnapshotReq)
+	_, err := cs.CreateSnapshot(suite.Suite.T().Context(), createSnapshotReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateSnapshot Invalid volume Id format")
 }
 
@@ -239,14 +238,14 @@ func (suite *ControllerTestSuite) Test_CreateSnapshot_Invalid_protocol() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.CreateSnapshot(context.Background(), createSnapshotReq)
+	_, err := cs.CreateSnapshot(suite.Suite.T().Context(), createSnapshotReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller CreateSnapshot invalid Volume Id protocol")
 }
 
 func (suite *ControllerTestSuite) Test_CreateSnapshot_success() {
 	createSnapshotReq := getControllerCreateSnapshotRequest()
 	createSnapshotReq.SourceVolumeId = "100$$nfs"
-	_, err := suite.mockController.CreateSnapshot(context.Background(), createSnapshotReq)
+	_, err := suite.mockController.CreateSnapshot(suite.Suite.T().Context(), createSnapshotReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller CreateSnapshot")
 }
 
@@ -258,7 +257,7 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_InvalidID_success() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.DeleteSnapshot(context.Background(), deleteSnapshotReq)
+	_, err := cs.DeleteSnapshot(suite.Suite.T().Context(), deleteSnapshotReq)
 	assert.NotNil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot invalid snapshot ID")
 }
 
@@ -270,13 +269,13 @@ func (suite *ControllerTestSuite) Test_DeleteSnapshot_Invalid_protocol() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.DeleteSnapshot(context.Background(), deleteSnapshotReq)
+	_, err := cs.DeleteSnapshot(suite.Suite.T().Context(), deleteSnapshotReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller DeleteSnapshot Invalid SnapshotId protocol")
 }
 
 func (suite *ControllerTestSuite) Test_DeleteSnapshot_success() {
 	deleteSnapshotReq := getControllerDeleteSnapshotRequest()
-	_, err := suite.mockController.DeleteSnapshot(context.Background(), deleteSnapshotReq)
+	_, err := suite.mockController.DeleteSnapshot(suite.Suite.T().Context(), deleteSnapshotReq)
 
 	assert.Nil(suite.T(), err, "expected to succeed: Controller DeleteSnapshot")
 }
@@ -289,7 +288,7 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_InvalidID() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ControllerExpandVolume(context.Background(), expandVolReq)
+	_, err := cs.ControllerExpandVolume(suite.Suite.T().Context(), expandVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller ExpandVolume volume ID invalid format")
 }
 
@@ -301,13 +300,13 @@ func (suite *ControllerTestSuite) Test_ControllerExpandVolume_Invalid_protocol()
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ControllerExpandVolume(context.Background(), expandVolReq)
+	_, err := cs.ControllerExpandVolume(suite.Suite.T().Context(), expandVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: Controller ExpandVolume volume ID invalid protocol")
 }
 
 func (suite *ControllerTestSuite) Test_ControllerExpandVolume_success() {
 	expandVolReq := getControllerExpandVolumeRequest()
-	_, err := suite.mockController.ControllerExpandVolume(context.Background(), expandVolReq)
+	_, err := suite.mockController.ControllerExpandVolume(suite.Suite.T().Context(), expandVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller ExpandVolume")
 }
 
@@ -319,13 +318,13 @@ func (suite *ControllerTestSuite) Test_ControllerGetCapabilities_success() {
 		},
 	}
 
-	_, err := cs.ControllerGetCapabilities(context.Background(), controllerGetCapsReq)
+	_, err := cs.ControllerGetCapabilities(suite.Suite.T().Context(), controllerGetCapsReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller GetCapabilities")
 }
 
 func (suite *ControllerTestSuite) Test_ValidateVolumeCapabilities() {
 	validateVolCapsReq := getControllerValidateVolumeCapabilitiesRequest()
-	_, err := suite.mockController.ValidateVolumeCapabilities(context.Background(), validateVolCapsReq)
+	_, err := suite.mockController.ValidateVolumeCapabilities(suite.Suite.T().Context(), validateVolCapsReq)
 	assert.Nil(suite.T(), err, "expected to succeed: Controller ValidateVolumeCapabilities")
 }
 
@@ -335,7 +334,7 @@ func (suite *ControllerTestSuite) Test_ListVolumes_unimplemented() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ListVolumes(context.Background(), &csi.ListVolumesRequest{})
+	_, err := cs.ListVolumes(suite.Suite.T().Context(), &csi.ListVolumesRequest{})
 	assert.NotNil(suite.T(), err, "expected to fail: Controller ListVolumes unimplemented")
 }
 
@@ -345,7 +344,7 @@ func (suite *ControllerTestSuite) Test_ListSnapshots_unimplemented() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.ListSnapshots(context.Background(), &csi.ListSnapshotsRequest{})
+	_, err := cs.ListSnapshots(suite.Suite.T().Context(), &csi.ListSnapshotsRequest{})
 	assert.NotNil(suite.T(), err, "expected to fail: Controller ListSnapshots unimplemented")
 }
 
@@ -355,7 +354,7 @@ func (suite *ControllerTestSuite) Test_GetCapacity_unimplemented() {
 			nodeID: "na",
 		},
 	}
-	_, err := cs.GetCapacity(context.Background(), &csi.GetCapacityRequest{})
+	_, err := cs.GetCapacity(suite.Suite.T().Context(), &csi.GetCapacityRequest{})
 	assert.NotNil(suite.T(), err, "expected to fail: Controller GetCapacity unimplemented")
 }
 

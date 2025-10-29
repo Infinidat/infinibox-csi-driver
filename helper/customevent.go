@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -253,7 +254,7 @@ func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventR
 	}
 	data = append(data, descData)
 
-	systemDetails, err := iboxAPI.GetSystem()
+	systemDetails, err := iboxAPI.GetSystem(context.Background())
 	if err != nil {
 		zlog.Error().Msg(err.Error())
 	} else {
@@ -270,6 +271,6 @@ func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventR
 		Data: data,
 	}
 
-	err = iboxAPI.CreateEvent(r)
+	err = iboxAPI.CreateEvent(context.Background(), r)
 	return err
 }

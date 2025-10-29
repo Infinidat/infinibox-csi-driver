@@ -3,7 +3,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/infinidat/infinibox-csi-driver/helper"
@@ -21,6 +20,9 @@ const (
 
 type IdentitySuite struct {
 	suite.Suite
+}
+
+func (suite *IdentitySuite) SetupTest() {
 }
 
 func TestIdentitySuite(t *testing.T) {
@@ -57,7 +59,7 @@ func (suite *IdentitySuite) TestGetPluginCapabilities() {
 		Driver: d,
 	}
 	req := csi.GetPluginCapabilitiesRequest{}
-	resp, err := fakeIdentityServer.GetPluginCapabilities(context.Background(), &req)
+	resp, err := fakeIdentityServer.GetPluginCapabilities(suite.Suite.T().Context(), &req)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), resp)
 	assert.Equal(suite.T(), resp.Capabilities, expectedCap)
@@ -70,7 +72,7 @@ func (suite *IdentitySuite) TestProbe() {
 	fakeIdentityServer := IdentityServer{
 		Driver: d,
 	}
-	resp, err := fakeIdentityServer.Probe(context.Background(), &req)
+	resp, err := fakeIdentityServer.Probe(suite.Suite.T().Context(), &req)
 	assert.NoError(suite.T(), err)
 	assert.NotNil(suite.T(), resp)
 	assert.Equal(suite.T(), resp.Ready.Value, true)
@@ -106,7 +108,7 @@ func (suite *IdentitySuite) TestGetPluginInfo() {
 		fakeIdentityServer := IdentityServer{
 			Driver: test.driver,
 		}
-		_, err := fakeIdentityServer.GetPluginInfo(context.Background(), &req)
+		_, err := fakeIdentityServer.GetPluginInfo(suite.Suite.T().Context(), &req)
 		if err == nil && test.expectedErr != nil {
 			suite.T().Errorf("Unexpected error: %v\nExpected: %v", err, test.expectedErr)
 		}

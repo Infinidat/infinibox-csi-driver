@@ -18,7 +18,7 @@ func TestIscsi(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	volumesToCreate := 157
 
@@ -26,11 +26,11 @@ func TestIscsi(t *testing.T) {
 
 	testConfig.UseFsGroup = true
 
-	for i := 0; i < volumesToCreate; i++ {
+	for i := range volumesToCreate {
 		testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", originalPVCName, i)
-		e2e.CreatePVC(testConfig)
+		e2e.CreatePVC(t.Context(), testConfig)
 		podName := testConfig.TestNames.PVCName
-		e2e.CreatePod(testConfig, testConfig.TestNames.NSName, podName)
+		e2e.CreatePod(t.Context(), testConfig, testConfig.TestNames.NSName, podName)
 		time.Sleep(time.Second * 15)
 		t.Logf("creating volume %d", i)
 	}
@@ -38,7 +38,6 @@ func TestIscsi(t *testing.T) {
 	/**
 	if *e2e.CleanUp {
 		e2e.TearDown(testConfig)
-		ctx := context.Background()
 		for i := 0; i < volumesToCreate; i++ {
 			testConfig.TestNames.PVCName = fmt.Sprintf("%s-%d", testConfig.TestNames.PVCName, i)
 			e2e.DeletePVC(ctx, testConfig.TestNames.NSName, testConfig.TestNames.PVCName, testConfig.ClientSet)

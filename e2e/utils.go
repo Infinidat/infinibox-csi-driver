@@ -211,7 +211,7 @@ func UpdatePV(ctx context.Context, pvName string, clientSet *kubernetes.Clientse
 	return nil
 }
 
-func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
+func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string) (err error) {
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -282,7 +282,7 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 		}
 	}
 
-	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(context.TODO(), storageClass, createOptions)
+	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(ctx, storageClass, createOptions)
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func CreateStorageClass(testConfig *TestConfig, path string) (err error) {
 	return nil
 }
 
-func CreatePVC(config *TestConfig) (err error) {
+func CreatePVC(ctx context.Context, config *TestConfig) (err error) {
 	resourceList := make(map[corev1.ResourceName]resource.Quantity)
 	resourceList[corev1.ResourceStorage], err = resource.ParseQuantity("1Gi")
 	if err != nil {
@@ -334,7 +334,7 @@ func CreatePVC(config *TestConfig) (err error) {
 	if config.UsePVCVolumeRef {
 		pvc.Spec.VolumeName = config.TestNames.PVName
 	}
-	_, err = config.ClientSet.CoreV1().PersistentVolumeClaims(config.TestNames.NSName).Create(context.TODO(), pvc, metav1.CreateOptions{})
+	_, err = config.ClientSet.CoreV1().PersistentVolumeClaims(config.TestNames.NSName).Create(ctx, pvc, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -468,7 +468,7 @@ func GetFlags(t *testing.T) {
 	}
 }
 
-func CreatePod(testConfig *TestConfig, namespace string, podName string) (err error) {
+func CreatePod(ctx context.Context, testConfig *TestConfig, namespace string, podName string) (err error) {
 	pvcName := fmt.Sprintf(PVC_NAME, testConfig.Protocol)
 	if testConfig.TestNames.PVCName != "" {
 		pvcName = testConfig.TestNames.PVCName
@@ -652,14 +652,14 @@ func CreatePod(testConfig *TestConfig, namespace string, podName string) (err er
 			},
 		}
 	}
-	_, err = testConfig.ClientSet.CoreV1().Pods(namespace).Create(context.TODO(), &pod, createOptions)
+	_, err = testConfig.ClientSet.CoreV1().Pods(namespace).Create(ctx, &pod, createOptions)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateSnapshot(pvcName string, vscName string, namespace string, clientset *snapshotv6.Clientset) (err error) {
+func CreateSnapshot(ctx context.Context, pvcName string, vscName string, namespace string, clientset *snapshotv6.Clientset) (err error) {
 	createOptions := metav1.CreateOptions{}
 
 	objectMeta := metav1.ObjectMeta{
@@ -675,7 +675,7 @@ func CreateSnapshot(pvcName string, vscName string, namespace string, clientset 
 			},
 		},
 	}
-	_, err = clientset.SnapshotV1().VolumeSnapshots(namespace).Create(context.TODO(), &snapshot, createOptions)
+	_, err = clientset.SnapshotV1().VolumeSnapshots(namespace).Create(ctx, &snapshot, createOptions)
 	if err != nil {
 		fmt.Printf("error creating snapshot %s", err.Error())
 		return err
@@ -720,17 +720,16 @@ func CreateImagePullSecret(t *testing.T, namespace string, clientset *kubernetes
 	return nil
 }
 
-func Setup(testConfig *TestConfig) {
+func Setup(ctx context.Context, testConfig *TestConfig) {
 	testConfig.Testt.Log("SETUP STARTS")
 	testConfig.Testt.Log(GetEnvVars())
 
-	err := ValidateEnv(testConfig)
+	err := ValidateEnv(ctx, testConfig)
 	if err != nil {
 		testConfig.Testt.Fatalf("error validating E2E env vars %s\n", err.Error())
 	}
 	testConfig.Testt.Log("✓ Env Var validation passed")
 
-	ctx := context.Background()
 	err = CreateNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
 	if err != nil {
 		testConfig.Testt.Fatalf("error setting up e2e namespace %s\n", err.Error())
@@ -739,13 +738,13 @@ func Setup(testConfig *TestConfig) {
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
-	err = CreateStorageClass(testConfig, StorageClassPath)
+	err = CreateStorageClass(ctx, testConfig, StorageClassPath)
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating StorageClass %s\n", err.Error())
 	}
 	testConfig.Testt.Logf("✓ StorageClass %s is created\n", testConfig.TestNames.SCName)
 
-	err = CreateVolumeSnapshotClass(testConfig, VolumeSnapshotClassPath)
+	err = CreateVolumeSnapshotClass(ctx, testConfig, VolumeSnapshotClassPath)
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
 	}
@@ -759,7 +758,7 @@ func Setup(testConfig *TestConfig) {
 	if testConfig.UseAntiAffinity {
 		testConfig.AccessMode = corev1.ReadWriteMany
 	}
-	err = CreatePVC(testConfig)
+	err = CreatePVC(ctx, testConfig)
 
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating PVC %s\n", err.Error())
@@ -786,7 +785,7 @@ func Setup(testConfig *TestConfig) {
 	realAntiAffinity := testConfig.UseAntiAffinity // save user intent
 
 	testConfig.UseAntiAffinity = false // first pod is never anti-affinity
-	err = CreatePod(testConfig, testConfig.TestNames.NSName, POD_NAME)
+	err = CreatePod(ctx, testConfig, testConfig.TestNames.NSName, POD_NAME)
 	if err != nil {
 		testConfig.Testt.Fatalf("error creating test pod %s", err.Error())
 	}
@@ -808,7 +807,7 @@ func Setup(testConfig *TestConfig) {
 	testConfig.UseAntiAffinity = realAntiAffinity
 
 	if testConfig.UseAntiAffinity {
-		err = CreatePod(testConfig, testConfig.TestNames.NSName, ANTI_AF_POD_NAME)
+		err = CreatePod(ctx, testConfig, testConfig.TestNames.NSName, ANTI_AF_POD_NAME)
 		if err != nil {
 			DescribePVC(testConfig.Testt, ANTI_AF_POD_NAME, testConfig.TestNames.NSName, testConfig.ClientSet)
 			testConfig.Testt.Fatalf("error creating test anti-affinity pod %s", err.Error())
@@ -823,7 +822,7 @@ func Setup(testConfig *TestConfig) {
 	}
 
 	// get node name that pod is running on
-	pod, err := testConfig.ClientSet.CoreV1().Pods(testConfig.TestNames.NSName).Get(context.TODO(), POD_NAME, metav1.GetOptions{})
+	pod, err := testConfig.ClientSet.CoreV1().Pods(testConfig.TestNames.NSName).Get(ctx, POD_NAME, metav1.GetOptions{})
 	if err != nil {
 		testConfig.Testt.Fatalf("error getting pod for nodeName %s\n", err.Error())
 	}
@@ -832,9 +831,8 @@ func Setup(testConfig *TestConfig) {
 	testConfig.Testt.Log("SETUP ENDS")
 }
 
-func TearDown(testConfig *TestConfig) {
+func TearDown(ctx context.Context, testConfig *TestConfig) {
 	testConfig.Testt.Log("TEARDOWN STARTS")
-	ctx := context.Background()
 
 	err := DeletePod(ctx, testConfig.TestNames.NSName, POD_NAME, testConfig.ClientSet)
 	if err != nil {
@@ -1017,10 +1015,10 @@ func DescribePod(t *testing.T, podName string, namespace string, clientset *kube
 	}
 }
 
-func GetPVName(pvcName string, namespace string, clientset *kubernetes.Clientset) (string, error) {
+func GetPVName(ctx context.Context, pvcName string, namespace string, clientset *kubernetes.Clientset) (string, error) {
 	getOptions := metav1.GetOptions{}
 
-	pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), pvcName, getOptions)
+	pvc, err := clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, getOptions)
 	if err != nil && apierrors.IsNotFound(err) {
 		return "", err
 	}
@@ -1028,7 +1026,7 @@ func GetPVName(pvcName string, namespace string, clientset *kubernetes.Clientset
 	return pvc.Spec.VolumeName, nil
 }
 
-func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) {
+func CreateVolumeSnapshotClass(ctx context.Context, testConfig *TestConfig, path string) (err error) {
 	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -1056,7 +1054,7 @@ func CreateVolumeSnapshotClass(testConfig *TestConfig, path string) (err error) 
 
 	createOptions := metav1.CreateOptions{}
 
-	_, err = testConfig.SnapshotClient.SnapshotV1().VolumeSnapshotClasses().Create(context.TODO(), vsc, createOptions)
+	_, err = testConfig.SnapshotClient.SnapshotV1().VolumeSnapshotClasses().Create(ctx, vsc, createOptions)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package nfs
 
 import (
+	"context"
 	"os"
 	"slices"
 	"strconv"
@@ -16,7 +17,7 @@ import (
 // removed unused NFS permissions for a given IP (node) if there
 // are no mounts on the node any longer
 // this function is to be called after the unmount has completed
-func cleanupNFSPerms(volumeID int) {
+func cleanupNFSPerms(ctx context.Context, volumeID int) {
 	const functionName = "cleanupNFSPerms"
 
 	// get the node name and IP which we'l use for identifying this node
@@ -36,13 +37,13 @@ func cleanupNFSPerms(volumeID int) {
 	// use the PV to obtain the ibox credentials used to create the volume
 	// this is necessary because the unmount stage of CSI doesn't pass the
 	// ibox credentials down as secrets as other CSI stages do
-	persistentVolume, err := kubeClient.GetPVByVolumeID(volumeID, common.ProtocolNFS)
+	persistentVolume, err := kubeClient.GetPVByVolumeID(ctx, volumeID, common.ProtocolNFS)
 	if err != nil {
 		zlog.Error().Msgf("%s - could not get pv by volumeID %s", functionName, err.Error())
 		return
 	}
 	zlog.Debug().Msgf("%s - pv by volumeID %s", functionName, persistentVolume.Name)
-	secretMap, err := kubeClient.GetSecret(persistentVolume.Spec.CSI.ControllerExpandSecretRef.Name, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Namespace)
+	secretMap, err := kubeClient.GetSecret(ctx, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Name, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Namespace)
 	if err != nil {
 		zlog.Error().Msgf("%s - could not get kube secret %s", functionName, err.Error())
 		return
@@ -63,14 +64,14 @@ func cleanupNFSPerms(volumeID int) {
 		return
 	}
 
-	fileSystem, err = clientService.IboxAPI.GetFileSystemByID(volumeID)
+	fileSystem, err = clientService.IboxAPI.GetFileSystemByID(ctx, volumeID)
 	if err != nil {
 		zlog.Error().Msgf("%s - error GetFileSystemByID volumeID %d error %s", functionName, volumeID, err.Error())
 		return
 	}
 	zlog.Debug().Msgf("%s - looked up fs name %s", functionName, fileSystem.Name)
 
-	exports, err = clientService.IboxAPI.GetExportsByFileSystemID(volumeID)
+	exports, err = clientService.IboxAPI.GetExportsByFileSystemID(ctx, volumeID)
 	if err != nil {
 		zlog.Error().Msgf("%s error GetExportsByFileSystemID volumeID %d error %s", functionName, volumeID, err.Error())
 		return
@@ -123,7 +124,7 @@ func cleanupNFSPerms(volumeID int) {
 					// if the filesystem is remounted ever it will cause a new
 					// export to be created
 					if foundNodeIP {
-						_, err := clientService.IboxAPI.DeleteExport(export.ID)
+						_, err := clientService.IboxAPI.DeleteExport(ctx, export.ID)
 						if err != nil {
 							zlog.Error().Msgf("%s - error deleting export %d", functionName, export.ID)
 							return
@@ -140,7 +141,7 @@ func cleanupNFSPerms(volumeID int) {
 						exportPathRef := iboxapi.ExportPathRef{
 							Permissions: updatedPerms,
 						}
-						_, err = clientService.IboxAPI.UpdateExportPermissions(export, exportPathRef)
+						_, err = clientService.IboxAPI.UpdateExportPermissions(ctx, export, exportPathRef)
 						if err != nil {
 							zlog.Error().Msgf("%s - error updating export permissions %s", functionName, err.Error())
 						}

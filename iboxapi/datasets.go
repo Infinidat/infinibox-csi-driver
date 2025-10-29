@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,7 +29,7 @@ type GetAllSnapshotsResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetAllSnapshots() (results []Volume, err error) {
+func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume, err error) {
 	const functionName = "GetAllSnapshots"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/datasets")
@@ -39,7 +40,7 @@ func (client *IboxClient) GetAllSnapshots() (results []Volume, err error) {
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}

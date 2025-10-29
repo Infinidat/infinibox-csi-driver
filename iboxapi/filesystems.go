@@ -14,6 +14,7 @@ limitations under the License.
 */
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -183,7 +184,7 @@ type FileSystemSnapshot struct {
 
 const FILESYSTEM_NOT_FOUND = "FILESYSTEM_NOT_FOUND"
 
-func (client *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (results []FileSystem, err error) {
+func (client *IboxClient) GetFileSystemsByPool(ctx context.Context, poolID int, fsPrefix string) (results []FileSystem, err error) {
 	const functionName = "GetFileSystemsByPool"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/filesystems")
@@ -194,7 +195,7 @@ func (client *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (res
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -239,13 +240,13 @@ func (client *IboxClient) GetFileSystemsByPool(poolID int, fsPrefix string) (res
 	return results, nil
 }
 
-func (client *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err error) {
+func (client *IboxClient) GetFileSystemByID(ctx context.Context, fsID int) (fs *FileSystem, err error) {
 	const functionName = "GetFileSystemByID"
 
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/filesystems", fsID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "filesystem ID", fsID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -279,7 +280,7 @@ func (client *IboxClient) GetFileSystemByID(fsID int) (fs *FileSystem, err error
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*FileSystem, error) {
+func (client *IboxClient) CreateFileSystem(ctx context.Context, req CreateFileSystemRequest) (*FileSystem, error) {
 	const functionName = "CreateFileSystem"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/filesystems")
@@ -289,7 +290,7 @@ func (client *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*FileSy
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -320,7 +321,7 @@ func (client *IboxClient) CreateFileSystem(req CreateFileSystemRequest) (*FileSy
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) GetFileSystemByName(name string) (*FileSystem, error) {
+func (client *IboxClient) GetFileSystemByName(ctx context.Context, name string) (*FileSystem, error) {
 	const functionName = "GetFileSystemByName"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/filesystems")
@@ -331,7 +332,7 @@ func (client *IboxClient) GetFileSystemByName(name string) (*FileSystem, error) 
 	page := 1
 	client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -371,7 +372,7 @@ func (client *IboxClient) GetFileSystemByName(name string) (*FileSystem, error) 
 	return &responseObject.Result[0], nil
 }
 
-func (client *IboxClient) GetFileSystemsByParentID(parentID int) (results []FileSystem, err error) {
+func (client *IboxClient) GetFileSystemsByParentID(ctx context.Context, parentID int) (results []FileSystem, err error) {
 	const functionName = "GetFileSystemsByParentID"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/filesystems")
@@ -382,7 +383,7 @@ func (client *IboxClient) GetFileSystemsByParentID(parentID int) (results []File
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -427,12 +428,12 @@ func (client *IboxClient) GetFileSystemsByParentID(parentID int) (results []File
 	return results, nil
 }
 
-func (client *IboxClient) DeleteFileSystem(fsID int) error {
+func (client *IboxClient) DeleteFileSystem(ctx context.Context, fsID int) error {
 	const functionName = "DeleteFileSystem"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/filesystems", fsID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -467,7 +468,7 @@ func (client *IboxClient) DeleteFileSystem(fsID int) error {
 	return nil
 }
 
-func (client *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSystem, error) {
+func (client *IboxClient) UpdateFileSystem(ctx context.Context, fsID int, fs FileSystem) (*FileSystem, error) {
 	const functionName = "UpdateFileSystem"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/filesystems/", fsID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID)
@@ -476,7 +477,7 @@ func (client *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSystem
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -514,7 +515,7 @@ func (client *IboxClient) UpdateFileSystem(fsID int, fs FileSystem) (*FileSystem
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) CreateFileSystemSnapshot(snapshot FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
+func (client *IboxClient) CreateFileSystemSnapshot(ctx context.Context, snapshot FileSystemSnapshot) (*FileSystemSnapshotResponse, error) {
 	const functionName = "CreateFileSystemSnapshot"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/filesystems")
@@ -524,7 +525,7 @@ func (client *IboxClient) CreateFileSystemSnapshot(snapshot FileSystemSnapshot) 
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

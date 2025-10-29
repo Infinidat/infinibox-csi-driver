@@ -13,13 +13,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 )
 
-func (client *IboxClient) GetMaxFileSystems() (cnt int, err error) {
+func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err error) {
 	const functionName = "GetMaxFileSystems"
 
 	type ParameterResult struct {
@@ -35,7 +36,7 @@ func (client *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -68,7 +69,7 @@ func (client *IboxClient) GetMaxFileSystems() (cnt int, err error) {
 	return responseObject.Result.NasMaxFilesystemsInSystem, nil
 }
 
-func (client *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
+func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err error) {
 	const functionName = "GetMaxTreeqPerFs"
 
 	type ParameterResult struct {
@@ -84,7 +85,7 @@ func (client *IboxClient) GetMaxTreeqPerFs() (cnt int, err error) {
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return 0, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

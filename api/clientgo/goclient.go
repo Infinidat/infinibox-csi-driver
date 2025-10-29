@@ -83,10 +83,10 @@ func BuildClient() (kubeClient *kubeclient, err error) {
 	return &clientAPI, err
 }
 
-func (kc *kubeclient) GetSecret(secretName, namespace string) (map[string]string, error) {
+func (kc *kubeclient) GetSecret(ctx context.Context, secretName, namespace string) (map[string]string, error) {
 	zlog.Debug().Msgf("get request for secret with namespace %s and secretname %s", namespace, secretName)
 	secretMap := make(map[string]string)
-	secret, err := kc.client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := kc.client.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		zlog.Error().Msgf("Error Getting secret with namespace %s and secretname %s Error: %v ", namespace, secretName, err)
 		return secretMap, err
@@ -98,13 +98,13 @@ func (kc *kubeclient) GetSecret(secretName, namespace string) (map[string]string
 	return secretMap, nil
 }
 
-func (kc *kubeclient) GetSecrets(namespace string) ([]map[string]string, error) {
+func (kc *kubeclient) GetSecrets(ctx context.Context, namespace string) ([]map[string]string, error) {
 	zlog.Debug().Msgf("get request for secrets with namespace %s", namespace)
 	secretMaps := make([]map[string]string, 0)
 	options := metav1.ListOptions{
 		LabelSelector: "app=infinidat-csi-driver",
 	}
-	secrets, err := kc.client.CoreV1().Secrets(namespace).List(context.TODO(), options)
+	secrets, err := kc.client.CoreV1().Secrets(namespace).List(ctx, options)
 	if err != nil {
 		zlog.Error().Msgf("Error Getting secrets with namespace %s Error: %v ", namespace, err)
 		return secretMaps, err
@@ -121,8 +121,8 @@ func (kc *kubeclient) GetSecrets(namespace string) ([]map[string]string, error) 
 	return secretMaps, nil
 }
 
-func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.PersistentVolume, error) {
-	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(context.TODO(), volumeName, metav1.GetOptions{})
+func (kc *kubeclient) GetPersistantVolumeByName(ctx context.Context, volumeName string) (*v1.PersistentVolume, error) {
+	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(ctx, volumeName, metav1.GetOptions{})
 	if err != nil {
 		zlog.Error().Msg(err.Error())
 		return nil, err
@@ -131,9 +131,9 @@ func (kc *kubeclient) GetPersistantVolumeByName(volumeName string) (*v1.Persiste
 }
 
 // Return a PersistentVolumeList listing PVs created by this CSI Driver.
-func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error) {
+func (kc *kubeclient) GetAllPersistentVolumes(ctx context.Context) (*v1.PersistentVolumeList, error) {
 	zlog.Debug().Msgf("GetAllPersistentVolumes() called")
-	persistentVolumes, err := kc.client.CoreV1().PersistentVolumes().List(context.TODO(), metav1.ListOptions{})
+	persistentVolumes, err := kc.client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		zlog.Error().Msgf("Failed to get all persistent volumes: %s", err.Error())
 		return nil, err
@@ -155,8 +155,8 @@ func (kc *kubeclient) GetAllPersistentVolumes() (*v1.PersistentVolumeList, error
 	return &infiPersistentVolumeList, nil
 }
 
-func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error) {
-	storageclasses, err := kc.client.StorageV1().StorageClasses().List(context.TODO(), metav1.ListOptions{})
+func (kc *kubeclient) GetAllStorageClasses(ctx context.Context) (*storagev1.StorageClassList, error) {
+	storageclasses, err := kc.client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		zlog.Error().Msg(err.Error())
 		return nil, err
@@ -172,24 +172,24 @@ func (kc *kubeclient) GetAllStorageClasses() (*storagev1.StorageClassList, error
 	return storageclasses, nil
 }
 
-func (kc *kubeclient) GetNodes() (nodes []v1.Node, err error) {
-	nodeList, err := kc.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+func (kc *kubeclient) GetNodes(ctx context.Context) (nodes []v1.Node, err error) {
+	nodeList, err := kc.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nodes, err
 	}
 	return nodeList.Items, nil
 }
-func (kc *kubeclient) GetPV(name string) (pv *v1.PersistentVolume, err error) {
-	pv, err = kc.client.CoreV1().PersistentVolumes().Get(context.TODO(), name, metav1.GetOptions{})
+func (kc *kubeclient) GetPV(ctx context.Context, name string) (pv *v1.PersistentVolume, err error) {
+	pv, err = kc.client.CoreV1().PersistentVolumes().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return pv, nil
 }
 
-func (kc *kubeclient) GetPVByVolumeID(volumeID int, protocol string) (*v1.PersistentVolume, error) {
+func (kc *kubeclient) GetPVByVolumeID(ctx context.Context, volumeID int, protocol string) (*v1.PersistentVolume, error) {
 	volumeHandle := fmt.Sprintf("%d$$%s", volumeID, protocol)
-	pvList, err := kc.client.CoreV1().PersistentVolumes().List(context.TODO(), metav1.ListOptions{})
+	pvList, err := kc.client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -210,8 +210,8 @@ func (kc *kubeclient) GetClusterVerion() (string, error) {
 	return info.GitVersion, nil
 }
 
-func (kc *kubeclient) GetPVCs(namespace string) (pvcList *v1.PersistentVolumeClaimList, err error) {
-	pvcList, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).List(context.TODO(), metav1.ListOptions{})
+func (kc *kubeclient) GetPVCs(ctx context.Context, namespace string) (pvcList *v1.PersistentVolumeClaimList, err error) {
+	pvcList, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		zlog.Error().Msgf("Error Getting PVCs Error: %v ", err)
 		return nil, err
@@ -219,8 +219,8 @@ func (kc *kubeclient) GetPVCs(namespace string) (pvcList *v1.PersistentVolumeCla
 	return pvcList, nil
 }
 
-func (kc *kubeclient) GetPVC(namespace, name string) (pvc *v1.PersistentVolumeClaim, err error) {
-	pvc, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func (kc *kubeclient) GetPVC(ctx context.Context, namespace, name string) (pvc *v1.PersistentVolumeClaim, err error) {
+	pvc, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		zlog.Error().Msgf("Error Getting PVC Error: %v ", err)
 		return nil, err
@@ -229,11 +229,11 @@ func (kc *kubeclient) GetPVC(namespace, name string) (pvc *v1.PersistentVolumeCl
 }
 
 // GetPVCAnnotations : Get pvc annotations for a given volumeName
-func (kc *kubeclient) GetPVCAnnotations(pvcName, pvcNamespace string) (annotations map[string]string, err error) {
+func (kc *kubeclient) GetPVCAnnotations(ctx context.Context, pvcName, pvcNamespace string) (annotations map[string]string, err error) {
 	zlog.Trace().Msgf("GetPVCAnnotations called with pvcName %s namespace %s", pvcName, pvcNamespace)
 
 	var pvc *v1.PersistentVolumeClaim
-	pvc, err = kc.GetPVC(pvcNamespace, pvcName)
+	pvc, err = kc.GetPVC(ctx, pvcNamespace, pvcName)
 	if err != nil {
 		zlog.Error().Msgf("error getting PVC %s", err.Error())
 		return annotations, err
@@ -242,11 +242,11 @@ func (kc *kubeclient) GetPVCAnnotations(pvcName, pvcNamespace string) (annotatio
 }
 
 // get the CSI Driver pods that would be created by the driver's Daemonset
-func (kc *kubeclient) GetRunningDriverNodePods(namespace string) (pods []v1.Pod, err error) {
+func (kc *kubeclient) GetRunningDriverNodePods(ctx context.Context, namespace string) (pods []v1.Pod, err error) {
 	options := metav1.ListOptions{
 		LabelSelector: "part-of=infiniboxcsidriver-node",
 	}
-	podList, err := kc.client.CoreV1().Pods(namespace).List(context.TODO(), options)
+	podList, err := kc.client.CoreV1().Pods(namespace).List(ctx, options)
 	if err != nil {
 		zlog.Error().Msgf("Error Getting Driver Node Pods Error: %v ", err)
 		return pods, err
@@ -266,7 +266,7 @@ func (kc *kubeclient) GetRunningDriverNodePods(namespace string) (pods []v1.Pod,
 }
 
 // ExecCmdInPod - exec command on specific pod and wait the command's output.
-func (kc *kubeclient) ExecCmdInPod(podName, nameSpace, command, containerName string) (string, string, error) {
+func (kc *kubeclient) ExecCmdInPod(ctx context.Context, podName, nameSpace, command, containerName string) (string, string, error) {
 	stdOut := &bytes.Buffer{}
 	stdErr := &bytes.Buffer{}
 
@@ -300,7 +300,7 @@ func (kc *kubeclient) ExecCmdInPod(podName, nameSpace, command, containerName st
 	if err != nil {
 		return stdOut.String(), stdErr.String(), err
 	}
-	err = exec.StreamWithContext(context.Background(),
+	err = exec.StreamWithContext(ctx,
 		remotecommand.StreamOptions{
 			Stdin:  nil,
 			Stdout: stdOut,

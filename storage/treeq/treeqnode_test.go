@@ -15,7 +15,6 @@ limitations under the License.
 package treeq
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -78,11 +77,11 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
-	suite.iboxapi.On("CreateExport", mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
-	suite.iboxapi.On("GetSystem").Return(storagecommon.GetSystem(), nil)
+	suite.iboxapi.On("CreateExport", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
+	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
 	exportResp := storagecommon.GetExportResponse()
-	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
-	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("DeleteExport", suite.Suite.T().Context(), mock.Anything).Return(&iboxapi.Export{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetFileSystemTreeqCount", mock.Anything).Return(nil, nil)
 
@@ -96,7 +95,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_IsNotExist_false() {
 		"two":   "two",
 		"three": "three",
 	}
-	responce, err := service.NodePublishVolume(context.Background(), req)
+	responce, err := service.NodePublishVolume(suite.Suite.T().Context(), req)
 	assert.Nil(suite.T(), err)
 	assert.NotNil(suite.T(), responce, "empty object")
 }
@@ -120,11 +119,11 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_success() {
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	fs := &iboxapi.FileSystem{}
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(fs, nil)
-	suite.iboxapi.On("GetSystem").Return(storagecommon.GetSystem(), nil)
-	suite.iboxapi.On("CreateExport", mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
+	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
+	suite.iboxapi.On("CreateExport", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponseValue(), nil)
 	exportResp := storagecommon.GetExportResponse()
-	suite.iboxapi.On("GetExportsByFileSystemID", mock.Anything).Return(exportResp, nil)
-	suite.iboxapi.On("DeleteExport", mock.Anything).Return(&iboxapi.Export{}, nil)
+	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(exportResp, nil)
+	suite.iboxapi.On("DeleteExport", suite.Suite.T().Context(), mock.Anything).Return(&iboxapi.Export{}, nil)
 	suite.iboxapi.On("GetFileSystemByID", mock.Anything).Return(nil, nil)
 	suite.iboxapi.On("GetFileSystemTreeqCount", mock.Anything).Return(nil, nil)
 
@@ -135,7 +134,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_success() {
 		"two":   "two",
 		"three": "three",
 	}
-	_, err = service.NodePublishVolume(context.Background(), req)
+	_, err = service.NodePublishVolume(suite.Suite.T().Context(), req)
 	assert.Nil(suite.T(), err, "empty error")
 }
 
@@ -149,12 +148,12 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	service := Treeqstorage{NFSstorage: nfs}
 	// nfs := nfsstorage{mounter: suite.nfsMountMock, storageHelper: suite.storageHelperMock, osHelper: suite.osHelperMock}
 	// service := treeqstorage{nfsstorage: nfs}
-	suite.iboxapi.On("GetSystem", mock.Anything).Return(storagecommon.GetSystem(), nil)
+	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
 	suite.storageHelperMock.On("SetVolumePermissions", mock.Anything).Return(nil)
 	suite.storageHelperMock.On("ValidateIPAddress", mock.Anything, mock.Anything).Return(nil)
 	suite.storageHelperMock.On("GetNFSMountOptions", mock.Anything).Return([]string{}, nil)
 	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(mountErr)
-	_, err := service.NodePublishVolume(context.Background(), storagecommon.GetNodePublishVolumeRequest(targetPath, contex))
+	_, err := service.NodePublishVolume(suite.Suite.T().Context(), storagecommon.GetNodePublishVolumeRequest(targetPath, contex))
 	assert.NotNil(suite.T(), err, "not nil error")
 }
 
@@ -169,7 +168,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_NotMountPoint_IsNotEx
 	targetPath := "/var/lib/kublet/"
 	suite.osHelperMock.On("Remove", targetPath).Return(nil)
 	volumeID := "1234"
-	_, err := service.NodeUnpublishVolume(context.Background(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
+	_, err := service.NodeUnpublishVolume(suite.Suite.T().Context(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
 	assert.Nil(suite.T(), err, "empty error")
 }
 
@@ -183,7 +182,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_notMnt_true() {
 	suite.osHelperMock.On("Remove", targetPath).Return(nil)
 	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
 
-	_, err := service.NodeUnpublishVolume(context.Background(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
+	_, err := service.NodeUnpublishVolume(suite.Suite.T().Context(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
 	assert.Nil(suite.T(), err, "empty err")
 }
 
@@ -196,7 +195,7 @@ func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_unmount_sucess() {
 	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
 	suite.nfsMountMock.On("Unmount", targetPath).Return(nil)
 	suite.osHelperMock.On("Remove", targetPath).Return(nil)
-	_, err := service.NodeUnpublishVolume(context.Background(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
+	_, err := service.NodeUnpublishVolume(suite.Suite.T().Context(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
 	assert.Nil(suite.T(), err, "empty err")
 }
 
@@ -204,7 +203,7 @@ func (suite *TreeqNodeSuite) Test_NodeStageVolume() {
 	nfs := nfs.NFSstorage{Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
 	service := Treeqstorage{NFSstorage: nfs}
 
-	_, err := service.NodeStageVolume(context.Background(), &csi.NodeStageVolumeRequest{})
+	_, err := service.NodeStageVolume(suite.Suite.T().Context(), &csi.NodeStageVolumeRequest{})
 	assert.Nil(suite.T(), err, "empty err")
 }
 
@@ -212,6 +211,6 @@ func (suite *TreeqNodeSuite) Test_NodeUnstageVolume() {
 	nfs := nfs.NFSstorage{Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
 	service := Treeqstorage{NFSstorage: nfs}
 
-	_, err := service.NodeUnstageVolume(context.Background(), &csi.NodeUnstageVolumeRequest{})
+	_, err := service.NodeUnstageVolume(suite.Suite.T().Context(), &csi.NodeUnstageVolumeRequest{})
 	assert.Nil(suite.T(), err, "empty err")
 }

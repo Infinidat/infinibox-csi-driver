@@ -3,7 +3,6 @@
 package iscsireplica
 
 import (
-	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -31,13 +30,13 @@ func TestIscsiReplica(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	// at this point we should have a running iscsi volume, as a test we'll create a replica for that
 
 	// get the volume name from the PVC, which will be the PV name
 
-	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error getting existing PVC %s", err.Error())
 	}
@@ -91,7 +90,7 @@ func TestIscsiReplica(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}
-	err = kclient.CreateIboxreplica(replica)
+	err = kclient.CreateIboxreplica(t.Context(), replica)
 	if err != nil {
 		t.Fatalf("error creating iboxreplica %s", err.Error())
 	}
@@ -99,7 +98,7 @@ func TestIscsiReplica(t *testing.T) {
 	// verify the iboxreplica status is ACTIVE
 	time.Sleep(time.Second * 5)
 
-	runningReplica, err := kclient.GetIboxreplica(replica.Name)
+	runningReplica, err := kclient.GetIboxreplica(t.Context(), replica.Name)
 	if err != nil {
 		t.Fatalf("error getting iboxreplica %s", err.Error())
 	}
@@ -109,9 +108,9 @@ func TestIscsiReplica(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 		// delete the iboxreplica
-		err := kclient.DeleteIboxreplica(runningReplica)
+		err := kclient.DeleteIboxreplica(t.Context(), runningReplica)
 		if err != nil {
 			t.Fatalf("error deleting iboxreplica %s", err.Error())
 		}
@@ -119,7 +118,7 @@ func TestIscsiReplica(t *testing.T) {
 		t.Log("not cleaning up namespace")
 	}
 
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
@@ -136,13 +135,13 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	// at this point we should have a running iscsi volume, as a test we'll create a replica for that
 
 	// get the volume name from the PVC, which will be the PV name
 
-	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error getting existing PVC %s", err.Error())
 	}
@@ -201,7 +200,7 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}
-	err = kclient.CreateIboxreplica(replica)
+	err = kclient.CreateIboxreplica(t.Context(), replica)
 	if err != nil {
 		t.Fatalf("error creating iboxreplica %s", err.Error())
 	}
@@ -209,7 +208,7 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 	// verify the iboxreplica status is ACTIVE
 	time.Sleep(time.Second * 5)
 
-	runningReplica, err := kclient.GetIboxreplica(replica.Name)
+	runningReplica, err := kclient.GetIboxreplica(t.Context(), replica.Name)
 	if err != nil {
 		t.Fatalf("error getting iboxreplica %s", err.Error())
 	}
@@ -219,16 +218,16 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 		// delete the iboxreplica
-		err := kclient.DeleteIboxreplica(runningReplica)
+		err := kclient.DeleteIboxreplica(t.Context(), runningReplica)
 		if err != nil {
 			t.Fatalf("error deleting iboxreplica %s", err.Error())
 		}
 	} else {
 		t.Log("not cleaning up namespace")
 	}
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
@@ -245,13 +244,13 @@ func TestIscsiSyncReplica(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	// at this point we should have a running iscsi volume, as a test we'll create a replica for that
 
 	// get the volume name from the PVC, which will be the PV name
 
-	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error getting existing PVC %s", err.Error())
 	}
@@ -310,7 +309,7 @@ func TestIscsiSyncReplica(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}
-	err = kclient.CreateIboxreplica(replica)
+	err = kclient.CreateIboxreplica(t.Context(), replica)
 	if err != nil {
 		t.Fatalf("error creating iboxreplica %s", err.Error())
 	}
@@ -318,7 +317,7 @@ func TestIscsiSyncReplica(t *testing.T) {
 	// verify the iboxreplica status is ACTIVE
 	time.Sleep(time.Second * 5)
 
-	runningReplica, err := kclient.GetIboxreplica(replica.Name)
+	runningReplica, err := kclient.GetIboxreplica(t.Context(), replica.Name)
 	if err != nil {
 		t.Fatalf("error getting iboxreplica %s", err.Error())
 	}
@@ -328,16 +327,16 @@ func TestIscsiSyncReplica(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 		// delete the iboxreplica
-		err := kclient.DeleteIboxreplica(runningReplica)
+		err := kclient.DeleteIboxreplica(t.Context(), runningReplica)
 		if err != nil {
 			t.Fatalf("error deleting iboxreplica %s", err.Error())
 		}
 	} else {
 		t.Log("not cleaning up namespace")
 	}
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}

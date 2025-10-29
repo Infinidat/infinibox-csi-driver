@@ -3,8 +3,6 @@
 package grpc
 
 import (
-	"context"
-
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 
 	"testing"
@@ -17,7 +15,7 @@ func TestListVolumes(t *testing.T) {
 	}
 
 	var resp *pb.ListVolumesResponse
-	resp, err = cl.ListVolumes(context.Background(), &pb.ListVolumesRequest{})
+	resp, err = cl.ListVolumes(t.Context(), &pb.ListVolumesRequest{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -31,7 +29,7 @@ func TestListSnapshots(t *testing.T) {
 	}
 
 	var resp *pb.ListSnapshotsResponse
-	resp, err = cl.ListSnapshots(context.Background(), &pb.ListSnapshotsRequest{})
+	resp, err = cl.ListSnapshots(t.Context(), &pb.ListSnapshotsRequest{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -46,7 +44,7 @@ func TestGetCapabilities(t *testing.T) {
 	}
 
 	var resp *pb.ControllerGetCapabilitiesResponse
-	resp, err = cl.ControllerGetCapabilities(context.Background(), &pb.ControllerGetCapabilitiesRequest{})
+	resp, err = cl.ControllerGetCapabilities(t.Context(), &pb.ControllerGetCapabilitiesRequest{})
 	if err != nil {
 		t.Error(err)
 	}

@@ -47,7 +47,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	}
 	hostTargetPath := containerHostMountPoint + targetPath // this is the path inside the csi container
 
-	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s %s", functionName, nfs.CS.VolProto.VolumeID, hostTargetPath, storagecommon.GetHostInfo(req.GetSecrets(), nfs.CS.IboxAPI))
+	zlog.Debug().Msgf("%s (nfs) - fs ID: %d targetPath=%s %s", functionName, nfs.CS.VolProto.VolumeID, hostTargetPath, storagecommon.GetHostInfo(ctx, req.GetSecrets(), nfs.CS.IboxAPI))
 	fileSystemID := nfs.CS.VolProto.VolumeID
 
 	nfs.SnapdirVisible = false
@@ -80,7 +80,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 			exportAccess = "RO"
 		}
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
-		err = nfs.UpdateExport(fileSystemID, exportPerms)
+		err = nfs.UpdateExport(ctx, fileSystemID, exportPerms)
 		if err != nil {
 			e := fmt.Errorf("%s (nfs) - updateExport - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
@@ -172,7 +172,7 @@ func (nfs *NFSstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	}
 
 	if isCleanupNFSPermsSet() {
-		cleanupNFSPerms(nfs.CS.VolProto.VolumeID)
+		cleanupNFSPerms(ctx, nfs.CS.VolProto.VolumeID)
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
@@ -197,10 +197,11 @@ func (nfs *NFSstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 	return &response, nil
 }
 
-func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err error) {
+func (nfs *NFSstorage) UpdateExport(ctx context.Context, fileSystemID int, exportPerms string) (err error) {
 	const functionName = "UpdateExport"
 	// lookup file system information
-	fileSystem, err := nfs.CS.IboxAPI.GetFileSystemByID(fileSystemID)
+	// TODO pass in context
+	fileSystem, err := nfs.CS.IboxAPI.GetFileSystemByID(ctx, fileSystemID)
 	if err != nil {
 		e := fmt.Errorf("%s (nfs) - failed to get filesystem by id %d %v", functionName, fileSystemID, err)
 		zlog.Err(e)
@@ -226,7 +227,7 @@ func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err e
 	updatePerms := convertToExportRulePermissions(permissionsMapArray)
 	zlog.Debug().Msgf("%s (nfs) updatePermissions len(%d) %+v", functionName, len(updatePerms), updatePerms)
 
-	existingExports, err := nfs.CS.IboxAPI.GetExportsByFileSystemID(fileSystemID)
+	existingExports, err := nfs.CS.IboxAPI.GetExportsByFileSystemID(ctx, fileSystemID)
 	if err != nil {
 		e := fmt.Errorf("%s (nfs) - error from GetExportByFileSystem fileSystemID %d %v", functionName, fileSystemID, err)
 		zlog.Error().Msg(e.Error())
@@ -252,7 +253,7 @@ func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err e
 			exportPathRef := iboxapi.ExportPathRef{
 				Permissions: append(existingExport.Permissions, updatePerms...),
 			}
-			_, err = nfs.CS.IboxAPI.UpdateExportPermissions(existingExport, exportPathRef)
+			_, err = nfs.CS.IboxAPI.UpdateExportPermissions(ctx, existingExport, exportPathRef)
 			if err != nil {
 				e := fmt.Errorf("%s (nfs) - error from UpdateExport ID %d filesystemID %d %v", functionName, existingExport.ID, fileSystemID, err)
 				zlog.Error().Msg(e.Error())
@@ -268,7 +269,7 @@ func (nfs *NFSstorage) UpdateExport(fileSystemID int, exportPerms string) (err e
 	// create the export rule if it didn't already exist
 	exportFileSystem.Permissionsput = append(exportFileSystem.Permissionsput, permissionsMapArray...)
 	zlog.Debug().Msgf("%s (nfs) - exportFileSystem =%+v", functionName, exportFileSystem)
-	exportResp, err := nfs.CS.IboxAPI.CreateExport(exportFileSystem)
+	exportResp, err := nfs.CS.IboxAPI.CreateExport(ctx, exportFileSystem)
 	if err != nil {
 		e := fmt.Errorf("%s (nfs) - failed to create export path of filesystem %s %v", functionName, fileSystem.Name, err)
 		zlog.Error().Msg(e.Error())

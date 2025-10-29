@@ -13,6 +13,8 @@ limitations under the License.
 package api
 
 import (
+	"context"
+
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 
 	"github.com/stretchr/testify/mock"
@@ -119,15 +121,15 @@ func (m *MockAPIService) CreateFileSystemSnapshot(snapshot *FileSystemSnapshot) 
 }
 
 // DeleteFileSystemComplete
-func (m *MockAPIService) DeleteFileSystemComplete(fileSystemID int) (err error) {
-	args := m.Called(fileSystemID)
+func (m *MockAPIService) DeleteFileSystemComplete(ctx context.Context, fileSystemID int) (err error) {
+	args := m.Called(ctx, fileSystemID)
 	err, _ = args.Get(0).(error)
 	return err
 }
 
 // DeleteParentFileSystem
-func (m *MockAPIService) DeleteParentFileSystem(fileSystemID int) (err error) {
-	args := m.Called(fileSystemID)
+func (m *MockAPIService) DeleteParentFileSystem(ctx context.Context, fileSystemID int) (err error) {
+	args := m.Called(ctx, fileSystemID)
 	err, _ = args.Get(0).(error)
 	return err
 }
@@ -140,8 +142,8 @@ func (m *MockAPIService) GetMetadataStatus(fileSystemID int) bool {
 }
 
 // AddNodeInExport
-func (m *MockAPIService) AddNodeInExport(exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
-	argsArray := m.Called(exportID, access, noRootSquash, ip)
+func (m *MockAPIService) AddNodeInExport(ctx context.Context, exportID int, access string, noRootSquash bool, ip string) (*iboxapi.Export, error) {
+	argsArray := m.Called(ctx, exportID, access, noRootSquash, ip)
 	args := argsArray[0]
 	var resp iboxapi.Export
 	if argsArray.Get(0) != nil {
@@ -155,8 +157,8 @@ func (m *MockAPIService) AddNodeInExport(exportID int, access string, noRootSqua
 }
 
 // DeleteExportRule
-func (m *MockAPIService) DeleteExportRule(fileSystemID int, ipAddress string) error {
-	args := m.Called(fileSystemID, ipAddress)
+func (m *MockAPIService) DeleteExportRule(ctx context.Context, fileSystemID int, ipAddress string) error {
+	args := m.Called(ctx, fileSystemID, ipAddress)
 	err, _ := args.Get(0).(error)
 	return err
 }
@@ -200,8 +202,8 @@ func (m *MockAPIService) UnMapVolumeFromHost(hostID, volumeID int) error {
 	return err
 }
 
-func (m *MockAPIService) DeleteNodeFromExport(export iboxapi.Export, noRootSquash bool, ip string) (*iboxapi.Export, error) {
-	args := m.Called(export, noRootSquash, ip)
+func (m *MockAPIService) DeleteNodeFromExport(ctx context.Context, export iboxapi.Export, noRootSquash bool, ip string) (*iboxapi.Export, error) {
+	args := m.Called(ctx, export, noRootSquash, ip)
 	resp, _ := args.Get(0).(iboxapi.Export)
 	err, _ := args.Get(0).(error)
 	return &resp, err

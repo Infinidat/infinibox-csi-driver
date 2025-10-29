@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"io"
@@ -103,7 +104,7 @@ var (
 	}, []string{MetricIboxName, MetricIboxIP, MetricIboxHostname})
 )
 
-func RecordSystemHealthMetrics(cfg *MetricsConfig) {
+func RecordSystemHealthMetrics(ctx context.Context, cfg *MetricsConfig) {
 	zlog.Trace().Msgf("system health metrics recording...")
 	go func() {
 		for {
@@ -111,7 +112,7 @@ func RecordSystemHealthMetrics(cfg *MetricsConfig) {
 
 			for _, credential := range cfg.Ibox {
 				zlog.Trace().Msgf("system health metrics: creating collectors for %s...", credential.IboxHostname)
-				results, err := getResult(credential)
+				results, err := getResult(ctx, credential)
 				if err != nil {
 					zlog.Err(err)
 					continue
@@ -329,7 +330,7 @@ type Result struct {
 	Wwnn                   string           `json:"wwnn"`
 }
 
-func getResult(ibox IboxCredentials) (Result, error) {
+func getResult(ctx context.Context, ibox IboxCredentials) (Result, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -342,7 +343,7 @@ func getResult(ibox IboxCredentials) (Result, error) {
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/system", http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/system", http.NoBody)
 	if err != nil {
 		zlog.Err(err)
 		return Result{}, err

@@ -2,6 +2,7 @@ package iboxapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,7 +50,7 @@ type CreateEventResult struct {
 	ID                  int    `json:"id"`
 }
 
-func (client *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
+func (client *IboxClient) CreateEvent(ctx context.Context, eventRequest EventRequest) (err error) {
 	const functionName = "CreateEvent"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/events")
@@ -59,7 +60,7 @@ func (client *IboxClient) CreateEvent(eventRequest EventRequest) (err error) {
 	if err != nil {
 		return fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

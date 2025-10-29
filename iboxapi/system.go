@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -205,12 +206,12 @@ type GetNtpStatusResponse struct {
 	Error    Error       `json:"error"`
 }
 
-func (client *IboxClient) GetSystem() (system *SystemDetails, err error) {
+func (client *IboxClient) GetSystem(ctx context.Context) (system *SystemDetails, err error) {
 	const functionName = "GetSystem"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/system")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -242,7 +243,7 @@ func (client *IboxClient) GetSystem() (system *SystemDetails, err error) {
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
+func (client *IboxClient) GetNtpStatus(ctx context.Context) (results []NtpStatus, err error) {
 	const functionName = "GetNtpStatus"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/system/ntp_status")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
@@ -252,7 +253,7 @@ func (client *IboxClient) GetNtpStatus() (results []NtpStatus, err error) {
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}

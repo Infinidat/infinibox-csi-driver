@@ -128,7 +128,7 @@ type GlobFunc func(string) ([]string, error)
 func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	const functionName = "NodeStageVolume"
 	zlog.Debug().Msgf("%s (iscsi) called with publish context: %s %s", functionName, req.GetPublishContext(),
-		storagecommon.GetHostInfo(req.GetSecrets(), iscsi.CS.IboxAPI))
+		storagecommon.GetHostInfo(ctx, req.GetSecrets(), iscsi.CS.IboxAPI))
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
@@ -149,7 +149,7 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	}
 	if !strings.Contains(ports, initiatorName) {
 		zlog.Debug().Msgf("%s (iscsi) - host port is not created, creating one", functionName)
-		err = iscsi.CS.AddPortForHost(hostID, "ISCSI", initiatorName)
+		err = iscsi.CS.AddPortForHost(ctx, hostID, "ISCSI", initiatorName)
 		if err != nil {
 			e := fmt.Errorf("%s (iscsi) - AddPortForHost - error: %s", functionName, err.Error())
 			zlog.Error().Msg(e.Error())
@@ -185,7 +185,7 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 			}
 			if len(chapCreds) > 1 {
 				zlog.Debug().Msgf("%s (iscsi) - create chap authentication for host %d", functionName, hostID)
-				err := addChapSecurityForHost(iscsi.CS, hostID, chapCreds)
+				err := addChapSecurityForHost(ctx, iscsi.CS, hostID, chapCreds)
 				if err != nil {
 					e := fmt.Errorf("%s (iscsi) - AddChapSecurityForHost - error: %s", functionName, err.Error())
 					zlog.Error().Msg(e.Error())
@@ -195,7 +195,7 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		} else if hostSecurity != SecurityMethodNONE {
 			zlog.Debug().Msgf("%s (iscsi) - remove chap authentication for host %d", functionName, hostID)
 			chapCreds[SecurityMethod] = SecurityMethodNONE
-			err := addChapSecurityForHost(iscsi.CS, hostID, chapCreds)
+			err := addChapSecurityForHost(ctx, iscsi.CS, hostID, chapCreds)
 			if err != nil {
 				e := fmt.Errorf("%s (iscsi) - AddChapSecurityForHost - error: %s", functionName, err.Error())
 				zlog.Error().Msg(e.Error())
@@ -210,9 +210,9 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	const functionName = "NodePublishVolume"
 	zlog.Debug().Msgf("%s (iscsi) - volume ID %s, network_space %s mode %s readOnly %t %s", functionName, req.GetVolumeId(), req.GetVolumeContext()[common.StorageClassNetworkSpace], req.GetVolumeCapability().GetAccessMode().Mode, req.Readonly,
-		storagecommon.GetHostInfo(req.GetSecrets(), iscsi.CS.IboxAPI))
+		storagecommon.GetHostInfo(ctx, req.GetSecrets(), iscsi.CS.IboxAPI))
 
-	targets, err := iscsi.getISCSITargets(req)
+	targets, err := iscsi.getISCSITargets(ctx, req)
 	if err != nil {
 		e := fmt.Errorf("%s (iscsi) - getISCSITargets - error: %s", functionName, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -403,7 +403,7 @@ func (iscsi *ISCSIstorage) NodeGetVolumeStats(ctx context.Context, req *csi.Node
 func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	const functionName = "NodeExpandVolume"
 	zlog.Info().Msgf("%s (iscsi) called request volume ID %s path %s %s", functionName, req.GetVolumeId(), req.GetVolumePath(),
-		storagecommon.GetHostInfo(req.GetSecrets(), iscsi.CS.IboxAPI))
+		storagecommon.GetHostInfo(ctx, req.GetSecrets(), iscsi.CS.IboxAPI))
 	response := csi.NodeExpandVolumeResponse{}
 
 	// the block volume case
@@ -980,7 +980,7 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 	return lastErr
 }
 
-func (iscsi *ISCSIstorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (targets []iscsiTarget, err error) {
+func (iscsi *ISCSIstorage) getISCSITargets(ctx context.Context, req *csi.NodePublishVolumeRequest) (targets []iscsiTarget, err error) {
 	const functionName = "getISCSITargets"
 	networkSpaces := strings.Split(req.GetVolumeContext()[common.StorageClassNetworkSpace], ",")
 	if len(networkSpaces) == 0 {
@@ -996,7 +996,7 @@ func (iscsi *ISCSIstorage) getISCSITargets(req *csi.NodePublishVolumeRequest) (t
 
 	for index, networkSpace := range networkSpaces {
 		zlog.Debug().Msgf("%s (iscsi) - getting nspace by name: %v", functionName, networkSpace)
-		thisNetworkSpace, err := iscsi.CS.IboxAPI.GetNetworkSpaceByName(networkSpace)
+		thisNetworkSpace, err := iscsi.CS.IboxAPI.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
 			e := fmt.Errorf("%s (iscsi) - error getting network space: %s error: %v", functionName, networkSpace, err)
 			zlog.Error().Msg(e.Error())
@@ -1129,8 +1129,8 @@ func getHostIDs() (hosts []string, err error) {
 	return hosts, nil
 }
 
-func addChapSecurityForHost(cs storagecommon.Commonservice, hostID int, credentials map[string]string) error {
-	_, err := cs.IboxAPI.AddHostSecurity(credentials, hostID)
+func addChapSecurityForHost(ctx context.Context, cs storagecommon.Commonservice, hostID int, credentials map[string]string) error {
+	_, err := cs.IboxAPI.AddHostSecurity(ctx, credentials, hostID)
 	if err != nil {
 		zlog.Error().Msgf("failed to add authentication for host %d with error %v", hostID, err)
 		return err

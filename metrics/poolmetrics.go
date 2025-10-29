@@ -36,14 +36,14 @@ var (
 	}, []string{MetricPoolName, MetricPoolProvisionType, MetricPoolSSDEnabled, MetricPoolNetworkSpace, MetricPoolStorageProtocol})
 )
 
-func RecordPoolMetrics(config *MetricsConfig) {
+func RecordPoolMetrics(ctx context.Context, config *MetricsConfig) {
 	zlog.Debug().Msgf("pool metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(PoolMetrics))
 			for _, ibox := range config.Ibox {
 				zlog.Trace().Msgf("pool metrics: creating collectors for %s...", ibox.IboxHostname)
-				poolInfoList, err := getPoolInfo(ibox)
+				poolInfoList, err := getPoolInfo(ctx, ibox)
 				if err != nil {
 					zlog.Err(err)
 					continue
@@ -72,14 +72,14 @@ type PoolInfo struct {
 	pool         Pool
 }
 
-func getPoolInfo(ibox IboxCredentials) ([]PoolInfo, error) {
+func getPoolInfo(ctx context.Context, ibox IboxCredentials) ([]PoolInfo, error) {
 	poolInfo := make([]PoolInfo, 0)
-	storageClasses, err := getStorageClasses()
+	storageClasses, err := getStorageClasses(ctx)
 	if err != nil {
 		zlog.Err(err)
 		return poolInfo, err
 	}
-	allPools, err := getPools(ibox)
+	allPools, err := getPools(ctx, ibox)
 	if err != nil {
 		zlog.Err(err)
 		return poolInfo, err
@@ -98,7 +98,7 @@ func getPoolInfo(ibox IboxCredentials) ([]PoolInfo, error) {
 	}
 	return poolInfo, nil
 }
-func getStorageClasses() (*[]storagev1.StorageClass, error) {
+func getStorageClasses(ctx context.Context) (*[]storagev1.StorageClass, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -113,7 +113,7 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 		return nil, err
 	}
 
-	storageClasses, err := clientset.StorageV1().StorageClasses().List(context.Background(), metav1.ListOptions{})
+	storageClasses, err := clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
@@ -137,7 +137,7 @@ func getStorageClasses() (*[]storagev1.StorageClass, error) {
 	return &ourStorageClasses, nil
 }
 
-func getPools(ibox IboxCredentials) (*Pools, error) {
+func getPools(ctx context.Context, ibox IboxCredentials) (*Pools, error) {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
@@ -150,7 +150,7 @@ func getPools(ibox IboxCredentials) (*Pools, error) {
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest(http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/pools", http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/pools", http.NoBody)
 	if err != nil {
 		zlog.Err(err)
 		return nil, err

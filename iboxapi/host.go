@@ -2,6 +2,7 @@ package iboxapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -143,12 +144,12 @@ type MapVolumeToHostResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetAllHosts() (host []Host, err error) {
+func (client *IboxClient) GetAllHosts(ctx context.Context) (host []Host, err error) {
 	const functionName = "GetAllHosts"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/hosts")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return host, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -180,12 +181,12 @@ func (client *IboxClient) GetAllHosts() (host []Host, err error) {
 	return response.Result, nil
 }
 
-func (client *IboxClient) GetHostByName(hostName string) (host *Host, err error) {
+func (client *IboxClient) GetHostByName(ctx context.Context, hostName string) (host *Host, err error) {
 	const functionName = "GetHostByName"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/hosts")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host name", hostName)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -223,7 +224,7 @@ func (client *IboxClient) GetHostByName(hostName string) (host *Host, err error)
 	return &responseObject.Result[0], nil
 }
 
-func (client *IboxClient) CreateHost(hostName string) (*Host, error) {
+func (client *IboxClient) CreateHost(ctx context.Context, hostName string) (*Host, error) {
 	const functionName = "CreateHost"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/hosts")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host name", hostName)
@@ -235,7 +236,7 @@ func (client *IboxClient) CreateHost(hostName string) (*Host, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -269,12 +270,12 @@ func (client *IboxClient) CreateHost(hostName string) (*Host, error) {
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) DeleteHost(hostID int) (response *Host, err error) {
+func (client *IboxClient) DeleteHost(ctx context.Context, hostID int) (response *Host, err error) {
 	const functionName = "DeleteHost"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/hosts/", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRquest -  error %w", functionName, err)
 	}
@@ -310,7 +311,7 @@ func (client *IboxClient) DeleteHost(hostID int) (response *Host, err error) {
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) AddHostSecurity(chapCreds map[string]string, hostID int) (host *AddHostSecurityResponse, err error) {
+func (client *IboxClient) AddHostSecurity(ctx context.Context, chapCreds map[string]string, hostID int) (host *AddHostSecurityResponse, err error) {
 	const functionName = "AddHostSecurity"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/hosts/", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
@@ -327,7 +328,7 @@ func (client *IboxClient) AddHostSecurity(chapCreds map[string]string, hostID in
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -366,7 +367,7 @@ func (client *IboxClient) AddHostSecurity(chapCreds map[string]string, hostID in
 	return &responseObject, nil
 }
 
-func (client *IboxClient) AddHostPort(portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error) {
+func (client *IboxClient) AddHostPort(ctx context.Context, portType, portAddress string, hostID int) (addPortResponse *AddPortResponse, err error) {
 	const functionName = "AddHostPort"
 	url := fmt.Sprintf("%s%s/%d/ports", client.Creds.URL, "api/rest/hosts", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "port type", portType, "port address", portAddress, "host ID", hostID)
@@ -380,7 +381,7 @@ func (client *IboxClient) AddHostPort(portType, portAddress string, hostID int) 
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -412,12 +413,12 @@ func (client *IboxClient) AddHostPort(portType, portAddress string, hostID int) 
 	return &responseObject, nil
 }
 
-func (client *IboxClient) GetHostPort(hostID int, portAddress string) (hostPort *HostPort, err error) {
+func (client *IboxClient) GetHostPort(ctx context.Context, hostID int, portAddress string) (hostPort *HostPort, err error) {
 	const functionName = "GetHostPort"
 	url := fmt.Sprintf("%s%s/%d/ports", client.Creds.URL, "api/rest/hosts", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "port address", portAddress)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -460,7 +461,7 @@ func (client *IboxClient) GetHostPort(hostID int, portAddress string) (hostPort 
 	return hostPort, nil
 }
 
-func (client *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *LunInfo, err error) {
+func (client *IboxClient) MapVolumeToHost(ctx context.Context, hostID, volumeID, lun int) (lunInfo *LunInfo, err error) {
 	const functionName = "MapVolumeToHost"
 	url := fmt.Sprintf("%s%s/%d/luns", client.Creds.URL, "api/rest/hosts", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID, "lun", lun, "host ID", hostID)
@@ -473,7 +474,7 @@ func (client *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *L
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -508,7 +509,7 @@ func (client *IboxClient) MapVolumeToHost(hostID, volumeID, lun int) (lunInfo *L
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err error) {
+func (client *IboxClient) GetAllLunByHost(ctx context.Context, hostID int) (luns []LunInfo, err error) {
 	const functionName = "GetAllLunByHost"
 	url := fmt.Sprintf("%s%s/%d/luns", client.Creds.URL, "api/rest/hosts/", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID)
@@ -518,7 +519,7 @@ func (client *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err error
 
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return luns, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -559,7 +560,7 @@ func (client *IboxClient) GetAllLunByHost(hostID int) (luns []LunInfo, err error
 	return luns, nil
 }
 
-func (client *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *LunInfo, err error) {
+func (client *IboxClient) GetLunByHostVolume(ctx context.Context, hostID, volumeID int) (lun *LunInfo, err error) {
 	const functionName = "GetLunByHostVolume"
 	url := fmt.Sprintf("%s%s/%d/luns", client.Creds.URL, "api/rest/hosts/", hostID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "volume ID", volumeID)
@@ -569,7 +570,7 @@ func (client *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *LunInfo
 
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -621,12 +622,12 @@ func (client *IboxClient) GetLunByHostVolume(hostID, volumeID int) (lun *LunInfo
 	return lun, nil
 }
 
-func (client *IboxClient) UnMapVolumeFromHost(hostID, volumeID int) (response *UnMapVolumeFromHostResponse, err error) {
+func (client *IboxClient) UnMapVolumeFromHost(ctx context.Context, hostID, volumeID int) (response *UnMapVolumeFromHostResponse, err error) {
 	const functionName = "UnMapVolumeFromHost"
 	url := fmt.Sprintf("%s%s/%d/luns/volume_id/%d", client.Creds.URL, "api/rest/hosts/", hostID, volumeID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "host ID", hostID, "volume ID", volumeID)
 
-	request, err := http.NewRequest(http.MethodDelete, url, nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

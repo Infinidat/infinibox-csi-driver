@@ -2,6 +2,7 @@ package iboxapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -75,12 +76,12 @@ type UpdateTreeqResponse struct {
 
 const TREEQ_ID_DOES_NOT_EXIST = "TREEQ_ID_DOES_NOT_EXIST"
 
-func (client *IboxClient) GetTreeqByName(fsID int, name string) (treeq *Treeq, err error) {
+func (client *IboxClient) GetTreeqByName(ctx context.Context, fsID int, name string) (treeq *Treeq, err error) {
 	const functionName = "GetTreeqByName"
 	url := fmt.Sprintf("%s%s/%d/treeqs", client.Creds.URL, "api/rest/filesystems", fsID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "filesystem ID", fsID, "treeq name", name)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -123,12 +124,12 @@ func (client *IboxClient) GetTreeqByName(fsID int, name string) (treeq *Treeq, e
 	return &response.Result[0], nil
 }
 
-func (client *IboxClient) GetTreeq(fsID, treeqID int) (treeq *Treeq, err error) {
+func (client *IboxClient) GetTreeq(ctx context.Context, fsID, treeqID int) (treeq *Treeq, err error) {
 	const functionName = "GetTreeq"
 	url := fmt.Sprintf("%s%s/%d/treeqs/%d", client.Creds.URL, "api/rest/filesystems", fsID, treeqID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID, "treeq ID", treeqID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -162,12 +163,12 @@ func (client *IboxClient) GetTreeq(fsID, treeqID int) (treeq *Treeq, err error) 
 	return &response.Result, nil
 }
 
-func (client *IboxClient) DeleteTreeq(fsID, treeqID int) (treeq *Treeq, err error) {
+func (client *IboxClient) DeleteTreeq(ctx context.Context, fsID, treeqID int) (treeq *Treeq, err error) {
 	const functionName = "DeleteTreeq"
 	url := fmt.Sprintf("%s%s/%d/treeq/%d", client.Creds.URL, "api/rest/filesystems", fsID, treeqID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID, "treeq ID", treeqID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRquest -  error %w", functionName, err)
 	}
@@ -203,7 +204,7 @@ func (client *IboxClient) DeleteTreeq(fsID, treeqID int) (treeq *Treeq, err erro
 	return &response.Result, nil
 }
 
-func (client *IboxClient) CreateTreeq(fsID int, treeqRequest CreateTreeqRequest) (treeq *Treeq, err error) {
+func (client *IboxClient) CreateTreeq(ctx context.Context, fsID int, treeqRequest CreateTreeqRequest) (treeq *Treeq, err error) {
 	const functionName = "CreateTreeq"
 	url := fmt.Sprintf("%s%s/%d/treeqs", client.Creds.URL, "api/rest/filesystems", fsID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID)
@@ -212,7 +213,7 @@ func (client *IboxClient) CreateTreeq(fsID int, treeqRequest CreateTreeqRequest)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -246,7 +247,7 @@ func (client *IboxClient) CreateTreeq(fsID int, treeqRequest CreateTreeqRequest)
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) UpdateTreeq(fsID, treeqID int, updateRequest UpdateTreeqRequest) (*Treeq, error) {
+func (client *IboxClient) UpdateTreeq(ctx context.Context, fsID, treeqID int, updateRequest UpdateTreeqRequest) (*Treeq, error) {
 	const functionName = "UpdateTreeq"
 	url := fmt.Sprintf("%s%s/%d/treeqs/%d", client.Creds.URL, "api/rest/filesystems", fsID, treeqID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID, "treeq ID", treeqID)
@@ -255,7 +256,7 @@ func (client *IboxClient) UpdateTreeq(fsID, treeqID int, updateRequest UpdateTre
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -296,7 +297,7 @@ func (client *IboxClient) UpdateTreeq(fsID, treeqID int, updateRequest UpdateTre
 	return &resp.Result, nil
 }
 
-func (client *IboxClient) GetTreeqsByFileSystem(fsID int) (results []Treeq, err error) {
+func (client *IboxClient) GetTreeqsByFileSystem(ctx context.Context, fsID int) (results []Treeq, err error) {
 	const functionName = "GetTreeqsByFileSystem"
 	url := fmt.Sprintf("%s%s/%d/treeqs", client.Creds.URL, "api/rest/filesystems", fsID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "fs ID", fsID)
@@ -306,7 +307,7 @@ func (client *IboxClient) GetTreeqsByFileSystem(fsID int) (results []Treeq, err 
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}

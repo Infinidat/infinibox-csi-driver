@@ -14,6 +14,7 @@ limitations under the License.
 */
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -109,13 +110,13 @@ type CreateExportResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetExportByID(exportID int) (ex *Export, err error) {
+func (client *IboxClient) GetExportByID(ctx context.Context, exportID int) (ex *Export, err error) {
 	const functionName = "GetExportByID"
 
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/exports", exportID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "export ID", exportID)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -149,7 +150,7 @@ func (client *IboxClient) GetExportByID(exportID int) (ex *Export, err error) {
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) GetExportsByFileSystemID(fsID int) (results []Export, err error) {
+func (client *IboxClient) GetExportsByFileSystemID(ctx context.Context, fsID int) (results []Export, err error) {
 	const functionName = "GetExportsByFileSystemID"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/exports")
@@ -160,7 +161,7 @@ func (client *IboxClient) GetExportsByFileSystemID(fsID int) (results []Export, 
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}
@@ -202,13 +203,13 @@ func (client *IboxClient) GetExportsByFileSystemID(fsID int) (results []Export, 
 	return results, nil
 }
 
-func (client *IboxClient) DeleteExport(exportID int) (response *Export, err error) {
+func (client *IboxClient) DeleteExport(ctx context.Context, exportID int) (response *Export, err error) {
 	const functionName = "DeleteExport"
 
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/exports", exportID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "export ID", exportID)
 
-	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -247,7 +248,7 @@ func (client *IboxClient) DeleteExport(exportID int) (response *Export, err erro
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) CreateExport(req CreateExportRequest) (*Export, error) {
+func (client *IboxClient) CreateExport(ctx context.Context, req CreateExportRequest) (*Export, error) {
 	const functionName = "CreateExport"
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/exports")
@@ -257,7 +258,7 @@ func (client *IboxClient) CreateExport(req CreateExportRequest) (*Export, error)
 	if err != nil {
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}
@@ -288,7 +289,7 @@ func (client *IboxClient) CreateExport(req CreateExportRequest) (*Export, error)
 	return &responseObject.Result, nil
 }
 
-func (client *IboxClient) UpdateExportPermissions(ex Export, exportPath ExportPathRef) (resp *Export, err error) {
+func (client *IboxClient) UpdateExportPermissions(ctx context.Context, ex Export, exportPath ExportPathRef) (resp *Export, err error) {
 	const functionName = "UpdateExport"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/exports", ex.ID)
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "export ID", ex.ID, "exportPathRef", exportPath)
@@ -305,7 +306,7 @@ func (client *IboxClient) UpdateExportPermissions(ex Export, exportPath ExportPa
 		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
 	}
 	client.Log.V(DEBUG_LEVEL).Info(functionName, "URL", url, "update export json", string(jsonBytes))
-	request, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 	}

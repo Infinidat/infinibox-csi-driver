@@ -13,6 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -76,7 +77,7 @@ type GetNetworkSpaceByNameResponse struct {
 	Error    Error          `json:"error"`
 }
 
-func (client *IboxClient) GetNetworkSpaceByName(netspaceName string) (networkSpace *NetworkSpace, err error) {
+func (client *IboxClient) GetNetworkSpaceByName(ctx context.Context, netspaceName string) (networkSpace *NetworkSpace, err error) {
 	const functionName = "GetNetworkSpaceByName"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/network/spaces")
 	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "net space Name", netspaceName)
@@ -86,7 +87,7 @@ func (client *IboxClient) GetNetworkSpaceByName(netspaceName string) (networkSpa
 	for page := 1; page <= totalPages; page++ {
 		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
 		}

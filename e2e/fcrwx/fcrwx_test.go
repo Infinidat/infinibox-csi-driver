@@ -29,11 +29,11 @@ func TestFcBlockRWX(t *testing.T) {
 	testConfig.UseAntiAffinity = true
 	testConfig.UseBlock = true
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	time.Sleep(time.Second * 10)
 
-	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
+	firstSuccess, _, err := e2e.VerifyBlockWriteInPod(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Fatalf("Verify Block Write In Pod had unexpected error %s", err.Error())
 	}
@@ -42,7 +42,7 @@ func TestFcBlockRWX(t *testing.T) {
 		t.Fatalf("Test of Blockwrite in %s pod failed.", e2e.POD_NAME)
 	}
 
-	secondSuccess, _, err := e2e.VerifyBlockWriteInPod(testConfig.ClientSet, testConfig.RestConfig, e2e.ANTI_AF_POD_NAME, testConfig.TestNames.NSName)
+	secondSuccess, _, err := e2e.VerifyBlockWriteInPod(t.Context(), testConfig.ClientSet, testConfig.RestConfig, e2e.ANTI_AF_POD_NAME, testConfig.TestNames.NSName)
 	if err != nil {
 		t.Fatalf("Verify Block Write In Pod had unexpected error %s", err.Error())
 	}
@@ -52,7 +52,7 @@ func TestFcBlockRWX(t *testing.T) {
 	}
 
 	if *e2e.CleanUp {
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Logf("not cleaning up namespace")
 	}

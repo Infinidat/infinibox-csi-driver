@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func GetProtocolSecret() (protocolSecret map[string]string, found bool, err error) {
+func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, found bool, err error) {
 	const functionName = "GetProtocolSecret"
 	secretName := os.Getenv(common.EnvVarProtocolSecret)
 	secretNamespace := os.Getenv(common.EnvVarPodNamespace)
@@ -35,7 +36,7 @@ func GetProtocolSecret() (protocolSecret map[string]string, found bool, err erro
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	protocolSecret, err = kubeClient.GetSecret(secretName, secretNamespace)
+	protocolSecret, err = kubeClient.GetSecret(ctx, secretName, secretNamespace)
 	if err != nil {
 		// since secretName was specified, something has happened to
 		// remove the secret, this would be an error condition

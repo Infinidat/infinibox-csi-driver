@@ -3,7 +3,6 @@
 package iscsivolumegroup
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -22,7 +21,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
-	e2e.Setup(testConfig)
+	e2e.Setup(t.Context(), testConfig)
 
 	time.Sleep(time.Second * 5)
 
@@ -32,7 +31,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 	// apply label to PVC
 	// like this:  kubectl label pvc iscsi-pvc iscsi-pvc-anno app.kubernetes.io/name=mygroup
 
-	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(context.TODO(), testConfig.TestNames.PVCName, metav1.GetOptions{})
+	existingPVC, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(t.Context(), testConfig.TestNames.PVCName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error getting existing PVC %s", err.Error())
 	}
@@ -41,7 +40,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		vgLabelKey: vgLabelValue,
 	}
 
-	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Update(context.TODO(), existingPVC, metav1.UpdateOptions{})
+	_, err = testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Update(t.Context(), existingPVC, metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("error updating label on existing PVC %s", err.Error())
 	}
@@ -62,7 +61,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		},
 	}
 
-	createdVgsc, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshotClasses().Create(context.Background(), vgsc, metav1.CreateOptions{})
+	createdVgsc, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshotClasses().Create(t.Context(), vgsc, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error creating VolumeGroupSnapshotClass %s", err.Error())
 	}
@@ -88,7 +87,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		},
 	}
 
-	createdVgs, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Create(context.Background(), vgs, metav1.CreateOptions{})
+	createdVgs, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Create(t.Context(), vgs, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error creating VolumeGroupSnapshot %s", err.Error())
 	}
@@ -96,7 +95,7 @@ func TestIscsiVolumeGroup(t *testing.T) {
 	time.Sleep(time.Second * 15)
 
 	// verify the VolumeGroupSnapshot was created
-	currentVgs, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Get(context.Background(), createdVgs.Name, metav1.GetOptions{})
+	currentVgs, err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Get(t.Context(), createdVgs.Name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("error creating VolumeGroupSnapshot %s", err.Error())
 	}
@@ -111,26 +110,26 @@ func TestIscsiVolumeGroup(t *testing.T) {
 
 	if *e2e.CleanUp {
 		// delete the VolumeGroupSnapshot
-		err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Delete(context.Background(), createdVgs.Name, metav1.DeleteOptions{})
+		err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Delete(t.Context(), createdVgs.Name, metav1.DeleteOptions{})
 		if err != nil {
 			t.Fatalf("error deleting VolumeGroupSnapshot %s", err.Error())
 		}
 		t.Logf("deleted VolumeGroupSnapshot %s", currentVgs.Name)
 
 		// delete the VolumeGroupSnapshotClass
-		err = testConfig.GroupSnapshotClient.VolumeGroupSnapshotClasses().Delete(context.Background(), vgcsName, metav1.DeleteOptions{})
+		err = testConfig.GroupSnapshotClient.VolumeGroupSnapshotClasses().Delete(t.Context(), vgcsName, metav1.DeleteOptions{})
 		if err != nil {
 			t.Fatalf("error deleting VolumeGroupSnapshotClass %s", err.Error())
 		}
 
 		t.Logf("deleted VolumeGroupSnapshotClass %s", createdVgsc.Name)
 
-		e2e.TearDown(testConfig)
+		e2e.TearDown(t.Context(), testConfig)
 	} else {
 		t.Log("not cleaning up namespace")
 	}
 
-	err = e2e.CleanISCI(*testConfig)
+	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}

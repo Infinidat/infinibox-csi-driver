@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
@@ -47,7 +48,7 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 }
 
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
-func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api iboxapi.Client) error {
+func ValidateProtocolToNetworkSpace(ctx context.Context, protocol string, networkSpaces []string, api iboxapi.Client) error {
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
 		zlog.Err(err)
@@ -56,7 +57,7 @@ func ValidateProtocolToNetworkSpace(protocol string, networkSpaces []string, api
 
 	for _, networkSpace := range networkSpaces {
 		zlog.Debug().Msgf("validating ns=%s protocol=%s", networkSpace, protocol)
-		nSpace, err := api.GetNetworkSpaceByName(networkSpace)
+		nSpace, err := api.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
 			// api call throws error
 			zlog.Err(err)

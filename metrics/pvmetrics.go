@@ -28,13 +28,13 @@ var (
 		MetricPVStorageProtocol})
 )
 
-func RecordPVMetrics(config *MetricsConfig) {
+func RecordPVMetrics(ctx context.Context, config *MetricsConfig) {
 	zlog.Trace().Msgf("pv metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(PVMetrics))
 
-			pvInfo, err := getPVInfo()
+			pvInfo, err := getPVInfo(ctx)
 			if err != nil {
 				zlog.Err(err)
 				continue
@@ -61,7 +61,7 @@ type PVInfo struct {
 	SClass storagev1.StorageClass
 }
 
-func getPVInfo() (*[]PVInfo, error) {
+func getPVInfo(ctx context.Context) (*[]PVInfo, error) {
 	pvInfo := make([]PVInfo, 0)
 
 	// creates the in-cluster config
@@ -78,7 +78,7 @@ func getPVInfo() (*[]PVInfo, error) {
 		return nil, err
 	}
 
-	persistentVolumes, err := clientset.CoreV1().PersistentVolumes().List(context.Background(), metav1.ListOptions{})
+	persistentVolumes, err := clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		zlog.Err(err)
 		return nil, err
@@ -86,7 +86,7 @@ func getPVInfo() (*[]PVInfo, error) {
 	for _, pv := range persistentVolumes.Items {
 		if pv.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
 			zlog.Trace().Msgf("pv metrics: pv %s sc %s found", pv.Name, pv.Spec.StorageClassName)
-			storageClass, err := clientset.StorageV1().StorageClasses().Get(context.Background(), pv.Spec.StorageClassName, metav1.GetOptions{})
+			storageClass, err := clientset.StorageV1().StorageClasses().Get(ctx, pv.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
 				zlog.Error().Msgf("error getting StorageClass %s error %s", pv.Spec.StorageClassName, err.Error())
 			} else {

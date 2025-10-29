@@ -479,7 +479,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	resp, err := storageNode.NodeExpandVolume(context.Background(), req)
+	resp, err := storageNode.NodeExpandVolume(ctx, req)
 	if err != nil {
 		e := fmt.Errorf("%s - sn.NodeExpandVolume volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())

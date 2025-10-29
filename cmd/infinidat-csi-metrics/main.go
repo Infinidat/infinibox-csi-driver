@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -49,8 +50,10 @@ func main() {
 		namespace = "infinidat-csi"
 	}
 
+	ctx := context.Background()
+
 	var secrets []map[string]string
-	secrets, err = client.GetSecrets(namespace)
+	secrets, err = client.GetSecrets(ctx, namespace)
 	if err != nil {
 		zlog.Error().Msgf("error getting secrets: %s", err.Error())
 	}
@@ -65,10 +68,10 @@ func main() {
 		zlog.Info().Msgf("config ibox hostname: %s username: %s", tmp.IboxHostname, tmp.IboxUsername)
 	}
 
-	metric.RecordPVMetrics(config)
-	metric.RecordPerformanceMetrics(config)
-	metric.RecordPoolMetrics(config)
-	metric.RecordSystemHealthMetrics(config)
+	metric.RecordPVMetrics(ctx, config)
+	metric.RecordPerformanceMetrics(ctx, config)
+	metric.RecordPoolMetrics(ctx, config)
+	metric.RecordSystemHealthMetrics(ctx, config)
 
 	http.Handle("/", &home{})
 	http.Handle("/metrics", promhttp.Handler())

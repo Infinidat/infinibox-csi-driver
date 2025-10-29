@@ -3,7 +3,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -22,6 +21,9 @@ func TestNodeTestSuite(t *testing.T) {
 	suite.Run(t, new(NodeTestSuite))
 }
 
+func (suite *NodeTestSuite) SetupTest() {
+}
+
 func (suite *NodeTestSuite) Test_NodePublishVolume_invalid_protocol() {
 	nodePublishReq := getNodeNodePublishVolumeRequest()
 	nodePublishReq.VolumeContext = map[string]string{common.StorageClassStorageProtocol: "unknown"}
@@ -30,7 +32,7 @@ func (suite *NodeTestSuite) Test_NodePublishVolume_invalid_protocol() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodePublishVolume(context.Background(), nodePublishReq)
+	_, err := cs.NodePublishVolume(suite.Suite.T().Context(), nodePublishReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
@@ -42,7 +44,7 @@ func (suite *NodeTestSuite) Test_NodeUnpublishVolume_invalid_protocol() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodeUnpublishVolume(context.Background(), nodeUnPublishReq)
+	_, err := cs.NodeUnpublishVolume(suite.Suite.T().Context(), nodeUnPublishReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
@@ -52,7 +54,7 @@ func (suite *NodeTestSuite) Test_NodeGetCapabilities() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodeGetCapabilities(context.Background(), &csi.NodeGetCapabilitiesRequest{})
+	_, err := cs.NodeGetCapabilities(suite.Suite.T().Context(), &csi.NodeGetCapabilitiesRequest{})
 	assert.Nil(suite.T(), err)
 }
 
@@ -62,7 +64,7 @@ func (suite *NodeTestSuite) Test_NodeGetInfo() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodeGetInfo(context.Background(), &csi.NodeGetInfoRequest{})
+	_, err := cs.NodeGetInfo(suite.Suite.T().Context(), &csi.NodeGetInfoRequest{})
 	assert.Nil(suite.T(), err)
 }
 
@@ -74,7 +76,7 @@ func (suite *NodeTestSuite) Test_NodeStageVolume_invalid_protocol() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodeStageVolume(context.Background(), nodeStageReq)
+	_, err := cs.NodeStageVolume(suite.Suite.T().Context(), nodeStageReq)
 	assert.NotNil(suite.T(), err, "storage_protocol value missing")
 }
 
@@ -84,7 +86,7 @@ func (suite *NodeTestSuite) Test_NodeGetVolumeStats() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodeGetVolumeStats(context.Background(), &csi.NodeGetVolumeStatsRequest{})
+	_, err := cs.NodeGetVolumeStats(suite.Suite.T().Context(), &csi.NodeGetVolumeStatsRequest{})
 	assert.NotNil(suite.T(), err)
 }
 
@@ -96,7 +98,7 @@ func (suite *NodeTestSuite) Test_NodeExpandVolume_volumenotfounderror() {
 			nodeID: "n",
 		},
 	}
-	_, err := cs.NodeExpandVolume(context.Background(), nodeNodeExpandReq)
+	_, err := cs.NodeExpandVolume(suite.Suite.T().Context(), nodeNodeExpandReq)
 	assert.Error(suite.T(), err)
 }
 
