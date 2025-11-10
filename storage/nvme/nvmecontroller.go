@@ -585,11 +585,7 @@ func (nvme *NVMEstorage) ControllerExpandVolume(ctx context.Context, req *csi.Co
 	volumeID := nvme.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("ControllerExpandVolume (nvme) - called volume ID %d", volumeID)
 
-	capacity := req.GetCapacityRange().GetRequiredBytes()
-	if capacity < storagecommon.GIB {
-		capacity = storagecommon.GIB
-		zlog.Warn().Msgf("ControllerExpandVolume (nvme) - volume minimum capacity should be greater 1 GB")
-	}
+	capacity := nvme.Capacity
 
 	// Expand volume size
 	volume := iboxapi.Volume{

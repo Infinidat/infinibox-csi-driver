@@ -995,6 +995,20 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 
 	capacity := req.GetCapacityRange().GetRequiredBytes()
+	if capacity < storagecommon.GIB {
+		capacity = storagecommon.GIB
+		zlog.Warn().Msgf("ControllerExpandVolume (nvme) - volume minimum capacity should be greater 1 GB")
+	}
+	roundUp := true // default to always rounding up
+	if roundUp {
+		roundUpBytes := helper.RoundUp(capacity)
+		if capacity == roundUpBytes {
+			zlog.Debug().Msgf("%s requested bytes %d equals calculated rounded up %d bytes", functionName, capacity, roundUpBytes)
+		} else {
+			zlog.Debug().Msgf("%s requested bytes %d will be rounded up to %d bytes", functionName, capacity, roundUpBytes)
+			capacity = roundUpBytes
+		}
+	}
 
 	err = validateSecret("ControllerExpandVolume", req.GetVolumeId(), common.CSIControllerExpandSecretName, common.CSIControllerExpandSecretNamespace, req.GetSecrets())
 	if err != nil {

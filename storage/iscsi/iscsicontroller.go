@@ -607,11 +607,7 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	volumeID := iscsi.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("%s (iscsi) volume ID %d", functionName, volumeID)
 
-	capacity := req.GetCapacityRange().GetRequiredBytes()
-	if capacity < storagecommon.GIB {
-		capacity = storagecommon.GIB
-		zlog.Warn().Msgf("%s (iscsi) - volume minimum capacity should be greater 1 GB", functionName)
-	}
+	capacity := iscsi.Capacity
 
 	// Expand volume size
 	volume := iboxapi.Volume{

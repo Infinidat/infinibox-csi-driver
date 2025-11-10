@@ -403,6 +403,7 @@ func (client *IboxClient) UpdateVolume(ctx context.Context, volumeID int, volume
 	}
 	if responseObject.Error.Code != "" {
 		// TODO check for NOT FOUND?  return ErrNotFound for callers?
+		client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "error code", responseObject.Error.Code)
 		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
 	}
 	return &responseObject.Result, nil

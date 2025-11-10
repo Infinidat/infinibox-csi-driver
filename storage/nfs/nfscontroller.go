@@ -654,11 +654,7 @@ func (nfs *NFSstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 	volumeID := nfs.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("ControllerExpandVolume (nfs) - fs ID %d", volumeID)
 
-	capacity := req.GetCapacityRange().GetRequiredBytes()
-	if capacity < storagecommon.GIB {
-		capacity = storagecommon.GIB
-		zlog.Warn().Msgf("ControllerExpandVolume (nfs) - volume Minimum capacity should be greater than %d", storagecommon.GIB)
-	}
+	capacity := nfs.Capacity
 
 	// Expand file system size
 	var fileSys iboxapi.FileSystem

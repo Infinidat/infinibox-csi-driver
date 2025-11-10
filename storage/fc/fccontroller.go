@@ -563,11 +563,7 @@ func (fc *FCstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	volumeID := fc.CS.VolProto.VolumeID
 	zlog.Debug().Msgf("%s (fc) - volume ID: %d", functionName, volumeID)
 
-	capacity := req.GetCapacityRange().GetRequiredBytes()
-	if capacity < storagecommon.GIB {
-		capacity = storagecommon.GIB
-		zlog.Warn().Msgf("%s (fc) - Volume Minimum capacity should be greater 1 GB", functionName)
-	}
+	capacity := fc.Capacity
 
 	// Expand volume size
 	volume := iboxapi.Volume{
