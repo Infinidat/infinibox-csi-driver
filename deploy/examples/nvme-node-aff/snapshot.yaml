@@ -1,0 +1,10 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: nvme-snapshot-node-aff
+  namespace: $_E2E_NAMESPACE
+spec:
+  volumeSnapshotClassName: ibox-snapshotclass
+  source:
+    persistentVolumeClaimName: nvme-pvc-node-aff
+

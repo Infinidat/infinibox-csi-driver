@@ -1,0 +1,35 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-fc-fsg
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: infinibox-creds
+  csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/controller-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/controller-expand-secret-name: infinibox-creds
+  csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-expand-secret-name: infinibox-creds
+  csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+
+  # InfiniBox configuration
+  pool_name: $_E2E_POOL
+  storage_protocol: "fc"
+
+  # optional parameters
+  #round_up_requested_size: "true"
+  #provision_type: "THIN"
+  #ssd_enabled: "false"
+  #max_vols_per_host: "20"
+  #uid: "2000"                 # optional: override default UID for filesystem mount, ignored when fsgroup in pod
+  #gid: "2000"                 # optional: override default GID for filesystem mount, ignored when fsgroup in pod
+  #unix_permissions: "777"     # optional: override default permissions for filesystem mount, ignored for fsgroup

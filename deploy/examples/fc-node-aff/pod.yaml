@@ -1,0 +1,29 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: fc-test-node-aff
+  namespace: $_E2E_NAMESPACE
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  affinity:
+    nodeAffinity:
+      # Hard rule: The Pod MUST be scheduled on nodes with infinidat.com/node-protocol=fc
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: infinidat.com/node-protocol
+            operator: In
+            values:
+            - fc
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: fc-pvc-node-aff

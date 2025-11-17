@@ -89,11 +89,47 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	config := make(map[string]string)
 
-	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
+	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
+	}
+
+	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
+	if err != nil {
+		e := fmt.Errorf("%s - getNodeProtocol volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+	if nodeProtocol != "" {
+		zlog.Debug().Msgf("%s nodeProtocol [%s] found on node %s, using instead of %s", functionName, nodeProtocol, os.Getenv(common.EnvVarKubeNodeName), volumeInfo.StorageType)
+		volumeInfo.StorageType = nodeProtocol
+		protocolSecret, protocolSecretInUse, err := GetProtocolSecret(ctx)
+		if err != nil {
+			e := fmt.Errorf("%s error: could not get protocol secret %s", functionName, err.Error())
+			return nil, status.Error(codes.InvalidArgument, e.Error())
+		}
+		if !protocolSecretInUse {
+			e := fmt.Errorf("%s error: protocol secret not in use, but is required when nodeProtocol label is set on node", functionName)
+			return nil, status.Error(codes.InvalidArgument, e.Error())
+		}
+		if nodeProtocol == common.ProtocolISCSI {
+			networkSpace := protocolSecret[ProtocolSecretISCSINetworkSpace]
+			if networkSpace == "" {
+				e := fmt.Errorf("%s error: protocol secret in use, but ISCSI network space is empty", functionName)
+				return nil, status.Error(codes.InvalidArgument, e.Error())
+			}
+			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
+		}
+		if nodeProtocol == common.ProtocolNVME {
+			networkSpace := protocolSecret[ProtocolSecretNVMENetworkSpace]
+			if networkSpace == "" {
+				e := fmt.Errorf("%s error: protocol secret in use, but NVMEe network space is empty", functionName)
+				return nil, status.Error(codes.InvalidArgument, e.Error())
+			}
+			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
+		}
 	}
 
 	// the storageclass is required to specify node-publish secrets as a parameter,this will cause
@@ -103,7 +139,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
+	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
 		e := fmt.Errorf("%s - BuildCommonService volume ID: %s error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -135,7 +171,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	helper.EventAPIClient = comnserv.API
 	helper.EventIboxAPIClient = comnserv.IboxAPI
-	helper.EventPublishedVolumes[volProto.StorageType]++
+	helper.EventPublishedVolumes[volumeInfo.StorageType]++
 
 	return response, nil
 }
@@ -166,14 +202,25 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	zlog.Debug().Msgf("%s called with volume ID %s", functionName, req.GetVolumeId())
 	zlog.Trace().Msgf("%s called with req %+v", functionName, req)
-	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
+	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto})
+	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
+	if err != nil {
+		e := fmt.Errorf("%s - getNodeProtocol volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+	if nodeProtocol != "" {
+		zlog.Debug().Msgf("%s nodeProtocol [%s] found on node %s, using instead of %s", functionName, nodeProtocol, os.Getenv(common.EnvVarKubeNodeName), volumeInfo.StorageType)
+		volumeInfo.StorageType = nodeProtocol
+	}
+
+	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volumeInfo})
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
@@ -264,21 +311,32 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	zlog.Debug().Msgf("VolumeMountGroup: %s", fsGroup)
 	config := make(map[string]string)
 
-	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
+	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID -  volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	zlog.Debug().Msgf("%s volumeContext %+v storageProtocol is %s", functionName, req.GetVolumeContext(), volProto.StorageType)
+	zlog.Debug().Msgf("%s volumeContext %+v storageProtocol is %s", functionName, req.GetVolumeContext(), volumeInfo.StorageType)
 
 	err = validateSecret("NodeStageVolume", req.GetVolumeId(), common.CSINodeStageSecretName, common.CSINodeStageSecretNamespace, req.GetSecrets())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
+	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
+	if err != nil {
+		e := fmt.Errorf("%s - getNodeProtocol volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+	if nodeProtocol != "" {
+		zlog.Debug().Msgf("%s nodeProtocol [%s] found on node %s, instead of %s", functionName, nodeProtocol, os.Getenv(common.EnvVarKubeNodeName), volumeInfo.StorageType)
+		volumeInfo.StorageType = nodeProtocol
+	}
+
+	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
 		e := fmt.Errorf("%s - BuildCommonService volume ID %s - error: %s", functionName, volumeId, err)
 		zlog.Error().Msg(e.Error())
@@ -328,14 +386,25 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeUnstageVolume", volumeId)
 
-	volProto, err := storagecommon.ValidateVolumeID(volumeId)
+	volumeInfo, err := storagecommon.ValidateVolumeID(volumeId)
 	if err != nil {
 		e := fmt.Errorf("%s - ValidateVolumeID volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volProto})
+	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
+	if err != nil {
+		e := fmt.Errorf("%s - getNodeProtocol volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+	if nodeProtocol != "" {
+		zlog.Debug().Msgf("%s nodeProtocol [%s] found on node %s, instead of %s", functionName, nodeProtocol, os.Getenv(common.EnvVarKubeNodeName), volumeInfo.StorageType)
+		volumeInfo.StorageType = nodeProtocol
+	}
+
+	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volumeInfo})
 	if err != nil {
 		e := fmt.Errorf("%s - NewStorageNode volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())
@@ -441,21 +510,23 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	isLocking := true
 	_ = helper.ManageNodeVolumeMutex(isLocking, "NodeExpandVolume", volumeId)
 
-	/**
-	volproto := strings.Split(req.GetVolumeId(), "$$")
-	if len(volproto) != 2 {
-		e := fmt.Errorf("%s - error volume ID error %v", function, volproto)
-		zlog.Error().Msg(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-	*/
-
 	config := make(map[string]string)
 
-	volProto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
+	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
 		zlog.Error().Msgf("%s  - ValidateVolumeID -  volume ID: %s - error: %s", functionName, req.GetVolumeId(), err.Error())
 		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
+	if err != nil {
+		e := fmt.Errorf("%s - getNodeProtocol volume ID %s - error: %s", functionName, req.GetVolumeId(), err.Error())
+		zlog.Error().Msg(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+	if nodeProtocol != "" {
+		zlog.Debug().Msgf("%s nodeProtocol [%s] found on node %s, using instead of %s", functionName, nodeProtocol, os.Getenv(common.EnvVarKubeNodeName), volumeInfo.StorageType)
+		volumeInfo.StorageType = nodeProtocol
 	}
 
 	// the storageclass is required to specify node-expand secrets as a parameter,this will cause
@@ -465,7 +536,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volProto)
+	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
 		e := fmt.Errorf("%s  - BuildCommonService volume ID: %s - error: %s", functionName, volumeId, err.Error())
 		zlog.Error().Msg(e.Error())

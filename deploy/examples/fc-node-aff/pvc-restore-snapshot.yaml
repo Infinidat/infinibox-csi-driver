@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fc-pvc-restore-from-snapshot-node-aff
+  namespace: $_E2E_NAMESPACE
+spec:
+  storageClassName: ibox-fc-node-aff
+  dataSource:
+    name: fc-snapshot-node-aff
+    kind: VolumeSnapshot
+    apiGroup: "snapshot.storage.k8s.io"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+

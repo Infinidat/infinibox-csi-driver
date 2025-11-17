@@ -1,0 +1,35 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-nvme-fsg
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET 
+  csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE 
+  csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET 
+  csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE 
+  csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET 
+  csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE 
+  csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET 
+  csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE 
+  csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET 
+  csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE 
+  csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET 
+  csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE 
+  csi.storage.k8s.io/fstype: ext4 
+
+  # Infinibox configuration
+  network_space: $_E2E_NVME_NETWORK_SPACE
+  pool_name: $_E2E_POOL
+  storage_protocol: "nvme"
+
+  # optional parameters
+  #round_up_requested_size: "true"
+  #provision_type: "THIN"
+  #ssd_enabled: "false"
+  #uid: "2000" # UID of volume, ignored if fsgroup specified in pod
+  #gid: "2000" # GID of volume, ifnored if fsgroup specified in pod
+  #unix_permissions: "777" # optional volume mount permissions, ignored for fsgroup

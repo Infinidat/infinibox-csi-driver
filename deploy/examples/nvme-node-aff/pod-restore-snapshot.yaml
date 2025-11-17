@@ -1,0 +1,28 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nvme-test-using-restore-node-aff
+  namespace: $_E2E_NAMESPACE
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: infinidat.com/node-protocol
+            operator: In
+            values:
+            - nvme
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: nvme-pvc-restore-from-snapshot-node-aff

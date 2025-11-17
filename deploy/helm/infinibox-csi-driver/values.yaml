@@ -41,7 +41,6 @@ removeDomainName: "false"
 #protocolSecret: "infinibox-protocol-secret"
 Infinibox_Protocol_Secrets:
   - SecretName: "infinibox-protocol-secret"
-    preferred_auto_order: "fc,nvme,iscsi"
     storage_protocol: "fc"
     nfs:
       network_space: "default_nas_space"

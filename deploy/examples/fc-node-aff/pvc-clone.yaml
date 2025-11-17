@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: fc-pvc-clone-node-aff
+    namespace: $_E2E_NAMESPACE
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ibox-fc-node-aff
+  resources:
+    requests:
+      storage: 1Gi
+  dataSource:
+    kind: PersistentVolumeClaim
+    name: fc-pvc-node-aff

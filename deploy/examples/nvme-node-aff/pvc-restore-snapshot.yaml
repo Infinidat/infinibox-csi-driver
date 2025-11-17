@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nvme-pvc-restore-from-snapshot-node-aff
+  namespace: $_E2E_NAMESPACE
+spec:
+  storageClassName: ibox-nvme-node-aff
+  dataSource:
+    name: nvme-snapshot-node-aff
+    kind: VolumeSnapshot
+    apiGroup: "snapshot.storage.k8s.io"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+

@@ -1,4 +1,4 @@
-package helper
+package service
 
 import (
 	"context"
@@ -10,6 +10,14 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	ProtocolSecretISCSINetworkSpace    = "iscsi.network_space"
+	ProtocolSecretISCSIUseCHAP         = "iscsi.useCHAP"
+	ProtocolSecretNVMENetworkSpace     = "nvme.network_space"
+	ProtocolSecretNFSNetworkSpace      = "nfs.network_space"
+	ProtocolSecretNFSExportPermissions = "nfs.nfs_export_permissions"
 )
 
 func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, found bool, err error) {
@@ -48,6 +56,7 @@ func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, f
 	storageProtocol := protocolSecret[common.StorageClassStorageProtocol]
 	// validate what the user entered for the protocol
 	switch storageProtocol {
+	case "":
 	case common.ProtocolNFS, common.ProtocolTreeq:
 	case common.ProtocolNVME:
 	case common.ProtocolFC:
@@ -59,6 +68,6 @@ func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, f
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	zlog.Debug().Msgf("%s - secret protcol in use - %v", functionName, protocolSecret)
+	zlog.Debug().Msgf("%s - secret protocol in use - %v", functionName, protocolSecret)
 	return protocolSecret, true, nil
 }
