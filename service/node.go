@@ -562,6 +562,12 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 }
 
 func getNodeFQDN() string {
+	iboxHostNamingConvention := os.Getenv("IBOX_HOST_NAMING_CONVENTION")
+	if iboxHostNamingConvention == "nodename" {
+		nodeName := os.Getenv(common.EnvVarKubeNodeName)
+		zlog.Debug().Msgf("using nodename for ibox host naming convention %s", nodeName)
+		return nodeName
+	}
 	cmd := "hostname -f"
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {

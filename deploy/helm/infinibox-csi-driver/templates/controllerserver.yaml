@@ -184,6 +184,8 @@ spec:
         {{- end }}
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
+            - name: IBOX_HOST_NAMING_CONVENTION
+              value: "{{ .Values.iboxHostNamingConvention }}"
             - name: PROTOCOL_SECRET
               value: {{ .Values.protocolSecret }}
             - name: APP_LOG_LEVEL

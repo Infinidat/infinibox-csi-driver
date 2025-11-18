@@ -93,6 +93,8 @@ spec:
               value: "{{ .Values.protocolSecret }}"
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
+            - name: IBOX_HOST_NAMING_CONVENTION
+              value: "{{ .Values.iboxHostNamingConvention }}"
             - name: CLEANUP_NFS_PERMS
               value: "{{ .Values.cleanupNFSPerms }}"
             - name: MULTIPATH_CLEANUP_DELAY

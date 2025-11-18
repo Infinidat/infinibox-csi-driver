@@ -31,6 +31,12 @@ removeDomainName: "false"
 # the default is "true" when not set
 #createEvents: "false"
 #
+# set to either 'hostname' (default) or 'nodename'.
+# this determines what name is used when hosts are created on the ibox
+# when 'nodename' is specified, the Kube Node name is used to create
+# hosts on the ibox instead of the default 'hostname -f' output
+#iboxHostNamingConvention: "nodename"
+
 # set to false to not attempt NFS ip address cleanup when there are no mounts
 # on the node left for a given filesystem
 # the default is "false" when not set
