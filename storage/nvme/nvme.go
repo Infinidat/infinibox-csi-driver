@@ -13,16 +13,14 @@ limitations under the License.
 package nvme
 
 import (
-	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/infinidat/infinibox-csi-driver/log"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
 	"strings"
-
-	"github.com/blang/semver/v4"
 )
 
 var zlog = log.Get() // grab the logger for package use
@@ -100,6 +98,11 @@ type Devices struct {
 	Devices []Device `json:"Devices"`
 }
 
+type NVMEDeviceInfo struct {
+	Node      string
+	Namespace int
+}
+
 func getHostNQN() (string, error) {
 	fileContent, err := os.ReadFile("/host/etc/nvme/hostnqn")
 	if err != nil {
@@ -112,6 +115,56 @@ func getHostNQN() (string, error) {
 	return hostnqn, nil
 }
 
+func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
+	cmd := "nvme list"
+	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
+	if err != nil {
+		zlog.Error().Msgf("getNVMENamespacesByNormalOutput (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
+		return devices, err
+	}
+	zlog.Trace().Msgf("getNVMENamespacesByNormalOutput (nvme) - %s raw output %s", cmd, rawOutput)
+
+	lines := strings.Split(rawOutput, "\n")
+	zlog.Debug().Msgf("nvmeOutput lines (%d) are %+v", len(lines), lines)
+	for lineNo, line := range lines {
+		zlog.Debug().Msgf("line %d len %d is %s", lineNo, len(line), line)
+	}
+
+	//remove the header which is 2 lines
+	zlog.Debug().Msg("nvmeOutput with lines removed...")
+	lines = append(lines[:0], lines[2:]...)
+	for lineNo, line := range lines {
+		zlog.Debug().Msgf("line %d len %d is %s", lineNo, len(line), line)
+		if len(line) > 0 {
+			fields := strings.Fields(line)
+			zlog.Debug().Msgf("parsed fields: %q", fields)
+			// Remove the "0x" prefix if present
+			namespaceField := fields[4]
+			if len(namespaceField) > 2 && namespaceField[0:2] == "0x" {
+				namespaceField = namespaceField[2:]
+			}
+			namespaceNumber, err := strconv.ParseInt(namespaceField, 16, 0)
+			if err != nil {
+				zlog.Debug().Msgf("error converting namespace %s to int - error %s", namespaceField, err.Error())
+				return devices, err
+			}
+			element := NVMEDeviceInfo{
+				Node: fields[0],
+				//Generic:   fields[1],
+				//SN:        fields[2],
+				//Model:     fields[3],
+				Namespace: int(namespaceNumber),
+				//Unused:    "unused",
+			}
+			zlog.Debug().Msgf("parsed element is: %+v", element)
+			devices = append(devices, element)
+		}
+	}
+
+	return devices, nil
+}
+
+/**
 func getNVMENamespaces() (devices Devices, err error) {
 	cmd := "nvme list -o json"
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
@@ -143,7 +196,8 @@ func getNVMENamespaces() (devices Devices, err error) {
 		devices = parseNVME211Devices(nvme211Output)
 	}
 	return devices, nil
-}
+}a
+*/
 
 // nvme connect-all -t tcp -a 172.20.51.170
 func nvmeConnectAll(ipAddress string) (err error) {
@@ -200,6 +254,7 @@ func getConnectionDetails() (results string, err error) {
 */
 
 // parse the NVME version using semver formatting and comparison
+/**
 func getNVMEVersion() (version string, err error) {
 	cmd := "nvme version"
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
@@ -273,3 +328,4 @@ func parseNVME211Devices(nvme211Output NVME211) (devices Devices) {
 	}
 	return devices
 }
+*/

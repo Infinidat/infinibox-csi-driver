@@ -250,8 +250,9 @@ func (nvme *NVMEstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 }
 
 func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeTarget) (nvmeDevicePath string, err error) {
-	zlog.Debug().Msgf("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", diskMounter.nvmeDiskInfo.VolumeID, diskMounter.nvmeDiskInfo.MpathDevice,
-		diskMounter.nvmeDiskInfo.lun, diskMounter.fsType, diskMounter.readOnly, diskMounter.mountOptions, diskMounter.targetPath, diskMounter.stagePath)
+	//zlog.Debug().Msgf("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", diskMounter.nvmeDiskInfo.VolumeID, diskMounter.nvmeDiskInfo.MpathDevice,
+	//diskMounter.nvmeDiskInfo.lun, diskMounter.fsType, diskMounter.readOnly, diskMounter.mountOptions, diskMounter.targetPath, diskMounter.stagePath)
+	zlog.Debug().Msgf("AttachDisk (nvme) - diskMounter: %+v", diskMounter)
 
 	if len(targets) == 0 {
 		return "", fmt.Errorf("AttachDisk (nvme) - error no targets")
@@ -274,7 +275,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 		}
 	}
 
-	devices, err := getNVMENamespaces()
+	devices, err := getNVMENamespacesByNormalOutput()
 	if err != nil {
 		zlog.Error().Msgf("AttachDisk (nvme) - error getting NVME device list %s", err.Error())
 		return "", err
@@ -282,15 +283,14 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 
 	// find the device path based on the lun/nsid
 
-	for i := range devices.Devices {
-		dev := devices.Devices[i]
+	for _, device := range devices {
 		lunInt, err := strconv.Atoi(diskMounter.nvmeDiskInfo.lun)
 		if err != nil {
 			return "", fmt.Errorf("AttachDisk (nvme) - could not convert lun %s to integer - error %s", diskMounter.nvmeDiskInfo.lun, err.Error())
 		}
-		if dev.NameSpace == lunInt {
-			nvmeDevicePath = dev.DevicePath
-			zlog.Debug().Msgf("AttachDisk (nvme) - found nvme device path %s using lun %s", dev.DevicePath, diskMounter.nvmeDiskInfo.lun)
+		if device.Namespace == lunInt {
+			nvmeDevicePath = device.Node
+			zlog.Debug().Msgf("AttachDisk (nvme) - found nvme device path %s using lun %s", device.Node, diskMounter.nvmeDiskInfo.lun)
 			break
 		}
 	}
