@@ -597,9 +597,16 @@ func (nvme *NVMEstorage) ControllerExpandVolume(ctx context.Context, req *csi.Co
 		return nil, err
 	}
 	zlog.Debug().Msgf("ControllerExpandVolume (nvme) - volume with ID %d size updated successfully", volumeID)
+
+	nodeExpansionRequired := true
+	if req.GetVolumeCapability().GetBlock() != nil {
+		zlog.Debug().Msg("ControllerExpandVolume (nvme) - volume is block so nodeExpansionRequired is false")
+		nodeExpansionRequired = false
+	}
+
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: nodeExpansionRequired,
 	}, nil
 }
 

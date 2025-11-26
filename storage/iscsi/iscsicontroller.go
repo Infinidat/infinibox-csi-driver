@@ -620,9 +620,14 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, e
 	}
 	zlog.Debug().Msgf("%s (iscsi) - volume with ID %d size updated successfully", functionName, volumeID)
+	nodeExpansionRequired := true
+	if req.GetVolumeCapability().GetBlock() != nil {
+		zlog.Debug().Msg("ControllerExpandVolume (iscsi) - volume is block so nodeExpansionRequired is false")
+		nodeExpansionRequired = false
+	}
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: nodeExpansionRequired,
 	}, nil
 }
 

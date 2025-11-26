@@ -576,9 +576,14 @@ func (fc *FCstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 		return nil, e
 	}
 	zlog.Debug().Msgf("%s (fc) - volume size updated successfully volume ID: %d", functionName, volumeID)
+	nodeExpansionRequired := true
+	if req.GetVolumeCapability().GetBlock() != nil {
+		zlog.Debug().Msg("ControllerExpandVolume (iscsi) - volume is block so nodeExpansionRequired is false")
+		nodeExpansionRequired = false
+	}
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: nodeExpansionRequired,
 	}, nil
 }
 
