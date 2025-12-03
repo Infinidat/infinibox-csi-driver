@@ -1,14 +1,15 @@
 package metric
 
 import (
+	"context"
 	"errors"
 	"flag"
+	"log/slog"
 	"net"
 	"os"
 	"time"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
-	"github.com/infinidat/infinibox-csi-driver/log"
 
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -17,8 +18,6 @@ import (
 var (
 	PortFlag *string
 )
-
-var zlog = log.Get() // grab the logger for package use
 
 const (
 	DefaultInterval = "30s"
@@ -116,21 +115,21 @@ type MetricsConfig struct {
 }
 
 func NewConfig(secrets []map[string]string) (*MetricsConfig, error) {
-	zlog.Trace().Msg("getting metrics configuration...")
+	slog.Log(context.Background(), common.LevelTrace, "getting metrics configuration...")
 	PortFlag = flag.String("port", "11007", "metrics port")
 
 	configFileData, err := os.ReadFile("/tmp/infinidat-csi-metrics-config/config.yaml")
 	if err != nil {
 		return nil, err
 	}
-	zlog.Trace().Msgf("raw metrics configuration...%s", string(configFileData))
+	slog.Log(context.Background(), common.LevelTrace, "raw metrics configuration...", "data", string(configFileData))
 
 	var config MetricsConfig
 	err = yaml.Unmarshal(configFileData, &config)
 	if err != nil {
 		return nil, err
 	}
-	zlog.Info().Msgf("metrics config is ...%+v\n", config)
+	slog.Info("metrics config", "config", config)
 
 	errorsFound := config.Validate()
 	if errorsFound {
@@ -168,13 +167,13 @@ func (c *MetricsConfig) GetDuration(name string) time.Duration {
 		if metrics[i].Name == name {
 			t, e := time.ParseDuration(metrics[i].Duration)
 			if e != nil {
-				zlog.Error().Msgf("parse error:  duration found for metrics config %s, using default %s, %s", name, DefaultInterval, e.Error())
+				slog.Error("parse error:  duration found for metrics config, using default", "name", name, "default", DefaultInterval, "error", e.Error())
 				t, _ = time.ParseDuration(DefaultInterval)
 			}
 			return t
 		}
 	}
-	zlog.Info().Msgf("warning:  no value found for metrics config %s, using default %s", name, DefaultInterval)
+	slog.Info("warning:  no value found for metrics config, using default", "name", name, "default", DefaultInterval)
 	t, _ := time.ParseDuration(DefaultInterval)
 	return t
 }
@@ -186,14 +185,14 @@ func (c *MetricsConfig) Validate() bool {
 		_, e := time.ParseDuration(metric.Duration)
 		if e != nil {
 			errorFound = true
-			zlog.Error().Msgf("error:  duration found for metrics config %s did not parse, %s", metric.Name, e.Error())
+			slog.Error("error:  duration found for metrics config did not parse", "name", metric.Name, "error", e.Error())
 		}
 
 		switch metric.Name {
 		case PoolMetrics, PVMetrics, MetricIboxPerfMetrics, MetricIboxSystemMetrics:
 		default:
 			errorFound = true
-			zlog.Error().Msgf("error:  metric name %s invalid", metric.Name)
+			slog.Error("error:  metric name invalid", "name", metric.Name)
 		}
 	}
 

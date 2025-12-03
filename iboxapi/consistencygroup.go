@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -161,18 +162,16 @@ const (
 )
 
 func (client *IboxClient) CreateConsistencyGroup(ctx context.Context, req CreateConsistencyGroupRequest) (*ConsistencyGroupInfo, error) {
-	const functionName = "CreateConsistencyGroup"
-
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/cgs")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
+		return nil, fmt.Errorf(" Marshal - error %w", err)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("newRequest - error %w", err)
 	}
 
 	values := request.URL.Query()
@@ -184,11 +183,11 @@ func (client *IboxClient) CreateConsistencyGroup(ctx context.Context, req Create
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
@@ -197,42 +196,40 @@ func (client *IboxClient) CreateConsistencyGroup(ctx context.Context, req Create
 	var responseObject CreateConsistencyGroupResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
+		return nil, fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
-	client.Log.V(TRACE_LEVEL).Info(functionName, "Export ID", responseObject.Result.ID)
+	slog.Log(ctx, common.LevelTrace, "info", "Export ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
 func (client *IboxClient) AddMemberToSnapshotGroup(ctx context.Context, volumeID, cgID int) error {
-	const functionName = "AddMemberToSnapshotGroup"
-
 	url := fmt.Sprintf("%s%s/%s/members", client.Creds.URL, "api/rest/cgs", strconv.Itoa(cgID))
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "volume ID", volumeID, "cg ID", cgID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "volume ID", volumeID, "cg ID", cgID)
 
 	req := AddMemberToSnapshotGroupRequest{
 		DatasetID: volumeID,
 	}
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("%s - Marshal - error %w", functionName, err)
+		return fmt.Errorf(" Marshal - error %w", err)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return fmt.Errorf("newRequest - error %w", err)
 	}
 	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("%s - Do - error %w", functionName, err)
+		return fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
@@ -241,29 +238,27 @@ func (client *IboxClient) AddMemberToSnapshotGroup(ctx context.Context, volumeID
 	var responseObject AddMemberToSnapshotGroupResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
+		return fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
-	client.Log.V(TRACE_LEVEL).Info(functionName, "response", responseObject.Result)
+	slog.Log(ctx, common.LevelTrace, "info", "response", responseObject.Result)
 	return nil
 }
 
 func (client *IboxClient) GetMembersByCGID(ctx context.Context, cgID int) (memberInfo []MemberInfo, err error) {
-	const functionName = "GetMembersByCGID"
-
 	url := fmt.Sprintf("%s%s/%d/members", client.Creds.URL, "api/rest/cgs", cgID)
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "cg ID", cgID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "cg ID", cgID)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return memberInfo, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+			return memberInfo, fmt.Errorf("newRequest - error %w", err)
 		}
 
 		values := req.URL.Query()
@@ -275,22 +270,22 @@ func (client *IboxClient) GetMembersByCGID(ctx context.Context, cgID int) (membe
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return memberInfo, fmt.Errorf("%s - Do - error %w", functionName, err)
+			return memberInfo, fmt.Errorf("do - error %w", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				slog.Error("error in Close()", "error", err.Error())
 			}
 		}()
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return memberInfo, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+			return memberInfo, fmt.Errorf("readAll - error %w", err)
 		}
 		var responseObject GetMembersByCGIDResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return memberInfo, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+			return memberInfo, fmt.Errorf("unmarshal - error %w", err)
 		}
 		memberInfo = append(memberInfo, responseObject.Result...)
 
@@ -303,18 +298,16 @@ func (client *IboxClient) GetMembersByCGID(ctx context.Context, cgID int) (membe
 }
 
 func (client *IboxClient) CreateSnapshotGroup(ctx context.Context, req CreateSnapshotGroupRequest) (newCG *ConsistencyGroupInfo, err error) {
-	const functionName = "CreateSnapshotGroup"
-
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/cgs")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "request", req)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "request", req)
 
 	jsonBytes, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Marshal - error %w", functionName, err)
+		return nil, fmt.Errorf(" Marshal - error %w", err)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("newRequest - error %w", err)
 	}
 
 	SetAuthHeader(request, client.Creds)
@@ -322,11 +315,11 @@ func (client *IboxClient) CreateSnapshotGroup(ctx context.Context, req CreateSna
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
@@ -335,24 +328,22 @@ func (client *IboxClient) CreateSnapshotGroup(ctx context.Context, req CreateSna
 	var responseObject CreateSnapshotGroupResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
+		return nil, fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
-	client.Log.V(TRACE_LEVEL).Info(functionName, "Export ID", responseObject.Result.ID)
+	slog.Log(ctx, common.LevelTrace, "info", "Export ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
 
 func (client *IboxClient) GetConsistencyGroupByName(ctx context.Context, name string) (cg *ConsistencyGroupInfo, err error) {
-	const functionName = "GetConsistencyGroupByName"
-
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/cgs")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "cg name", name)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "cg name", name)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("newRequest - error %w", err)
 	}
 
 	values := req.URL.Query()
@@ -365,25 +356,25 @@ func (client *IboxClient) GetConsistencyGroupByName(ctx context.Context, name st
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return nil, fmt.Errorf("readAll - error %w", err)
 	}
 	var responseObject GetConsistencyGroupByNameResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 
 	if len(responseObject.Result) == 0 {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("%s - cg name '%s' not found", functionName, name)}
+		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" cg name '%s' not found", name)}
 	}
 	cg = &responseObject.Result[0]
 
@@ -391,14 +382,12 @@ func (client *IboxClient) GetConsistencyGroupByName(ctx context.Context, name st
 }
 
 func (client *IboxClient) DeleteConsistencyGroup(ctx context.Context, cgID int) (err error) {
-	const functionName = "DeleteConsistencyGroup"
-
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/cgs", cgID)
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "cg ID", cgID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "cg ID", cgID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
-		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return fmt.Errorf("newRequest - error %w", err)
 	}
 
 	values := req.URL.Query()
@@ -410,64 +399,62 @@ func (client *IboxClient) DeleteConsistencyGroup(ctx context.Context, cgID int) 
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s - Do - error %w", functionName, err)
+		return fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("%s - ReadAll -error %w", functionName, err)
+		return fmt.Errorf("readAll -error %w", err)
 	}
 	var responseObject DeleteConsistencyGroupResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
 		// TODO check for NOT FOUND?  have callers check for ErrNotFound?
-		return fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
+		return fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
 	return nil
 }
 func (client *IboxClient) GetConsistencyGroup(ctx context.Context, cgID int) (cg *ConsistencyGroupInfo, err error) {
-	const functionName = "GetConsistencyGroup"
-
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/cgs", cgID)
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "cg ID", cgID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "cg ID", cgID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("newRequest - error %w", err)
 	}
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return nil, fmt.Errorf("readAll - error %w", err)
 	}
 	var responseObject GetConsistencyGroupResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "CG_NOT_FOUND" {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("%s - cg ID '%d' not found", functionName, cgID)}
+			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" cg ID '%d' not found", cgID)}
 		}
-		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
+		return nil, fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
 	return &responseObject.Result, nil
 }

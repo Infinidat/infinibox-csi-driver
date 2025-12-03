@@ -5,9 +5,11 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -105,16 +107,16 @@ var (
 )
 
 func RecordSystemHealthMetrics(ctx context.Context, cfg *MetricsConfig) {
-	zlog.Trace().Msgf("system health metrics recording...")
+	slog.Log(ctx, common.LevelTrace, "system health metrics recording...")
 	go func() {
 		for {
 			time.Sleep(cfg.GetDuration(MetricIboxSystemMetrics))
 
 			for _, credential := range cfg.Ibox {
-				zlog.Trace().Msgf("system health metrics: creating collectors for %s...", credential.IboxHostname)
+				slog.Log(ctx, common.LevelTrace, "system health metrics: creating collectors for.", "ibox", credential.IboxHostname)
 				results, err := getResult(ctx, credential)
 				if err != nil {
-					zlog.Err(err)
+					slog.Error(err.Error())
 					continue
 				}
 
@@ -130,7 +132,7 @@ func RecordSystemHealthMetrics(ctx context.Context, cfg *MetricsConfig) {
 				BBUAggregateChargePct.With(labels).Set(float64(results.HealthState.BbuAggregateChargePercent))
 
 				for index, bbuChargeLevel := range results.HealthState.BbuChargeLevel {
-					zlog.Trace().Msgf("bbucharge level k %s v %f", index, bbuChargeLevel)
+					slog.Log(ctx, common.LevelTrace, "bbucharge level", "index", index, "value", bbuChargeLevel)
 					l := prometheus.Labels{
 						MetricIboxName:     results.Name,
 						MetricIboxIP:       credential.IboxIPAddress,
@@ -153,9 +155,9 @@ func RecordSystemHealthMetrics(ctx context.Context, cfg *MetricsConfig) {
 				InactiveNodes.With(labels).Set(float64(results.HealthState.InactiveNodes))
 				MissingDrives.With(labels).Set(float64(results.HealthState.MissingDrives))
 
-				zlog.Trace().Msgf("system health: nodebbuprotection %+v", results.HealthState.NodeBbuProtection)
+				slog.Log(ctx, common.LevelTrace, "system health", "nodebbuprotection", results.HealthState.NodeBbuProtection)
 				for index, nodeBBUProt := range results.HealthState.NodeBbuProtection {
-					zlog.Trace().Msgf("system health: nodebbuprotection k %s v %s", index, nodeBBUProt)
+					slog.Log(ctx, common.LevelTrace, "system health: nodebbuprotection", "index", index, "value", nodeBBUProt)
 					label := prometheus.Labels{
 						MetricIboxName:     results.Name,
 						MetricIboxIP:       credential.IboxIPAddress,
@@ -345,7 +347,7 @@ func getResult(ctx context.Context, ibox IboxCredentials) (Result, error) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/system", http.NoBody)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return Result{}, err
 	}
 
@@ -354,19 +356,19 @@ func getResult(ctx context.Context, ibox IboxCredentials) (Result, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return Result{}, err
 	}
 
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			zlog.Error().Msgf("error in Close() %s", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return Result{}, err
 	}
 	// fmt.Println(string(responseData))
@@ -374,7 +376,7 @@ func getResult(ctx context.Context, ibox IboxCredentials) (Result, error) {
 	systemStatus := SystemStatus{}
 	err = json.Unmarshal(responseData, &systemStatus)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return Result{}, err
 	}
 	// fmt.Printf("API Result %+v\n", r.Result)

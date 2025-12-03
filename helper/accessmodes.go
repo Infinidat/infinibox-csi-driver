@@ -14,6 +14,7 @@ package helper
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -44,7 +45,7 @@ func (a AccessMode) IsValidAccessMode(volume *iboxapi.Volume, req *csi.Controlle
 	// warn about multi-writer with raw block volumes
 	if reqAccessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER && reqVolCapability.GetBlock() != nil {
 		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
-		zlog.Warn().Msgf("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
+		slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for block volume, could be dangerous")
 	}
 
 	// fail if write access requested to a write-protected dataset

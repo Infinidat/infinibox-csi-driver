@@ -12,36 +12,40 @@ limitations under the License.
 */
 package helper
 
-import "github.com/infinidat/infinibox-csi-driver/common"
+import (
+	"log/slog"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
+)
 
 const Bytes1G = 1000000000
 
 func RoundUp(input int64) (output int64) {
 	// return the minimum (1G) if input value is less than the min
 	if input < Bytes1G {
-		zlog.Debug().Msgf("number %d less than minimum %d\n", input, Bytes1G)
+		slog.Debug("number less than minimum", "number", input, "min", Bytes1G)
 		return Bytes1G
 	}
 
 	// return the minimum (1Gi) if input value is less than the min
 	if input > Bytes1G && input < common.BytesInOneGibibyte {
-		zlog.Debug().Msgf("number %d less than minimum %d\n", input, common.BytesInOneGibibyte)
+		slog.Debug("number less than minimum", "number", input, "min", common.BytesInOneGibibyte)
 		return common.BytesInOneGibibyte
 	}
 
 	// test for valid increments of G
 	incrementsOf1G := input % Bytes1G
-	zlog.Debug().Msgf("bytes 1G increments %d\n", incrementsOf1G)
+	slog.Debug("info", "bytes 1G increments", incrementsOf1G)
 	if incrementsOf1G == 0 {
-		zlog.Debug().Msgf("valid increment of %d\n", Bytes1G)
+		slog.Debug("info", "valid increment of", Bytes1G)
 		return input
 	}
 
 	// test for valid increments of Gi
 	incrementsOf1Gi := input % common.BytesInOneGibibyte
-	zlog.Debug().Msgf("bytes 1Gi increments %d\n", incrementsOf1Gi)
+	slog.Debug("info", "bytes 1Gi increments", incrementsOf1Gi)
 	if incrementsOf1Gi == 0 {
-		zlog.Debug().Msgf("valid increment of %d\n", common.BytesInOneGibibyte)
+		slog.Debug("info", "valid increment", common.BytesInOneGibibyte)
 		return input
 	}
 
@@ -49,7 +53,7 @@ func RoundUp(input int64) (output int64) {
 	GiWhole := input / common.BytesInOneGibibyte
 	RoundedUpGi := GiWhole + 1
 	RoundedUpBytes := RoundedUpGi * common.BytesInOneGibibyte
-	zlog.Debug().Msgf("rounded up to %d Gi which is %d\n", RoundedUpGi, RoundedUpBytes)
+	slog.Debug("info", "rounded up", RoundedUpGi, "which is", RoundedUpBytes)
 
 	return RoundedUpBytes
 }

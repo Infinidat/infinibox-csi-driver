@@ -15,11 +15,14 @@ limitations under the License.
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"strings"
 	"sync"
 
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -45,7 +48,8 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, 
 	defer func() {
 		stdOut = strings.TrimSpace(stdOut)
 		s.mu.Unlock()
-		zlog.Trace().Msgf("%s", follower)
+		ctx := context.Background()
+		slog.Log(ctx, common.LevelTrace, follower)
 	}()
 
 	// Prepend pipefail to cmd
@@ -56,7 +60,7 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, 
 		pipefailCmd += " " + args
 	}
 
-	zlog.Debug().Msgf("%s %s", leader, pipefailCmd)
+	slog.Debug("info", "leader", leader, "cmd", pipefailCmd)
 
 	cmdToRun := exec.Command("bash", "-c", pipefailCmd)
 	var stdOutBytes, stdErrBytes bytes.Buffer
@@ -68,14 +72,13 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, 
 	// for now, we will log stderr if it shows up in any command, stderr could show up
 	// for errors in commands or even if multipath.conf has deprecation warnings
 	if stdErr != "" {
-		zlog.Warn().Msgf("command %s stderr [%s]", pipefailCmd, stdErr)
+		slog.Warn("info", "command", pipefailCmd, "stderr", stdErr)
 	}
 	if cmdErr != nil {
 		if nativeError, nativeGetOK := cmdErr.(*exec.ExitError); nativeGetOK {
 			var errCode codes.Code
 			exitCode := nativeError.ExitCode()
 			stdErr = string(nativeError.Stderr)
-			// zlog.Debug().Msgf("Command %s had exit code %s", cmd, exitCode)
 			if cmd == "iscsiadm" {
 				switch exitCode {
 				case 2:
@@ -96,14 +99,14 @@ func (s *Exec) Command(cmd string, args string, isToLogOutput ...bool) (stdOut, 
 		} else {
 			err = status.Error(codes.Unknown, fmt.Sprintf("%s failed with error: %s, result: %s", cmd, cmdErr, stdOutBytes.String()))
 		}
-		zlog.Error().Msgf("'%s' failed: %s result: %s stderr: %s", pipefailCmd, err, stdOutBytes.String(), stdErrBytes.String())
+		slog.Error("command failed", "command", pipefailCmd, "error", err, "stdout", stdOutBytes.String(), "stderr", stdErrBytes.String())
 		return "", stdErr, err
 	}
 
 	// Logging is optional, defaults to logged
 	if len(isToLogOutput) == 0 || isToLogOutput[0] {
 		if len(stdOut) != 0 {
-			zlog.Trace().Msgf("Output:\n%s", stdOutBytes.String())
+			slog.Log(context.Background(), common.LevelTrace, stdOutBytes.String())
 		}
 	}
 

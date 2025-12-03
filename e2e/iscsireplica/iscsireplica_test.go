@@ -3,27 +3,25 @@
 package iscsireplica
 
 import (
+	"log/slog"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
 	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/e2e"
-	"github.com/infinidat/infinibox-csi-driver/log"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/go-logr/zerologr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestIscsiReplica(t *testing.T) {
-
-	l := log.Get()
-	ctrl.SetLogger(zerologr.New(&l))
+	setupSlog()
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -127,8 +125,7 @@ func TestIscsiReplica(t *testing.T) {
 
 func TestIscsiActiveActiveReplica(t *testing.T) {
 
-	l := log.Get()
-	ctrl.SetLogger(zerologr.New(&l))
+	setupSlog()
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -235,9 +232,7 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 }
 
 func TestIscsiSyncReplica(t *testing.T) {
-
-	l := log.Get()
-	ctrl.SetLogger(zerologr.New(&l))
+	setupSlog()
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -341,4 +336,28 @@ func TestIscsiSyncReplica(t *testing.T) {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
 	}
 
+}
+func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		// Cast the value to time.Time
+		t := a.Value.Any().(time.Time)
+		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
+		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
+	}
+	return a
+}
+
+func setupSlog() {
+	opts := &slog.HandlerOptions{
+		Level:       slog.LevelDebug,
+		AddSource:   true,
+		ReplaceAttr: customTimeFormatter,
+	}
+
+	ThisLogger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+
+	// Set the default logger
+	slog.SetDefault(ThisLogger)
+
+	ctrl.SetLogger(logr.FromSlogHandler(ThisLogger.Handler()))
 }

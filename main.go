@@ -15,8 +15,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -32,37 +34,56 @@ var gitHash string
 
 // starting method of CSI-Driver
 func main() {
-	log.CheckForLogLevelOverride()
+	appLogLevel := os.Getenv("APP_LOG_LEVEL")
+	var logLevel slog.Leveler
+	switch appLogLevel {
+	case "error":
+		logLevel = slog.LevelError
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "info":
+		logLevel = slog.LevelInfo
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "trace":
+		logLevel = common.LevelTrace
+	default:
+		logLevel = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{
+		Level:       logLevel,
+		AddSource:   true,
+		ReplaceAttr: customTimeFormatter,
+	}
+	ThisLogger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+
+	// Set the default logger
+	slog.SetDefault(ThisLogger)
 
 	// this call effectively initializes the logging system based on environment variables
 	// and default configurations.
-	zlog := log.Get()
 
-	zlog.Info().Msg("Infinidat CSI Driver is Starting")
-	zlog.Info().Msgf("Version: %s", version)
-	zlog.Info().Msgf("Compile date: %s", compileDate)
-	zlog.Info().Msgf("Compile git hash: %s", gitHash)
-	zlog.Info().Msgf("Log level: %s", os.Getenv("APP_LOG_LEVEL"))
+	slog.Info("Infinidat CSI Driver is Starting", "version", version, "compile date", compileDate, "git hash", gitHash, "log level", os.Getenv("APP_LOG_LEVEL"))
 
 	log.SetupKlog()
 
 	nodeIP := os.Getenv("NODE_IP")
 	if nodeIP == "" {
-		zlog.Error().Msg("NODE_IP not set")
+		slog.Error("NODE_IP not set")
 		os.Exit(1)
 	}
 	driverName := os.Getenv("CSI_DRIVER_NAME")
 	if driverName == "" {
-		zlog.Error().Msg("CSI_DRIVER_NAME not set")
+		slog.Error("CSI_DRIVER_NAME not set")
 		os.Exit(1)
 	}
 	csiEndpoint := os.Getenv("CSI_ENDPOINT")
 	if csiEndpoint == "" {
-		zlog.Error().Msg("CSI_ENDPOINT not set")
+		slog.Error("CSI_ENDPOINT not set")
 		os.Exit(1)
 	}
 	if version == "" {
-		zlog.Error().Msg("version not set")
+		slog.Error("version not set")
 		os.Exit(1)
 	}
 
@@ -70,7 +91,7 @@ func main() {
 
 	node, nodeCount, err := getKubeNode(ctx)
 	if err != nil {
-		zlog.Error().Msgf("error in getting kube node %s", err.Error())
+		slog.Error("error in getting kube node", "error", err.Error())
 		os.Exit(1)
 	}
 
@@ -80,33 +101,33 @@ func main() {
 	// set the env vars so we can get it in other parts of the driver to create events
 	err = os.Setenv(common.EnvVarCSIDriverVersion, version)
 	if err != nil {
-		zlog.Error().Msgf("error in setenv %s", err.Error())
+		slog.Error("error in setenv", "error", err.Error())
 		os.Exit(1)
 	}
 	err = os.Setenv(common.EnvVarOSVersion, osVersion)
 	if err != nil {
-		zlog.Error().Msgf("error in setenv %s", err.Error())
+		slog.Error("error in setenv", "error", err.Error())
 		os.Exit(1)
 	}
 	err = os.Setenv(common.EnvVarKubeVersion, kubeVersion)
 	if err != nil {
-		zlog.Error().Msgf("error in setenv %s", err.Error())
+		slog.Error("error in setenv", "error", err.Error())
 		os.Exit(1)
 	}
 	err = os.Setenv(common.EnvVarNodeCount, nodeCount)
 	if err != nil {
-		zlog.Error().Msgf("error in setenv %s", err.Error())
+		slog.Error("error in setenv", "error", err.Error())
 		os.Exit(1)
 	}
 
-	zlog.Info().Msgf("NodeIP: %s", nodeIP)
-	zlog.Info().Msgf("KubeNodeName: %s", os.Getenv("KUBE_NODE_NAME"))
-	zlog.Info().Msgf("DriverName: %s", driverName)
-	zlog.Info().Msgf("Endpoint: %s", csiEndpoint)
-	zlog.Info().Msgf("Version: %s", version)
-	zlog.Info().Msgf("OS Version: %s", osVersion)
-	zlog.Info().Msgf("Kube Version: %s", kubeVersion)
-	zlog.Info().Msgf("Kube Node Count: %s", nodeCount)
+	slog.Info("value", "NodeIP", nodeIP)
+	slog.Info("value", "KubeNodeName", os.Getenv("KUBE_NODE_NAME"))
+	slog.Info("value", "DriverName", driverName)
+	slog.Info("value", "Endpoint", csiEndpoint)
+	slog.Info("value", "Version", version)
+	slog.Info("value", "OS Version", osVersion)
+	slog.Info("value", "Kube Version", kubeVersion)
+	slog.Info("value", "Kube Node Count", nodeCount)
 
 	driverOptions := service.DriverOptions{
 		NodeID:     nodeIP,
@@ -130,4 +151,24 @@ func getKubeNode(ctx context.Context) (node v1.Node, nodeCount string, err error
 
 	// assumption is that all kube nodes are running the same version
 	return nodes[0], strconv.Itoa(len(nodes)), err
+}
+
+func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.LevelKey {
+		// Handle custom level values.
+
+		level := a.Value.Any().(slog.Level)
+		switch {
+
+		case level < slog.LevelDebug:
+			a.Value = slog.StringValue("TRACE")
+		}
+	}
+	if a.Key == slog.TimeKey {
+		// Cast the value to time.Time
+		t := a.Value.Any().(time.Time)
+		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
+		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
+	}
+	return a
 }

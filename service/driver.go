@@ -13,6 +13,7 @@ limitations under the License.
 package service
 
 import (
+	"log/slog"
 	"runtime"
 
 	"github.com/infinidat/infinibox-csi-driver/helper"
@@ -47,7 +48,7 @@ type Driver struct {
 }
 
 func NewDriver(options *DriverOptions) *Driver {
-	zlog.Info().Msgf("Driver: %v version: %v", options.DriverName, options.Version)
+	slog.Info("info", "Driver", options.DriverName, "version", options.Version)
 
 	driver := &Driver{
 		name:             options.DriverName,

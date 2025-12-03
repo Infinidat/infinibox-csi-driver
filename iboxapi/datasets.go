@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -30,19 +31,17 @@ type GetAllSnapshotsResponse struct {
 }
 
 func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume, err error) {
-	const functionName = "GetAllSnapshots"
-
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/datasets")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+			return results, fmt.Errorf("NewRequest - error %w", err)
 		}
 
 		values := req.URL.Query()
@@ -55,21 +54,21 @@ func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
+			return results, fmt.Errorf("do - error %w", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				slog.Error("error in Close()", "error", err.Error())
 			}
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+			return results, fmt.Errorf("readAll - error %w", err)
 		}
 		var responseObject GetAllSnapshotsResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+			return results, fmt.Errorf("unmarshal - error %w", err)
 		}
 		results = append(results, responseObject.Result...)
 

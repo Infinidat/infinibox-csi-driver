@@ -19,102 +19,10 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
-	"time"
 
-	"sync"
-
-	"github.com/rs/zerolog"
 	"k8s.io/klog/v2"
 )
-
-var once sync.Once
-var logLevel zerolog.Level
-var logger zerolog.Logger
-
-// formats the logger to output a standard time format (RFC3339) and format output to
-// a readable/parsable output. For good zerolog tutorial
-// see: https://betterstack.com/community/guides/logging/zerolog/
-func Get() zerolog.Logger {
-	once.Do(func() {
-		zerolog.CallerMarshalFunc = shortFileFormat
-		appLogLevel := os.Getenv("APP_LOG_LEVEL")
-		switch appLogLevel {
-		case "quiet":
-			logLevel = zerolog.Disabled
-		case "error":
-			logLevel = zerolog.ErrorLevel
-		case "warn":
-			logLevel = zerolog.WarnLevel
-		case "info":
-			logLevel = zerolog.InfoLevel
-		case "debug":
-			logLevel = zerolog.DebugLevel
-		case "trace":
-			logLevel = zerolog.TraceLevel
-		default:
-			logLevel = zerolog.InfoLevel
-		}
-
-		zerolog.TimeFieldFormat = time.RFC3339Nano
-
-		/**
-		// logging to a file can be useful in some test scenarios like golang unit tests
-		//
-		file, err := os.OpenFile(
-			"/tmp/myapp.log",
-			os.O_APPEND|os.O_CREATE|os.O_WRONLY,
-			0664,
-		)
-		if err != nil {
-			fmt.Printf("error in logger %s\n", err.Error())
-		}
-		logger = zerolog.New(file).With().Timestamp().Logger()
-		*/
-
-		output := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339Nano} // 2023-07-11T14:54:44Z
-		output.FormatLevel = func(i interface{}) string {
-			return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-		}
-		output.FormatMessage = func(i interface{}) string {
-			return fmt.Sprintf("%s", i) // modify this line to adjust the actual message output
-		}
-		output.FormatCaller = func(i interface{}) string {
-			return filepath.Base(fmt.Sprintf("%s", i))
-		}
-		output.FormatFieldName = func(i interface{}) string {
-			return fmt.Sprintf("%s:", i)
-		}
-		output.FormatFieldValue = func(i interface{}) string {
-			return strings.ToUpper(fmt.Sprintf("%s", i))
-		}
-
-		logger = zerolog.New(output).
-			Level(logLevel).
-			With().
-			Caller(). // calling file line #
-			Timestamp().
-			Logger()
-	})
-
-	return logger
-}
-
-// used to format calling file line to shorter version.
-func shortFileFormat(pc uintptr, file string, line int) string {
-	short := file
-	for i := len(file) - 1; i > 0; i-- {
-		if file[i] == '/' {
-			short = file[i+1:]
-
-			break
-		}
-	}
-	file = short
-	return file + ":" + strconv.Itoa(line)
-}
 
 func SetupKlog() {
 	klog.InitFlags(nil)

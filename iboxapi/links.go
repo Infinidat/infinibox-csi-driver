@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -76,18 +77,17 @@ type Link struct {
 }
 
 func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err error) {
-	const functionName = "GetLinks"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/links")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
 	pageSize := common.IBOXDefaultQueryPageSize
 	totalPages := 1 // start with 1, update after first query.
 	for page := 1; page <= totalPages; page++ {
-		client.Log.V(TRACE_LEVEL).Info(functionName, "page", page, "totalPages", totalPages)
+		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+			return results, fmt.Errorf("newRequest - error %w", err)
 		}
 
 		values := req.URL.Query()
@@ -99,22 +99,22 @@ func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err err
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("%s - Do - error %w", functionName, err)
+			return results, fmt.Errorf("do - error %w", err)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
-				client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+				slog.Error("error in Close()", "error", err.Error())
 			}
 		}()
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+			return results, fmt.Errorf("readAll - error %w", err)
 		}
 		var responseObject GetLinksResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+			return results, fmt.Errorf("unmarshal - error %w", err)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -127,37 +127,36 @@ func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err err
 }
 
 func (client *IboxClient) GetLink(ctx context.Context, linkID int) (link *Link, err error) {
-	const functionName = "GetLink"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/links", linkID)
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "link ID", linkID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "link ID", linkID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("newRequest - error %w", err)
 	}
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return nil, fmt.Errorf("readAll - error %w", err)
 	}
 	var responseObject GetLinkResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
 		// TODO  check for NOT FOUND?  return ErrNotFound for callers?
-		return nil, fmt.Errorf("%s - ibox API - error:  code: %s message: %s", functionName, responseObject.Error.Code, responseObject.Error.Message)
+		return nil, fmt.Errorf("ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil
 }

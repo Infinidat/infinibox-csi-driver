@@ -13,17 +13,17 @@ limitations under the License.
 package nvme
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 
-	"github.com/infinidat/infinibox-csi-driver/log"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
 	"strings"
 )
-
-var zlog = log.Get() // grab the logger for package use
 
 const (
 	NVMEVersion260    = "2.6.0"
@@ -106,12 +106,12 @@ type NVMEDeviceInfo struct {
 func getHostNQN() (string, error) {
 	fileContent, err := os.ReadFile("/host/etc/nvme/hostnqn")
 	if err != nil {
-		zlog.Error().Msgf("getHostNQN (nvme) - failed to read hostnqn file %s", err.Error())
+		slog.Error("getHostNQN (nvme) - failed to read hostnqn file", "error", err.Error())
 		return "", err
 	}
 	hostnqn := string(fileContent)
 	hostnqn = strings.TrimSuffix(hostnqn, "\n")
-	zlog.Debug().Msgf("getHostNQN (nvme) - host nqn %s ", hostnqn)
+	slog.Debug("getHostNQN (nvme)", "host nqn", hostnqn)
 	return hostnqn, nil
 }
 
@@ -119,25 +119,25 @@ func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
 	cmd := "nvme list"
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		zlog.Error().Msgf("getNVMENamespacesByNormalOutput (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
+		slog.Error("getNVMENamespacesByNormalOutput (nvme) failed", "command", cmd, "error", err, "output", rawOutput)
 		return devices, err
 	}
-	zlog.Trace().Msgf("getNVMENamespacesByNormalOutput (nvme) - %s raw output %s", cmd, rawOutput)
+	slog.Log(context.Background(), common.LevelTrace, "getNVMENamespacesByNormalOutput (nvme)", "command", cmd, "raw output", rawOutput)
 
 	lines := strings.Split(rawOutput, "\n")
-	zlog.Debug().Msgf("nvmeOutput lines (%d) are %+v", len(lines), lines)
+	slog.Debug("nvmeOutput", "lines", len(lines), "line contents", lines)
 	for lineNo, line := range lines {
-		zlog.Debug().Msgf("line %d len %d is %s", lineNo, len(line), line)
+		slog.Debug("line", "number", lineNo, "length", len(line), "value", line)
 	}
 
 	//remove the header which is 2 lines
-	zlog.Debug().Msg("nvmeOutput with lines removed...")
+	slog.Debug("nvmeOutput with lines removed...")
 	lines = append(lines[:0], lines[2:]...)
 	for lineNo, line := range lines {
-		zlog.Debug().Msgf("line %d len %d is %s", lineNo, len(line), line)
+		slog.Debug("line", "number", lineNo, "len", len(line), "value", line)
 		if len(line) > 0 {
 			fields := strings.Fields(line)
-			zlog.Debug().Msgf("parsed fields: %q", fields)
+			slog.Debug("parsed", "fields", fields)
 			// Remove the "0x" prefix if present
 			namespaceField := fields[4]
 			if len(namespaceField) > 2 && namespaceField[0:2] == "0x" {
@@ -145,7 +145,7 @@ func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
 			}
 			namespaceNumber, err := strconv.ParseInt(namespaceField, 16, 0)
 			if err != nil {
-				zlog.Debug().Msgf("error converting namespace %s to int - error %s", namespaceField, err.Error())
+				slog.Debug("error converting namespace to int", "field", namespaceField, "error", err.Error())
 				return devices, err
 			}
 			element := NVMEDeviceInfo{
@@ -156,7 +156,7 @@ func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
 				Namespace: int(namespaceNumber),
 				//Unused:    "unused",
 			}
-			zlog.Debug().Msgf("parsed element is: %+v", element)
+			slog.Debug("parsed", "element", element)
 			devices = append(devices, element)
 		}
 	}
@@ -169,28 +169,28 @@ func getNVMENamespaces() (devices Devices, err error) {
 	cmd := "nvme list -o json"
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		zlog.Error().Msgf("getNVMENamespaces (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
+		slog.Error("getNVMENamespaces (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
 		return devices, err
 	}
-	zlog.Trace().Msgf("getNVMENamespaces (nvme) - %s raw output %s", cmd, rawOutput)
+	slog.Log(ctx,("getNVMENamespaces (nvme) - %s raw output %s", cmd, rawOutput)
 
 	version, err := getNVMEVersion()
 	if err != nil {
-		zlog.Error().Msgf("getNVMENamespaces (nvme) - error unmarshalling %s output - error %s", cmd, err.Error())
+		slog.Error("getNVMENamespaces (nvme) - error unmarshalling %s output - error %s", cmd, err.Error())
 		return devices, err
 	}
 
 	if version == NVMEVersion260 {
 		err = json.Unmarshal([]byte(rawOutput), &devices)
 		if err != nil {
-			zlog.Error().Msgf("getNVMENamespaces (nvme) - error unmarshalling %s output - error %s", cmd, err.Error())
+			slog.Error("getNVMENamespaces (nvme) - error unmarshalling %s output - error %s", cmd, err.Error())
 			return devices, err
 		}
 	} else {
 		var nvme211Output NVME211
 		err = json.Unmarshal([]byte(rawOutput), &nvme211Output)
 		if err != nil {
-			zlog.Error().Msgf("getNVMENamespaces (nvme) - error unmarshalling 211 %s output - error %s", cmd, err.Error())
+			slog.Error("getNVMENamespaces (nvme) - error unmarshalling 211 %s output - error %s", cmd, err.Error())
 			return devices, err
 		}
 		devices = parseNVME211Devices(nvme211Output)
@@ -204,10 +204,10 @@ func nvmeConnectAll(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme connect-all -t tcp -a %s", ipAddress)
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		zlog.Error().Msgf("nvmeConnectAll (nvme) - %s failed, ip: %s err: %v, %s", cmd, ipAddress, err, rawOutput)
+		slog.Error("nvmeConnectAll (nvme) - failed", "command", cmd, "ipaddress", ipAddress, "output", rawOutput, "error", err)
 		return err
 	}
-	zlog.Debug().Msgf("nvmeConnectAll (nvme) - %s raw output %s", cmd, rawOutput)
+	slog.Debug("nvmeConnectAll (nvme)", "command", cmd, "output", rawOutput)
 
 	return nil
 }
@@ -217,115 +217,10 @@ func nvmeDiscover(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVMEDiscoveryPort)
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		zlog.Error().Msgf("nvmeDiscover (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
+		slog.Error("nvmeDiscover (nvme) failed", "command", cmd, "error", err, "output", rawOutput)
 		return err
 	}
-	zlog.Trace().Msgf("nvmeDiscover (nvme) - %s - raw output %s", cmd, rawOutput)
+	slog.Log(context.Background(), common.LevelTrace, "nvmeDiscover (nvme)", "command", cmd, "raw output", rawOutput)
 
 	return nil
 }
-
-/**
-// currently no good way to know when to disconnect and really
-// no good reason to disconnect on real systems with real workloads
-func disconnectNVMEConnections() error {
-	cmd := "nvme disconnect-all"
-	rawOutput, _, err := execCommand.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("disconnectNVMEConnections (nvme) - %s failed, err: %v, %s", cmd, err, rawOutput)
-		return err
-	}
-	zlog.Debug().Msg(cmd)
-	return nil
-}
-*/
-
-/**
-// not used for now, but useful for debugging
-func getConnectionDetails() (results string, err error) {
-	cmd := "nvme list-subsys"
-	results, err = execScsi.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("%s failed, err: %v", cmd, err)
-		return results, err
-	}
-	return results, nil
-}
-*/
-
-// parse the NVME version using semver formatting and comparison
-/**
-func getNVMEVersion() (version string, err error) {
-	cmd := "nvme version"
-	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
-	if err != nil {
-		zlog.Error().Msgf("getNVMEVersion - %s failed, err: %v, %s", cmd, err, rawOutput)
-		return "", err
-	}
-	zlog.Trace().Msgf("getNVMEVersion - %s raw output %s", cmd, rawOutput)
-
-	parts := strings.Split(rawOutput, " ")
-	if len(parts) < 3 {
-		e := fmt.Errorf("getNVMEVersion - parsing rawOutput %s failed not enough parts %d", rawOutput, len(parts))
-		zlog.Error().Msgf("%s", e.Error())
-		return "", e
-	}
-	versionParts := parts[2]
-	majorMinorPatch := strings.Split(versionParts, ".")
-	zlog.Debug().Msgf("versionParts %s major.minor.patch %s len %d", versionParts, majorMinorPatch, len(majorMinorPatch))
-	if len(majorMinorPatch) < 3 {
-		versionParts += ".0" // add a patch number to make it semver
-	}
-
-	// convert the nvme version into a semver representation so we can compare
-	var versionPart1, versionPart2 semver.Version
-	versionPart1, err = semver.Make(versionParts)
-	if err != nil {
-		zlog.Error().Msgf("error converting %s to semver %s", versionParts, err.Error())
-		return "", err
-	}
-	versionPart2, err = semver.Make(NVMEVersion211)
-	if err != nil {
-		zlog.Error().Msgf("error converting %s to semver %s", NVMEVersion211, err.Error())
-	}
-	value := versionPart1.Compare(versionPart2)
-	if value < 0 {
-		// if parsed version is less than 2.11, assume it will parse into the default (2.6) structure
-		zlog.Debug().Msgf("nvme version %s is less than %s", versionParts, NVMEVersion211)
-		return NVMEVersion260, nil
-	}
-	zlog.Debug().Msgf("nvme version %s is greater than or equal to %s", versionParts, NVMEVersion211)
-	return NVMEVersion211, nil
-}
-
-// parse out the standard NVME device information from nvme 2.11 output
-func parseNVME211Devices(nvme211Output NVME211) (devices Devices) {
-	devices.Devices = make([]Device, 0)
-	for _, device211 := range nvme211Output.Devices {
-		subsystems := device211.Subsystems
-
-		for _, subsystem := range subsystems {
-			namespaces := subsystem.Namespaces
-			for _, namespace := range namespaces {
-				// append /dev to the device path if necessary to be
-				// consistent with all versions of nvme
-				devicePath := namespace.NameSpace
-				if !strings.Contains(namespace.NameSpace, "/dev") {
-					devicePath = "/dev/" + devicePath
-				}
-				device := Device{
-					NameSpace:  namespace.Nsid,
-					DevicePath: devicePath,
-					//UsedBytes:    namespace.UsedBytes,
-					//PhysicalSize: namespace.PhysicalSize,
-					//MaximumLBA:   namespace.MaximumLBA,
-					//SectorSize:   namespace.SectorSize,
-				}
-
-				devices.Devices = append(devices.Devices, device)
-			}
-		}
-	}
-	return devices
-}
-*/

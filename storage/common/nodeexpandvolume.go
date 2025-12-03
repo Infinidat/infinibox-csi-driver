@@ -15,6 +15,7 @@ package common
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -68,7 +69,7 @@ $ multipathd resize map mpatht
 */
 func BlockExpandVolume(volumePath string) error {
 	findmntCommand := fmt.Sprintf("findmnt --noheadings -l -o SOURCE --target %s", volumePath)
-	zlog.Debug().Msgf("%s", findmntCommand)
+	slog.Debug("executing", "command", findmntCommand)
 
 	out, _, err := ExecCommand.Command(findmntCommand, "")
 	if err != nil {
@@ -90,12 +91,12 @@ func BlockExpandVolume(volumePath string) error {
 	}
 
 	multipathDevice := "/dev" + deviceNameParts[0]
-	zlog.Debug().Msgf("findmnt output is [%v] multipathDevice=[%s]", output, multipathDevice)
+	slog.Debug("findmnt", "output", output, "mpath device", multipathDevice)
 
 	// multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
 	wildcards := "\"%n_/%d_\""
 	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceNameParts[0]+"_")
-	zlog.Debug().Msgf("command is [%s]", multipathCommand)
+	slog.Debug("executing", "command", multipathCommand)
 	out, _, err = ExecCommand.Command(multipathCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipath command name %s - %s", multipathCommand, err.Error())
@@ -104,13 +105,13 @@ func BlockExpandVolume(volumePath string) error {
 	if out == "" {
 		return errors.New("error getting multipath command output")
 	}
-	zlog.Debug().Msgf("multipathd show maps output is [%v]", out)
+	slog.Debug("multipathd show maps", "output", out)
 	if out == "" {
 		return fmt.Errorf("error with multipath command name output %s, lines were zero ", out)
 	}
 	multipathOutput := strings.Split(out, "_")
 	userFriendlyName := multipathOutput[0]
-	zlog.Debug().Msgf("user friendly name [%s]", userFriendlyName)
+	slog.Debug("user friendly name", "value", userFriendlyName)
 
 	format := "\"%m,%d\""
 	multipathdCommand := fmt.Sprintf("multipathd show paths format %s 2> /dev/null | grep %s", format, "\""+userFriendlyName+"\"")
@@ -118,12 +119,12 @@ func BlockExpandVolume(volumePath string) error {
 	if err != nil {
 		return fmt.Errorf("error running multipathd command name %s - %s", multipathdCommand, err.Error())
 	}
-	zlog.Debug().Msgf("multipathd show paths command [%s]", multipathdCommand)
+	slog.Debug("command", "multipathd show paths", multipathdCommand)
 
 	if out == "" {
 		return errors.New("error getting multipathd command output")
 	}
-	zlog.Debug().Msgf("multipathd output is [%v]", out)
+	slog.Debug("multipathd output", "output", out)
 	devices := make([]string, 0)
 	for _, line := range strings.Split(strings.TrimSuffix(out, "\n"), "\n") {
 		multipathdLine := strings.Split(line, ",")
@@ -131,26 +132,26 @@ func BlockExpandVolume(volumePath string) error {
 			return fmt.Errorf("error in multipathd command output %v", multipathdLine)
 		}
 		devicePart := strings.TrimSpace(multipathdLine[1])
-		zlog.Debug().Msgf("multipathd line read [%s] devicePath [%s]", line, devicePart)
+		slog.Debug("multipathd", "line read", line, "devicePath", devicePart)
 		devices = append(devices, devicePart)
 	}
-	zlog.Debug().Msgf("multipathd devices [%v] ", devices)
+	slog.Debug("info", "multipathd devices", devices)
 	for i := range devices {
 		rescanPath := fmt.Sprintf("/sys/block/%s/device/rescan", devices[i])
 		echoCommand := fmt.Sprintf("echo 1 > %s", rescanPath)
-		zlog.Debug().Msgf("%s", echoCommand)
+		slog.Debug("command", "value", echoCommand)
 		out, _, err := ExecCommand.Command(echoCommand, "")
 		if err != nil {
 			return fmt.Errorf("error writing rescan on multipath devices %s", err.Error())
 		}
-		zlog.Debug().Msgf("rescan output is [%s]\n", strings.TrimSpace(out))
+		slog.Debug("rescan", "output", strings.TrimSpace(out))
 	}
 	resizeCommand := fmt.Sprintf("multipathd resize map %s 2> /dev/null", userFriendlyName)
 	out, _, err = ExecCommand.Command(resizeCommand, "")
 	if err != nil {
 		return fmt.Errorf("error running multipathd resize map command %s - %s", resizeCommand, err.Error())
 	}
-	zlog.Debug().Msgf("resize output is [%s]\n", strings.TrimSpace(out))
+	slog.Debug("resize", "output", strings.TrimSpace(out))
 
 	return nil
 }
@@ -162,26 +163,26 @@ func ExpandFileSystem(multipathDevice string, fsType string) error {
 	if tmp != "" {
 		userSpecifiedValue, err := strconv.Atoi(tmp)
 		if err != nil {
-			zlog.Error().Msgf("conversion of %s env var failed, using default value of %d instead", Resize2FSDelay, defaultResizeDelay)
+			slog.Error("conversion failed", "env var", Resize2FSDelay, "using default value instead", defaultResizeDelay)
 		} else {
 			resizeDelayForThisExecution = userSpecifiedValue
-			zlog.Warn().Msgf("using non-default value for %s env var, user has specified %d, default is %d", Resize2FSDelay, resizeDelayForThisExecution, defaultResizeDelay)
+			slog.Warn("using non-default value", "env var", Resize2FSDelay, "user has specified", resizeDelayForThisExecution, "default", defaultResizeDelay)
 		}
 	}
 	time.Sleep(time.Second * time.Duration(resizeDelayForThisExecution))
 
 	command := fmt.Sprintf("resize2fs %s", multipathDevice)
-	zlog.Debug().Msgf("ExpandFileSystem - volume fsType is %s", fsType)
+	slog.Debug("ExpandFileSystem", "volume fsType", fsType)
 	if fsType == common.FSTypeXFS {
 		command = fmt.Sprintf("xfs_growfs %s", multipathDevice)
 	}
 	out, _, err := ExecCommand.Command(command, "")
-	zlog.Debug().Msgf("command is [%s]", command)
+	slog.Debug("command", "value", command)
 	if err != nil {
 		e := fmt.Errorf("ExpandFileSystem - Command %s - error: %s", command, err.Error())
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return e
 	}
-	zlog.Debug().Msgf("command output is [%s]\n", strings.TrimSpace(out))
+	slog.Debug("command", "output", strings.TrimSpace(out))
 	return nil
 }

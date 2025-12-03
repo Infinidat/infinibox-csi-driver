@@ -2,6 +2,7 @@ package helper
 
 import (
 	"encoding/json"
+	"log/slog"
 
 	"fmt"
 )
@@ -10,9 +11,9 @@ import (
 func PrettyKlogDebug(msg string, v interface{}) {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err == nil {
-		zlog.Debug().Msgf("%s %s", msg, string(b))
+		slog.Debug("info", "message", msg, "indented", string(b))
 	} else {
 		msg := fmt.Sprintf("Failed to pretty print. Falling back to print. Message: %s. Var: %+v. Error: %+v.", msg, v, err)
-		zlog.Error().Msg(msg)
+		slog.Error(msg)
 	}
 }

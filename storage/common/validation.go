@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -40,7 +41,7 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 
 	if len(badParamsMap) > 0 {
 		e := fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
-		zlog.Err(e)
+		slog.Error(e.Error())
 		return e
 	}
 
@@ -51,31 +52,31 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 func ValidateProtocolToNetworkSpace(ctx context.Context, protocol string, networkSpaces []string, api iboxapi.Client) error {
 	if len(networkSpaces) == 0 {
 		err := fmt.Errorf("no network spaces provided")
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return err
 	}
 
 	for _, networkSpace := range networkSpaces {
-		zlog.Debug().Msgf("validating ns=%s protocol=%s", networkSpace, protocol)
+		slog.Debug("validating", "ns", networkSpace, "protocol", protocol)
 		nSpace, err := api.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
 			// api call throws error
-			zlog.Err(err)
+			slog.Error(err.Error())
 			return err
 		}
 		if len(nSpace.Service) == 0 {
 			// handle empty result - nSpace doesn't exist
 			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", networkSpace)
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return e
 		}
 		if nSpace.Service != protoToServiceMap[protocol] {
 			// handle invalid protocol/networkspace configuration
 			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", networkSpace, protocol, nSpace.Service)
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return e
 		}
-		zlog.Debug().Msgf("Network space %s supports %s protocol with %s service", networkSpace, protocol, nSpace.Service)
+		slog.Debug("Network space supports protocol with service", "networkSpace", networkSpace, "protocol", protocol, "service", nSpace.Service)
 	}
 
 	return nil // returns here if all network spaces pass validation for protocol.

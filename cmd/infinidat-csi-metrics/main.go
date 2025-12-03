@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,16 +13,12 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
 	metric "github.com/infinidat/infinibox-csi-driver/metrics"
 
-	"github.com/infinidat/infinibox-csi-driver/log"
-
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/zerolog"
 )
 
 var version string
 var compileDate string
 var gitHash string
-var zlog zerolog.Logger
 
 const (
 	CertFilePath = "/tmp/tls.crt"
@@ -29,24 +26,42 @@ const (
 )
 
 func main() {
-	zlog = log.Get() // grab the logger for package use
+	appLogLevel := os.Getenv("APP_LOG_LEVEL")
+	var logLevel slog.Leveler
+	switch appLogLevel {
+	case "error":
+		logLevel = slog.LevelError
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "info":
+		logLevel = slog.LevelInfo
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "trace":
+		logLevel = slog.LevelDebug
+	default:
+		logLevel = slog.LevelInfo
+	}
+	opts := &slog.HandlerOptions{
+		Level:       logLevel,
+		AddSource:   true,
+		ReplaceAttr: customTimeFormatter,
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
 
-	zlog.Info().Msgf("infinidat CSI metrics starting")
-	zlog.Info().Msgf("version: %s", version)
-	zlog.Info().Msgf("compile date: %s", compileDate)
-	zlog.Info().Msgf("compile git hash: %s", gitHash)
+	logger.Info("infinidat CSI metrics starting", "version", version, "compile date", compileDate, "compile git hash", gitHash)
 
 	// Get a k8s go client for in-cluster use
 	client, err := clientgo.BuildClient()
 	if err != nil {
-		zlog.Error().Msgf("error getting client-go connection %s", err.Error())
+		logger.Error("error", "getting client-go connection", err.Error())
 		os.Exit(1)
 	}
 
 	namespace := os.Getenv("POD_NAMESPACE")
-	zlog.Info().Msgf("POD_NAMESPACE=%s", namespace)
+	logger.Info("env", "POD_NAMESPACE", namespace)
 	if namespace == "" {
-		zlog.Error().Msg("env var POD_NAMESPACE was not set, defaulting to infinidat-csi namespace")
+		slog.Error("env var POD_NAMESPACE was not set, defaulting to infinidat-csi namespace")
 		namespace = "infinidat-csi"
 	}
 
@@ -55,17 +70,17 @@ func main() {
 	var secrets []map[string]string
 	secrets, err = client.GetSecrets(ctx, namespace)
 	if err != nil {
-		zlog.Error().Msgf("error getting secrets: %s", err.Error())
+		slog.Error("error ", "getting secrets", err.Error())
 	}
 	config, err := metric.NewConfig(secrets)
 	if err != nil {
-		zlog.Error().Msgf("could not read metrics config file: %s", err.Error())
+		slog.Error("error", "could not read metrics config file", err.Error())
 		os.Exit(1)
 	}
 
 	for index := range config.Ibox {
 		tmp := config.Ibox[index]
-		zlog.Info().Msgf("config ibox hostname: %s username: %s", tmp.IboxHostname, tmp.IboxUsername)
+		slog.Info("config", "ibox hostname", tmp.IboxHostname, "username", tmp.IboxUsername)
 	}
 
 	metric.RecordPVMetrics(ctx, config)
@@ -78,22 +93,22 @@ func main() {
 	// _ = http.ListenAndServe(":"+*metric.PortFlag, nil)
 	// load tls certificates
 	tlsListenEnvVar := os.Getenv("TLS_LISTEN")
-	zlog.Info().Msgf("TLS_LISTEN=%s", tlsListenEnvVar)
+	slog.Info("env", "TLS_LISTEN", tlsListenEnvVar)
 	tlsEnabled := false
 	if tlsListenEnvVar != "" {
 		tlsEnabled, err = strconv.ParseBool(tlsListenEnvVar)
 		if err != nil {
-			zlog.Error().Msg("env var TLS_LISTEN was set, but value was not a boolean")
+			slog.Error("env var TLS_LISTEN was set, but value was not a boolean")
 			os.Exit(1)
 		}
 	}
-	zlog.Info().Msgf("tlsEnabled=%t", tlsEnabled)
+	slog.Info("value", "tlsEnabled", tlsEnabled)
 	var tlsConfig *tls.Config
 
 	if tlsEnabled {
 		serverTLSCert, err := tls.LoadX509KeyPair(CertFilePath, KeyFilePath)
 		if err != nil {
-			zlog.Error().Msgf("Error loading certificate and key file: %v", err)
+			slog.Error("error", "loading certificate and key file", err)
 			os.Exit(1)
 		}
 
@@ -139,13 +154,13 @@ func main() {
 
 	if tlsEnabled {
 		if err := server.ListenAndServeTLS("", ""); err != nil {
-			zlog.Info().Msgf("fatal error on srv.ListenAndServeTLS %s", err.Error())
+			slog.Error("fatal error", "on srv.ListenAndServeTLS", err.Error())
 			os.Exit(1)
 		}
 	}
 
 	if err := server.ListenAndServe(); err != nil {
-		zlog.Info().Msgf("fatal error on srv.ListenAndServe %s", err.Error())
+		slog.Error("fatal error", "on srv.ListenAndServe", err.Error())
 		os.Exit(1)
 	}
 }
@@ -179,6 +194,15 @@ func (h *home) ServeHTTP(responseWriter http.ResponseWriter, request *http.Reque
 
 	bytesWritten, err := fmt.Fprintf(responseWriter, "%s", msg)
 	if err != nil {
-		zlog.Error().Msgf("error in ServeHTTP %s %d", err.Error(), bytesWritten)
+		slog.Error("error", "in ServeHTTP - error", err.Error(), "bytes written", bytesWritten)
 	}
+}
+func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		// Cast the value to time.Time
+		t := a.Value.Any().(time.Time)
+		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
+		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
+	}
+	return a
 }

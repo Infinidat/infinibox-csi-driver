@@ -2,12 +2,12 @@ package e2e
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/infinidat/infinibox-csi-driver/api"
-	"github.com/infinidat/infinibox-csi-driver/log"
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
@@ -150,18 +150,16 @@ func GetTestConfig(t *testing.T, protocol string) (testConfig *TestConfig, err e
 	return testConfig, nil
 }
 
-var zlog = log.Get() // grab the logger for package use
-
 func SetupControllerClient() (pb.ControllerClient, error) {
 	host, err := GetKubeHost()
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	grpcAddress := fmt.Sprintf("%s:%s", host, SOCAT_SERVICE_PORT)
 	grpcConnection, err := SetupGRPC(grpcAddress)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	controllerClient := pb.NewControllerClient(grpcConnection)
@@ -171,14 +169,14 @@ func SetupControllerClient() (pb.ControllerClient, error) {
 func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
 	grpcConnection, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	return grpcConnection, nil
 }
 func GetKubeHost() (string, error) {
 	kubeConfig := os.Getenv("KUBECONFIG")
-	// zlog.Info().Msgf("KUBECONFIG is %s", kcenv)
+	// slog.Info().Msgf("KUBECONFIG is %s", kcenv)
 
 	// use the current context in kubeconfig
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
@@ -186,12 +184,12 @@ func GetKubeHost() (string, error) {
 		return "", err
 	}
 
-	// zlog.Info().Msgf("host is %s", config.Host)
+	// slog.Info().Msgf("host is %s", config.Host)
 	hostParts := strings.Split(restConfig.Host, ":")
 	if len(hostParts) < 2 {
 		return hostParts[0], nil
 	}
 	hostPart1 := strings.Trim(hostParts[1], "/")
-	// zlog.Info().Msgf("host is %s", s)
+	// slog.Info().Msgf("host is %s", s)
 	return hostPart1, nil
 }

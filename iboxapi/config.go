@@ -17,12 +17,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
 func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err error) {
-	const functionName = "GetMaxFileSystems"
-
 	type ParameterResult struct {
 		Result struct {
 			NasMaxFilesystemsInSystem int `json:"nas.max_filesystems_in_system"`
@@ -34,11 +35,11 @@ func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err e
 	}
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return 0, fmt.Errorf("newRequest - error %w", err)
 	}
 
 	values := req.URL.Query()
@@ -49,29 +50,27 @@ func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err e
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return 0, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return 0, fmt.Errorf("readAll - error %w", err)
 	}
 	var responseObject ParameterResult
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return 0, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return 0, fmt.Errorf("unmarshal - error %w", err)
 	}
 	return responseObject.Result.NasMaxFilesystemsInSystem, nil
 }
 
 func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err error) {
-	const functionName = "GetMaxTreeqPerFs"
-
 	type ParameterResult struct {
 		Result struct {
 			NasTreeqMaxCountPerFilesystem int `json:"nas.treeq_max_count_per_filesystem"`
@@ -83,11 +82,11 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 	}
 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return 0, fmt.Errorf("newRequest - error %w", err)
 	}
 
 	values := req.URL.Query()
@@ -98,21 +97,21 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return 0, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return 0, fmt.Errorf("readAll - error %w", err)
 	}
 	var responseObject ParameterResult
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return 0, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return 0, fmt.Errorf("unmarshal - error %w", err)
 	}
 	return responseObject.Result.NasTreeqMaxCountPerFilesystem, nil
 }

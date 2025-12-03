@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -37,15 +38,15 @@ var (
 )
 
 func RecordPoolMetrics(ctx context.Context, config *MetricsConfig) {
-	zlog.Debug().Msgf("pool metrics recording...")
+	slog.Debug("pool metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(PoolMetrics))
 			for _, ibox := range config.Ibox {
-				zlog.Trace().Msgf("pool metrics: creating collectors for %s...", ibox.IboxHostname)
+				slog.Log(ctx, common.LevelTrace, "pool metrics: creating collectors for", "ibox", ibox.IboxHostname)
 				poolInfoList, err := getPoolInfo(ctx, ibox)
 				if err != nil {
-					zlog.Err(err)
+					slog.Error(err.Error())
 					continue
 				}
 
@@ -76,18 +77,18 @@ func getPoolInfo(ctx context.Context, ibox IboxCredentials) ([]PoolInfo, error) 
 	poolInfo := make([]PoolInfo, 0)
 	storageClasses, err := getStorageClasses(ctx)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return poolInfo, err
 	}
 	allPools, err := getPools(ctx, ibox)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return poolInfo, err
 	}
 	for _, storageClass := range *storageClasses {
 		pool, err := lookupPool(allPools, storageClass.Parameters[common.StorageClassPoolName])
 		if err != nil {
-			zlog.Error().Msgf("pool_name not found from storage classes %s", storageClass.Parameters["pool_name"])
+			slog.Error("pool_name not found from storage classes", "sc", storageClass.Parameters["pool_name"])
 		} else {
 			pi := PoolInfo{
 				storageClass: storageClass,
@@ -102,20 +103,20 @@ func getStorageClasses(ctx context.Context) (*[]storagev1.StorageClass, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
 	storageClasses, err := clientset.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
@@ -123,13 +124,13 @@ func getStorageClasses(ctx context.Context) (*[]storagev1.StorageClass, error) {
 	for _, storageClass := range storageClasses.Items {
 		if storageClass.Provisioner == "infinibox-csi-driver" {
 			// this is a storageclass used by our driver
-			zlog.Debug().Msgf("storageclass name %s", storageClass.Name)
-			zlog.Debug().Msgf("storage_protocol %s", storageClass.Parameters[common.StorageClassStorageProtocol])
-			zlog.Debug().Msgf("network_space %s", storageClass.Parameters[common.StorageClassNetworkSpace])
-			zlog.Debug().Msgf("pool_name %s", storageClass.Parameters[common.StorageClassPoolName])
-			zlog.Debug().Msgf("provision_type %s", storageClass.Parameters[common.StorageClassProvisionType])
-			zlog.Debug().Msgf("ssd_enabled %s", storageClass.Parameters[common.StorageClassSSDEnabled])
-			zlog.Debug().Msgf("--------------------------------------")
+			slog.Debug("storageclass name", "name", storageClass.Name)
+			slog.Debug("storage_protocol", "protocol", storageClass.Parameters[common.StorageClassStorageProtocol])
+			slog.Debug("network_space", "networkspace", storageClass.Parameters[common.StorageClassNetworkSpace])
+			slog.Debug("pool_name", "pool", storageClass.Parameters[common.StorageClassPoolName])
+			slog.Debug("provision_type", "provision type", storageClass.Parameters[common.StorageClassProvisionType])
+			slog.Debug("ssd_enabled", "ssdenabled", storageClass.Parameters[common.StorageClassSSDEnabled])
+			slog.Debug("--------------------------------------")
 			ourStorageClasses = append(ourStorageClasses, storageClass)
 		}
 	}
@@ -152,7 +153,7 @@ func getPools(ctx context.Context, ibox IboxCredentials) (*Pools, error) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+ibox.IboxHostname+"/api/rest/pools", http.NoBody)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
@@ -161,19 +162,19 @@ func getPools(ctx context.Context, ibox IboxCredentials) (*Pools, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			zlog.Error().Msgf("error in Close() %s", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
 	responseData, err := io.ReadAll(res.Body)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	// fmt.Println(string(responseData))

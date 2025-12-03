@@ -14,11 +14,10 @@ limitations under the License.
 */
 
 import (
+	"log/slog"
 	"regexp"
 	"runtime"
 	"time"
-
-	"github.com/rs/zerolog"
 )
 
 /**
@@ -28,13 +27,13 @@ func SomeFunction(list *[]string) {
 }
 */
 
-func TimeTrack(zlog zerolog.Logger, start time.Time) {
+func TimeTrack(start time.Time) {
 	elapsed := time.Since(start)
 
 	// Skip this function, and fetch the PC and file for its parent.
 	programCaller, _, _, okValue := runtime.Caller(1)
 	if !okValue {
-		zlog.Debug().Msg("could not get the program caller")
+		slog.Debug("could not get the program caller")
 	}
 
 	// Retrieve a function object this functions parent.
@@ -44,11 +43,11 @@ func TimeTrack(zlog zerolog.Logger, start time.Time) {
 	runtimeFunc := regexp.MustCompile(`^.*\.(.*)$`)
 	name := runtimeFunc.ReplaceAllString(funcObj.Name(), "$1")
 
-	zlog.Debug().Msgf("%s took %s", name, elapsed.Round(1*time.Millisecond))
+	slog.Debug("elapsed time", "function", name, "elapsed", elapsed.Round(1*time.Millisecond))
 }
 
-func TimeTrackBasic(zlog zerolog.Logger, start time.Time, msg string) {
+func TimeTrackBasic(start time.Time, msg string) {
 	elapsed := time.Since(start)
 
-	zlog.Debug().Msgf("%s took %s", msg, elapsed.Round(1*time.Millisecond))
+	slog.Debug("message", "msg", msg, "took", elapsed.Round(1*time.Millisecond))
 }

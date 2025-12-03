@@ -2,8 +2,10 @@ package helper
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -56,14 +58,14 @@ func (vl *VolumeLocks) Release(volumeID string) {
 }
 
 func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	zlog.Trace().Msgf("GRPC call: %s", info.FullMethod)
-	zlog.Trace().Msgf("GRPC request: %s", protosanitizer.StripSecrets(req))
+	slog.Log(ctx, common.LevelTrace, "GRPC call", "method", info.FullMethod)
+	slog.Log(ctx, common.LevelTrace, "GRPC request", "value", protosanitizer.StripSecrets(req))
 
 	resp, err := handler(ctx, req)
 	if err != nil {
-		zlog.Error().Msgf("GRPC error: %v", err)
+		slog.Error("GRPC error", "error", err)
 	} else {
-		zlog.Trace().Msgf("GRPC response: %s", protosanitizer.StripSecrets(resp))
+		slog.Log(ctx, common.LevelTrace, "GRPC response", "value", protosanitizer.StripSecrets(resp))
 	}
 	return resp, err
 }

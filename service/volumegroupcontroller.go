@@ -15,6 +15,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -35,20 +36,17 @@ type VolumeGroupServer struct {
 }
 
 func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *csi.CreateVolumeGroupSnapshotRequest) (resp *csi.CreateVolumeGroupSnapshotResponse, err error) {
-	const functionName = "CreateVolumeGroupSnapshot"
-	zlog.Info().Msgf("%s Start - req: %v", functionName, req)
-
-	zlog.Debug().Msgf("parameters are %v", req.GetParameters())
+	slog.Info("Start", "request", req, "parameters", req.GetParameters())
 
 	commonService, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
-		zlog.Error().Msgf("%s - BuildCommonService - error: %s", functionName, err.Error())
+		slog.Error(" BuildCommonService - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
 
 	client, err := commonService.API.NewClient()
 	if err != nil {
-		zlog.Error().Msgf("%s - NewClient - error: %s", functionName, err.Error())
+		slog.Error("NewClient - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get api client error %v", err)
 	}
 
@@ -67,25 +65,25 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 
 			// get the volume ids that are in the group
 			for _, id := range req.SourceVolumeIds {
-				zlog.Debug().Msgf("source Volume ID : %s", id)
+				slog.Debug("info", "source Volume ID", id)
 				volproto := strings.Split(id, "$$")
 				if len(volproto) != 2 {
-					zlog.Error().Msgf("%s - vol proto invalid %v", functionName, volproto)
+					slog.Error("vol proto invalid", "volproto", volproto)
 					return nil, errors.New("volume Id and other details not found")
 				}
 				volumeID, err := strconv.Atoi(volproto[0])
 				if err != nil {
-					zlog.Error().Msgf("%s - parseInt - error: %s", functionName, err.Error())
+					slog.Error("parseInt - error", "error", err.Error())
 					return nil, status.Errorf(codes.Internal, "failed to convert volume ID %s to int error %v", volproto[0], err)
 				}
-				zlog.Debug().Msgf("volume ID : %d", volumeID)
+				slog.Debug("info", "volume ID", volumeID)
 				// look up the volume
 				volume, err := commonService.IboxAPI.GetVolume(ctx, volumeID)
 				if err != nil {
-					zlog.Error().Msgf("%s - GetVolume - error: %s", functionName, err.Error())
+					slog.Error("GetVolume - error", "error", err.Error())
 					return nil, status.Errorf(codes.Internal, "failed to get Volume with ID %d error %v", volumeID, err)
 				}
-				zlog.Debug().Msgf("volume %s found with ID : %d poolID: %d", volume.Name, volumeID, volume.PoolID)
+				slog.Debug("volume found", "name", volume.Name, "id", volumeID, "pool id", volume.PoolID)
 				poolID = volume.PoolID
 				allVolumeIDs = append(allVolumeIDs, volumeID)
 			}
@@ -96,24 +94,24 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 			}
 			newCG, err = client.IboxAPI.CreateConsistencyGroup(ctx, createCGRequest)
 			if err != nil {
-				zlog.Error().Msgf("%s - CreateCG - error: %s", functionName, err.Error())
+				slog.Error("CreateCG - error", "error", err.Error())
 				return nil, status.Errorf(codes.Internal, "failed to create cg error %v", err)
 			}
-			zlog.Debug().Msgf("new CG ID %d", newCG.ID)
+			slog.Debug("new CG", "id", newCG.ID)
 			// add members to the CG
 			for _, volumeID := range allVolumeIDs {
 				err = client.IboxAPI.AddMemberToSnapshotGroup(ctx, volumeID, newCG.ID)
 				if err != nil {
-					zlog.Error().Msgf("%s - AddMemberToSnapshotGroup - error: %s", functionName, err.Error())
+					slog.Error("AddMemberToSnapshotGroup - error", "error", err.Error())
 					return nil, status.Errorf(codes.Internal, "failed to add volume to cg error %v", err)
 				}
 			}
 		} else {
-			zlog.Error().Msgf("getCG error %+v", err)
+			slog.Error("getCG", "error", err)
 			return nil, status.Errorf(codes.Internal, "error getting cg %v", err)
 		}
 	} else {
-		zlog.Info().Msgf("%s - CG already exists %s, will not create", functionName, cgName)
+		slog.Info("CG already exists, will not create", "cg", cgName)
 	}
 
 	// we are using the VolumeGroupSnapshot name for the snap group name and the prefix since
@@ -126,7 +124,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 		re, ok := err.(*iboxapi.APIError)
 		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 		} else {
-			zlog.Error().Msgf("%s - error getting SG CG by name %s", functionName, err.Error())
+			slog.Error("error getting SG CG by name", "error", err.Error())
 			return nil, status.Errorf(codes.Internal, "error getting sg cg %v", err)
 		}
 	} else {
@@ -142,10 +140,10 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 
 	snapGroupCG, err := client.IboxAPI.CreateSnapshotGroup(ctx, createRequest)
 	if err != nil {
-		zlog.Error().Msgf("%s - CreateSnapshotGrup - error: %s", functionName, err.Error())
+		slog.Error("CreateSnapshotGroup - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to create snap group error %s error %+v", vgsName, err)
 	}
-	zlog.Debug().Msgf("snapshot group ID %d name %s has %d members", snapGroupCG.ID, vgsName, snapGroupCG.MembersCount)
+	slog.Debug("snapshot group", "id", snapGroupCG.ID, "name", vgsName, "members", snapGroupCG.MembersCount)
 
 	creationTime := timestamppb.New(time.Now())
 
@@ -153,18 +151,18 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 	var snapGroupMembers []iboxapi.MemberInfo
 	snapGroupMembers, err = client.IboxAPI.GetMembersByCGID(ctx, snapGroupCG.ID)
 	if err != nil {
-		zlog.Error().Msgf("%s - GetMembersByCGID - error: %s", functionName, err.Error())
+		slog.Error("GetMembersByCGID - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get snapgroup CG members error %+v", err)
 	}
-	zlog.Debug().Msgf("members from snapgroup CG %d", len(snapGroupMembers))
+	slog.Debug("members from snapgroup CG", "count", len(snapGroupMembers))
 
 	snapshots := make([]*csi.Snapshot, 0)
 	for _, member := range snapGroupMembers {
 		snapshotName := member.CGName + member.Name // prefix + volume name
-		zlog.Debug().Msgf("member is snapshot name [%s] member info %+v", snapshotName, member)
+		slog.Debug("member info", "snapshot", snapshotName, "member", member)
 		volume, err := client.IboxAPI.GetVolume(ctx, member.ID)
 		if err != nil {
-			zlog.Error().Msgf("%s - GetVolume - error: %s", functionName, err.Error())
+			slog.Error("GetVolume - error", "error", err.Error())
 			return nil, status.Errorf(codes.Internal, "failed to get snapshot volume  error %v", err)
 		}
 
@@ -174,17 +172,17 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 
 		for _, someVolumeID := range req.SourceVolumeIds {
 			idString := strconv.Itoa(member.FamilyID)
-			zlog.Debug().Msgf("contains check %s %s", someVolumeID, idString)
+			slog.Debug("contains check", "volume id", someVolumeID, "id", idString)
 			if strings.Contains(someVolumeID, idString) {
 				sourceVolumeId = someVolumeID
-				zlog.Debug().Msgf("found member id %d is proto %s", member.ID, sourceVolumeId)
+				slog.Debug("found", "member id", member.ID, "source volume id", sourceVolumeId)
 			}
 		}
 
-		zlog.Debug().Msgf("assembling snapshot result with ID %d sourceVolumeID %s", volume.ID, sourceVolumeId)
+		slog.Debug("assembling snapshot result", "volume id", volume.ID, "source volume id", sourceVolumeId)
 		sourceVolumeIDParts := strings.Split(sourceVolumeId, "$$")
 		if len(sourceVolumeIDParts) != 2 {
-			zlog.Error().Msgf("%s - source volume id not valid %s", functionName, sourceVolumeId)
+			slog.Error("source volume id not valid", "source volume id", sourceVolumeId)
 			return nil, status.Errorf(codes.Internal, "sourceVolumeId not parsing correctly %+v", sourceVolumeIDParts)
 		}
 		example := csi.Snapshot{
@@ -197,7 +195,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 		}
 		snapshots = append(snapshots, &example)
 	}
-	zlog.Debug().Msgf("snapshots/members %d", len(snapshots))
+	slog.Debug("snapshots/members", "length", len(snapshots))
 
 	resp = &csi.CreateVolumeGroupSnapshotResponse{
 		GroupSnapshot: &csi.VolumeGroupSnapshot{
@@ -207,75 +205,69 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 			ReadyToUse:      true,
 		},
 	}
-	zlog.Info().Msgf("%s Finish - req %v", functionName, req)
+	slog.Info(" Finish", "req", req)
 	return resp, nil
 }
 
 func (s *VolumeGroupServer) DeleteVolumeGroupSnapshot(ctx context.Context, req *csi.DeleteVolumeGroupSnapshotRequest) (resp *csi.DeleteVolumeGroupSnapshotResponse, err error) {
-	const functionName = "DeleteVolumeGroupSnapshot"
-	zlog.Info().Msgf("%s Start - req: %v", functionName, req)
-	zlog.Debug().Msgf("group_snapshot_id %s", req.GroupSnapshotId)
+	slog.Info("Start", "req", req, "group_snapshot_id", req.GroupSnapshotId)
 
 	for _, snapshotID := range req.SnapshotIds {
-		zlog.Debug().Msgf("Snap Group %s has snapshot ID %s", req.GroupSnapshotId, snapshotID)
+		slog.Debug("Snap Group has snapshot ID", "group snapshot id", req.GroupSnapshotId, "snapshot id", snapshotID)
 	}
 
 	commonService, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
-		zlog.Error().Msgf("%s - BuildCommonService - error: %s", functionName, err.Error())
+		slog.Error(" BuildCommonService - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
 
 	client, err := commonService.API.NewClient()
 	if err != nil {
-		zlog.Error().Msgf("%s - NewClient - error: %s", functionName, err.Error())
+		slog.Error("NewClient - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get api client error %v", err)
 	}
 
 	snapshotGroupID, err := strconv.Atoi(req.GroupSnapshotId)
 	if err != nil {
-		zlog.Error().Msgf("%s - ParseInt request %s - error: %s", functionName, req.GroupSnapshotId, err.Error())
+		slog.Error("ParseInt error", "group snapshot id", req.GroupSnapshotId, "error", err.Error())
 		return nil, status.Errorf(codes.InvalidArgument, "failed to convert group_snapshot_id %s to int error %v", req.GroupSnapshotId, err)
 	}
 	err = client.IboxAPI.DeleteConsistencyGroup(ctx, snapshotGroupID)
 	if err != nil {
-		zlog.Error().Msgf("%s - DeleteSG - error: %s", functionName, err.Error())
+		slog.Error("DeleteSG - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "error deleting SG %s error %v", req.GroupSnapshotId, err)
 	}
 	resp = &csi.DeleteVolumeGroupSnapshotResponse{}
-	zlog.Info().Msgf("%s Finish - req %v", functionName, req)
+	slog.Info("Finish", "req", req)
 	return resp, nil
 }
 
 func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi.GetVolumeGroupSnapshotRequest) (resp *csi.GetVolumeGroupSnapshotResponse, err error) {
-	const functionName = "GetVolumeGroupSnapshot"
-	zlog.Info().Msgf("%s Start - req: %v", functionName, req)
-	zlog.Debug().Msgf("req.GroupSnapshotId=%s", req.GroupSnapshotId)
-	zlog.Debug().Msgf("req.SnapshotIds=%v", req.SnapshotIds)
-	// zlog.Debug().Msgf("req.Secrets=%v", req.Secrets)
+	slog.Info("Start", "req", req, "GroupSnapshotId", req.GroupSnapshotId, "SnapshotIds", req.SnapshotIds)
 
 	commonService, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
-		zlog.Error().Msgf("%s - BuildCommonService - error: %s", functionName, err.Error())
+		slog.Error(" BuildCommonService - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
 
 	client, err := commonService.API.NewClient()
 	if err != nil {
-		zlog.Error().Msgf("%s - NewClient - error: %s", functionName, err.Error())
+		slog.Error("NewClient - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get api client error %v", err)
 	}
 
 	snapshotGroupID, err := strconv.Atoi(req.GroupSnapshotId)
 	if err != nil {
-		zlog.Error().Msgf("%s - ParseInt request %s - error: %s", functionName, req.GroupSnapshotId, err.Error())
+		slog.Error("ParseInt error", "group snapshot id", req.GroupSnapshotId, "error", err.Error())
 		return nil, status.Errorf(codes.InvalidArgument, "failed to convert group_snapshot_id %s to int error %v", req.GroupSnapshotId, err)
 	}
 
 	// sgID is the volume ID of the snap group, the parent_id will be the consistencyGroup MASTER volume
 	consistencyGroup, err := client.IboxAPI.GetConsistencyGroup(ctx, snapshotGroupID)
 	if err != nil {
-		zlog.Error().Msgf("%s - GetCGByID - error: %s", functionName, err.Error())
+		slog.Error("GetCGByID - error", "error", err.Error())
 		return nil, status.Errorf(codes.NotFound, "error getting CG group_snapshot_id %s error %v", req.GroupSnapshotId, err)
 	}
 
@@ -285,18 +277,18 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 	var snapshotMembers []iboxapi.MemberInfo
 	snapshotMembers, err = client.IboxAPI.GetMembersByCGID(ctx, snapshotGroupID)
 	if err != nil {
-		zlog.Error().Msgf("%s - GetMembersByCGID - error: %s", functionName, err.Error())
+		slog.Error("GetMembersByCGID - error", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get snapgroup CG members error %+v", err)
 	}
-	zlog.Debug().Msgf("members from snapgroup CG %d", len(snapshotMembers))
+	slog.Debug("snapgroup CG", "member count", len(snapshotMembers))
 
 	snapshots := make([]*csi.Snapshot, 0)
 	for _, member := range snapshotMembers {
 		snapshotName := member.CGName + member.Name // prefix + volume name
-		zlog.Debug().Msgf("member is snapshot name [%s] member info %+v", snapshotName, member)
+		slog.Debug("info", "snapshot name", snapshotName, "member", member)
 		volume, err := client.IboxAPI.GetVolume(ctx, member.ID)
 		if err != nil {
-			zlog.Error().Msgf("%s - GetVolume - error: %s", functionName, err.Error())
+			slog.Error("GetVolume - error", "error", err.Error())
 			return nil, status.Errorf(codes.InvalidArgument, "failed to get snapshot volume  error %v", err)
 		}
 
@@ -306,17 +298,17 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 
 		for _, snapshotID := range req.SnapshotIds {
 			idString := strconv.Itoa(member.ID)
-			zlog.Debug().Msgf("contains check %s %s", snapshotID, idString)
+			slog.Debug("contains check", "snapshot id", snapshotID, "id", idString)
 			if strings.Contains(snapshotID, idString) {
 				sourceVolumeID = snapshotID
-				zlog.Debug().Msgf("found member id %d is proto %s", member.ID, sourceVolumeID)
+				slog.Debug("found member", "member id", member.ID, "source volume id", sourceVolumeID)
 			}
 		}
 
-		zlog.Debug().Msgf("assembling snapshot result with ID %d sourceVolumeID %s", volume.ID, sourceVolumeID)
+		slog.Debug("assembling snapshot result", "volume id", volume.ID, "source volume id", sourceVolumeID)
 		volumeIDParts := strings.Split(sourceVolumeID, "$$")
 		if len(volumeIDParts) != 2 {
-			zlog.Error().Msgf("%s - source volume id not valid %s", functionName, sourceVolumeID)
+			slog.Error("source volume id not valid", "source volume id", sourceVolumeID)
 			return nil, status.Errorf(codes.InvalidArgument, "sourceVolumeId not parsing correctly %+v", volumeIDParts)
 		}
 		example := csi.Snapshot{
@@ -329,7 +321,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 		}
 		snapshots = append(snapshots, &example)
 	}
-	zlog.Debug().Msgf("snapshots/members %d", len(snapshots))
+	slog.Debug("snapshots/members", "count", len(snapshots))
 
 	resp = &csi.GetVolumeGroupSnapshotResponse{
 		GroupSnapshot: &csi.VolumeGroupSnapshot{
@@ -339,7 +331,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 			ReadyToUse:      true,
 		},
 	}
-	zlog.Info().Msgf("%s Finish - req %v", functionName, req)
+	slog.Info("Finish", "req", req)
 	return resp, nil
 }
 

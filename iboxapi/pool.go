@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -64,13 +65,12 @@ type PoolResult struct {
 }
 
 func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool *PoolResult, err error) {
-	const functionName = "GetPoolByName"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/pools")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "name", name)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "name", name)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("NewRequest - error %w", err)
 	}
 	values := req.URL.Query()
 	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOXDefaultQueryPageSize))
@@ -82,73 +82,72 @@ func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool 
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return nil, fmt.Errorf("readAll - error %w", err)
 	}
 	var response GetPoolByNameResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 
 	if response.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, response.Error)
+		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
 	}
 
 	if len(response.Result) > 0 {
 		pool = &response.Result[0]
 	} else {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("%s - pool '%s' not found", functionName, name)}
+		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("pool '%s' not found", name)}
 	}
 
 	return pool, nil
 }
 
 func (client *IboxClient) GetPoolByID(ctx context.Context, poolID int) (pool *PoolResult, err error) {
-	const functionName = "GetPoolByID"
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/pools", poolID)
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "id", poolID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "id", poolID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nil, fmt.Errorf("NewRequest - error %w", err)
 	}
 
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nil, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return nil, fmt.Errorf("readAll - error %w", err)
 	}
 	var response GetPoolByIDResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 
 	if response.Error.Code == "POOL_NOT_FOUND" {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("%s - pool '%d' not found", functionName, poolID)}
+		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("pool '%d' not found", poolID)}
 	}
 
 	if response.Error.Code != "" {
-		return nil, fmt.Errorf("%s - ibox API - error: %v", functionName, response.Error)
+		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
 	}
 
 	return &response.Result, nil

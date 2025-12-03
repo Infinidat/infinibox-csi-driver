@@ -6,15 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-)
 
-/**
-log levels
-logr.V(0) - Info level logging in zerolog
-logr.V(1) - Debug level logging in zerolog
-logr.V(2) - Trace level logging in zerolog
-*/
+	"github.com/infinidat/infinibox-csi-driver/common"
+)
 
 type EventRequest struct {
 	Data []EventRequestData `json:"data"`
@@ -51,45 +47,43 @@ type CreateEventResult struct {
 }
 
 func (client *IboxClient) CreateEvent(ctx context.Context, eventRequest EventRequest) (err error) {
-	const functionName = "CreateEvent"
-
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/events")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url, "event", eventRequest)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "event", eventRequest)
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
-		return fmt.Errorf("%s - Marshal - error %w", functionName, err)
+		return fmt.Errorf("marshal - error %w", err)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return fmt.Errorf("newRequest - error %w", err)
 	}
 	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("%s - Do - error %w", functionName, err)
+		return fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return fmt.Errorf("readAll - error %w", err)
 	}
 
 	var responseObject CreateEventResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return fmt.Errorf("unmarshal - error %w", err)
 	}
-	client.Log.V(DEBUG_LEVEL).Info("CreateEvent", "Event ID", responseObject.Result.ID)
+	slog.Debug("CreateEvent", "Event ID", responseObject.Result.ID)
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("%s - ibox API - error: %v", functionName, responseObject.Error)
+		return fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package metric
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -29,18 +30,18 @@ var (
 )
 
 func RecordPVMetrics(ctx context.Context, config *MetricsConfig) {
-	zlog.Trace().Msgf("pv metrics recording...")
+	slog.Log(ctx, common.LevelTrace, "pv metrics recording...")
 	go func() {
 		for {
 			time.Sleep(config.GetDuration(PVMetrics))
 
 			pvInfo, err := getPVInfo(ctx)
 			if err != nil {
-				zlog.Err(err)
+				slog.Error(err.Error())
 				continue
 			}
 
-			zlog.Trace().Msgf("creating metrics for %d PVs", len(*pvInfo))
+			slog.Log(ctx, common.LevelTrace, "creating metrics for PVs", "cnt", len(*pvInfo))
 			for _, persistentVolume := range *pvInfo {
 				labels := prometheus.Labels{
 					MetricPVName:            persistentVolume.PVol.Name,
@@ -67,28 +68,28 @@ func getPVInfo(ctx context.Context) (*[]PVInfo, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 
 	persistentVolumes, err := clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	for _, pv := range persistentVolumes.Items {
 		if pv.Annotations["pv.kubernetes.io/provisioned-by"] == "infinibox-csi-driver" {
-			zlog.Trace().Msgf("pv metrics: pv %s sc %s found", pv.Name, pv.Spec.StorageClassName)
+			slog.Log(ctx, common.LevelTrace, "pv metrics", "pv", pv.Name, "sc", pv.Spec.StorageClassName)
 			storageClass, err := clientset.StorageV1().StorageClasses().Get(ctx, pv.Spec.StorageClassName, metav1.GetOptions{})
 			if err != nil {
-				zlog.Error().Msgf("error getting StorageClass %s error %s", pv.Spec.StorageClassName, err.Error())
+				slog.Error("error getting StorageClass", "sc", pv.Spec.StorageClassName, "error", err.Error())
 			} else {
 				/**
 				fmt.Printf("sc details name: %s \n", sc.Name)

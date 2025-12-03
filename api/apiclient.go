@@ -15,11 +15,11 @@ package api
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/url"
 
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
-
-	"github.com/go-logr/zerologr"
 )
 
 // Client interface
@@ -48,7 +48,8 @@ type HostConfig struct {
 
 // NewClient : Create New Client
 func (c *ClientService) NewClient() (*ClientService, error) {
-	zlog.Trace().Msg("NewClient Started")
+	ctx := context.Background()
+	slog.Log(ctx, common.LevelTrace, "NewClient Started")
 
 	// for setting up iboxapi
 	hostConfig, err := c.getAPIConfig()
@@ -60,14 +61,15 @@ func (c *ClientService) NewClient() (*ClientService, error) {
 		Password: hostConfig.Password,
 		URL:      hostConfig.APIHost,
 	}
-	var iboxAPILog = zerologr.New(&zlog)
-	c.IboxAPI = iboxapi.NewIboxClient(iboxAPILog, creds)
 
-	zlog.Trace().Msg("NewClient Finished")
+	c.IboxAPI = iboxapi.NewIboxClient(creds)
+
+	slog.Log(ctx, common.LevelTrace, "NewClient Finished")
 	return c, nil
 }
 
 func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
+	ctx := context.Background()
 	if c.SecretsMap == nil {
 		return hostConfig, errors.New("secret not found")
 	}
@@ -75,14 +77,14 @@ func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
 		hostnameURL, err := url.Parse(c.SecretsMap["hostname"])
 
 		if err != nil {
-			zlog.Error().Msgf("Error parsing IBox hostname: %s", err.Error())
+			slog.Error("Error parsing IBox hostname", "error", err.Error())
 		}
 
 		// check for scheme, add if missing.
 		urlScheme := hostnameURL.Scheme
 
 		if urlScheme == "" {
-			zlog.Trace().Msgf("IBox Hostname is missing scheme, setting https as scheme")
+			slog.Log(ctx, common.LevelTrace, "IBox Hostname is missing scheme, setting https as scheme")
 			hostConfig.APIHost = "https://" + c.SecretsMap["hostname"] + "/"
 		} else {
 			hostConfig.APIHost = hostnameURL.String()
@@ -91,12 +93,11 @@ func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
 		// check for URI validity.
 		hostnameURL, err = url.ParseRequestURI(hostConfig.APIHost)
 		if err != nil {
-			zlog.Error().Msgf("IBox hostname %s is invalid URI: %s", hostnameURL.String(), err.Error())
+			slog.Error("IBox hostname is invalid", "URI", hostnameURL.String(), "error", err.Error())
 		} else {
-			zlog.Trace().Msgf("IBox URL: %s", hostConfig.APIHost)
+			slog.Log(ctx, common.LevelTrace, "info", "IBox URL", hostConfig.APIHost)
 		}
 
-		// zlog.Trace().Msgf("setting url to %s", hostconfig.ApiHost)
 		hostConfig.UserName = c.SecretsMap["username"]
 		hostConfig.Password = c.SecretsMap["password"]
 		return hostConfig, nil

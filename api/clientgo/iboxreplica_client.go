@@ -14,9 +14,9 @@ package clientgo
 
 import (
 	"context"
+	"log/slog"
 
 	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
-	"github.com/infinidat/infinibox-csi-driver/log"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,11 +31,10 @@ var (
 func init() {
 	utilruntime.Must(v1.AddToScheme(schemeForReplica))
 	//+kubebuilder:scaffold:scheme
-	zlog = log.Get()
 }
 
 func (kc *kubeclient) GetIboxreplicas(ctx context.Context) (v1.IboxreplicaList, error) {
-	zlog.Info().Msgf("GetIboxreplicas called")
+	slog.Info("GetIboxreplicas called")
 	replicas := v1.IboxreplicaList{}
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
@@ -49,7 +48,7 @@ func (kc *kubeclient) GetIboxreplicas(ctx context.Context) (v1.IboxreplicaList, 
 }
 
 func (kc *kubeclient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxreplica, error) {
-	zlog.Debug().Msgf("GetIboxreplica %s called", name)
+	slog.Debug("GetIboxreplica", "name", name)
 	replica := v1.Iboxreplica{}
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
@@ -66,7 +65,7 @@ func (kc *kubeclient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxr
 }
 
 func (kc *kubeclient) CreateIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
-	zlog.Debug().Msgf("CreateIboxreplica %v called", replica)
+	slog.Debug("CreateIboxreplica", "replica", replica)
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
@@ -80,7 +79,7 @@ func (kc *kubeclient) CreateIboxreplica(ctx context.Context, replica v1.Iboxrepl
 }
 
 func (kc *kubeclient) DeleteIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
-	zlog.Debug().Msgf("DeleteIboxreplica %v called", replica)
+	slog.Debug("DeleteIboxreplica", "replica", replica)
 	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err

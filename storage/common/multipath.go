@@ -2,10 +2,12 @@ package common
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
 )
 
@@ -38,7 +41,7 @@ func (handler *OSioHandler) ReadDir(dirname string) (infos []os.FileInfo, err er
 	entries, err := os.ReadDir(dirname)
 	if err != nil {
 		e := fmt.Errorf("ReadDir error %s", err.Error())
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return infos, e
 	}
 	infos = make([]fs.FileInfo, 0, len(entries))
@@ -46,7 +49,7 @@ func (handler *OSioHandler) ReadDir(dirname string) (infos []os.FileInfo, err er
 		info, err := entry.Info()
 		if err != nil {
 			e := fmt.Errorf("ReadDir error %s", err.Error())
-			zlog.Error().Msg(e.Error())
+			slog.Error(e.Error())
 			return infos, e
 		}
 		infos = append(infos, info)
@@ -118,17 +121,18 @@ type ShowMultipathOutput struct {
 }
 
 func FindMultipathDeviceFromVolumePath(volumePath string) (string, error) {
+	ctx := context.Background()
 	pathParts := strings.Split(volumePath, "/")
 	lenPathParts := len(pathParts)
 	if lenPathParts < 5 {
 		return "", fmt.Errorf("error parsing volumepath %s, len %d", volumePath, lenPathParts)
 	}
 	volumeName := pathParts[lenPathParts-2]
-	zlog.Trace().Msgf("volumeName parsed to [%s] from path [%s]", volumeName, volumePath)
+	slog.Log(ctx, common.LevelTrace, "parsed", "volumeName", volumeName, "volumePath", volumePath)
 
 	readFile, err := os.Open("/proc/mounts")
 	if err != nil {
-		zlog.Error().Msgf("error reading /proc/mounts %s", err.Error())
+		slog.Error("error reading /proc/mounts", "error", err.Error())
 		return "", err
 	}
 	fileScanner := bufio.NewScanner(readFile)
@@ -140,15 +144,15 @@ func FindMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 		parts := strings.Split(fileScanner.Text(), " ")
 		device = parts[0]
 		mountPath := parts[1]
-		zlog.Trace().Msgf("looking for %s in %s", volumeName, fileScanner.Text())
+		slog.Log(ctx, common.LevelTrace, "looking for", "volumeName", volumeName, "in", fileScanner.Text())
 		if strings.Contains(mountPath, volumeName) {
-			zlog.Debug().Msgf("found %s in %s for volume %s", device, mountPath, volumeName)
+			slog.Debug("found", "device", device, "mountPath", mountPath, "volumeName", volumeName)
 			break
 		}
 	}
 
 	if err := readFile.Close(); err != nil {
-		zlog.Error().Msgf("error in Close() %s", err.Error())
+		slog.Error("error in Close()", "error", err.Error())
 	}
 
 	if device == "" {
@@ -160,45 +164,46 @@ func FindMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 
 // return the dm device path
 func GetDMDevicePath(wwid string) (dmDevice string) {
+	ctx := context.Background()
 	ioHandler := &OSioHandler{}
-	defer helper.TimeTrack(zlog, time.Now())
+	defer helper.TimeTrack(time.Now())
 	wwid = strings.TrimPrefix(wwid, "naa.")
-	zlog.Debug().Msgf("wwid [%s]", wwid)
+	slog.Debug("value", "wwid", wwid)
 	FcPath := "scsi-3" + wwid
 	DevID := "/host/dev/disk/by-id/"
 	if dirs, err := ioHandler.ReadDir(DevID); err == nil {
-		zlog.Debug().Msgf("read %d dirs", len(dirs))
+		slog.Debug("read", "dir count", len(dirs))
 		for _, f := range dirs {
 			name := f.Name()
-			zlog.Trace().Msgf("comparing [%s] to [%s] evaluating sym link for [%s]", FcPath, name, DevID+name)
+			slog.Log(ctx, common.LevelTrace, "comparing", "fcPath", FcPath, "to", name, "evaluating sym link for", DevID+name)
 			if name == FcPath {
 				dmResult, err := ioHandler.EvalSymlinks(DevID + name)
 				if err != nil {
-					zlog.Error().Msgf("fc: failed to find a corresponding disk from symlink[%s], error %v", DevID+name, err)
+					slog.Error("fc: failed to find a corresponding disk from", "symlink", DevID+name, "error", err)
 					return ""
 				}
-				zlog.Debug().Msgf("EvalSymLinks matched return dm [%s]", dmResult)
+				slog.Debug("EvalSymLinks matched return", "dm", dmResult)
 
 				return dmResult
 			}
 		}
 	}
-	zlog.Error().Msgf("failed to find a dm [%s]", DevID+FcPath)
+	slog.Error("failed to find a dm", "dm", DevID+FcPath)
 	return ""
 }
 
 func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) {
-	defer helper.TimeTrack(zlog, time.Now())
+	defer helper.TimeTrack(time.Now())
 	// deviceMu.Lock()
-	zlog.Debug().Msgf("Rescan hosts for diskid '%s' and lun '%s'", diskid, lun)
+	slog.Debug("Rescan hosts", "diskid", diskid, "lun", lun)
 
 	// For each host, scan using lun
 	for _, host := range hosts {
 		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
-		zlog.Debug().Msgf("Rescanning host path at '%s' for disk ID '%s' and lun '%s'", scsiHostPath, diskid, lun)
+		slog.Debug("Rescanning", "host path", scsiHostPath, "disk ID", diskid, "lun", lun)
 		_, _, err := ExecCommand.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
-			zlog.Error().Msgf("Rescan of host %s failed for volume ID '%s' and lun '%s': %s", scsiHostPath, diskid, lun, err)
+			slog.Error("Rescan of host failed", "scsiHostPath", scsiHostPath, "volume ID", diskid, "lun", lun, "error", err)
 			return "", err
 		}
 	}
@@ -208,7 +213,7 @@ func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 	for _, host := range hosts {
 		wwid, err = WaitForDeviceState(host, lun, "running", diskid)
 		if err != nil {
-			zlog.Error().Msgf("waitForDeviceState failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
+			slog.Error("waitForDeviceState failed", "host", host, "diskid", diskid, "lun", lun, "error", err.Error())
 			return "", err
 		}
 		// wwid that is not empty string means we found a wwid and dont need to look at other devices
@@ -219,22 +224,21 @@ func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 
 	for _, host := range hosts {
 		if err := WaitForMultipath(host, lun); err != nil {
-			zlog.Error().Msgf("Rescan failed for host [%s] diskid [%s] lun [%s] error [%s]", host, diskid, lun, err.Error())
+			slog.Error("Rescan failed", "host", host, "diskid", diskid, "lun", lun, "error", err.Error())
 			return "", err
 		}
 	}
 
-	zlog.Debug().Msgf("Rescan hosts complete for diskid '%s' and lun '%s'", diskid, lun)
+	slog.Debug("Rescan hosts complete", "diskid", diskid, "lun", lun)
 	return wwid, nil
 }
 
 func WaitForDeviceState(hostID string, lun string, state string, diskid string) (wwid string, err error) {
-	const functionName = "waitForDeviceState"
-	zlog.Debug().Msgf("%s hostid %s lun %s state %s diskid %s", functionName, hostID, lun, state, diskid)
+	slog.Debug("info", "hostid", hostID, "lun", lun, "state", state, "diskid", diskid)
 	targetsPath := fmt.Sprintf("/sys/class/scsi_disk/%s:*:*:%s", hostID, lun)
 	targets, err := filepath.Glob(targetsPath)
 	if err != nil || len(targets) == 0 {
-		zlog.Warn().Msgf("%s - no fc targets found at path %s: %+v", functionName, targetsPath, err)
+		slog.Warn("no fc targets found", "targetsPath", targetsPath, "error", err)
 		return "", nil
 	}
 
@@ -248,12 +252,12 @@ func WaitForDeviceState(hostID string, lun string, state string, diskid string) 
 	}
 
 	if len(allWWIDs) == 1 {
-		zlog.Debug().Msgf("%s - only 1 wwid found [%s]", functionName, wwid)
+		slog.Debug("only 1 wwid found", "wwid", wwid)
 		return wwid, nil
 	}
 
 	if len(allWWIDs) == 0 {
-		return "", fmt.Errorf("%s - no wwid found", functionName)
+		return "", fmt.Errorf("no wwid found")
 	}
 
 	// this logic uses the disk id to find the correct wwid when there
@@ -264,55 +268,54 @@ func WaitForDeviceState(hostID string, lun string, state string, diskid string) 
 	// and the wwids look like naa.6742b0f000000bbd00000000002b3e13
 	// we parse out enough unique FC port characters (the key) from the diskid to perform a fuzzy search with
 	// on the wwid, in this example 'bdd' is the key we use to search for the correct wwid
-	zlog.Debug().Msgf("%s - picking the wwid from multiple wwid - diskid %s allWWIDs are [%v]", functionName, diskid, allWWIDs)
+	slog.Debug("picking the wwid from multiple wwid", "diskid", diskid, "allWWIDs are", allWWIDs)
 	n := 5
 	lastChars := diskid[len(diskid)-n:]
 	key := lastChars[:3]
 	for _, wwid := range allWWIDs {
 		if strings.Contains(wwid, key) {
-			zlog.Debug().Msgf("%s - matched wwid using diskid %s key %s, wwid %s", functionName, diskid, key, wwid)
+			slog.Debug(" matched wwid ", "diskid", diskid, "key", key, "wwid", wwid)
 			return wwid, nil
 		}
 	}
 
-	return "", fmt.Errorf("%s - could not determine the wwid", functionName)
+	return "", fmt.Errorf("could not determine the wwid")
 }
 
 func WaitForOneDeviceState(hostID string, channel string, target string, lun string, state string) (string, error) {
-	const functionName = "waitForOneDeviceState"
-	zlog.Debug().Msgf("%s hostid %s target %s lun %s state %s", functionName, hostID, target, lun, state)
+	slog.Debug("info", "hostid", hostID, "target", target, "lun", lun, "state", state)
 	// Wait for device to be in state.
 	var sleepCount time.Duration = 1
 	hostPath := fmt.Sprintf("/sys/class/scsi_disk/%s:%s:%s:%s/device/state", hostID, channel, target, lun)
 	wwidPath := fmt.Sprintf("/sys/class/scsi_disk/%s:%s:%s:%s/device/wwid", hostID, channel, target, lun)
 
 	var wwid string
-	zlog.Debug().Msgf("%s - checking device state within %s", functionName, hostPath)
+	slog.Debug("checking device state", "within hostPath", hostPath)
 	for sleepIteration := 1; sleepIteration <= 5; sleepIteration++ {
 		// Get state of device
 		hostOutput, _, err := ExecCommand.Command("cat", hostPath)
 		if err != nil {
-			zlog.Warn().Msgf("%s - Failed (%d): Cannot check state of device file %s: %s", functionName, sleepIteration, hostPath, err)
+			slog.Warn(" Failed: Cannot check state of device file", "hostpath", hostPath, "sleepIteration", sleepIteration, "error", err)
 		}
 		deviceState := strings.TrimSpace(hostOutput)
 
 		// Get wwid of device
 		wwidOutput, _, err := ExecCommand.Command("cat", wwidPath)
 		if err != nil {
-			zlog.Warn().Msgf("%s - Failed (%d): Cannot get wwid of wwid file %s: %s", functionName, sleepIteration, wwidPath, err)
+			slog.Warn(" Failed: Cannot get wwid", "wwidPath", wwidPath, "sleepiteration", sleepIteration, "error", err)
 		} else {
 			wwid = strings.TrimSpace(wwidOutput)
-			zlog.Debug().Msgf("%s - Device %s has wwid '%s'", functionName, wwidPath, wwid)
+			slog.Debug("info", "Device", wwidPath, "has wwid", wwid)
 		}
 
 		if err != nil || deviceState != state {
 			if sleepIteration == 5 {
-				msg := fmt.Sprintf("%s - Device %s is not in state '%s'. Current state is '%s'", functionName, hostPath, state, deviceState)
-				zlog.Warn().Msg(msg)
+				msg := fmt.Sprintf("Device %s is not in state '%s'. Current state is '%s'", hostPath, state, deviceState)
+				slog.Warn(msg)
 			}
 			time.Sleep(sleepCount * time.Second)
 		} else {
-			zlog.Debug().Msgf("%s - Device %s is in state '%s'", functionName, hostPath, state)
+			slog.Debug("info", "Device", hostPath, "is in state", state)
 			break
 		}
 	}
@@ -320,8 +323,8 @@ func WaitForOneDeviceState(hostID string, channel string, target string, lun str
 }
 
 func WaitForMultipath(hostID string, lun string) error {
-	const functionName = "waitForMultipath"
-	defer helper.TimeTrack(zlog, time.Now())
+	ctx := context.Background()
+	defer helper.TimeTrack(time.Now())
 	const defaultMultipathWait = 250
 	var sleepCount time.Duration
 	sleepCount = time.Duration(defaultMultipathWait)
@@ -329,27 +332,27 @@ func WaitForMultipath(hostID string, lun string) error {
 	if tmp != "" {
 		userSpecifiedValue, err := strconv.Atoi(tmp)
 		if err != nil {
-			zlog.Error().Msgf("%s - error converting user specified env var %s, using default of %d", functionName, MultipathWait, defaultMultipathWait)
+			slog.Error("error converting user specified env var", "multipathWait", MultipathWait, "default", defaultMultipathWait)
 		} else {
-			zlog.Warn().Msgf("%s - using non-default value for %s env var, user specified %d, default %d", functionName, MultipathWait, userSpecifiedValue, defaultMultipathWait)
+			slog.Warn("using non-default value for", "env var", MultipathWait, "user specified", userSpecifiedValue, "default", defaultMultipathWait)
 			sleepCount = time.Duration(userSpecifiedValue)
 		}
 	}
 	masterPath := fmt.Sprintf("/sys/class/scsi_disk/%s:*:*:%s/device/block/*/holders/*/slaves/*", hostID, lun)
 	loopCount := 40
 	for sleepIteration := 1; sleepIteration <= loopCount; sleepIteration++ {
-		zlog.Trace().Msgf("%s - looping in waitForMultipath host %s lun %s", functionName, hostID, lun)
+		slog.Log(ctx, common.LevelTrace, "looping in waitForMultipath", "host", hostID, "lun", lun)
 		devices, err := filepath.Glob(masterPath)
 		if err != nil {
-			zlog.Debug().Msgf("%s - failed to glob devices using path '%s': %+v", functionName, masterPath, err)
+			slog.Debug("failed to glob devices using", "path", masterPath, "error", err)
 		} else {
-			zlog.Trace().Msgf("%s - glob devices '%s'", functionName, devices)
+			slog.Log(ctx, common.LevelTrace, "glob", "devices", devices)
 		}
 
 		if err != nil || len(devices) < mpathDeviceCount {
 			if sleepIteration == loopCount {
-				msg := fmt.Sprintf("%s - Multipath device found only %d devices for host ID '%s' and lun '%s'", functionName, len(devices), hostID, lun)
-				zlog.Warn().Msg(msg)
+				msg := fmt.Sprintf("Multipath device found only %d devices for host ID '%s' and lun '%s'", len(devices), hostID, lun)
+				slog.Warn(msg)
 			}
 			time.Sleep(sleepCount * time.Millisecond)
 		} else {
@@ -357,19 +360,18 @@ func WaitForMultipath(hostID string, lun string) error {
 		}
 	}
 
-	zlog.Debug().Msgf("%s - multipath device is online for host ID %s and lun '%s'", functionName, hostID, lun)
+	slog.Debug("multipath device is online ", "host ID", hostID, "lun", lun)
 	return nil
 }
 
 // FindSlaveDevicesOnMultipath returns all slaves on the multipath device given the device path
 func FindSlaveDevicesOnMultipath(dmDevice string) ([]string, error) {
-	const functionName = "findSlaveDevicesOnMultipath"
 	devices := []string{}
 	// Split path /dev/dm-1 into "", "dev", "dm-1"
 	parts := strings.Split(dmDevice, "/")
 	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
-		err := fmt.Errorf("%s() for dm '%s' failed", functionName, dmDevice)
-		zlog.Error().Msg(err.Error())
+		err := fmt.Errorf("for dm '%s' failed", dmDevice)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	disk := parts[2]
@@ -383,26 +385,25 @@ func FindSlaveDevicesOnMultipath(dmDevice string) ([]string, error) {
 		devices = append(devices, path.Join("/dev/", f.Name()))
 	}
 	if len(devices) == 0 {
-		err := fmt.Errorf("%s for dm %s found no devices", functionName, dmDevice)
-		zlog.Error().Msg(err.Error())
+		err := fmt.Errorf("for dm %s found no devices", dmDevice)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	return devices, nil
 }
 
 func GetPortInfo() (ports []PortInfo) {
-	const functionName = "getPortInfo"
 	leadPart := "/sys/class/fc_host/host"
 	goFiles, err := filepath.Glob("/sys/class/fc_host/host*")
 	if err != nil {
-		fmt.Printf("%s - failed. error: %s", functionName, err.Error())
+		fmt.Printf("failed. error: %s", err.Error())
 		return ports
 	}
 	for _, file := range goFiles {
 		fmt.Println(file)
 		data, err := os.ReadFile(file + "/port_name")
 		if err != nil {
-			fmt.Printf("%s - unable to read port_name file. error: %s", functionName, err.Error())
+			fmt.Printf("unable to read port_name file. error: %s", err.Error())
 
 			continue
 		}
@@ -413,7 +414,7 @@ func GetPortInfo() (ports []PortInfo) {
 
 		data, err = os.ReadFile(file + "/port_state")
 		if err != nil {
-			fmt.Printf("%s - getPortName unable to read port_state file. error: %s", functionName, err.Error())
+			fmt.Printf("getPortName unable to read port_state file. error: %s", err.Error())
 
 			continue
 		}
@@ -429,7 +430,7 @@ func GetPortInfo() (ports []PortInfo) {
 }
 
 func removeMultipathDevices(device string) error {
-	zlog.Debug().Msgf("removeMultipathDevices() called with hosts %s", device)
+	slog.Debug("removeMultipathDevices() called", "device", device)
 
 	command := fmt.Sprintf("multipathd del path %s", device)
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
@@ -437,10 +438,10 @@ func removeMultipathDevices(device string) error {
 	// we only care about the stdout, you can get stderr output from multipath.conf (invalid and deprecated lines)
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
-		zlog.Error().Msgf("%s command failed %s", command, err.Error())
+		slog.Error("command failed ", "command", command, "error", err.Error())
 		return err
 	}
-	zlog.Debug().Msgf("%s command succeeded %s", command, out)
+	slog.Debug("command succeeded", "command", command, "output", out)
 	return nil
 }
 
@@ -449,36 +450,35 @@ func removeMultipathDevices(device string) error {
 func removeWWIDEntry(mpath string) error {
 	command := fmt.Sprintf("multipath -w  %s", mpath)
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
-	zlog.Debug().Msgf("command [%s]", command)
+	slog.Debug("command", "command", command)
 
 	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
-		zlog.Error().Msgf("%s command failed %s", command, err.Error())
+		slog.Error("command failed", "command", command, "error", err.Error())
 		return err
 	}
-	zlog.Debug().Msgf("%s command succeeded: %s", command, out)
+	slog.Debug("command succeeded", "command", command, "out", out)
 	return nil
 }
 
 func findDevicesForMpath(mpath string) (devices []string, err error) {
-	const functionName = "findDevicesForMpath"
 	command := fmt.Sprintf("multipathd show multipath %s json", mpath)
 	pipefailCmd := fmt.Sprintf("set -o pipefail; %s", command)
-	zlog.Debug().Msgf("%s - command [%s]", functionName, command)
+	slog.Debug("executing", "command", command)
 
 	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
-		e := fmt.Errorf("%s - mpath: %s, error: %s", functionName, mpath, err)
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("mpath: %s, error: %s", mpath, err)
+		slog.Error(e.Error())
 		return devices, e
 	}
 	var mpathOutput ShowMultipathOutput
 	err = json.Unmarshal(out, &mpathOutput)
 	if err != nil {
-		e := fmt.Errorf("%s - error unmarshalling output: %s, error: %s", functionName, string(out), err)
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("error unmarshalling output: %s, error: %s", string(out), err)
+		slog.Error(e.Error())
 		return devices, e
 	}
 
@@ -490,45 +490,43 @@ func findDevicesForMpath(mpath string) (devices []string, err error) {
 		}
 	}
 
-	zlog.Debug().Msgf("%s - devices %v for multipath %s", functionName, devices, mpath)
+	slog.Debug("list", "devices", devices, "for multipath", mpath)
 	return devices, nil
 }
 
 // Given a device like '/dev/dm-0', find its matching multipath name such as 'mpathab'.
 func FindMpathFromDevice(device string) (mpath string, err error) {
-	const functionName = "findMpathFromDevice"
 	deviceName := strings.Replace(device, "/dev/", "", 1)
 	wildcards := "\"%n_%d_\""
 	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
 	out, _, err := ExecCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("%s - command: %s error: %s", functionName, command, err.Error())
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("command: %s error: %s", command, err.Error())
+		slog.Error(e.Error())
 		return "", e
 	}
-	zlog.Debug().Msgf("%s - command [%s]", functionName, command)
+	slog.Debug("executing", "command", command)
 
 	outParts := strings.Split(out, "_")
 	if len(outParts) < 1 {
-		e := fmt.Errorf("%s - cannot correctly parse findMpathFromDevice: %s, out: %s", functionName, device, outParts)
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf(" cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
+		slog.Error(e.Error())
 		return mpath, e
 	}
 	if len(outParts) > 0 {
 		mpath = outParts[0]
 	}
 
-	zlog.Debug().Msgf("%s - device %s corresponds to multipath %s", functionName, device, mpath)
+	slog.Debug("corresponds", "device", device, "multipath", mpath)
 	return
 }
 
 func DetachMpathDevice(mpathDevice string, protocol string) error {
-	const functionName = "detachMpathDevice"
 	var err error
 	var devices []string
 	dstPath := mpathDevice
 	var mpath string
-	zlog.Debug().Msgf("%s called with mpathDevice '%s' for protocol '%s'", functionName, mpathDevice, protocol)
+	slog.Debug("called with", "mpathDevice", mpathDevice, "for protocol", protocol)
 	if dstPath != "" {
 		if strings.HasPrefix(dstPath, "/host") {
 			dstPath = strings.Replace(dstPath, "/host", "", 1)
@@ -538,26 +536,26 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 			// older versions of the driver < 2.21.0 would pass a dm- device here instead of an mpath name
 			devices, err = FindSlaveDevicesOnMultipath(dstPath)
 			if err != nil {
-				zlog.Error().Msgf("%s - error looking for slave devices for multipath [%s]", functionName, dstPath)
+				slog.Error("error looking for slave devices for ", "multipath", dstPath)
 				return err
 			}
 			mpath, err = FindMpathFromDevice(mpathDevice)
 			if err != nil {
-				zlog.Error().Msgf("%s - for mpathDevice %s failed: %s", functionName, mpathDevice, err)
+				slog.Error("for", "mpathDevice", mpathDevice, "failed, error", err)
 				return err
 			}
 		} else {
 			mpath = mpathDevice
 			devices, err = findDevicesForMpath(mpath)
 			if err != nil {
-				zlog.Error().Msgf("%s - error looking for devices for multipath [%s]", functionName, mpath)
+				slog.Error("error looking for devices for", "multipath", mpath)
 				return err
 			}
 		}
 
 		helper.PrettyKlogDebug("multipath devices", devices)
 
-		zlog.Debug().Msgf("%s - mpath device is %s", functionName, mpath)
+		slog.Debug("mpath", "device is", mpath)
 
 		// 1
 		multipathFlush(mpath)
@@ -568,25 +566,25 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 		if tmp != "" {
 			userSpecifiedValue, err := strconv.Atoi(tmp)
 			if err != nil {
-				zlog.Error().Msgf("%s - conversion of %s env var failed, using default value of %d", functionName, MultipathCleanupDelay, defaultSleepAfterFlush)
+				slog.Error("conversion failed", "env var", MultipathCleanupDelay, "using default value ", defaultSleepAfterFlush)
 			} else {
 				sleepAfterFlushThisExecution = userSpecifiedValue
-				zlog.Warn().Msgf("%s - using non-default value for %s env var, user has specified %d, default is %d", functionName, MultipathCleanupDelay, sleepAfterFlushThisExecution, defaultSleepAfterFlush)
+				slog.Warn("using non-default value for", "env var", MultipathCleanupDelay, "user has specified", sleepAfterFlushThisExecution, "default is", defaultSleepAfterFlush)
 			}
 		}
-		zlog.Debug().Msgf("%s - sleeping in between flush of device and detach of scsi disks for %d seconds", functionName, sleepAfterFlushThisExecution)
+		slog.Debug("sleeping in between flush of device and detach of scsi disks", "for seconds", sleepAfterFlushThisExecution)
 		time.Sleep(time.Second * time.Duration(sleepAfterFlushThisExecution))
 
 		// Warn if there are not exactly mpathDeviceCount devices
 		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
-			zlog.Warn().Msgf("%s - invalid mpath device count found while unstaging. Devices: %+v", functionName, devices)
+			slog.Warn("invalid mpath device count found while unstaging.", "Devices", devices)
 		}
 
 		// 2
 		for i := range devices {
 			err = detachDiskByDeviceName(devices[i])
 			if err != nil {
-				zlog.Error().Msgf("%s - error : %s", functionName, err)
+				slog.Error(err.Error())
 			}
 		}
 
@@ -594,33 +592,32 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 		for _, device := range devices {
 			err = removeMultipathDevices(device)
 			if err != nil {
-				zlog.Debug().Msgf("%s - error from removeMultipathDevices but continuing: %s", functionName, err.Error())
+				slog.Debug("error from removeMultipathDevices but continuing", "error", err.Error())
 			}
 		}
 
 		// 4
 		err = removeWWIDEntry(mpath)
 		if err != nil {
-			zlog.Debug().Msgf("%s - error from removeWWIDEntry but continuing: %s", functionName, err.Error())
+			slog.Debug("error from removeWWIDEntry but continuing", "error", err.Error())
 		}
 	}
-	zlog.Debug().Msgf("%s completed with mpathDevice '%s' for protocol '%s'", functionName, mpathDevice, protocol)
+	slog.Debug("completed", "with mpathDevice", mpathDevice, "protocol", protocol)
 	return nil
 }
 
 func removeOneFromScsiSubsystemByHostLun(host string, channel string, target string, lun string) (err error) {
-	const functionName = "removeOneFromScsiSubsystemByHostLun"
 	// fileName := "/sys/block/" + deviceName + "/device/delete"
-	// zlog.Debug().Msgf("remove device from scsi-subsystem: path: %s", fileName)
+	// slog.Debug().Msgf("remove device from scsi-subsystem: path: %s", fileName)
 	// data := []byte("1\n")
 	// ioutil.WriteFile(fileName, data, 0666)
-	// zlog.Debug().Msgf("Flush device '%s' output: %s", device, blockdevOut)
+	// slog.Debug().Msgf("Flush device '%s' output: %s", device, blockdevOut)
 
 	defer func() {
-		zlog.Debug().Msgf("%s with host %s, channel %s, target %s and lun %s completed", functionName, host, channel, target, lun)
+		slog.Debug("completed", "with host", host, "channel", channel, "target", target, "lun", lun)
 	}()
 
-	zlog.Debug().Msgf("%s called with host %s, channel %s target %s and lun %s", functionName, host, channel, target, lun)
+	slog.Debug("called", "host", host, "channel", channel, "target", target, "lun", lun)
 
 	deletePath := fmt.Sprintf("/sys/class/scsi_disk/%s:%s:%s:%s/device/delete", host, channel, target, lun)
 	statePath := fmt.Sprintf("/sys/class/scsi_disk/%s:%s:%s:%s/device/state", host, channel, target, lun)
@@ -630,17 +627,17 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	var sleepCount time.Duration
 	for sleepIteration := 1; sleepIteration <= 5; sleepIteration++ {
 		// Get state of device
-		zlog.Debug().Msgf("%s - checking device state of %s", functionName, statePath)
+		slog.Debug("checking device state ", "path", statePath)
 		output, _, err = ExecCommand.Command("cat", statePath)
 		if err != nil {
-			zlog.Error().Msgf("%s - error: cannot check state of %s", functionName, statePath)
+			slog.Error("error: cannot check state ", "path", statePath)
 			return
 		}
 		deviceState := strings.TrimSpace(output)
 		if deviceState == "blocked" {
 			if sleepIteration == 5 {
-				err = fmt.Errorf("%s - Device %s is blocked", functionName, statePath)
-				zlog.Error().Msg(err.Error())
+				err = fmt.Errorf("device %s is blocked", statePath)
+				slog.Error(err.Error())
 				return
 			}
 			time.Sleep(sleepCount * time.Second)
@@ -652,35 +649,35 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	// Echo 1 to delete device
 	output, _, err = ExecCommand.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if err != nil {
-		zlog.Error().Msgf("%s - error failed to delete device '%s' with output '%s' and error '%v'", functionName, deletePath, output, err.Error())
+		slog.Error(" error failed to delete", "device", deletePath, "output", output, "error", err.Error())
 		return
 	}
 
 	// Stat device
 	if _, err := os.Stat(deletePath); err == nil {
-		zlog.Warn().Msgf("%s - Device %s still exists", functionName, deletePath)
+		slog.Warn("Device still exists", "deletePath", deletePath)
 	} else if errors.Is(err, os.ErrNotExist) {
-		zlog.Debug().Msgf("%s - Device %s no longer exists", functionName, deletePath)
+		slog.Debug(" Device no longer exists", "deletePath", deletePath)
 		return nil
 	} else {
-		zlog.Debug().Msgf("%s - Device %s may or may not exist. See error: %s", functionName, deletePath, err)
+		slog.Debug(" Device may or may not exist.", "deletePath", deletePath, "error", err)
 	}
 
 	return err
 }
 
 func detachDiskByDeviceName(deviceName string) error {
-	const functionName = "detatchDiskByDeviceName"
 	// we get in a device name like /dev/sda
-	zlog.Debug().Msgf("%s - %s called", functionName, deviceName)
+	slog.Debug("called", "deviceName", deviceName)
 	deviceNameParts := strings.Split(deviceName, "/")
 	if len(deviceNameParts) != 3 {
-		return fmt.Errorf("%s - device name %s did not parse to 3 parts as normal", functionName, deviceName)
+		return fmt.Errorf("device name %s did not parse to 3 parts as normal", deviceName)
 	}
-	zlog.Trace().Msgf("%s length = %d, parts are [%v] one=[%s]", functionName, len(deviceNameParts), deviceNameParts, deviceNameParts[2])
+	ctx := context.Background()
+	slog.Log(ctx, common.LevelTrace, "device", "length", len(deviceNameParts), "parts", deviceNameParts, "one", deviceNameParts[2])
 
 	blockPath := fmt.Sprintf("/sys/block/%s/device", deviceNameParts[2])
-	zlog.Debug().Msgf("%s - blockpath [%s]", functionName, blockPath)
+	slog.Debug("called", "blockpath", blockPath)
 	hctlPath, err := filepath.EvalSymlinks(blockPath)
 	if err != nil {
 		return err
@@ -693,7 +690,7 @@ func detachDiskByDeviceName(deviceName string) error {
 	hctlPathParts := strings.Split(hctlPath, "/")
 
 	hctl := hctlPathParts[len(hctlPathParts)-1]
-	zlog.Trace().Msgf("%s - hctl path [%s] - parsed as [%s]", functionName, hctlPath, hctl)
+	slog.Log(ctx, common.LevelTrace, "parsed", "hctl path", hctlPath, "hctl", hctl)
 
 	hctlParts := strings.Split(hctl, ":")
 
@@ -701,7 +698,7 @@ func detachDiskByDeviceName(deviceName string) error {
 	channel := hctlParts[1]
 	target := hctlParts[2]
 	lun := hctlParts[3]
-	zlog.Debug().Msgf("%s - hctl path [%s] host [%s] channel [%s] target [%s] lun [%s]", functionName, hctlPath, host, channel, target, lun)
+	slog.Debug("details", "hctl path", hctlPath, "host", host, "channel", channel, "target", target, "lun", lun)
 	err = removeOneFromScsiSubsystemByHostLun(host, channel, target, lun)
 	if err != nil {
 		return err
@@ -713,14 +710,13 @@ func detachDiskByDeviceName(deviceName string) error {
 // Flush a multipath device map for device.
 
 func multipathFlush(mpath string) {
-	const functionName = "multipathFlush"
-	zlog.Debug().Msgf("%s - Running multipath -f '%s'", functionName, mpath)
+	slog.Debug("Running", "multipath -f", mpath)
 
 	isToLogOutput := true
 	if out, _, err := ExecCommand.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput); err != nil {
-		zlog.Error().Msgf("%s - multipath -f '%s' failed - ignored: %s", functionName, mpath, err)
+		slog.Error(" multipath -f failed", "mpath", mpath, "error", err)
 	} else {
-		zlog.Debug().Msgf("%s - multipath -f '%s' succeeded: %s", functionName, mpath, out)
+		slog.Debug(" multipath -f succeeded", "mpath", mpath, "out", out)
 	}
 
 	// _, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)

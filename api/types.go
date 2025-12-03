@@ -14,10 +14,7 @@ package api
 
 import (
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
-	"github.com/infinidat/infinibox-csi-driver/log"
 )
-
-var zlog = log.Get() // grab the logger for package use
 
 type EndpointConfig struct {
 	Endpoint string

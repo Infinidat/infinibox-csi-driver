@@ -18,8 +18,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-
-	"github.com/go-logr/logr"
 )
 
 const (
@@ -172,11 +170,10 @@ type Credentials struct {
 
 type IboxClient struct {
 	Creds      Credentials
-	Log        logr.Logger
 	HTTPClient *http.Client
 }
 
-func NewIboxClient(log logr.Logger, creds Credentials) (cl *IboxClient) {
+func NewIboxClient(creds Credentials) (cl *IboxClient) {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -184,7 +181,6 @@ func NewIboxClient(log logr.Logger, creds Credentials) (cl *IboxClient) {
 
 	return &IboxClient{
 		Creds:      creds,
-		Log:        log,
 		HTTPClient: httpClient,
 	}
 }

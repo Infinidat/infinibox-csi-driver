@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
@@ -21,7 +22,6 @@ const (
 )
 
 func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, found bool, err error) {
-	const functionName = "GetProtocolSecret"
 	secretName := os.Getenv(common.EnvVarProtocolSecret)
 	secretNamespace := os.Getenv(common.EnvVarPodNamespace)
 
@@ -32,15 +32,15 @@ func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, f
 	// the secret namespace is set in the installation, it should never
 	// be blank, if so, it would be an error
 	if secretName != "" && secretNamespace == "" {
-		e := fmt.Errorf("%s - error - protocol secret namespace is blank - verify your StorageClass has the values set", functionName)
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("error - protocol secret namespace is blank - verify your StorageClass has the values set")
+		slog.Error(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	kubeClient, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("%s - error %s - could not get kube client", functionName, err.Error())
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("error %s - could not get kube client", err.Error())
+		slog.Error(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
@@ -48,8 +48,8 @@ func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, f
 	if err != nil {
 		// since secretName was specified, something has happened to
 		// remove the secret, this would be an error condition
-		e := fmt.Errorf("%s - error %s - could not get protocol secret", functionName, err.Error())
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("error %s - could not get protocol secret", err.Error())
+		slog.Error(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
@@ -63,11 +63,11 @@ func GetProtocolSecret(ctx context.Context) (protocolSecret map[string]string, f
 	case common.ProtocolISCSI:
 	case common.ProtocolAuto:
 	default:
-		e := fmt.Errorf("%s - error - unsupported protocol specified %s", functionName, storageProtocol)
-		zlog.Error().Msg(e.Error())
+		e := fmt.Errorf("error - unsupported protocol specified %s", storageProtocol)
+		slog.Error(e.Error())
 		return protocolSecret, false, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	zlog.Debug().Msgf("%s - secret protocol in use - %v", functionName, protocolSecret)
+	slog.Debug("secret protocol in use", "secret", protocolSecret)
 	return protocolSecret, true, nil
 }

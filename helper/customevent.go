@@ -3,6 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"os"
 	"strconv"
@@ -58,18 +59,16 @@ func init() {
 }
 
 func ProcessEventCounters() {
-	const functionName = "ProcessEventCounters"
-
 	for {
 		// testing
 		// time.Sleep(time.Minute * 5)
 		//
 		currentTime := time.Now()  // Get the current time
 		hour := currentTime.Hour() // Extract the hour component
-		fmt.Printf("%s - current hour is: %d   Randomly generated hour: %d", functionName, hour, EventRandomHour)
+		fmt.Printf("current hour is: %d   Randomly generated hour: %d", hour, EventRandomHour)
 
 		if hour == EventRandomHour {
-			zlog.Debug().Msgf("%s - sending external events at %s", functionName, currentTime.String())
+			slog.Debug("sending external events", "at", currentTime.String())
 
 			var eventData []iboxapi.EventRequestData
 			var actionData iboxapi.EventRequestData
@@ -88,10 +87,10 @@ func ProcessEventCounters() {
 				eventDesc = fmt.Sprintf("CSI - Created Volumes: %d", EventCreatedVolumes)
 				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
-					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
+					slog.Error("CreateEvent - error", "error", eventErr.Error())
 					// only log errors if custom event fails
 				} else {
-					zlog.Debug().Msgf("%s - created external event %+v", functionName, eventData)
+					slog.Debug("created external event", "data", eventData)
 				}
 			}
 
@@ -107,10 +106,10 @@ func ProcessEventCounters() {
 				eventDesc = fmt.Sprintf("CSI - Created Snapshots: %d", EventCreatedSnapshots)
 				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
-					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
+					slog.Error("CreateEvent - error", "error", eventErr.Error())
 					// only log errors if custom event fails
 				} else {
-					zlog.Debug().Msgf("%s - created external event %+v", functionName, eventData)
+					slog.Debug("created external event", "data", eventData)
 				}
 			}
 
@@ -143,10 +142,10 @@ func ProcessEventCounters() {
 					EventPublishedVolumes[common.ProtocolNVME])
 				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
-					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
+					slog.Error("CreateEvent - error", "error", eventErr.Error())
 					// only log errors if custom event fails
 				} else {
-					zlog.Debug().Msgf("%s - created external event %+v", functionName, eventData)
+					slog.Debug("created external event", "data", eventData)
 				}
 			}
 
@@ -162,10 +161,10 @@ func ProcessEventCounters() {
 				eventDesc = fmt.Sprintf("CSI - NFS Versions [%v]", EventNFSVersions)
 				eventErr = CreateEvent(EventIboxAPIClient, eventDesc, eventData)
 				if eventErr != nil {
-					zlog.Error().Msgf("%s - CreateEvent - error %s", functionName, eventErr.Error())
+					slog.Error("CreateEvent - error", "error", eventErr.Error())
 					// only log errors if custom event fails
 				} else {
-					zlog.Debug().Msgf("%s - created external event %+v", functionName, eventData)
+					slog.Debug("created external event", "data", eventData)
 				}
 			}
 
@@ -180,14 +179,14 @@ func ProcessEventCounters() {
 		}
 
 		currentTime = time.Now() // Get the current time
-		zlog.Debug().Msgf("%s - sleeping at %s for 1 hour and 1 second", functionName, currentTime.String())
+		slog.Debug("sleeping at for 1 hour and 1 second", "at", currentTime.String())
 		time.Sleep(time.Second * 1)
 		time.Sleep(time.Hour * 1)
 	}
 }
 
 func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventRequestData) error {
-	zlog.Debug().Msgf("CreateEvent: %s", desc)
+	slog.Debug("CreateEvent", "desc", desc)
 
 	// verify creating events is enabled
 	createEvent := true
@@ -195,7 +194,7 @@ func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventR
 	if tmp != "" {
 		boolValue, err := strconv.ParseBool(tmp)
 		if err != nil {
-			zlog.Error().Msgf("%s env var is not a valid boolean value, [%s] was entered", common.EnvVarCreateEvents, tmp)
+			slog.Error("env var is not a valid boolean value, was entered", "env var", common.EnvVarCreateEvents, "entered", tmp)
 			return err
 		}
 		createEvent = boolValue
@@ -256,7 +255,7 @@ func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventR
 
 	systemDetails, err := iboxAPI.GetSystem(context.Background())
 	if err != nil {
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 	} else {
 		serialNumberData := iboxapi.EventRequestData{
 			Name:  "serial_number",

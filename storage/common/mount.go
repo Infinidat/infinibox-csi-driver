@@ -1,9 +1,11 @@
 package common
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -35,12 +37,12 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 	mntPoints, err := mounter.List()
 	if err != nil {
 		e := fmt.Errorf("%s - mounter.List error %s", function, err.Error())
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return status.Error(codes.Internal, e.Error())
 	}
 
 	var chrootPath = config.RootDir + targetPath
-	zlog.Debug().Msgf("%s - mounter.List has %d, looking for %s", function, len(mntPoints), chrootPath)
+	slog.Debug(function, " mounter.List len", len(mntPoints), "looking for", chrootPath)
 	for i := range mntPoints {
 		if mntPoints[i].Path == chrootPath {
 			mounted = true
@@ -50,7 +52,7 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 	}
 
 	if mounted {
-		zlog.Debug().Msgf("%s path: %s already mounted", function, chrootPath)
+		slog.Debug(function, "path already mounted", chrootPath)
 		return nil
 	}
 
@@ -68,23 +70,23 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 
 	if isBlock {
 		// option A: raw block volume access
-		zlog.Debug().Msgf("%s - mounting raw block volume at given path %s", function, targetPath)
-		zlog.Debug().Msgf("%s: mount point does not exist, creating mount point.", function)
-		zlog.Debug().Msgf("%s: run: mkdir --parents --mode %s '%s' ", function, mode, filepath.Dir(targetPath))
+		slog.Debug(function, "mounting raw block volume at given path", targetPath)
+		slog.Debug("mount point does not exist, creating mount point.")
+		slog.Debug(function, "run: mkdir --parents --mode", mode, "targetPath", filepath.Dir(targetPath))
 
 		cmd := exec.Command("mkdir", "--parents", "--mode", mode, filepath.Dir(targetPath))
 		err = cmd.Run()
 		if err != nil {
 			e := fmt.Errorf("%s: failed to mkdir '%s': error: %s", function, targetPath, err)
-			zlog.Error().Msg(e.Error())
+			slog.Error(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
 
-		zlog.Debug().Msgf("%s: creating file: %s", function, chrootPath)
+		slog.Debug(function, "creating file:", chrootPath)
 		_, err = os.Create(chrootPath)
 		if err != nil {
 			e := fmt.Errorf("%s - failed to create target path for raw bind mount: %q, err: %v", function, targetPath, err)
-			zlog.Error().Msg(e.Error())
+			slog.Error(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
 		devicePath = strings.Replace(devicePath, config.RootDir, "", 1)
@@ -93,60 +95,60 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 
 		if err := mounter.Mount(devicePath, targetPath, "", options); err != nil {
 			e := fmt.Errorf("%s: failed to mount fc volume %s to %s, error %v", function, devicePath, targetPath, err)
-			zlog.Error().Msg(e.Error())
+			slog.Error(e.Error())
 			return e
 		}
 		if err := CreateConfigFile(config, stagePath); err != nil {
-			zlog.Error().Msgf("%s  - failed to save config with error: %v", function, err)
+			slog.Error(function, "failed to save config with error:", err)
 			return err
 		}
-		zlog.Debug().Msgf("%s volume mounted successfully", function)
+		slog.Debug("volume mounted successfully")
 	} else {
 		// option B: local filesystem access
-		zlog.Debug().Msgf("%s - mounting volume with filesystem at given path %s", function, targetPath)
+		slog.Debug("mounting volume with filesystem at given", "path", targetPath)
 
 		// Create mountPoint, if it does not exist.
 		mountPoint := targetPath
 		_, err := os.Stat(mountPoint)
 		if err != nil {
-			zlog.Error().Msgf("%s - stat - error %s", function, err.Error())
+			slog.Error("stat", "error", err.Error())
 		}
 		if os.IsNotExist(err) {
-			zlog.Debug().Msgf("%s - mount point %s does not exist, creating mount point.", function, mountPoint)
+			slog.Debug(" mount point does not exist, creating mount point.", "mount point", mountPoint)
 			_, _, err := ExecCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
 			if err != nil {
-				zlog.Error().Msgf("%s - failed to mkdir '%s': %v", function, mountPoint, err)
+				slog.Error("failed to mkdir", "mountPoint", mountPoint, "error", err)
 				return err
 			}
 		} else {
-			zlog.Debug().Msgf("%s - mkdir of mountPoint not required. '%s' already exists", function, mountPoint)
+			slog.Debug("mkdir of mountPoint not required. already exists", "mountPoint", mountPoint)
 		}
 
 		options = append(options, mountOptions...)
 
 		// Persist here so that even if mount fails, the globalmount metadata json
 		// file will contain an mpath to use during clean up.
-		zlog.Debug().Msgf("%s - persist disk config to json file for later use, when detaching the disk", function)
+		slog.Debug("persist disk config to json file for later use, when detaching the disk")
 		if err = CreateConfigFile(config, stagePath); err != nil {
-			zlog.Error().Msgf("%s - failed to save config with error: %v", function, err)
+			slog.Error("failed to save config ", "error", err)
 			return err
 		}
 
 		if fsType == common.FSTypeXFS {
-			zlog.Debug().Msgf("%s - device %s is of type xfs, mounting using 'nouuid' option.", function, devicePath)
+			slog.Debug("device is of type xfs, mounting using 'nouuid' option.", "device", devicePath)
 			options = append(options, "nouuid")
 		}
 
 		err = mounter.FormatAndMount(devicePath, targetPath, fsType, options)
 		if err != nil {
-			zlog.Error().Msgf("%s - mounter.FormatAndMount error. devicePath: %s, targetPath: %s, fsType: %s, error: %s", function, devicePath, targetPath, fsType, err)
+			slog.Error("mounter.FormatAndMount error.", "devicePath", devicePath, "targetPath", targetPath, "fsType", fsType, "error", err)
 			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
 
 			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
-				zlog.Error().Msgf("%s - device %s is already mounted on %s", function, devicePath, mountPoint)
+				slog.Error("device is already mounted", "device", devicePath, "mountPoint", mountPoint)
 			} else {
 				msg := fmt.Sprintf("%s - failed to mount volume %s [%s] to %s, err: %v", function, devicePath, fsType, targetPath, err)
-				zlog.Error().Msg(msg)
+				slog.Error(msg)
 				return status.Errorf(codes.Internal, "%s", msg)
 			}
 		}
@@ -156,57 +158,57 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 
 func CreateConfigFile(conf DiskInfo, mnt string) error {
 	const function = "createConfigFile"
-	zlog.Debug().Msgf("%s - diskInfo: %v mnt: %s", function, conf, mnt)
+	slog.Debug("diskInfo", "config", conf, "mnt", mnt)
 	filePath := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
 
 	file, err := os.Create(filePath)
 	if err != nil {
 		e := fmt.Errorf("%s: failed creating persist file with error %v file %s", function, err, filePath)
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return e
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			zlog.Error().Msgf("%s error in Close() %s", function, err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
 	encoder := json.NewEncoder(file)
 	if err = encoder.Encode(conf); err != nil {
 		e := fmt.Errorf("%s: failed creating persist file with error %v", function, err)
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return e
 	}
-	zlog.Debug().Msgf("%s: created persist config file at path %s", function, filePath)
+	slog.Debug("created persist config file", "path", filePath)
 	return nil
 }
 
 func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 	const function = "loadDiskInfoFromFile"
 	filePath := path.Join(conf.RootDir, mnt, strconv.Itoa(conf.VolumeID)+".json")
-	zlog.Debug().Msgf("%s file [%s]", function, filePath)
+	slog.Debug(function, "file", filePath)
 	b, err := os.ReadFile(filePath)
 	if err != nil {
-		zlog.Error().Msgf("%s error in file read [%s]", function, err.Error())
+		slog.Error("error in file read", "error", err.Error())
 	} else {
-		zlog.Debug().Msgf("%s file content [%s]", function, string(b))
+		slog.Debug(function, "file content", string(b))
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
 		e := fmt.Errorf("%s - Open - file: %s error %s", function, filePath, err.Error())
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return e
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			zlog.Error().Msgf("error in Close() %s", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 	decoder := json.NewDecoder(file)
 	if err = decoder.Decode(conf); err != nil {
 		e := fmt.Errorf("%s - Decode - error %s", function, err.Error())
-		zlog.Error().Msg(e.Error())
+		slog.Error(e.Error())
 		return e
 	}
 	return nil
@@ -214,35 +216,35 @@ func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 
 // Unmount using targetPath and cleanup directories and files.
 func UnmountAndCleanUp(targetPath string) (err error) {
-	zlog.Debug().Msgf("Unmounting and cleaning up pathf for targetPath '%s'", targetPath)
+	slog.Debug("Unmounting and cleaning up", "path for targetPath", targetPath)
 
 	mounter := mount.NewWithoutSystemd("")
 	targetHostPath := path.Join("/host", targetPath)
 
-	zlog.Debug().Msgf("Unmounting targetPath '%s'", targetPath)
+	slog.Debug("Unmounting ", "targetPath", targetPath)
 	if err := mounter.Unmount(targetPath); err != nil {
-		zlog.Warn().Msgf("failed to unmount targetPath '%s' but rechecking: %v", targetPath, err)
+		slog.Warn("failed to unmount", "targetPath", targetPath, "error", err)
 	} else {
-		zlog.Debug().Msgf("Successfully unmounted targetPath '%s'", targetPath)
+		slog.Debug("Successfully unmounted", "targetPath", targetPath)
 	}
 
 	isMounted, isMountedErr := isMountedByListMethod(targetHostPath)
 	if isMountedErr != nil {
 		err := fmt.Errorf("error: failed to check if targetHostPath '%s' is unmounted after unmounting %v", targetHostPath, isMountedErr)
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 		return err
 	}
 	if isMounted {
 		// TODO - Should include volume ID
 		err := fmt.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 		return err
 	}
-	zlog.Debug().Msgf("Verified that targetHostPath '%s' is not mounted", targetHostPath)
+	slog.Debug("Verified is not mounted", "targetHostPath", targetHostPath)
 
 	// Check if targetHostPath exists
 	if _, err := os.Stat(targetHostPath); os.IsNotExist(err) {
-		zlog.Debug().Msgf("targetHostPath '%s' does not exist and does not need to be cleaned up", targetHostPath)
+		slog.Debug("targetHostPath does not exist and does not need to be cleaned up", "targetHostPath", targetHostPath)
 		return nil
 	}
 
@@ -250,28 +252,28 @@ func UnmountAndCleanUp(targetPath string) (err error) {
 	isADir, isADirError := IsDirectory(targetHostPath)
 	if isADirError != nil {
 		err := fmt.Errorf("failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 		return err
 	}
 
 	if isADir {
-		zlog.Debug().Msgf("targetHostPath '%s' is a directory, not a file", targetHostPath)
+		slog.Debug("targetHostPath is a directory, not a file", "targetHostPath", targetHostPath)
 		if err := cleanupOldMountDirectory(targetHostPath); err != nil {
-			zlog.Err(err)
+			slog.Error(err.Error())
 			return err
 		}
-		zlog.Debug().Msgf("Successfully cleaned up directory based targetHostPath '%s'", targetHostPath)
+		slog.Debug("Successfully cleaned up directory", "targetHostPath", targetHostPath)
 		return nil
 	}
 
 	// not a directory
-	zlog.Debug().Msgf("targetHostPath '%s' is a file, not a directory", targetHostPath)
+	slog.Debug("targetHostPath is a file, not a directory", "targetHostPath", targetHostPath)
 	if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 		err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 		return err
 	}
-	zlog.Debug().Msgf("Successfully cleaned up file based targetHostPath '%s'", targetHostPath)
+	slog.Debug("Successfully cleaned up file based", "targetHostPath", targetHostPath)
 
 	return nil
 }
@@ -292,14 +294,14 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	//    Pass   int
 	// }
 
-	zlog.Debug().Msgf("Checking mount path using mounter's List() and searching with path '%s'", targetHostPath)
+	slog.Debug("Checking mount path using mounter's List() and searching with", "targetHostPath", targetHostPath)
 	mounter := mount.NewWithoutSystemd("")
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
-		zlog.Err(mountListErr)
+		slog.Error(mountListErr.Error())
 		return true, mountListErr
 	}
-	zlog.Trace().Msgf("Mount path list: %v", mountList)
+	slog.Log(context.Background(), common.LevelTrace, "info", "mount path list", mountList)
 
 	// Search list for targetHostPath
 	isMountedByListMethod := false
@@ -309,38 +311,39 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 			break
 		}
 	}
-	zlog.Debug().Msgf("Path '%s' is mounted: %t", targetHostPath, isMountedByListMethod)
+	slog.Debug("Path is mounted", "targetHostPath", targetHostPath, "isMounted", isMountedByListMethod)
 	return isMountedByListMethod, nil
 }
 
 func cleanupOldMountDirectory(targetHostPath string) error {
-	zlog.Debug().Msgf("Cleaning up old mount directory at '%s'", targetHostPath)
+	ctx := context.Background()
+	slog.Debug("Cleaning up old mount directory", "targetHostPath", targetHostPath)
 	isMountEmpty, isMountEmptyErr := IsDirEmpty(targetHostPath)
 	// Verify mount/ directory is empty. Fail if mount/ is not empty as that may be volume data.
 	if isMountEmptyErr != nil {
 		err := fmt.Errorf("failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 		return err
 	}
 	if !isMountEmpty {
 		err := fmt.Errorf("error: mount directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
-		zlog.Error().Msg(err.Error())
+		slog.Error(err.Error())
 		return err
 	}
-	zlog.Trace().Msgf("verified that targetHostPath directory '%s', aka mount path, is empty of files", targetHostPath)
+	slog.Log(ctx, common.LevelTrace, "verified that targetHostPath directory, aka mount path, is empty of files", "targetHostPath", targetHostPath)
 
 	// Clean up mount/
 	if _, statErr := os.Stat(targetHostPath); os.IsNotExist(statErr) {
-		zlog.Debug().Msgf("mount point targetHostPath '%s' already removed", targetHostPath)
+		slog.Debug("mount point already removed", "targetHostPath", targetHostPath)
 	} else {
-		zlog.Trace().Msgf("removing mount point targetHostPath '%s'", targetHostPath)
+		slog.Log(ctx, common.LevelTrace, "removing mount point", "targetHostPath", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
 			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-			zlog.Error().Msg(err.Error())
+			slog.Error(err.Error())
 			return err
 		}
 	}
-	zlog.Debug().Msgf("Removed mount point targetHostPath '%s'", targetHostPath)
+	slog.Debug("Removed mount point", "targetHostPath", targetHostPath)
 
 	csiHostPath := strings.TrimSuffix(targetHostPath, "/mount")
 	volData := "vol_data.json"
@@ -348,24 +351,24 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 
 	// Clean up csi-NNNNNNN/vol_data.json file
 	if _, statErr := os.Stat(volDataPath); os.IsNotExist(statErr) {
-		zlog.Trace().Msgf("%s already removed from path '%s'", volData, csiHostPath)
+		slog.Log(ctx, common.LevelTrace, "already removed", "volData", volData, "path", csiHostPath)
 	} else {
-		zlog.Trace().Msgf("removing %s from path '%s'", volData, volDataPath)
+		slog.Log(ctx, common.LevelTrace, "removing", "volData", volData, "path", volDataPath)
 		if err := os.Remove(volDataPath); err != nil {
-			zlog.Warn().Msgf("after unmounting, failed to remove %s from path '%s': %v", volData, volDataPath, err)
+			slog.Warn("after unmounting, failed to remove", "volData", volData, "volDataPath", volDataPath, "error", err)
 		}
-		zlog.Debug().Msgf("Successfully removed %s from path '%s'", volData, volDataPath)
+		slog.Debug("Successfully removed ", "volData", volData, "path", volDataPath)
 	}
 
 	// Clean up csi-NNNNNNN directory
 	if _, statErr := os.Stat(csiHostPath); os.IsNotExist(statErr) {
-		zlog.Debug().Msgf("CSI volume directory '%s' already removed", csiHostPath)
+		slog.Debug("CSI volume directory already removed", "csihostPath", csiHostPath)
 	} else {
-		zlog.Debug().Msgf("Removing CSI volume directory '%s'", csiHostPath)
+		slog.Debug("Removing CSI volume directory", "csiHostPath", csiHostPath)
 		if err := os.Remove(csiHostPath); err != nil {
-			zlog.Error().Msgf("After unmounting, failed to remove CSI volume directory '%s': %v", csiHostPath, err)
+			slog.Error("After unmounting, failed to remove CSI volume directory", "csiHostPath", csiHostPath, "error", err)
 		}
-		zlog.Debug().Msgf("Successfully removed CSI volume directory'%s'", csiHostPath)
+		slog.Debug("Successfully removed CSI volume", "csiHostPath", csiHostPath)
 	}
 	return nil
 }
@@ -378,7 +381,7 @@ func IsDirEmpty(name string) (bool, error) {
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
-			zlog.Error().Msgf("error in Close() %s", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 

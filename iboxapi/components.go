@@ -17,7 +17,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
 type FCPort struct {
@@ -42,13 +45,12 @@ type GetFCPortsResponse struct {
 }
 
 func (client *IboxClient) GetFCPorts(ctx context.Context) (nodes []FCNode, err error) {
-	const functionName = "GetFCPorts"
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/components/nodes")
-	client.Log.V(TRACE_LEVEL).Info(functionName, "URL", url)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - NewRequest - error %w", functionName, err)
+		return nodes, fmt.Errorf("newRequest - error %w", err)
 	}
 
 	values := req.URL.Query()
@@ -59,25 +61,25 @@ func (client *IboxClient) GetFCPorts(ctx context.Context) (nodes []FCNode, err e
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - Do - error %w", functionName, err)
+		return nodes, fmt.Errorf("do - error %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			client.Log.V(INFO_LEVEL).Error(err, functionName, "error in Close()", err.Error())
+			slog.Error("error in Close()", "error", err.Error())
 		}
 	}()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - ReadAll - error %w", functionName, err)
+		return nodes, fmt.Errorf("readAll - error %w", err)
 	}
 	var responseObject GetFCPortsResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nodes, fmt.Errorf("%s - Unmarshal - error %w", functionName, err)
+		return nodes, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		return nodes, fmt.Errorf("%s - ibox API - error %v", functionName, responseObject.Error)
+		return nodes, fmt.Errorf("ibox API - error %v", responseObject.Error)
 	}
 
 	return responseObject.Result, nil

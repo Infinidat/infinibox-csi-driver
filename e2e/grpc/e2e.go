@@ -2,18 +2,15 @@ package grpc
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
-
-	"github.com/infinidat/infinibox-csi-driver/log"
 
 	pb "github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/client-go/tools/clientcmd"
 )
-
-var zlog = log.Get() // grab the logger for package use
 
 const (
 	socatServicePort = "30007"
@@ -22,13 +19,13 @@ const (
 func SetupControllerClient() (pb.ControllerClient, error) {
 	host, err := GetKubeHost()
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	grpcAddress := fmt.Sprintf("%s:%s", host, socatServicePort)
 	conn, err := SetupGRPC(grpcAddress)
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	cl := pb.NewControllerClient(conn)
@@ -38,7 +35,7 @@ func SetupControllerClient() (pb.ControllerClient, error) {
 func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
 	conn, err := grpc.NewClient(grpcAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		zlog.Err(err)
+		slog.Error(err.Error())
 		return nil, err
 	}
 	return conn, nil
@@ -46,7 +43,7 @@ func SetupGRPC(grpcAddress string) (*grpc.ClientConn, error) {
 
 func GetKubeHost() (string, error) {
 	kcenv := os.Getenv("KUBECONFIG")
-	zlog.Info().Msgf("KUBECONFIG is %s\n", kcenv)
+	slog.Info("KUBECONFIG", "value", kcenv)
 
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", kcenv)
@@ -54,12 +51,12 @@ func GetKubeHost() (string, error) {
 		return "", err
 	}
 
-	zlog.Info().Msgf("host is %s\n", config.Host)
+	slog.Info("host", "value", config.Host)
 	parts := strings.Split(config.Host, ":")
 	if len(parts) < 2 {
 		return parts[0], nil
 	}
 	s := strings.Trim(parts[1], "/")
-	zlog.Info().Msgf("host is %s\n", s)
+	slog.Info("host", "value", s)
 	return s, nil
 }

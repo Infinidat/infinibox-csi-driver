@@ -1,8 +1,10 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,7 +60,7 @@ func (sh StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (
 
 	mountOptions, err = UpdateNfsMountOptions(mountOptions, req)
 	if err != nil {
-		zlog.Error().Msgf("failed updateNfsMountOptions(): %s", err)
+		slog.Error("failed updateNfsMountOptions()", "error", err)
 		return mountOptions, err
 	}
 
@@ -66,7 +68,7 @@ func (sh StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (
 		mountOptions = append(mountOptions, NFSMountOptionReadonly)
 	}
 
-	zlog.Debug().Msgf("nfs mount options are [%v]", mountOptions)
+	slog.Debug("nfs mount options", "mountOptions", mountOptions)
 
 	return mountOptions, nil
 }
@@ -75,7 +77,7 @@ func (sh StorageService) GetNFSMountOptions(req *csi.NodePublishVolumeRequest) (
 func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest) (err error) {
 	// fsGroup := req.VolumeCapability.GetMount().GetVolumeMountGroup()
 	// fsGroupIsSet := (fsGroup != "")
-	// zlog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
+	// slog.Debug().Msgf("StorageHelper fsGroup: %s", fsGroup)
 
 	UID := -1
 	GID := -1
@@ -85,7 +87,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		UID, err = strconv.Atoi(tmp)
 		if err != nil || UID < -1 {
 			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", UID, err)
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return e
 		}
 	}
@@ -95,7 +97,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		GID, err = strconv.Atoi(tmp)
 		if err != nil || GID < -1 {
 			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", GID, err)
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return e
 		}
 	}
@@ -105,11 +107,11 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 
 	// chown the mount path with either a user supplied value or the fsGroup value
 	if UID != -1 || GID != -1 {
-		zlog.Debug().Msgf("user specified uid or gid in StorageClass parameters, chown mount %s uid=%d gid=%d", hostTargetPath, UID, GID)
+		slog.Debug("user specified uid or gid in StorageClass parameters", "command", fmt.Sprintf("chown mount %s uid=%d gid=%d", hostTargetPath, UID, GID))
 		err = os.Chown(hostTargetPath, UID, GID)
 		if err != nil {
 			e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
 	}
@@ -117,18 +119,18 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	unixPermissions := req.GetVolumeContext()[common.StorageClassUNIXPermissions]
 
 	if unixPermissions != "" {
-		zlog.Debug().Msgf("user specified unix_permissions in StorageClass parameters, chmod mount %s perms=%s", hostTargetPath, unixPermissions)
+		slog.Debug("user specified unix_permissions in StorageClass parameters, chmod mount ", "hostTargetPath", hostTargetPath, "perms", unixPermissions)
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
 			e := fmt.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
 		mode := uint(tempVal)
 		err = os.Chmod(hostTargetPath, os.FileMode(mode))
 		if err != nil {
 			e := fmt.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err)
-			zlog.Err(e)
+			slog.Error(e.Error())
 			return status.Error(codes.Internal, e.Error())
 		}
 	}
@@ -151,42 +153,42 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 		// note: if fsGroupIsSet, gid will have the fsGroup value.
 		fsInfo, err := os.Stat(path)
 		if err != nil {
-			zlog.Error().Msgf("performing recursive ownership change on %s because reading permissions of root volume failed: %v", path, err)
+			slog.Error("performing recursive ownership change because reading permissions of root volume failed", "path", path, "error", err)
 			return nil
 		}
 		stat, ok := fsInfo.Sys().(*syscall.Stat_t)
 		if !ok || stat == nil {
-			zlog.Error().Msgf("performing recursive ownership change on %s because reading permissions of root volume failed", path)
+			slog.Error("performing recursive ownership change because reading permissions of root volume failed", "path", path)
 			return nil
 		}
-		zlog.Debug().Msgf("Path: %s, volume gid %d , fsGroup: %d", path, stat.Gid, gid)
+		slog.Debug("info", "Path", path, "volume gid", stat.Gid, "fsGroup", gid)
 		// nothing to change if they match
 		if int(stat.Gid) == gid {
 			return nil
 		}
-		zlog.Debug().Msgf("expected group ownership of volume %s did not match with: %d", path, stat.Gid)
+		slog.Debug("expected group ownership of volume", "path", path, "did not match with", stat.Gid)
 	}
 
 	err := filepath.WalkDir(path,
 		func(path string, dir fs.DirEntry, err error) error {
 			if err == nil {
-				zlog.Trace().Msgf("Chown: %s with uid: %d and gid: %d", path, uid, gid)
+				slog.Log(context.Background(), common.LevelTrace, "Chown", "path", path, "uid", uid, "gid", gid)
 
 				// handle the case on .snapshot hidden directories because they are readonly created by the ibox
 				if snapdirVisible && dir.Name() == ".snapshot" {
-					zlog.Warn().Msgf("Chown: skipping chown on %s because snapdir_visible is true", dir.Name())
+					slog.Warn("Chown: skipping chown on", "dir", dir.Name(), "reason", "because snapdir_visible is true")
 					return filepath.SkipDir
 				}
 
 				// handle the broken symlink case, skip chown on broken symlinks
 				if dir.Type()&os.ModeSymlink != 0 {
-					zlog.Warn().Msgf("Chown: we have a symlink %s!", path)
+					slog.Warn("Chown: we have a symlink!", "path", path)
 					_, e := os.ReadFile(path)
 					if e != nil {
-						zlog.Warn().Msgf("Chown: error reading link, assuming its a broken link %s, skipping chown on it", e.Error())
+						slog.Warn("Chown: error reading link, assuming its a broken link, skipping chown on it", "error", e.Error())
 						return nil
 					}
-					zlog.Warn().Msgf("Chown: link is good %s", path)
+					slog.Warn("Chown: link is good ", "path", path)
 				}
 
 				err = os.Chown(path, uid, gid)
@@ -194,7 +196,7 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 			return err
 		})
 
-	zlog.Debug().Msgf("ChownR elapsed time %v", time.Since(start))
+	slog.Debug("ChownR", "elapsed time", time.Since(start))
 	return err
 }
 
@@ -203,9 +205,9 @@ func LogPermissions(note, hostTargetPath string) {
 	cmd := exec.Command("ls", "-l", hostTargetPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		zlog.Error().Msgf("error in doing ls command on %s error is  %s\n", hostTargetPath, err.Error())
+		slog.Error("error in doing ls command", "path", hostTargetPath, "error", err.Error())
 	}
-	zlog.Debug().Msgf("%s \nmount point permissions on %s ... %s", note, hostTargetPath, string(output))
+	slog.Debug("info", "note", note, "hostTargetPath", hostTargetPath, "perms", string(output))
 }
 
 func UpdateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequest) ([]string, error) {
@@ -217,7 +219,7 @@ func UpdateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 			version := matches[2]
 			if version != "3" && version != "4" && version != "4.1" {
 				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS versions 3 and 4 are supported", opt)
-				zlog.Err(e)
+				slog.Error(e.Error())
 				return nil, e
 			}
 		}

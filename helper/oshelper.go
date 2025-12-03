@@ -15,17 +15,15 @@ package helper
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"sync"
-
-	"github.com/infinidat/infinibox-csi-driver/log"
 
 	"github.com/stretchr/testify/mock"
 )
 
 var nodeVolumeMutex sync.Mutex // Used by NodeStageVolume, NodeUnstageVolume, NodePublishVolume and NodeUnpublishVolume.
-var zlog = log.Get()           // grab the logger for package use
 
 // OsHelper interface
 type OsHelper interface {
@@ -43,16 +41,16 @@ func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeID stri
 		// This might happen if unlocking a mutex that was not locked.
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
-			zlog.Debug().Msgf("manageNodeVolumeMutex, called by %s with volume ID %s, failed with run-time error: %s", callingFunction, volumeID, err)
+			slog.Debug("manageNodeVolumeMutex", "callingFunction", callingFunction, "volume id", volumeID, "error", err)
 		}
 	}()
 
 	err = nil
 	if isLocking {
 		nodeVolumeMutex.Lock()
-		zlog.Debug().Msgf("LOCKED: %s() with volume ID %s", callingFunction, volumeID)
+		slog.Debug("LOCKED", "callingfunction", callingFunction, "volumeid", volumeID)
 	} else {
-		zlog.Debug().Msgf("UNLOCKING: %s() with volume ID %s", callingFunction, volumeID)
+		slog.Debug("UNLOCKING", "callingfunction", callingFunction, "volumeid", volumeID)
 		nodeVolumeMutex.Unlock()
 	}
 	return
@@ -60,10 +58,10 @@ func ManageNodeVolumeMutex(isLocking bool, callingFunction string, volumeID stri
 
 // MkdirAll method create dir
 func (h Service) MkdirAll(path string, perm os.FileMode) error {
-	zlog.Debug().Msgf("MkdirAll with path %s perm %v\n", path, perm)
+	slog.Debug("MkdirAll", "path", path, "perm", perm)
 	err := os.MkdirAll(path, perm)
 	if err != nil {
-		zlog.Error().Msgf("error os.MkdirAll %s", err.Error())
+		slog.Error("error os.MkdirAll", "error", err.Error())
 	}
 	return err
 }
@@ -75,7 +73,7 @@ func (h Service) IsNotExist(err error) bool {
 
 // Remove method delete the dir
 func (h Service) Remove(name string) error {
-	zlog.Debug().Msgf("Calling Remove with name %s", name)
+	slog.Debug("Calling Remove", "name", name)
 	// debugWalkDir(name)
 	return os.Remove(name)
 }
@@ -85,10 +83,10 @@ func ValidateUnixPermissions(unixPermissions string) (err error) {
 	err = nil
 	if _, err8 := strconv.ParseUint(unixPermissions, 8, 32); err8 != nil {
 		msg := fmt.Sprintf("Invalid Unix permissions [%s]. Must be uint32 in octal format. Error: %s", unixPermissions, err8)
-		zlog.Error().Msg(msg)
+		slog.Error(msg)
 		err = errors.New(msg)
 	} else {
-		zlog.Debug().Msgf("Unix permissions [%s] is a valid octal value", unixPermissions)
+		slog.Debug("perms are valid", "unixperms", unixPermissions)
 	}
 	return err
 }

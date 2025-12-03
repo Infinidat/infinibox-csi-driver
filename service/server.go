@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strings"
@@ -57,19 +58,21 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 func (s *nonBlockingGRPCServer) serve(endpoint string, identityServer csi.IdentityServer, groupControllerServer csi.GroupControllerServer, controllerServer csi.ControllerServer, namespace csi.NodeServer, testMode bool) {
 	proto, addr, err := ParseEndpoint(endpoint)
 	if err != nil {
-		zlog.Fatal().Msg(err.Error())
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	if proto == "unix" {
 		addr = "/" + addr
 		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
-			zlog.Fatal().Msgf("Failed to remove %s, error: %s", addr, err.Error())
+			slog.Error("Failed to remove addr", "addr", addr, "error", err.Error())
+			os.Exit(1)
 		}
 	}
 
 	listener, err := net.Listen(proto, addr)
 	if err != nil {
-		zlog.Fatal().Msgf("Failed to listen: %v", err)
+		slog.Error("Failed to listen", "error", err)
 	}
 
 	opts := []grpc.ServerOption{
@@ -102,11 +105,12 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, identityServer csi.Identi
 		}()
 	}
 
-	zlog.Debug().Msgf("Listening on address: %s", listener.Addr().String())
+	slog.Debug("Listening on address", "address", listener.Addr().String())
 
 	err = server.Serve(listener)
 	if err != nil {
-		zlog.Fatal().Msgf("Failed to serve grpc server: %v", err)
+		slog.Error("Failed to serve grpc server", "error", err)
+		os.Exit(1)
 	}
 }
 
