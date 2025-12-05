@@ -49,5 +49,5 @@ func TimeTrack(start time.Time) {
 func TimeTrackBasic(start time.Time, msg string) {
 	elapsed := time.Since(start)
 
-	slog.Debug("message", "msg", msg, "took", elapsed.Round(1*time.Millisecond))
+	slog.Debug("message", "info", msg, "took", elapsed.Round(1*time.Millisecond))
 }

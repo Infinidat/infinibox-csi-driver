@@ -131,13 +131,13 @@ func (cs *Commonservice) UnmapVolumeFromHost(ctx context.Context, hostID, volume
 		// Ignore the following errors
 		successMsg := fmt.Sprintf("Success: No need to unmap volume with ID %d from host with ID %d", volumeID, hostID)
 		if strings.Contains(err.Error(), "HOST_NOT_FOUND") {
-			slog.Debug("host not found", "msg", successMsg)
+			slog.Debug("host not found", "successMsg", successMsg)
 			return nil
 		} else if strings.Contains(err.Error(), "LUN_NOT_FOUND") {
-			slog.Debug("lun not found", "msg", successMsg)
+			slog.Debug("lun not found", "successMsg", successMsg)
 			return nil
 		} else if strings.Contains(err.Error(), "VOLUME_NOT_FOUND") {
-			slog.Debug("volume not found", "msg", successMsg)
+			slog.Debug("volume not found", "successMsg", successMsg)
 			return nil
 		}
 		return err
@@ -205,7 +205,7 @@ func (cs *Commonservice) ValidateHost(ctx context.Context, hostName string) (*ib
 }
 
 func (cs *Commonservice) GetCSIResponse(ctx context.Context, vol *iboxapi.Volume, req *csi.CreateVolumeRequest) *csi.Volume {
-	slog.Debug("getCSIResponse called", "volume", vol)
+	slog.Log(ctx, common.LevelTrace, "getCSIResponse called", "volume", vol)
 	storagePoolName := vol.PoolName
 	if storagePoolName == "" {
 		storagePoolName = cs.getStoragePoolNameFromID(ctx, vol.PoolID)
@@ -463,22 +463,20 @@ func DetermineHostName(nodeID string) (hostName string, err error) {
 }
 
 func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolConfig, err error) {
-	slog.Debug("ValidateVolumeID", "volumeIDString", volumeIDString)
-
 	if volumeIDString == "" {
-		return volprotoconf, errors.New("volume Id string is empty")
+		return volprotoconf, fmt.Errorf("volume Id string is empty, [%s]", volumeIDString)
 	}
 	volproto := strings.Split(volumeIDString, "$$")
 	if len(volproto) != 2 {
-		return volprotoconf, errors.New("volume Id and other details not found")
+		return volprotoconf, fmt.Errorf("volume Id and other details not found, [%s]", volumeIDString)
 	}
 
 	if volproto[0] == "" {
-		return volprotoconf, errors.New("volume Id in volproto is empty")
+		return volprotoconf, fmt.Errorf("volume Id in volproto is empty, [%s]", volumeIDString)
 	}
 
 	if volproto[1] == "" {
-		return volprotoconf, errors.New("volume storagetype in volproto is empty")
+		return volprotoconf, fmt.Errorf("volume storagetype in volproto is empty, [%s]", volumeIDString)
 	}
 	volprotoconf.StorageType = volproto[1]
 
@@ -487,7 +485,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 		// example: volproto[0] == 2942184#20000
 		tmp := strings.Split(volproto[0], "#")
 		if len(tmp) != 2 {
-			return volprotoconf, fmt.Errorf("treeq volume not correctly formatted %s", volproto[0])
+			return volprotoconf, fmt.Errorf("treeq volume not correctly formatted %s, [%s]", volproto[0], volumeIDString)
 		}
 		volprotoconf.VolumeID, err = strconv.Atoi(tmp[0])
 		if err != nil {
@@ -507,7 +505,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 	if err != nil {
 		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto[0], err)
 		slog.Error(e.Error())
-		return volprotoconf, errors.New("volume id in volproto is not an integer")
+		return volprotoconf, fmt.Errorf("volume id in volproto is not an integer, [%s]", volumeIDString)
 	}
 
 	return volprotoconf, nil

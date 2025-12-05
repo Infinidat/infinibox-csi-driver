@@ -70,7 +70,7 @@ func (iscsi *ISCSIstorage) ValidateStorageClass(params map[string]string) error 
 	// validate required parameters
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredISCSIParams, optionalISCSIParams, params)
 	if err != nil {
-		e := fmt.Errorf("ValidateStorageClass (iscsi) - Validate - error: %s", err.Error())
+		e := fmt.Errorf("error from Validate - error: %s", err.Error())
 		slog.Error(e.Error())
 		return status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -79,7 +79,7 @@ func (iscsi *ISCSIstorage) ValidateStorageClass(params map[string]string) error 
 
 func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	params := req.GetParameters()
-	slog.Debug("creating volume (iscsi)", "volume", req.GetName(), "size", iscsi.Capacity, "params", params,
+	slog.Debug("start", "volume", req.GetName(), "size", iscsi.Capacity, "params", params,
 		"iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), iscsi.CS.IboxAPI))
 
 	// Volume name to be created - already verified earlier
@@ -91,15 +91,15 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
 		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			slog.Debug("(iscsi) volume not found, going to create", "volume", name)
+			slog.Debug("volume not found, going to create", "volume", name)
 		} else {
-			e := fmt.Errorf("(iscsi) - GetVolumeByName name %s - error: %s", name, err.Error())
+			e := fmt.Errorf("error from GetVolumeByName name: %s error: %s", name, err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.NotFound, e.Error())
 		}
 	}
 	if targetVol != nil {
-		slog.Debug("(iscsi) volume found", "volume", name, "size", targetVol.Size, "requested", iscsi.Capacity)
+		slog.Debug("volume found", "volume", name, "size", targetVol.Size, "requested", iscsi.Capacity)
 		if targetVol.Size == iscsi.Capacity {
 			existingVolumeInfo := iscsi.CS.GetCSIResponse(ctx, targetVol, req)
 			storagecommon.CopyRequestParameters(params, existingVolumeInfo.VolumeContext)
@@ -149,7 +149,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	volumeResp, err := iscsi.CS.IboxAPI.CreateVolume(ctx, request)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - api CreateVolume - error creating volume: %s pool %s error: %v", name, poolName, err)
+		e := fmt.Errorf("error from CreateVolume - name: %s poolName: %s error: %s", name, poolName, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -158,7 +158,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// check volume id format
 	volID, err := strconv.Atoi(csiResponse.VolumeId)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - volumeID conversion error - %s", err.Error())
+		e := fmt.Errorf("volumeID conversion error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -168,7 +168,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	var counter int
 	vol, err = iscsi.CS.IboxAPI.GetVolume(ctx, volID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - GetVolume - error: %s", err.Error())
+		e := fmt.Errorf("error from GetVolume - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -176,14 +176,14 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		time.Sleep(3 * time.Millisecond)
 		vol, err = iscsi.CS.IboxAPI.GetVolume(ctx, volID)
 		if err != nil {
-			e := fmt.Errorf("(iscsi) - GetVolume - error: %s", err.Error())
+			e := fmt.Errorf("error from GetVolume - error: %s", err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 		counter++
 	}
 	if vol == nil {
-		e := fmt.Errorf("(iscsi) - failed to create volume name %s ID: %d", name, volID)
+		e := fmt.Errorf("failed to create volume name: %s ID: %d", name, volID)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -200,31 +200,24 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	_, err = iscsi.CS.IboxAPI.PutMetadata(ctx, vol.ID, metadata)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - PutMetadata volume : %s, error: %s", name, err.Error())
+		e := fmt.Errorf("error from PutMetadata volume: %s, error: %s", name, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	slog.Debug("(iscsi) successfully created volume", "name", name, "ID", volID)
+	slog.Debug("successfully created volume", "name", name, "ID", volID)
 	return csiResp, err
 }
 
 func (iscsi *ISCSIstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (csiResp *csi.DeleteVolumeResponse, err error) {
 	volproto := iscsi.CS.VolProto
-	slog.Debug("(iscsi)", "volumeID", req.GetVolumeId(), "volproto", volproto)
-	err = iscsi.ValidateDeleteVolume(ctx, volproto.VolumeID)
+	slog.Debug("start", "volumeID", req.GetVolumeId(), "volproto", volproto)
+	csiResp, err = storagecommon.DeleteVolume(ctx, iscsi.CS, volproto.VolumeID)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			return &csi.DeleteVolumeResponse{}, nil
-		} else {
-			e := fmt.Errorf("(iscsi) - ValidateDeleteVolume - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
-		}
+		return nil, err
 	}
-	slog.Debug("(iscsi) successfully deleted volume", "ID", req.GetVolumeId())
-	return &csi.DeleteVolumeResponse{}, nil
+	slog.Debug("successfully deleted volume", "ID", req.GetVolumeId())
+	return csiResp, nil
 }
 
 func (iscsi *ISCSIstorage) ControllerModifyVolume(ctx context.Context, req *csi.ControllerModifyVolumeRequest) (resp *csi.ControllerModifyVolumeResponse, err error) {
@@ -232,13 +225,13 @@ func (iscsi *ISCSIstorage) ControllerModifyVolume(ctx context.Context, req *csi.
 }
 
 func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (resp *csi.ControllerPublishVolumeResponse, err error) {
-	slog.Debug("(iscsi)", "node ID", req.GetNodeId(), "volume ID", req.GetVolumeId(),
+	slog.Debug("start", "node ID", req.GetNodeId(), "volume ID", req.GetVolumeId(),
 		"iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), iscsi.CS.IboxAPI))
 
 	volumeIDString := req.GetVolumeId()
 	volumePrototype, err := storagecommon.ValidateVolumeID(volumeIDString)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - ValidateVolumeID - failed to validate storage type for volume ID: %s, err: %v", volumeIDString, err)
+		e := fmt.Errorf("error from ValidateVolumeID - volumeID: %s, error: %s", volumeIDString, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
@@ -246,32 +239,32 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	slog.Debug("info", "volID", volumePrototype.VolumeID)
 	volume, err := iscsi.CS.IboxAPI.GetVolume(ctx, volumePrototype.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - GetVolume volume ID '%d' - error: %s", volumePrototype.VolumeID, err.Error())
+		e := fmt.Errorf("error from GetVolume volumeID: %d error: %s", volumePrototype.VolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	_, err = iscsi.CS.AccessModesHelper.IsValidAccessMode(volume, req)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - IsValidAccessMode volume ID '%d' - error: %s", volumePrototype.VolumeID, err.Error())
+		e := fmt.Errorf("error from IsValidAccessMode volumeID: %d error: %s", volumePrototype.VolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - DetermineHostName volume ID '%d' - error: %s", volumePrototype.VolumeID, err.Error())
+		e := fmt.Errorf("error from DetermineHostName volumeID: %d error: %s", volumePrototype.VolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
 
 	host, err := iscsi.CS.ValidateHost(ctx, hostName)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - validateHost host %s - error: %s", hostName, err.Error())
+		e := fmt.Errorf("error from ValidateHost hostName: %s error: %s", hostName, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
-	slog.Debug("(iscsi) - found", "host name", host.Name, "id", host.ID, "ports", host.Ports, "LUNs", host.Luns)
+	slog.Debug("found", "host name", host.Name, "id", host.ID, "ports", host.Ports, "LUNs", host.Luns)
 
 	var ports string
 	if len(host.Ports) > 0 {
@@ -287,11 +280,11 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 	lunList, err := iscsi.CS.IboxAPI.GetAllLunByHost(ctx, host.ID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - GetAllLunByHost  host: %d, error: %s", host.ID, err.Error())
+		e := fmt.Errorf("error from GetAllLunByHost hostID: %d error: %s", host.ID, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
-	slog.Debug("(iscsi) got LUNs", "host", host.Name, "luns", lunList)
+	slog.Debug("got LUNs", "host", host.Name, "luns", lunList)
 	for _, lun := range lunList {
 		if lun.VolumeID == volumePrototype.VolumeID {
 			publishVolCtxt := map[string]string{
@@ -299,7 +292,7 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 				storagecommon.HostIDPublishContext:    strconv.Itoa(host.ID),
 				storagecommon.HostPortsPublishContext: ports,
 			}
-			slog.Debug("(iscsi) volume already mapped to host", "volumeID", volumePrototype.VolumeID, "host name", host.Name, "host ID", host.ID, "lun", lun.Lun, "ports", ports)
+			slog.Debug("volume already mapped to host", "volumeID", volumePrototype.VolumeID, "host name", host.Name, "host ID", host.ID, "lun", lun.Lun, "ports", ports)
 			return &csi.ControllerPublishVolumeResponse{
 				PublishContext: publishVolCtxt,
 			}, nil
@@ -310,28 +303,28 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 	if maxVolsPerHostStr != "" {
 		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
 		if err != nil {
-			e := fmt.Errorf("(iscsi) - invalid parameter %s error:  %v", common.StorageClassMaxVolsPerHost, err)
+			e := fmt.Errorf("invalid conversion of parameter: %s error: %s", common.StorageClassMaxVolsPerHost, err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Errorf("(iscsi) - invalid parameter %s error:  required to be greater than 0", common.StorageClassMaxVolsPerHost)
+			e := fmt.Errorf("invalid parameter: %s error: required to be greater than 0", common.StorageClassMaxVolsPerHost)
 			slog.Error(e.Error())
 			return nil, e
 		}
 		slog.Debug("host has volumes mapped", "host name", host.Name, "host ID", host.ID, "number of luns", len(lunList), "max allowed", maxAllowedVol)
 		if len(lunList) >= maxAllowedVol {
-			e := fmt.Errorf("(iscsi) - unable to publish volume on host %s, as maximum allowed volume per host is (%d), limit reached", host.Name, maxAllowedVol)
+			e := fmt.Errorf("unable to publish volume on hostName: %s, as maximum allowed volume per host is: %d, limit reached", host.Name, maxAllowedVol)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.ResourceExhausted, e.Error())
 		}
 	}
 
 	// map volume to host
-	slog.Debug("(iscsi) - mapping volume to host", "volume ID", volumePrototype.VolumeID, "host name", host.Name)
+	slog.Debug("mapping volume to host", "volume ID", volumePrototype.VolumeID, "host name", host.Name)
 	luninfo, err := iscsi.CS.MapVolumeTohost(ctx, volumePrototype.VolumeID, host.ID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - mapVolumeToHost host ID %d - error: %s", host.ID, err.Error())
+		e := fmt.Errorf("error from mapVolumeToHost hostID: %d error: %s", host.ID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -342,24 +335,24 @@ func (iscsi *ISCSIstorage) ControllerPublishVolume(ctx context.Context, req *csi
 		storagecommon.HostPortsPublishContext: ports,
 		SecurityMethodPublishContext:          host.SecurityMethod,
 	}
-	slog.Debug("(iscsi) mapped volume", "volume ID", volumePrototype.VolumeID, "publish context", publishVolCtxt)
+	slog.Debug("mapped volume", "volume ID", volumePrototype.VolumeID, "publish context", publishVolCtxt)
 
-	slog.Debug("(iscsi) completed", "node id", req.GetNodeId(), "volume id", req.GetVolumeId())
+	slog.Debug("completed", "node id", req.GetNodeId(), "volume id", req.GetVolumeId())
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: publishVolCtxt,
 	}, nil
 }
 
 func (iscsi *ISCSIstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	slog.Debug("(iscsi)", "volproto", iscsi.CS.VolProto, "node id", req.GetNodeId(), "volume ID", req.GetVolumeId())
+	slog.Debug("start", "volproto", iscsi.CS.VolProto, "node id", req.GetNodeId(), "volume ID", req.GetVolumeId())
 
 	host := iscsi.CS.VolProto.Host
-	slog.Debug("(iscsi) unmapping host's luns", "host id", host.ID, "host name", host.Name, "number of luns", len(host.Luns))
+	slog.Debug("unmapping host's luns", "host id", host.ID, "host name", host.Name, "number of luns", len(host.Luns))
 	if len(host.Luns) > 0 {
-		slog.Debug("(iscsi) unmap volume", "volume id", iscsi.CS.VolProto.VolumeID, "host id", host.ID)
+		slog.Debug("unmap volume", "volume id", iscsi.CS.VolProto.VolumeID, "host id", host.ID)
 		err = iscsi.CS.UnmapVolumeFromHost(ctx, host.ID, iscsi.CS.VolProto.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("(iscsi) - unmapVolumeFromHost volume ID %d host %d- error: %s", iscsi.CS.VolProto.VolumeID, host.ID, err.Error())
+			e := fmt.Errorf("error from UnmapVolumeFromHost volumeID: %d hostID: %d error: %s", iscsi.CS.VolProto.VolumeID, host.ID, err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -367,18 +360,18 @@ func (iscsi *ISCSIstorage) ControllerUnpublishVolume(ctx context.Context, req *c
 	if len(host.Luns) < 2 {
 		err = storagecommon.HostCleanup(ctx, iscsi.CS.IboxAPI, host.ID, host.Name)
 		if err != nil {
-			e := fmt.Errorf("(iscsi) - hostCleanup host ID %d -  error: %s", host.ID, err.Error())
+			e := fmt.Errorf("error from HostCleanup hostID: %d error: %s", host.ID, err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
 
-	slog.Debug("(iscsi) completed", "node ID", req.GetNodeId(), "volume ID", req.GetVolumeId())
+	slog.Debug("completed", "node ID", req.GetNodeId(), "volume ID", req.GetVolumeId())
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
 func (iscsi *ISCSIstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	slog.Error("ValidateVolumeCapabilities (iscsi) should not be called, implemented in controller.go")
+	slog.Error("should not be called, implemented in controller.go")
 	return
 }
 
@@ -401,13 +394,13 @@ func (iscsi *ISCSIstorage) ControllerGetCapabilities(ctx context.Context, req *c
 func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
 	var snapshotID string
 	snapshotName := req.GetName()
-	slog.Debug("(iscsi) called to create snapshot", "name", snapshotName, "from source volume ID", req.GetSourceVolumeId())
+	slog.Debug("called to create snapshot", "name", snapshotName, "from source volume ID", req.GetSourceVolumeId())
 
 	volumeSnapshot, err := iscsi.CS.IboxAPI.GetVolumeByName(ctx, snapshotName)
 	if err != nil {
 		re, ok := err.(*iboxapi.APIError)
 		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			slog.Debug("(iscsi) not found", "name", snapshotName)
+			slog.Debug("not found", "name", snapshotName)
 		} else {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -423,7 +416,7 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 			},
 		}, nil
 	} else {
-		e := fmt.Errorf("(iscsi) - snapshot named %s with ID %d exists. Different source volume with ID %d requested",
+		e := fmt.Errorf("snapshot named %s with ID %d exists, different source volume with ID %d requested",
 			snapshotName, volumeSnapshot.ParentID, iscsi.CS.VolProto.VolumeID)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.AlreadyExists, e.Error())
@@ -431,7 +424,7 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	parentVolume, err := iscsi.CS.IboxAPI.GetVolume(ctx, iscsi.CS.VolProto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - GetVolume - volume id %d, error: %s", iscsi.CS.VolProto.VolumeID, err.Error())
+		e := fmt.Errorf("error from GetVolume - volumeID: %d, error: %s", iscsi.CS.VolProto.VolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
@@ -448,24 +441,24 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := iscsi.CS.IboxAPI.GetNtpStatus(ctx)
 		if err != nil {
-			e := fmt.Errorf("(iscsi) - GetNtpStatus - error: %s", err.Error())
+			e := fmt.Errorf("error from GetNtpStatus error: %s", err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 		lockExpiresAt, err = storagecommon.ValidateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
-			e := fmt.Errorf("(iscsi) - validateSnapshotLockingParameter snapshot %s -  error: %s, invalid lock_expires_at parameter ", snapshotName, err.Error())
+			e := fmt.Errorf("error from ValidateSnapshotLockingParameter snapshotName: %s error: %s, invalid lock_expires_at parameter ", snapshotName, err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
-		slog.Debug("(iscsi) - snapshot param has", "lock_expires_at", lockExpiresAtParameter, "int value", lockExpiresAt, "start time on ibox", ntpStatus[0].LastProbeTimestamp)
+		slog.Debug("snapshot param has", "lock_expires_at", lockExpiresAtParameter, "int value", lockExpiresAt, "start time on ibox", ntpStatus[0].LastProbeTimestamp)
 	}
 
 	snapshotParam.LockExpiresAt = lockExpiresAt
 
 	snapshot, err := iscsi.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - CreateSnapshotVolume snapshot %s - error: %s", snapshotName, err.Error())
+		e := fmt.Errorf("error from CreateSnapshotVolume snapshotName: %s error: %s", snapshotName, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -478,125 +471,27 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		CreationTime:   timestamppb.Now(),
 		SizeBytes:      snapshot.Size,
 	}
-	slog.Debug("(iscsi) create snapshot", "response", csiSnapshot)
+	slog.Debug("create snapshot", "response", csiSnapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
 
-	slog.Debug("(iscsi) successfully created snapshot", "name", snapshotName, "from source volume ID", req.GetSourceVolumeId())
+	slog.Debug("successfully created snapshot", "name", snapshotName, "from source volume ID", req.GetSourceVolumeId())
 	return snapshotResp, nil
 }
 
 func (iscsi *ISCSIstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (resp *csi.DeleteSnapshotResponse, err error) {
 	snapshotID, _ := strconv.Atoi(req.GetSnapshotId())
-	slog.Debug("(iscsi) to delete snapshot", "ID", snapshotID)
+	slog.Debug("start", "ID", snapshotID)
 
-	err = iscsi.ValidateDeleteVolume(ctx, snapshotID)
-	if err != nil {
-		if status.Code(err) == codes.Aborted {
-			e := fmt.Errorf("(iscsi) - ValidateDeleteVolume snapshot ID %d - error: %s", snapshotID, err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
-		}
-
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			slog.Debug("(iscsi) snapshot not found", "ID", snapshotID)
-			return &csi.DeleteSnapshotResponse{}, nil
-		}
-
-		e := fmt.Errorf("failed to delete snapshot with ID %d", snapshotID)
-		slog.Error("(iscsi) - error deleting snapshot", "error", e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+	_, err = storagecommon.DeleteVolume(ctx, iscsi.CS, snapshotID)
+	if err == nil {
+		slog.Debug("successfully deleted snapshot", "ID", snapshotID)
 	}
-	slog.Debug("(iscsi) successfully deleted snapshot", "ID", snapshotID)
 	return &csi.DeleteSnapshotResponse{}, nil
-}
-
-func (iscsi *ISCSIstorage) ValidateDeleteVolume(ctx context.Context, volumeID int) (err error) {
-	slog.Debug("(iscsi) called (also deletes volume)", "ID", volumeID)
-
-	vol, err := iscsi.CS.IboxAPI.GetVolume(ctx, volumeID)
-	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			return err
-		}
-		msg := fmt.Sprintf("(iscsi) - failed to get volume: %d, err: %s", volumeID, err.Error())
-		slog.Error(msg)
-		return status.Error(codes.Internal, msg)
-	}
-
-	// this applies for when we are evaluating a snapshot volume
-	if vol.LockState == common.LockedState {
-		return status.Errorf(codes.Aborted, "(iscsi) - volume %d was locked, can not delete till expire date is reached at %s", volumeID, time.UnixMilli(vol.LockExpiresAt))
-	}
-
-	childVolumes, err := iscsi.CS.IboxAPI.GetVolumesByParentID(ctx, vol.ID)
-	if err != nil {
-		e := fmt.Errorf("(iscsi) - GetVolumesByParentID error :%s", err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.Internal, e.Error())
-	}
-	if len(childVolumes) > 0 {
-		metadata := map[string]interface{}{
-			storagecommon.ToBeDeleted: true,
-		}
-		_, err = iscsi.CS.IboxAPI.PutMetadata(ctx, vol.ID, metadata)
-		if err != nil {
-			e := fmt.Errorf("(iscsi) - failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
-			slog.Error(e.Error())
-			return status.Error(codes.Internal, e.Error())
-		}
-		slog.Debug("(iscsi) - found volumei has child volumes Set metadata TOBEDELETED to 'true'. Deferring deletion.", "ID", volumeID)
-		return nil
-	}
-	slog.Debug("(iscsi) - deleting volume", "name", vol.Name, "ID", vol.ID)
-	_, err = iscsi.CS.IboxAPI.DeleteMetadata(ctx, vol.ID)
-	if err != nil {
-		msg := fmt.Sprintf("(iscsi) - Error deleting metadata for volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
-		slog.Error(msg)
-		return status.Error(codes.Internal, msg)
-	}
-
-	_, err = iscsi.CS.IboxAPI.DeleteVolume(ctx, vol.ID)
-	if err != nil {
-		msg := fmt.Sprintf("(iscsi) - Error deleting volume named %s with ID %d: %s", vol.Name, vol.ID, err.Error())
-		slog.Error(msg)
-		return status.Error(codes.Internal, msg)
-	}
-	slog.Debug("(iscsi) - deleted volume", "name", vol.Name, "ID", vol.ID)
-
-	if vol.ParentID != 0 {
-		slog.Debug("(iscsi) - checking if parent volume can be deleted", "parent ID", vol.ParentID, "name", vol.Name, "ID", vol.ID)
-		var metadata []iboxapi.GetMetadataResult
-		metadata, err = iscsi.CS.IboxAPI.GetMetadata(ctx, vol.ParentID)
-		if err != nil {
-			e := fmt.Errorf("(iscsi) GetMetadata - error: %s", err.Error())
-			slog.Error(e.Error())
-			return status.Error(codes.Internal, e.Error())
-		}
-		var toBeDeleted bool
-		for _, m := range metadata {
-			if m.Key == api.TOBEDELETED {
-				toBeDeleted = true
-			}
-		}
-		if toBeDeleted {
-			slog.Debug("(iscsi) recursively called for parent.", "Volume ID", vol.ID, "Parent volume ID", vol.ParentID)
-			// Recursion
-			err = iscsi.ValidateDeleteVolume(ctx, vol.ParentID)
-			if err != nil {
-				e := fmt.Errorf("recurse - error: %s", err.Error())
-				slog.Error(e.Error())
-				return status.Error(codes.Internal, e.Error())
-			}
-		}
-	}
-	return nil
 }
 
 func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (resp *csi.ControllerExpandVolumeResponse, err error) {
 	volumeID := iscsi.CS.VolProto.VolumeID
-	slog.Debug("(iscsi)", "volume ID", volumeID)
+	slog.Debug("start", "volume ID", volumeID)
 
 	capacity := iscsi.Capacity
 
@@ -606,14 +501,14 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 	_, err = iscsi.CS.IboxAPI.UpdateVolume(ctx, volumeID, volume)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - UpdateVolume - error: %s", err.Error())
+		e := fmt.Errorf("error from UpdateVolume error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
-	slog.Debug("(iscsi) - volume size updated successfully", "ID", volumeID)
+	slog.Debug("volume size updated successfully", "ID", volumeID)
 	nodeExpansionRequired := true
 	if req.GetVolumeCapability().GetBlock() != nil {
-		slog.Debug("ControllerExpandVolume (iscsi) - volume is block so nodeExpansionRequired is false")
+		slog.Debug("volume is block so nodeExpansionRequired is false")
 		nodeExpansionRequired = false
 	}
 	return &csi.ControllerExpandVolumeResponse{
@@ -637,19 +532,19 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(ctx context.Context, re
 		volumeContentID = volumecontent.GetVolume().GetVolumeId()
 	}
 
-	slog.Debug("(iscsi)", "source ID", volumeContentID, "type", restoreType, "size", sizeInBytes)
+	slog.Debug("start", "source ID", volumeContentID, "type", restoreType, "size", sizeInBytes)
 
 	// Lookup the snapshot source volume.
 	volproto, err := storagecommon.ValidateVolumeID(volumeContentID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) failed to validate storage type restoreType: %s source id: %s, err: %v", restoreType, volumeContentID, err)
+		e := fmt.Errorf("error from ValidateVolumeID restoreType: %s volumeContentID: %s error: %s", restoreType, volumeContentID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	srcVol, err := iscsi.CS.IboxAPI.GetVolume(ctx, volproto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) error GetVolume id: %d restoreType: %s error: %v", volproto.VolumeID, restoreType, err)
+		e := fmt.Errorf("error from GetVolume volumeID: %d restoreType: %s error: %s", volproto.VolumeID, restoreType, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
@@ -666,7 +561,7 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(ctx context.Context, re
 	// Check the storagePool is the same.
 	pool, err := iscsi.CS.IboxAPI.GetPoolByName(ctx, storagePool)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) error GetStoragePoolName name: %s error: %v", storagePool, err)
+		e := fmt.Errorf("error from GetPoolByName storagePool: %s error: %s", storagePool, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -695,7 +590,7 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(ctx context.Context, re
 	// Create snapshot
 	snapResponse, err := iscsi.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - CreateSnapshotVolume - error: %s", err.Error())
+		e := fmt.Errorf("error from CreateSnapshotVolume - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -704,7 +599,7 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(ctx context.Context, re
 	volID := snapResponse.SnapShotID
 	dstVol, err := iscsi.CS.IboxAPI.GetVolume(ctx, volID)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) - GetVolume - error: %s", err.Error())
+		e := fmt.Errorf("error from GetVolume - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -718,11 +613,11 @@ func (iscsi *ISCSIstorage) createVolumeFromContentSource(ctx context.Context, re
 	}
 	_, err = iscsi.CS.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
 	if err != nil {
-		e := fmt.Errorf("(iscsi) error attach metadata for volume : %s, err: %v", dstVol.Name, err)
+		e := fmt.Errorf("error from PutMetadata volumeName: %s, error: %s", dstVol.Name, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	slog.Debug("(iscsi) created volume from source ", "restoreType", restoreType, "volume ID", volproto.VolumeID, "name", csiVolume.VolumeContext["Name"], "id", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
+	slog.Debug("created volume from source ", "restoreType", restoreType, "volume ID", volproto.VolumeID, "name", csiVolume.VolumeContext["Name"], "id", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }

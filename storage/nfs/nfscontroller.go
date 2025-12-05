@@ -92,7 +92,6 @@ func NewNFSstorage(capacity int64, cs storagecommon.Commonservice) (nfs *NFSstor
 }
 
 func (nfs *NFSstorage) ValidateStorageClass(params map[string]string) error {
-	const function = "ValidateStorageClass"
 	requiredParams := map[string]string{
 		common.StorageClassNetworkSpace: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
 		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
@@ -106,19 +105,19 @@ func (nfs *NFSstorage) ValidateStorageClass(params map[string]string) error {
 	suppliedParams := params
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, suppliedParams)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - error %s", function, err.Error())
+		e := fmt.Errorf("error: %s", err.Error())
 		slog.Error(e.Error())
 		return status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	useChap := suppliedParams[common.StorageClassUseCHAP]
 	if useChap != "" {
-		slog.Warn("(nfs) - useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
+		slog.Warn("useCHAP is not a valid storage class parameter for nfs or nfs-treeq")
 	}
 
 	err = ValidateNFSExportPermissions(suppliedParams)
 	if err != nil {
-		e := fmt.Errorf("%s (nfs) - error %s", function, err.Error())
+		e := fmt.Errorf("error: %s", err.Error())
 		slog.Error(e.Error())
 		return status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -128,7 +127,7 @@ func (nfs *NFSstorage) ValidateStorageClass(params map[string]string) error {
 	if snapdirVisibleString != "" {
 		snapdirVisible, err = strconv.ParseBool(snapdirVisibleString)
 		if err != nil {
-			e := fmt.Errorf("%s (nfs) - invalid NFS snapdir_visible value: %s, error: %v", function, snapdirVisibleString, err)
+			e := fmt.Errorf("parsing error NFS snapdir_visible: %s, error: %s", snapdirVisibleString, err.Error())
 			slog.Error(e.Error())
 			return status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -140,7 +139,7 @@ func (nfs *NFSstorage) ValidateStorageClass(params map[string]string) error {
 	if usePrivilegedPortsString != "" {
 		usePrivilegedPorts, err = strconv.ParseBool(usePrivilegedPortsString)
 		if err != nil {
-			e := fmt.Errorf("%s (nfs) - invalid NFS privileged_ports_only value: %s, error: %v", function, usePrivilegedPortsString, err)
+			e := fmt.Errorf("parsing error NFS privileged_ports_only: %s error: %s", usePrivilegedPortsString, err.Error())
 			slog.Error(e.Error())
 			return status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -151,18 +150,18 @@ func (nfs *NFSstorage) ValidateStorageClass(params map[string]string) error {
 }
 
 func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	slog.Log(ctx, common.LevelTrace, "(nfs) called")
+	slog.Log(ctx, common.LevelTrace, "starts")
 	var err error
 	// Adding the request parameter into Map params
 	params := req.GetParameters()
 	pvName := req.GetName()
 
-	slog.Debug("(nfs) - csi request", "name", req.Name, "params", params, "volcaps", req.VolumeCapabilities, "useprivports", nfs.UsePrivilegedPorts, "snapdirvisible", nfs.SnapdirVisible, "iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), nfs.CS.IboxAPI))
+	slog.Debug("starts", "name", req.Name, "params", params, "volcaps", req.VolumeCapabilities, "useprivports", nfs.UsePrivilegedPorts, "snapdirvisible", nfs.SnapdirVisible, "iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), nfs.CS.IboxAPI))
 
 	// basic sanity-checking to ensure the user is not requesting block access to a NFS filesystem
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("(nfs) - GetBlock - block access requested for %s PV %s", params[common.StorageClassStorageProtocol], req.GetName())
+			e := fmt.Errorf("from GetBlock - protocol: %s name: %s", params[common.StorageClassStorageProtocol], req.GetName())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -173,21 +172,21 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	nfs.ExportPath = "/" + pvName
 	ipAddress, err := nfs.CS.GetNetworkSpaceIP(ctx, strings.Trim(params[common.StorageClassNetworkSpace], " "))
 	if err != nil {
-		e := fmt.Errorf("(nfs) - getNetworkSpaceIP - error: %s", err.Error())
+		e := fmt.Errorf("from GetNetworkSpaceIP - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	nfs.IPAddress = ipAddress
-	slog.Debug("(nfs) - getNetworkSpaceIP", "ipAddress", nfs.IPAddress)
+	slog.Debug("getNetworkSpaceIP", "ipAddress", nfs.IPAddress)
 
 	// check if volume with given name already exists
 	volume, err := nfs.CS.IboxAPI.GetFileSystemByName(ctx, pvName)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - GetFileSystemByName pvName %s- error: %s", pvName, err.Error())
+		e := fmt.Errorf("from GetFileSystemByName pvName: %s error: %s", pvName, err.Error())
 		slog.Error(e.Error())
 		re, ok := err.(*iboxapi.APIError)
 		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			slog.Debug("(nfs) - GetFileSystemByName error, will proceed to create it", "error", err)
+			slog.Debug("not found from GetFileSystemByName, will proceed to create it", "error", err)
 			// return nil, status.Errorf(codes.NotFound, "error CreateVolume failed: %v", err)
 		} else {
 			return nil, status.Errorf(codes.Internal, "(nfs) error: %v", err)
@@ -198,12 +197,12 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 		nfs.FileSystemID = volume.ID
 		exportArray, err := nfs.CS.IboxAPI.GetExportsByFileSystemID(ctx, nfs.FileSystemID)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - GetExportByFileSystem fs ID %d- error: %s", nfs.FileSystemID, err.Error())
+			e := fmt.Errorf("from GetExportByFileSystem fsID: %d error: %s", nfs.FileSystemID, err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 		if nfs.Capacity != volume.Size {
-			e := fmt.Errorf("(nfs) - nfs.capacity not equal volume.Size capacity %d volume: %+v", nfs.Capacity, volume)
+			e := fmt.Errorf("error nfs.capacity not equal volume.Size capacity: %d volume: %+v", nfs.Capacity, volume)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.AlreadyExists, e.Error())
 		}
@@ -223,7 +222,7 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 			snapshot := req.GetVolumeContentSource().GetSnapshot()
 			csiResp, err = nfs.createVolumeFromPVCSource(ctx, req, nfs.Capacity, params[common.StorageClassPoolName], snapshot.GetSnapshotId())
 			if err != nil {
-				e := fmt.Errorf("(nfs) - createVolumeFromPVCSource - failed to create volume from snapshot with error: %v", err)
+				e := fmt.Errorf("from createVolumeFromPVCSource - failed to create volume from snapshot with error: %s", err.Error())
 				slog.Error(e.Error())
 				return nil, e
 			}
@@ -231,7 +230,7 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 			volume := req.GetVolumeContentSource().GetVolume()
 			csiResp, err = nfs.createVolumeFromPVCSource(ctx, req, nfs.Capacity, params[common.StorageClassPoolName], volume.GetVolumeId())
 			if err != nil {
-				e := fmt.Errorf("(nfs) - createVolumeFromPVCSource - failed to create volume from pvc with error: %v", err)
+				e := fmt.Errorf("from createVolumeFromPVCSource - failed to create volume from pvc with error: %s", err.Error())
 				slog.Error(e.Error())
 				return nil, e
 			}
@@ -239,7 +238,7 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	} else {
 		csiResp, err = nfs.CreateNFSVolume(ctx, req)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - CreateNFSVolume - error: %s", err.Error())
+			e := fmt.Errorf("from CreateNFSVolume - error: %s", err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
@@ -251,13 +250,13 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 func (nfs *NFSstorage) CreateNFSVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
 	err = nfs.CreateFileSystem(ctx, nfs.PVName)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to create file system, %v", err)
+		e := fmt.Errorf("from CreateFileSystem error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	err = nfs.CreateExportPathAndAddMetadata(ctx)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to create export and metadata, %v", err)
+		e := fmt.Errorf("from CreateExportPath error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -267,30 +266,30 @@ func (nfs *NFSstorage) CreateNFSVolume(ctx context.Context, req *csi.CreateVolum
 func (nfs *NFSstorage) CreateExportPathAndAddMetadata(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil && nfs.FileSystemID != 0 {
-			slog.Debug("(nfs) - seems to be some problem reverting filesystem", "pvname", nfs.PVName, "error", err)
+			slog.Debug("seems to be some problem reverting filesystem", "pvname", nfs.PVName, "error", err)
 			if errDelFS := nfs.CS.IboxAPI.DeleteFileSystem(ctx, nfs.FileSystemID); errDelFS != nil {
-				slog.Error("(nfs) - failed to delete file system", "fs id", nfs.FileSystemID, "error", errDelFS)
+				slog.Error("failed to delete file system", "fs id", nfs.FileSystemID, "error", errDelFS)
 			}
 		}
 	}()
 
 	if nfs.StorageClassParameters[common.StorageClassNFSExportPermissions] == "" {
-		slog.Debug("(nfs) - nfs_export_permissions parameter is not set in the StorageClass, will use default export")
+		slog.Debug("nfs_export_permissions parameter is not set in the StorageClass, will use default export")
 	} else {
 		err = nfs.createExportPath(ctx)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - failed to export path %v", err)
+			e := fmt.Errorf("from createExportPath error: %s", err.Error())
 			slog.Error(e.Error())
 			return e
 		}
-		slog.Debug("(nfs) - export path created", "pvname", nfs.PVName)
+		slog.Debug("export path created", "pvname", nfs.PVName)
 	}
 
 	defer func() {
 		if err != nil && nfs.ExportID != 0 {
-			slog.Debug("(nfs) - seems to be some problem reverting created", "export id", nfs.ExportID)
+			slog.Debug("seems to be some problem reverting created", "export id", nfs.ExportID)
 			if _, errDelExport := nfs.CS.IboxAPI.DeleteExport(ctx, nfs.ExportID); errDelExport != nil {
-				slog.Error("(nfs) - failed to delete export path for file system", "fs id", nfs.FileSystemID, "error", errDelExport)
+				slog.Error("failed to delete export path for file system", "fs id", nfs.FileSystemID, "error", errDelExport)
 			}
 		}
 	}()
@@ -302,11 +301,11 @@ func (nfs *NFSstorage) CreateExportPathAndAddMetadata(ctx context.Context) (err 
 
 	_, err = nfs.CS.IboxAPI.PutMetadata(ctx, nfs.FileSystemID, metadata)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to attach metadata for file system %s, %v", nfs.PVName, err)
+		e := fmt.Errorf("from PutMetadata failed to attach metadata for filesystem: %s, error: %s", nfs.PVName, err.Error())
 		slog.Error(e.Error())
 		return e
 	}
-	slog.Debug("(nfs) - metadata attached successfully for file system", "pvname", nfs.PVName)
+	slog.Debug("metadata attached successfully for file system", "pvname", nfs.PVName)
 	return nil
 }
 
@@ -314,7 +313,7 @@ func (nfs *NFSstorage) CreateFileSystem(ctx context.Context, fileSystemName stri
 	poolName := nfs.StorageClassParameters[common.StorageClassPoolName]
 	pool, err := nfs.CS.IboxAPI.GetPoolByName(ctx, poolName)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to get GetPoolID by pool_name %s %v", poolName, err)
+		e := fmt.Errorf("from GetPoolByName pool_name: %s error: %s", poolName, err.Error())
 		slog.Error(e.Error())
 		return e
 	}
@@ -324,9 +323,9 @@ func (nfs *NFSstorage) CreateFileSystem(ctx context.Context, fileSystemName stri
 		provtype = common.StorageClassThinProvision
 	case common.StorageClassThinProvision, common.StorageClassThickProvision:
 	default:
-		errStr := fmt.Sprintf("(nfs) - %s valid values are THICK or THIN, THIN is the default when not specified, entered value was [%s]", common.StorageClassProvisionType, provtype)
-		slog.Error(errStr)
-		return fmt.Errorf("%s", errStr)
+		e := fmt.Errorf("%s valid values are THICK or THIN, THIN is the default when not specified, entered value was [%s]", common.StorageClassProvisionType, provtype)
+		slog.Error(e.Error())
+		return e
 	}
 
 	if provtype == "" {
@@ -341,19 +340,19 @@ func (nfs *NFSstorage) CreateFileSystem(ctx context.Context, fileSystemName stri
 
 	fsRequest.SsdEnabled, err = storagecommon.DetermineSSDValue(ctx, nfs.StorageClassParameters[common.StorageClassSSDEnabled], poolName, nfs.CS.IboxAPI)
 	if err != nil {
-		e := status.Errorf(codes.Internal, "(nfs) - error when creating filesystem %s storagepool %s, err: %s", fileSystemName, poolName, err.Error())
+		e := status.Errorf(codes.Internal, "error when creating filesystem %s storagepool %s, err: %s", fileSystemName, poolName, err.Error())
 		slog.Error(e.Error())
 		return e
 	}
 
 	fileSystem, err := nfs.CS.IboxAPI.CreateFileSystem(ctx, fsRequest)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to create filesystem %s %v", fileSystemName, err)
+		e := fmt.Errorf("from CreateFileSystem fs: %s error: %s", fileSystemName, err.Error())
 		slog.Error(e.Error())
 		return e
 	}
 	nfs.FileSystemID = fileSystem.ID
-	slog.Debug("(nfs) - filesystem Created", "fsname", fileSystemName)
+	slog.Debug("filesystem Created", "fsname", fileSystemName)
 	return nil
 }
 
@@ -365,13 +364,13 @@ func (nfs *NFSstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 	if nfsDeleteErr != nil {
 		slog.Error(nfsDeleteErr.Error())
 		if strings.Contains(nfsDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
-			slog.Error("(nfs) - file system already delete from infinibox")
+			slog.Error("file system already delete from infinibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		slog.Error("(nfs) - failed to delete NFS Volume", "vol id", req.GetVolumeId(), "error", nfsDeleteErr)
+		slog.Error("failed to delete NFS Volume", "vol id", req.GetVolumeId(), "error", nfsDeleteErr)
 		return nil, nfsDeleteErr
 	}
-	slog.Debug("(nfs) - volume successfully deleted", "volume id", req.GetVolumeId())
+	slog.Debug("volume successfully deleted", "volume id", req.GetVolumeId())
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -379,18 +378,18 @@ func (nfs *NFSstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRe
 func (nfs *NFSstorage) DeleteNFSVolume(ctx context.Context) (err error) {
 	fileSystem, fileSystemErr := nfs.CS.IboxAPI.GetFileSystemByID(ctx, nfs.UniqueID)
 	if fileSystemErr != nil {
-		slog.Error("(nfs) - failed to get file system by ID", "nfs unique id", nfs.UniqueID, "error", fileSystemErr)
+		slog.Error("failed to get file system by ID", "nfs unique id", nfs.UniqueID, "error", fileSystemErr)
 		err = fileSystemErr
 		return
 	}
 
 	if fileSystem.LockState == common.LockedState {
-		return status.Errorf(codes.Aborted, "(nfs) - snapshot %d is locked and can't be deleted till it expires at %s", nfs.UniqueID, time.UnixMilli(fileSystem.LockExpiresAt))
+		return status.Errorf(codes.Aborted, "snapshot %d is locked and can't be deleted till it expires at %s", nfs.UniqueID, time.UnixMilli(fileSystem.LockExpiresAt))
 	}
 
 	fileSystems, err := nfs.CS.IboxAPI.GetFileSystemsByParentID(ctx, nfs.UniqueID)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to get file systems by parentID %d %v", nfs.UniqueID, err)
+		e := fmt.Errorf("from GetFileSystemByParentID parentID: %d error: %s", nfs.UniqueID, err.Error())
 		slog.Error(e.Error())
 		return e
 	}
@@ -400,7 +399,7 @@ func (nfs *NFSstorage) DeleteNFSVolume(ctx context.Context) (err error) {
 		}
 		_, err = nfs.CS.IboxAPI.PutMetadata(ctx, nfs.UniqueID, metadata)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - failed to update host.k8s.to_be_deleted for filesystem %s error: %v", nfs.PVName, err)
+			e := fmt.Errorf("from PutMetadata failed to update host.k8s.to_be_deleted filesystem: %s error: %s", nfs.PVName, err.Error())
 			slog.Error(e.Error())
 			return e
 		}
@@ -409,7 +408,7 @@ func (nfs *NFSstorage) DeleteNFSVolume(ctx context.Context) (err error) {
 
 	err = nfs.CS.API.DeleteFileSystemComplete(ctx, nfs.UniqueID)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to delete filesystem %s error: %v id: %d parentID: %d", nfs.PVName, err, nfs.UniqueID, fileSystem.ParentID)
+		e := fmt.Errorf("from DeleteFileSystemComplete failed to delete filesystem: %s error: %s id: %d parentID: %d", nfs.PVName, err.Error(), nfs.UniqueID, fileSystem.ParentID)
 		slog.Error(e.Error())
 		return e
 	}
@@ -417,7 +416,7 @@ func (nfs *NFSstorage) DeleteNFSVolume(ctx context.Context) (err error) {
 	if fileSystem.ParentID != 0 {
 		err = nfs.CS.API.DeleteParentFileSystem(ctx, fileSystem.ParentID)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - failed to delete filesystem's %s parent filesystems error: %v", nfs.PVName, err)
+			e := fmt.Errorf("from DeleteParentFileSystem failed to delete filesystem's %s parent filesystems error: %s", nfs.PVName, err.Error())
 			slog.Error(e.Error())
 			return e
 		}
@@ -434,25 +433,25 @@ func (nfs *NFSstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	volumeID := req.GetVolumeId()
 	exportID := req.GetVolumeContext()["exportID"]
 
-	slog.Debug("(nfs)", "node id", req.GetNodeId(), "vol id", volumeID, "export id", exportID, "nfs export perms", req.GetVolumeContext()[common.StorageClassNFSExportPermissions],
+	slog.Debug("start", "node id", req.GetNodeId(), "vol id", volumeID, "export id", exportID, "nfs export perms", req.GetVolumeContext()[common.StorageClassNFSExportPermissions],
 		"iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), nfs.CS.IboxAPI))
 
 	kubeNodeID := req.GetNodeId()
 	if kubeNodeID == "" {
-		e := fmt.Errorf("(nfs) - node ID is required")
+		e := fmt.Errorf("node ID is required")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	_, err = nfs.CS.AccessModesHelper.IsValidAccessModeNfs(req)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - IsValidAccessModeNfs - error: %s", err.Error())
+		e := fmt.Errorf("from IsValidAccessModeNfs - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	if req.GetVolumeContext()[common.StorageClassNFSExportPermissions] == "" {
-		slog.Debug(fmt.Sprintf("(nfs) - nfs_export_permissions parameter not set, volume ID %s export ID %s", volumeID, exportID))
+		slog.Debug("nfs_export_permissions parameter not set", "volume ID", volumeID, "export ID", exportID)
 		return &csi.ControllerPublishVolumeResponse{}, nil
 	}
 
@@ -460,11 +459,11 @@ func (nfs *NFSstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 
 	exportPermissionMapArray, err := getPermissionMaps(req.GetVolumeContext()[common.StorageClassNFSExportPermissions])
 	if err != nil {
-		e := fmt.Errorf("(nfs) - getPermissionsMaps - error: %s", err.Error())
+		e := fmt.Errorf("from getPermissionsMaps - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	slog.Debug("(nfs) - nfs export permissions", "volume id", volumeID, "export id", exportID, "export perms", exportPermissionMapArray)
+	slog.Debug("nfs export permissions", "volume id", volumeID, "export id", exportID, "export perms", exportPermissionMapArray)
 
 	var access string
 	if len(exportPermissionMapArray) > 0 {
@@ -474,7 +473,7 @@ func (nfs *NFSstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	noRootSquash := true // default value
 	nodeNameIP := strings.Split(req.GetNodeId(), "$$")
 	if len(nodeNameIP) != 2 {
-		e := fmt.Errorf("(nfs) - node ID not found %v", nodeNameIP)
+		e := fmt.Errorf("node ID not found %v", nodeNameIP)
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -482,7 +481,7 @@ func (nfs *NFSstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 	exportid, _ := strconv.Atoi(exportID)
 	_, err = nfs.CS.API.AddNodeInExport(ctx, exportid, access, noRootSquash, nodeIP)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - AddNodeInExport - failed to add export rule, %v", err)
+		e := fmt.Errorf("from AddNodeInExport error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -491,11 +490,11 @@ func (nfs *NFSstorage) ControllerPublishVolume(ctx context.Context, req *csi.Con
 }
 
 func (nfs *NFSstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
-	slog.Debug("ControllerUnpublishVolume (nfs)", "volproto", nfs.CS.VolProto)
+	slog.Debug("start", "volproto", nfs.CS.VolProto)
 
 	err := nfs.CS.API.DeleteExportRule(ctx, nfs.CS.VolProto.VolumeID, nfs.CS.VolProto.NodeID)
 	if err != nil {
-		e := fmt.Errorf("ControllerUnpublishVolume (nfs) - DeleteExportRule - fileystemID %d error %v", nfs.CS.VolProto.VolumeID, err)
+		e := fmt.Errorf("from DeleteExportRule - fileystemID: %d error: %s", nfs.CS.VolProto.VolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -503,7 +502,7 @@ func (nfs *NFSstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.C
 }
 
 func (nfs *NFSstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
-	slog.Error("ValidateVolumeCapabilities (nfs) - should not be called, implemented in controller.go")
+	slog.Error("should not be called, implemented in controller.go")
 	return
 }
 
@@ -524,7 +523,7 @@ func (nfs *NFSstorage) ControllerGetCapabilities(ctx context.Context, req *csi.C
 }
 
 func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (createSnapshot *csi.CreateSnapshotResponse, err error) {
-	slog.Debug("(nfs)", "parameters", req.Parameters, "name", req.GetName(), "source vol id", req.GetSourceVolumeId())
+	slog.Debug("start", "parameters", req.Parameters, "name", req.GetName(), "source vol id", req.GetSourceVolumeId())
 	var snapshotID string
 	snapshotName := req.GetName()
 	sourceVolumeID := req.GetSourceVolumeId()
@@ -535,7 +534,7 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		re, ok := err.(*iboxapi.APIError)
 		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
 		} else {
-			e := fmt.Errorf("(nfs) - GetSnapshotByName %d - error: %v", nfs.CS.VolProto.VolumeID, err)
+			e := fmt.Errorf("from GetSnapshotByName volumeID: %d error: %s", nfs.CS.VolProto.VolumeID, err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
@@ -544,7 +543,7 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	if snap != nil {
 		if snap.ParentID == sourceFilesystemID {
 			snapshotID = strconv.Itoa(snap.ID) + "$$" + nfs.CS.VolProto.StorageType
-			slog.Debug("(nfs)", "snapshot", snapshotName, "snap parent id", snap.ParentID, "snap id", snap.ID)
+			slog.Debug("info", "snapshot", snapshotName, "snap parent id", snap.ParentID, "snap id", snap.ID)
 			return &csi.CreateSnapshotResponse{
 				Snapshot: &csi.Snapshot{
 					SizeBytes:      snap.Size,
@@ -560,7 +559,7 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 
 	parentFilesystem, err := nfs.CS.IboxAPI.GetFileSystemByID(ctx, sourceFilesystemID)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - GetFileSystemByID - error getting parent volume for snapshot - volume id %d - %s", sourceFilesystemID, err)
+		e := fmt.Errorf("from GetFileSystemByID - error getting parent volume for snapshot - volumeID: %d error: %s", sourceFilesystemID, err)
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -577,22 +576,22 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := nfs.CS.IboxAPI.GetNtpStatus(ctx)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - GetNtpStatus - failed to get ntp status error %v", err)
+			e := fmt.Errorf("from GetNtpStatus error: %s", err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
 		lockExpiresAt, err = storagecommon.ValidateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
-			e := fmt.Errorf("(nfs) - validateSnapshotLockingParameter - failed to create snapshot %s error %v, invalid lock_expires_at parameter ", snapshotName, err)
+			e := fmt.Errorf("from ValidateSnapshotLockingParameter - failed to create snapshot: %s error: %s, invalid lock_expires_at parameter ", snapshotName, err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
-		slog.Debug("(nfs) - snapshot param has a lock_expires_at of", "value", lockExpiresAtParameter)
+		slog.Debug("snapshot param has a lock_expires_at of", "value", lockExpiresAtParameter)
 		fileSystemSnapshot.LockExpiresAt = lockExpiresAt
 	}
 	resp, err := nfs.CS.IboxAPI.CreateFileSystemSnapshot(ctx, fileSystemSnapshot)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - CreateFileSystemSnapshot - failed to create snapshot %s error %v", snapshotName, err)
+		e := fmt.Errorf("from CreateFileSystemSnapshot snapshot: %s error: %s", snapshotName, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -605,17 +604,17 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 		CreationTime:   timestamppb.Now(),
 		SizeBytes:      resp.Size,
 	}
-	slog.Debug("(nfs)", "response", snapshot)
+	slog.Debug("completes", "response", snapshot)
 	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: snapshot}
 	return snapshotResp, nil
 }
 
 func (nfs *NFSstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshot *csi.DeleteSnapshotResponse, err error) {
-	slog.Debug("(nfs)", "snapshotID", req.GetSnapshotId())
+	slog.Debug("start", "snapshotID", req.GetSnapshotId())
 
 	snapshotID, err := strconv.Atoi(req.GetSnapshotId())
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to parse int from snapshotID, %s, error %s", req.GetSnapshotId(), err.Error())
+		e := fmt.Errorf("failed to parse snapshotID, value: %s, error: %s", req.GetSnapshotId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Aborted, e.Error())
 	}
@@ -625,11 +624,11 @@ func (nfs *NFSstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 	if err != nil {
 		slog.Error(err.Error())
 		if strings.Contains(err.Error(), "FILESYSTEM_NOT_FOUND") {
-			slog.Error("(nfs) - snapshot already delete from infinibox")
+			slog.Error("snapshot already delete from infinibox")
 			deleteSnapshot = &csi.DeleteSnapshotResponse{}
 			return deleteSnapshot, nil
 		}
-		slog.Error("(nfs) - DeleteNFSVolume - error", "error", err)
+		slog.Error("DeleteNFSVolume - error", "error", err)
 		return
 	}
 	deleteSnapshot = &csi.DeleteSnapshotResponse{}
@@ -638,7 +637,7 @@ func (nfs *NFSstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapsh
 
 func (nfs *NFSstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
 	volumeID := nfs.CS.VolProto.VolumeID
-	slog.Debug("ControllerExpandVolume (nfs)", "fs ID", volumeID)
+	slog.Debug("start", "fs ID", volumeID)
 
 	capacity := nfs.Capacity
 
@@ -647,7 +646,7 @@ func (nfs *NFSstorage) ControllerExpandVolume(ctx context.Context, req *csi.Cont
 	fileSys.Size = capacity
 	_, err = nfs.CS.IboxAPI.UpdateFileSystem(ctx, volumeID, fileSys)
 	if err != nil {
-		e := fmt.Errorf("ControllerExpandVolume (nfs) - UpdateFileSystem - error: %v", err)
+		e := fmt.Errorf("from UpdateFileSystem - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -685,7 +684,7 @@ func (nfs *NFSstorage) getNfsCsiResponse(req *csi.CreateVolumeRequest) *csi.Crea
 func (nfs *NFSstorage) createExportPath(ctx context.Context) (err error) {
 	permissionsMapArray, err := getPermissionMaps(nfs.StorageClassParameters[common.StorageClassNFSExportPermissions])
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to parse permission map string %s %v", nfs.StorageClassParameters[common.StorageClassNFSExportPermissions], err)
+		e := fmt.Errorf("from getPermissionMaps parameter: %s error: %s", nfs.StorageClassParameters[common.StorageClassNFSExportPermissions], err.Error())
 		slog.Error(e.Error())
 		return e
 	}
@@ -701,22 +700,22 @@ func (nfs *NFSstorage) createExportPath(ctx context.Context) (err error) {
 	var exportResp *iboxapi.Export
 	exportResp, err = nfs.CS.IboxAPI.CreateExport(ctx, exportFileSystem)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to create export path of filesystem %s %v", nfs.PVName, err)
+		e := fmt.Errorf("from CreateExport filesystem: %s error: %s", nfs.PVName, err.Error())
 		slog.Error(e.Error())
 		return e
 	}
 	nfs.ExportID = exportResp.ID
 	nfs.ExportBlock = exportResp.ExportPath
-	slog.Debug("(nfs) - created nfs export", "for PV", nfs.PVName, "snapdirvisible", nfs.SnapdirVisible)
+	slog.Debug("created nfs export", "for PV", nfs.PVName, "snapdirvisible", nfs.SnapdirVisible)
 	return nil
 }
 
 func (nfs *NFSstorage) createVolumeFromPVCSource(ctx context.Context, req *csi.CreateVolumeRequest, size int64, storagePool string, srcVolumeID string) (csiResp *csi.CreateVolumeResponse, err error) {
-	slog.Debug("(nfs)")
+	slog.Debug("start")
 
 	volproto, err := storagecommon.ValidateVolumeID(srcVolumeID)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to validate volume id: %s, err: %v", srcVolumeID, err)
+		e := fmt.Errorf("from ValidateVolumeID volumeID: %s error: %s", srcVolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
@@ -725,14 +724,14 @@ func (nfs *NFSstorage) createVolumeFromPVCSource(ctx context.Context, req *csi.C
 	// Look up the source volume
 	srcfsys, err := nfs.CS.IboxAPI.GetFileSystemByID(ctx, sourceVolumeID)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - volume not found: %d", sourceVolumeID)
+		e := fmt.Errorf("from GetFileSystemByID volumeID: %d error: %s", sourceVolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.NotFound, e.Error())
 	}
 
 	// Check that the requested volume size matches the size of source volume
 	if srcfsys.Size != size {
-		e := fmt.Errorf(" (nfs) - volume %d, invalid size %d, requested %d ", sourceVolumeID, srcfsys.Size, size)
+		e := fmt.Errorf("error volumeID: %d, invalid size: %d, requested size: %d ", sourceVolumeID, srcfsys.Size, size)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -740,32 +739,32 @@ func (nfs *NFSstorage) createVolumeFromPVCSource(ctx context.Context, req *csi.C
 	// Check that the requested storagePool matches the source
 	pool, err := nfs.CS.IboxAPI.GetPoolByName(ctx, storagePool)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - error GetPoolByName: %s", storagePool)
+		e := fmt.Errorf("from GetPoolByName: %s error: %s", storagePool, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if pool.ID != srcfsys.PoolID {
-		e := fmt.Errorf("(nfs) - source storagepool id differs from requested: %s", storagePool)
+		e := fmt.Errorf("error source storagepool id differs from requested: %s", storagePool)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	newSnapshotName := req.GetName() // create snapshot using the original CreateVolumeRequest
 	newSnapshotParams := iboxapi.FileSystemSnapshot{ParentID: sourceVolumeID, SnapshotName: newSnapshotName, WriteProtected: false}
-	slog.Debug("(nfs) - CreateFileSystemSnapshot", "params", newSnapshotParams)
+	slog.Debug("info", "params", newSnapshotParams)
 	// Create snapshot
 	newSnapshot, err := nfs.CS.IboxAPI.CreateFileSystemSnapshot(ctx, newSnapshotParams)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to create snapshot: %s error: %v", newSnapshotParams.SnapshotName, err)
+		e := fmt.Errorf("from CreateFileSystemSnapshot snapshot: %s error: %s", newSnapshotParams.SnapshotName, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	slog.Debug("(nfs) - successfully created volume from clone", "name", newSnapshotName)
+	slog.Debug("successfully created volume from clone", "name", newSnapshotName)
 	nfs.FileSystemID = newSnapshot.SnapshotID
 
 	err = nfs.CreateExportPathAndAddMetadata(ctx)
 	if err != nil {
-		e := fmt.Errorf("(nfs) - failed to create export and metadata, %v", err)
+		e := fmt.Errorf("from CreateExportPath error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}

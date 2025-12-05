@@ -13,6 +13,7 @@ limitations under the License.
 package helper
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -21,6 +22,7 @@ import (
 const Bytes1G = 1000000000
 
 func RoundUp(input int64) (output int64) {
+	ctx := context.Background()
 	// return the minimum (1G) if input value is less than the min
 	if input < Bytes1G {
 		slog.Debug("number less than minimum", "number", input, "min", Bytes1G)
@@ -35,17 +37,17 @@ func RoundUp(input int64) (output int64) {
 
 	// test for valid increments of G
 	incrementsOf1G := input % Bytes1G
-	slog.Debug("info", "bytes 1G increments", incrementsOf1G)
+	slog.Log(ctx, common.LevelTrace, "info", "bytes 1G increments", incrementsOf1G)
 	if incrementsOf1G == 0 {
-		slog.Debug("info", "valid increment of", Bytes1G)
+		slog.Log(ctx, common.LevelTrace, "info", "valid increment of", Bytes1G)
 		return input
 	}
 
 	// test for valid increments of Gi
 	incrementsOf1Gi := input % common.BytesInOneGibibyte
-	slog.Debug("info", "bytes 1Gi increments", incrementsOf1Gi)
+	slog.Log(ctx, common.LevelTrace, "info", "bytes 1Gi increments", incrementsOf1Gi)
 	if incrementsOf1Gi == 0 {
-		slog.Debug("info", "valid increment", common.BytesInOneGibibyte)
+		slog.Log(ctx, common.LevelTrace, "info", "valid increment", common.BytesInOneGibibyte)
 		return input
 	}
 
@@ -53,7 +55,7 @@ func RoundUp(input int64) (output int64) {
 	GiWhole := input / common.BytesInOneGibibyte
 	RoundedUpGi := GiWhole + 1
 	RoundedUpBytes := RoundedUpGi * common.BytesInOneGibibyte
-	slog.Debug("info", "rounded up", RoundedUpGi, "which is", RoundedUpBytes)
+	slog.Log(ctx, common.LevelTrace, "info", "rounded up", RoundedUpGi, "which is", RoundedUpBytes)
 
 	return RoundedUpBytes
 }

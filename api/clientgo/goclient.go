@@ -44,7 +44,6 @@ type kubeclient struct {
 var clientAPI kubeclient
 
 func BuildOffClusterClient(kubeConfigPath string) (kubeClient *kubeclient, err error) {
-	slog.Debug("BuildOffClusterClient called.")
 	if clientAPI.client == nil {
 		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 		if err != nil {
@@ -62,17 +61,14 @@ func BuildOffClusterClient(kubeConfigPath string) (kubeClient *kubeclient, err e
 
 // BuildClient
 func BuildClient() (kubeClient *kubeclient, err error) {
-	slog.Debug("BuildClient called.")
 	if clientAPI.client == nil {
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			slog.Error("error", "BuildClient Error while getting cluster config", err)
 			return nil, err
 		}
 		// creates the clientset
 		clientset, err := kubernetes.NewForConfig(config)
 		if err != nil {
-			slog.Error("error", "BuildClient Error while creating client", err)
 			return nil, err
 		}
 		clientAPI = kubeclient{client: clientset, restConfig: config}
@@ -81,11 +77,10 @@ func BuildClient() (kubeClient *kubeclient, err error) {
 }
 
 func (kc *kubeclient) GetSecret(ctx context.Context, secretName, namespace string) (map[string]string, error) {
-	slog.Debug("get request for secret", "namespace", namespace, "secretname", secretName)
 	secretMap := make(map[string]string)
 	secret, err := kc.client.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		slog.Error("Error Getting secret", "namespace", namespace, "secretname", secretName, "Error", err.Error())
+		slog.Error("error getting secret", "namespace", namespace, "secretname", secretName, "Error", err.Error())
 		return secretMap, err
 	}
 	for key, value := range secret.Data {
@@ -96,14 +91,12 @@ func (kc *kubeclient) GetSecret(ctx context.Context, secretName, namespace strin
 }
 
 func (kc *kubeclient) GetSecrets(ctx context.Context, namespace string) ([]map[string]string, error) {
-	slog.Debug("get request for secrets", "namespace", namespace)
 	secretMaps := make([]map[string]string, 0)
 	options := metav1.ListOptions{
 		LabelSelector: "app=infinidat-csi-driver",
 	}
 	secrets, err := kc.client.CoreV1().Secrets(namespace).List(ctx, options)
 	if err != nil {
-		slog.Error("Error Getting secrets", "namespace", namespace, "error", err)
 		return secretMaps, err
 	}
 	slog.Debug("got secrets for app=infinidat-csi-driver", "item count", len(secrets.Items), "namespace", namespace)
@@ -121,7 +114,6 @@ func (kc *kubeclient) GetSecrets(ctx context.Context, namespace string) ([]map[s
 func (kc *kubeclient) GetPersistantVolumeByName(ctx context.Context, volumeName string) (*v1.PersistentVolume, error) {
 	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(ctx, volumeName, metav1.GetOptions{})
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, err
 	}
 	return persistVol, nil
@@ -129,13 +121,11 @@ func (kc *kubeclient) GetPersistantVolumeByName(ctx context.Context, volumeName 
 
 // Return a PersistentVolumeList listing PVs created by this CSI Driver.
 func (kc *kubeclient) GetAllPersistentVolumes(ctx context.Context) (*v1.PersistentVolumeList, error) {
-	slog.Debug("GetAllPersistentVolumes() called")
 	persistentVolumes, err := kc.client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.Error("Failed to get all persistent volumes", "error", err.Error())
 		return nil, err
 	}
-	slog.Debug("There are persistent volumes in the cluster", "count", len(persistentVolumes.Items))
+	slog.Debug("PersistentVolumes", "count", len(persistentVolumes.Items))
 
 	var infiPersistentVolumeList v1.PersistentVolumeList
 	for _, persistentVolume := range persistentVolumes.Items {
@@ -155,17 +145,9 @@ func (kc *kubeclient) GetAllPersistentVolumes(ctx context.Context) (*v1.Persiste
 func (kc *kubeclient) GetAllStorageClasses(ctx context.Context) (*storagev1.StorageClassList, error) {
 	storageclasses, err := kc.client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.Error(err.Error())
 		return nil, err
 	}
-	slog.Debug("GetStorageClasses", "storageclasses in the cluster", len(storageclasses.Items))
-	for _, sc := range storageclasses.Items {
-		storageClassName := sc.GetName()
-		slog.Debug("storageclass", "name", storageClassName)
 
-		poolName := sc.Parameters["pool_name"]
-		slog.Debug("pool", "name", poolName)
-	}
 	return storageclasses, nil
 }
 
@@ -201,7 +183,6 @@ func (kc *kubeclient) GetPVByVolumeID(ctx context.Context, volumeID int, protoco
 func (kc *kubeclient) GetClusterVerion() (string, error) {
 	info, err := kc.client.Discovery().ServerVersion()
 	if err != nil {
-		slog.Error(err.Error())
 		return "", err
 	}
 	return info.GitVersion, nil
@@ -210,7 +191,6 @@ func (kc *kubeclient) GetClusterVerion() (string, error) {
 func (kc *kubeclient) GetPVCs(ctx context.Context, namespace string) (pvcList *v1.PersistentVolumeClaimList, err error) {
 	pvcList, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.Error("Error Getting PVCs", "Error", err)
 		return nil, err
 	}
 	return pvcList, nil
@@ -219,7 +199,6 @@ func (kc *kubeclient) GetPVCs(ctx context.Context, namespace string) (pvcList *v
 func (kc *kubeclient) GetPVC(ctx context.Context, namespace, name string) (pvc *v1.PersistentVolumeClaim, err error) {
 	pvc, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		slog.Error("Error Getting PVC", "Error", err)
 		return nil, err
 	}
 	return pvc, nil
@@ -227,12 +206,9 @@ func (kc *kubeclient) GetPVC(ctx context.Context, namespace, name string) (pvc *
 
 // GetPVCAnnotations : Get pvc annotations for a given volumeName
 func (kc *kubeclient) GetPVCAnnotations(ctx context.Context, pvcName, pvcNamespace string) (annotations map[string]string, err error) {
-	slog.Log(ctx, common.LevelTrace, "GetPVCAnnotations called", "pvcName", pvcName, "namespace", pvcNamespace)
-
 	var pvc *v1.PersistentVolumeClaim
 	pvc, err = kc.GetPVC(ctx, pvcNamespace, pvcName)
 	if err != nil {
-		slog.Error("error getting PVC", "error", err.Error())
 		return annotations, err
 	}
 	return pvc.Annotations, nil
@@ -245,7 +221,6 @@ func (kc *kubeclient) GetRunningDriverNodePods(ctx context.Context, namespace st
 	}
 	podList, err := kc.client.CoreV1().Pods(namespace).List(ctx, options)
 	if err != nil {
-		slog.Error("Error Getting Driver Node Pods", "Error", err)
 		return pods, err
 	}
 	for _, pod := range podList.Items {
@@ -255,7 +230,6 @@ func (kc *kubeclient) GetRunningDriverNodePods(ctx context.Context, namespace st
 	}
 	if len(pods) == 0 {
 		e := fmt.Errorf("no CSI driver node pods are in running status")
-		slog.Error(e.Error())
 		return pods, e
 	}
 

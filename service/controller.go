@@ -269,7 +269,6 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventCreatedVolumes++
 
-	slog.Info("Finish", "volume", volName, "volume id", createVolResp.Volume.VolumeId)
 	return createVolResp, nil
 }
 
@@ -304,7 +303,6 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	for _, persistentVolume := range pvList.Items {
 		// we match the PV using the volumeHandle (aka volumeId from above)
 		if persistentVolume.Spec.CSI.VolumeHandle == volumeID {
-			slog.Debug("pv found", "volume id", volumeID)
 			annoPVCSecretName := persistentVolume.Spec.CSI.ControllerPublishSecretRef.Name
 			annoPVCSecret, err := kubernetesClient.GetSecret(ctx, annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
 			if err != nil {
@@ -312,7 +310,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 				slog.Error(e.Error())
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
-			slog.Debug("volume using secret", "volume id", volumeID, "pvc anno name", annoPVCSecretName)
+			slog.Debug("volume founc, using secret", "volume id", volumeID, "pvc anno name", annoPVCSecretName)
 			secretsToUse = annoPVCSecret
 		}
 	}
@@ -342,7 +340,6 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	slog.Info("Finish", "volume id", volumeID)
 	return deleteVolResp, nil
 }
 
@@ -465,8 +462,6 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	slog.Info("Finish", "volume ID", req.GetVolumeId())
-
 	return publishVolResp, nil
 }
 
@@ -556,8 +551,6 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-
-	slog.Info("Finish", "volume ID", req.GetVolumeId())
 
 	return unpublishVolResp, nil
 }
@@ -694,8 +687,6 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		},
 	}
 
-	slog.Info("Finished", "volume ID", req.GetVolumeId())
-
 	return validateVolCapsResponse, nil
 }
 
@@ -758,8 +749,6 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 			res.Entries = append(res.Entries, &entry)
 		}
 	}
-
-	slog.Info("Finished")
 
 	return res, nil
 }
@@ -897,8 +886,6 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		}
 	}
 
-	slog.Info("Finished", "entries count", len(res.Entries))
-
 	return res, nil
 }
 
@@ -985,7 +972,6 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	slog.Info("Finished", "snapshot ID", snapshotID)
 	return deleteSnapshotResp, err
 }
 
@@ -1052,8 +1038,6 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		}
 	}
 
-	slog.Info("Finished", "volume ID", req.GetVolumeId())
-
 	return expandVolResp, nil
 }
 
@@ -1076,11 +1060,11 @@ func validateNodeID(nodeID string) error {
 // Controller expand volume request validation
 func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 	if req.GetVolumeId() == "" {
-		return status.Error(codes.InvalidArgument, "Volume ID cannot be empty")
+		return status.Error(codes.InvalidArgument, "volume ID cannot be empty")
 	}
 	capRange := req.GetCapacityRange()
 	if capRange == nil {
-		return status.Error(codes.InvalidArgument, "CapacityRange cannot be empty")
+		return status.Error(codes.InvalidArgument, "capacityRange cannot be empty")
 	}
 	return nil
 }

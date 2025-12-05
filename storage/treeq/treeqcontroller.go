@@ -72,14 +72,14 @@ func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error 
 
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, params)
 	if err != nil {
-		e := fmt.Errorf("ValidateStorageClass (treeq) - %s", err.Error())
+		e := fmt.Errorf("error: %s", err.Error())
 		slog.Error(e.Error())
 		return status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	err = nfs.ValidateNFSExportPermissions(params)
 	if err != nil {
-		e := fmt.Errorf("ValidateStorageClass (treeq) - %s", err.Error())
+		e := fmt.Errorf("error: %s", err.Error())
 		slog.Error(e.Error())
 		return status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -88,14 +88,14 @@ func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error 
 }
 
 func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (csiResp *csi.CreateVolumeResponse, err error) {
-	slog.Debug("CreateVolume (treeq)", "name", req.GetName(), "params", req.GetParameters(),
+	slog.Debug("start", "name", req.GetName(), "params", req.GetParameters(),
 		"iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), treeq.NFSstorage.CS.IboxAPI))
 
 	params := req.GetParameters()
 
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("CreateVolume (treeq) - GetBlock - block access requested for %s PV %s", params[common.StorageClassStorageProtocol], req.GetName())
+			e := fmt.Errorf("from GetBlock - block access requested for %s PV: %s", params[common.StorageClassStorageProtocol], req.GetName())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -108,14 +108,14 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	treeqVolumeContext, err := treeq.TreeqService.IsTreeqAlreadyExist(ctx, params[common.StorageClassPoolName], strings.Trim(params[common.StorageClassNetworkSpace], ""), req.GetName(), fsPrefix)
 	if err != nil {
-		e := fmt.Errorf("CreateVolume (treeq) - IsTreeqAlreadyExist - error: %s", err.Error())
+		e := fmt.Errorf("from IsTreeqAlreadyExist - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
 	if len(treeqVolumeContext) == 0 {
 		treeqVolumeContext, err = treeq.TreeqService.CreateTreeqVolume(ctx, params, treeq.NFSstorage.Capacity, req.GetName())
 		if err != nil {
-			e := fmt.Errorf("CreateVolume (treeq) - CreateTreeqVolume - error: %s", err.Error())
+			e := fmt.Errorf("from CreateTreeqVolume - error: %s", err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
@@ -127,7 +127,7 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	treeqVolumeContext[common.StorageClassGID] = params[common.StorageClassGID]
 
 	volumeID := treeqVolumeContext["ID"] + "#" + treeqVolumeContext["TREEQID"]
-	slog.Debug("CreateVolume (treeq) -  final", "context", treeqVolumeContext, "volume id", volumeID)
+	slog.Debug("final", "context", treeqVolumeContext, "volume id", volumeID)
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volumeID,
@@ -142,12 +142,12 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 func getVolumeIDs(volumeID string) (filesystemID, treeqID int, err error) {
 	volproto := strings.Split(volumeID, "#")
 	if len(volproto) != 2 {
-		e := fmt.Errorf("volume Id %s and other details not found", volumeID)
+		e := fmt.Errorf("volumeID: %s and other details not found", volumeID)
 		slog.Error(e.Error())
 		return 0, 0, e
 	}
 	if filesystemID, err = strconv.Atoi(volproto[0]); err != nil {
-		e := fmt.Errorf("error parsing filesystem ID %s", err.Error())
+		e := fmt.Errorf("error parsing filesystem ID  error: %s", err.Error())
 		slog.Error(e.Error())
 		return 0, 0, e
 	}
@@ -156,7 +156,7 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int, err error) {
 	treeqdetails := strings.Split(volproto[1], "$")
 
 	if treeqID, err = strconv.Atoi(treeqdetails[0]); err != nil {
-		e := fmt.Errorf("error parsing treeq ID %s", err.Error())
+		e := fmt.Errorf("error parsing treeq ID error: %s", err.Error())
 		slog.Error(e.Error())
 		return 0, 0, e
 	}
@@ -165,7 +165,7 @@ func getVolumeIDs(volumeID string) (filesystemID, treeqID int, err error) {
 }
 
 func (treeq *Treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	slog.Debug("DeleteVolume (treeq)", "volume id", req.GetVolumeId())
+	slog.Debug("start", "volume id", req.GetVolumeId())
 
 	filesystemID := treeq.NFSstorage.CS.VolProto.VolumeID
 	treeqID := treeq.NFSstorage.CS.VolProto.TreeqID
@@ -173,12 +173,12 @@ func (treeq *Treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	if nfsDeleteErr != nil {
 		slog.Error(nfsDeleteErr.Error())
 		if strings.Contains(nfsDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
-			slog.Error("DeleteVolume (treeq) - already deleted from ibox")
+			slog.Error("already deleted from ibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 		return nil, nfsDeleteErr
 	}
-	slog.Debug("DeleteVolume (treeq) filesystem treeq successfully deleted", "filesystem id", filesystemID, "treeq id", treeqID)
+	slog.Debug("filesystem treeq successfully deleted", "filesystem id", filesystemID, "treeq id", treeqID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -188,10 +188,10 @@ func (treeq *Treeqstorage) ControllerPublishVolume(ctx context.Context, req *csi
 
 func (treeq *Treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
 	volproto := treeq.NFSstorage.CS.VolProto
-	slog.Debug("ControllerUnpublishVolume (treeq)", "volproto", volproto)
+	slog.Debug("start", "volproto", volproto)
 	err := treeq.NFSstorage.CS.API.DeleteExportRule(ctx, volproto.VolumeID, volproto.NodeID)
 	if err != nil {
-		e := fmt.Errorf("ControllerUnpublishVolume (treeq) - DeleteExportRule - failed to delete Export Rule fileystemID %d error %v", volproto.VolumeID, err)
+		e := fmt.Errorf("from DeleteExportRule - failed to delete Export Rule fileystemID: %d error: %s", volproto.VolumeID, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -207,12 +207,12 @@ func (treeq *Treeqstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 }
 
 func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (expandVolume *csi.ControllerExpandVolumeResponse, err error) {
-	slog.Debug("ControllerExpandVolume (treeq) starts")
+	slog.Debug("starts")
 
 	maxFileSystemSize := treeq.NFSstorage.StorageClassParameters[common.StorageClassMaxFilesystemSize]
 	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ControllerExpandVolume (treeq) - getVolumeIDs - invalid volume id %v", err)
+		e := fmt.Errorf("from getVolumeIDs - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -220,13 +220,13 @@ func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if capacity < storagecommon.GIB {
 		capacity = storagecommon.GIB
-		slog.Warn("ControllerExpandVolume (treeq) - volume minimum capacity should be greater 1 GB")
+		slog.Warn("volume minimum capacity should be greater 1 GB")
 	}
 
-	slog.Debug("ControllerExpandVolume (treeq)", "file system id", filesystemID, "treeq id", treeqID, "capacity", capacity, "max filesystem size", maxFileSystemSize)
+	slog.Debug("info", "file system id", filesystemID, "treeq id", treeqID, "capacity", capacity, "max filesystem size", maxFileSystemSize)
 	err = treeq.TreeqService.UpdateTreeqVolume(ctx, filesystemID, treeqID, capacity, maxFileSystemSize)
 	if err != nil {
-		e := fmt.Errorf("ControllerUnpublishVolume (treeq) - UpdateTreeqVolume - error: %s", err.Error())
+		e := fmt.Errorf("from UpdateTreeqVolume - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}

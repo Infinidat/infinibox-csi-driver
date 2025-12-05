@@ -59,11 +59,11 @@ const FCPortOnline = "Online"
 func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
 	defer helper.TimeTrack(time.Now())
 	var err error
-	slog.Debug("(fc) called", "PublishContext", req.GetPublishContext(), "volume ID", req.GetVolumeId(), "iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
+	slog.Debug("start", "PublishContext", req.GetPublishContext(), "volume ID", req.GetVolumeId(), "iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
-		e := fmt.Errorf("(fc) - validatePublishContext - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("error from ValidatePublishContext - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -75,11 +75,11 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	if len(fcPorts) == 0 {
-		e := fmt.Errorf("(fc) - port name not found on worker")
+		e := fmt.Errorf("port name not found on worker")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	slog.Debug("(fc) getPortName", "output", fcPorts)
+	slog.Debug("getPortName", "output", fcPorts)
 
 	var fcOnline bool
 	for _, p := range portInfo {
@@ -89,26 +89,26 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	if !fcOnline {
-		e := fmt.Errorf("(fc) - error - all FC ports on worker are offline")
+		e := fmt.Errorf("error - all FC ports on worker are offline")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	slog.Debug("(fc) - Publishing volume to host ", "host ID", hostID, "port state", fcOnline)
+	slog.Debug("publishing volume to host ", "host ID", hostID, "port state", fcOnline)
 
 	for _, fcp := range fcPorts {
-		slog.Debug("(fc) - comparing", "ports", ports, "with", fcp)
+		slog.Debug("comparing", "ports", ports, "with", fcp)
 		if !strings.Contains(ports, fcp) {
-			slog.Debug("(fc) - host port is not created, creating it", "host port", fcp)
+			slog.Debug("host port is not created, creating it", "host port", fcp)
 			err = fc.CS.AddPortForHost(ctx, hostID, "FC", fcp)
 			if err != nil {
-				e := fmt.Errorf("(fc) - AddPortForHost - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+				e := fmt.Errorf("error from AddPortForHost - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 				slog.Error(e.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
 			_, err := fc.CS.IboxAPI.GetHostPort(ctx, hostID, fcp)
 			if err != nil {
-				e := fmt.Errorf("(fc) - GetHostPort host port %s - volume ID: %s error: %s", fcp, req.GetVolumeId(), err.Error())
+				e := fmt.Errorf("error from GetHostPort host port: %s volumeID: %s error: %s", fcp, req.GetVolumeId(), err.Error())
 				slog.Error(e.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
@@ -123,59 +123,59 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	var err error
 	defer func() {
 		if err == nil {
-			slog.Debug("(fc) succeeded", "volume ID", req.GetVolumeId())
+			slog.Debug("succeeded", "volume ID", req.GetVolumeId())
 		} else {
-			slog.Debug("(fc) failed", "volume ID", req.GetVolumeId(), "error", err)
+			slog.Debug("failed", "volume ID", req.GetVolumeId(), "error", err)
 		}
 	}()
 
-	slog.Debug("(fc)", "volume ID", req.GetVolumeId(), "volumecontext", req.GetVolumeContext(),
+	slog.Debug("start", "volume ID", req.GetVolumeId(), "volumecontext", req.GetVolumeContext(),
 		"iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
-	slog.Debug("(fc)", "uid", req.GetVolumeContext()[common.StorageClassUID], "gid", req.GetVolumeContext()[common.StorageClassGID], "unix perm", req.GetVolumeContext()[common.StorageClassUNIXPermissions])
+	slog.Debug("info", "uid", req.GetVolumeContext()[common.StorageClassUID], "gid", req.GetVolumeContext()[common.StorageClassGID], "unix perm", req.GetVolumeContext()[common.StorageClassUNIXPermissions])
 
 	fcDetails, err := fc.getFCDiskDetails(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("(fc) - getFCDiskDetails - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("error from getFCDiskDetails - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	devicePath, err := fc.searchDisk(*fcDetails.connector)
 	if err != nil {
-		e := fmt.Errorf("(fc) - searchDisk -  volume ID: %s error: Unable to find disk given WWNN or WWIDs: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("error from searchDisk -  volumeID: %s error: Unable to find disk given WWNN or WWIDs: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	// remove the leading "/host" to reveal the path on the actual node host
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
-	slog.Debug("FC device path found", "path", devicePath)
+	slog.Debug("fc device path found", "path", devicePath)
 
 	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
 	if err != nil {
-		e := fmt.Errorf("(fc) - getFCDiskMounter - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("error from getFCDiskMounter - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	err = fc.MountFCDisk(*diskMounter, devicePath)
 	if err != nil {
-		e := fmt.Errorf("(fc) - MountFCDisk - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("error from MountFCDisk - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	// set volume permissions based on uid/uid/unix_permissions
-	slog.Debug("(fc)", "volume ID:", req.GetVolumeId(), "after mount targetPath", diskMounter.TargetPath, "devicePath", devicePath)
+	slog.Debug("info", "volume ID:", req.GetVolumeId(), "after mount targetPath", diskMounter.TargetPath, "devicePath", devicePath)
 	// print out the target permissions
 	storagecommon.LogPermissions("after mount targetPath ", filepath.Dir("/host"+diskMounter.TargetPath))
 	storagecommon.LogPermissions("after mount devicePath ", "/host"+devicePath)
 	if diskMounter.ReadOnly {
-		slog.Debug("(fc - skipping chown-chmod since this is readOnly volume")
+		slog.Debug("skipping chown-chmod since this is readOnly volume")
 	} else {
 		err = fc.StorageHelper.SetVolumePermissions(req)
 		if err != nil {
-			e := fmt.Errorf("(fc) - SetVolumePermissions - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+			e := fmt.Errorf("error from SetVolumePermissions - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -189,11 +189,11 @@ func (fc *FCstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	defer helper.TimeTrack(time.Now())
 
 	targetPath := req.GetTargetPath()
-	slog.Debug("(fc)", "volume ID", fc.CS.VolProto.VolumeID, "targetPath", targetPath)
+	slog.Debug("start", "volume ID", fc.CS.VolProto.VolumeID, "targetPath", targetPath)
 
 	err = storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
-		e := fmt.Errorf("(fc) - unmountAndCleanup  volume ID: %s target path: %s error: %s", req.GetVolumeId(), targetPath, err.Error())
+		e := fmt.Errorf("error from unmountAndCleanup volumeID: %s targetPath: %s error: %s", req.GetVolumeId(), targetPath, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -203,7 +203,7 @@ func (fc *FCstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	defer helper.TimeTrack(time.Now())
 	stagePath := req.GetStagingTargetPath()
-	slog.Debug("(fc)", "stagePath", stagePath)
+	slog.Debug("start", "stagePath", stagePath)
 	cmd := exec.Command("ls", "/host/"+stagePath)
 	out, err2 := cmd.Output()
 
@@ -220,39 +220,39 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	}
 
 	// load fc disk config from json file
-	slog.Debug("(fc) - read fc config from staging path", "volume ID", req.GetVolumeId())
+	slog.Debug("read fc config from staging path", "volume ID", req.GetVolumeId())
 	if err := storagecommon.LoadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
 		mpathDevice = dskInfo.MpathDevice
-		slog.Debug("(fc) - fc config", "mpathDevice", mpathDevice)
+		slog.Debug("fc config", "mpathDevice", mpathDevice)
 	} else {
-		slog.Debug("(fc) - fc config not existing at staging path")
+		slog.Debug("fc config not existing at staging path")
 		confFile := path.Join("/host", stagePath, strconv.Itoa(fc.CS.VolProto.VolumeID)+".json")
-		slog.Debug("(fc) - check if fc config file exists")
+		slog.Debug("check if fc config file exists")
 		pathExist, pathErr := fc.CS.PathExists(confFile)
 		if pathErr == nil {
 			if !pathExist {
-				slog.Debug("(fc) - config file not found", "path", confFile)
+				slog.Debug("config file not found", "path", confFile)
 				if err := os.RemoveAll(stagePath); err != nil {
-					e := fmt.Errorf("(fc) - RemoveAll - Failed to remove mount path Error: %v", err)
+					e := fmt.Errorf("error from RemoveAll - Failed to remove mount path error: %s", err.Error())
 					slog.Error(e.Error())
 					return nil, e
 				}
-				slog.Debug("(fc) - Removed stage path", "path", stagePath)
+				slog.Debug("removed stage path", "path", stagePath)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
 		}
-		slog.Warn("(fc) - fc detach disk: failed to get fc config", "path", stagePath, "error", err)
+		slog.Warn("fc detach disk: failed to get fc config", "path", stagePath, "error", err)
 	}
 
 	// remove multipath device
 	err := storagecommon.DetachMpathDevice(mpathDevice, common.ProtocolFC)
 	if err != nil {
-		slog.Error("(fc) - detachMpathDevice ", "error", err.Error())
-		slog.Warn("(fc) -  cannot detach volume", "volumeID", req.GetVolumeId(), "error", err)
+		slog.Error("detachMpathDevice ", "error", err.Error())
+		slog.Warn("cannot detach volume", "volumeID", req.GetVolumeId(), "error", err)
 	}
 
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
-		e := fmt.Errorf("(fc) - RemoveAll - failed to remove mount path error: %s", err.Error())
+		e := fmt.Errorf("error from RemoveAll - failed to remove mount path error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -273,14 +273,14 @@ func (fc *FCstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 
 func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	defer helper.TimeTrack(time.Now())
-	slog.Debug("(fc)", "volumeID", req.GetVolumeId())
+	slog.Debug("start", "volumeID", req.GetVolumeId())
 
 	response := csi.NodeExpandVolumeResponse{}
 
 	if req.GetVolumeCapability().GetBlock() != nil {
 		err := storagecommon.BlockExpandVolume(req.GetVolumePath())
 		if err != nil {
-			e := fmt.Errorf("(fc) - blockExpandVolume - volume path: %s error: %s", req.GetVolumePath(), err.Error())
+			e := fmt.Errorf("error from blockExpandVolume - volumePath: %s error: %s", req.GetVolumePath(), err.Error())
 			slog.Error(e.Error())
 			return nil, e
 		}
@@ -290,11 +290,11 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 1 - find the multipath device name (e.g. /dev/mapper/mpathwi) from the list of mounts
 	multipathDevice, err := storagecommon.FindMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		e := fmt.Errorf("(fc) - findMultipathDeviceFromVolumePath - error: %s", err.Error())
+		e := fmt.Errorf("error from findMultipathDeviceFromVolumePath - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
-	slog.Debug("(fc", "multipathDevice", multipathDevice)
+	slog.Debug("info", "multipathDevice", multipathDevice)
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
@@ -303,13 +303,13 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	slog.Debug("executing", "command", command)
 	out, _, err := storagecommon.ExecCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("(fc) - command: %s error: %s", command, err.Error())
+		e := fmt.Errorf("command: %s error: %s", command, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
 
 	if out == "" {
-		e := fmt.Errorf("(fc) - error getting multipath device name %s, command output was empty", multipathDevice)
+		e := fmt.Errorf("error getting multipathDevice: %s, command output was empty", multipathDevice)
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -324,7 +324,7 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		if outputParts[i] != "" {
 			line := strings.Split(outputParts[i], "_")
 			if len(line) < 2 {
-				slog.Error("(fc) - error getting multipath blockDevice", "output", line)
+				slog.Error("error getting multipath blockDevice", "output", line)
 				continue
 			}
 			blockDevice := line[1]
@@ -333,7 +333,7 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
 			out, _, err := storagecommon.ExecCommand.Command(command, "")
 			if err != nil {
-				e := fmt.Errorf("(fc) - Command %s - error writing rescan on multipath devices %s", command, err.Error())
+				e := fmt.Errorf("error writing rescan on multipath devices - command: %s error: %s", command, err.Error())
 				slog.Error(e.Error())
 				return nil, e
 			}
@@ -347,14 +347,14 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// we need to strip off the /dev/mapper/ path prefix
 	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
 	if len(mpathPart) < 2 {
-		e := fmt.Errorf("(fc) - error getting mpathPart from %+v", mpathPart)
+		e := fmt.Errorf("error getting mpathPart: %+v", mpathPart)
 		slog.Error(e.Error())
 		return nil, e
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	out, _, err = storagecommon.ExecCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("(fc) - command: %s -  error multipathd resize map multipath devices %s", command, err.Error())
+		e := fmt.Errorf("error command: %s error: %s", command, err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -364,7 +364,7 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	fsType := req.GetVolumeCapability().GetMount().FsType
 	err = storagecommon.ExpandFileSystem(multipathDevice, fsType)
 	if err != nil {
-		e := fmt.Errorf("(fc)- error: %s", err.Error())
+		e := fmt.Errorf("error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -384,7 +384,7 @@ func (fc *FCstorage) MountFCDisk(mounter Mounter, devicePath string) error {
 	}
 	err := storagecommon.MountLogic(diskInfo, mounter.TargetPath, devicePath, mounter.StagePath, mounter.FsType, mounter.MountOptions, mounter.fcDisk.isBlock, mounter.ReadOnly)
 	if err != nil {
-		e := fmt.Errorf("mountLogic() error %s", err.Error())
+		e := fmt.Errorf("error from mountLogic error: %s", err.Error())
 		slog.Error(e.Error())
 		return status.Error(codes.Internal, e.Error())
 	}
@@ -398,13 +398,13 @@ func (fc *FCstorage) MountFCDisk(mounter Mounter, devicePath string) error {
 		}
 		slog.Debug("attempting to create FC config file", "dskinfo", dskinfo, "stagePath", mounter.StagePath, "targetPath", mounter.TargetPath)
 		if err := storagecommon.CreateConfigFile(dskinfo, mounter.StagePath); err != nil {
-			e := fmt.Errorf("failed to save fc config with error: %v", err)
+			e := fmt.Errorf("error from CreateConfigFile error: %v", err)
 			slog.Error(e.Error())
 			return e
 		}
 		slog.Debug("created FC config file", "path", mounter.StagePath)
 	}
-	slog.Debug("FormatAndMount succeeded", "devicePath", devicePath, "targetPath", mounter.TargetPath, "fsType", mounter.FsType)
+	slog.Debug("formatAndMount succeeded", "devicePath", devicePath, "targetPath", mounter.TargetPath, "fsType", mounter.FsType)
 	return nil
 }
 
@@ -415,7 +415,7 @@ func (fc *FCstorage) getFCDiskDetails(ctx context.Context, req *csi.NodePublishV
 	targetList := []string{}
 	fcNodes, err := fc.CS.IboxAPI.GetFCPorts(ctx)
 	if err != nil {
-		e := fmt.Errorf("error getting fc details - error %s", err.Error())
+		e := fmt.Errorf("error from GetFCPorts - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -431,7 +431,7 @@ func (fc *FCstorage) getFCDiskDetails(ctx context.Context, req *csi.NodePublishV
 	}
 	slog.Debug("info", "lun", lun, "targetList", targetList, "wwidList", wwidList)
 	if lun == "" || (len(targetList) == 0 && len(wwidList) == 0) {
-		e := fmt.Errorf("FC target information is missing")
+		e := fmt.Errorf("fc target information is missing")
 		slog.Error(e.Error())
 		return nil, e
 	}
@@ -485,7 +485,7 @@ func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		fcDetails.isBlock = true
 
 		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
-			slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
+			slog.Warn("accessmode MULTI_NODE_MULTI_WRITER requested for raw block volume, could be dangerous")
 		}
 		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
 
@@ -493,7 +493,7 @@ func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		// TODO: other validations needed for block?
 		// - something about read-only access?
 	} else {
-		errMsg := "Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
+		errMsg := "bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
 		slog.Error(errMsg)
 		return nil, status.Error(codes.InvalidArgument, errMsg)
 	}
@@ -540,10 +540,10 @@ func (fc *FCstorage) searchDisk(connector Connector) (string, error) {
 		}
 	}
 
-	slog.Debug("Rescan hosts", "fcHosts", fcHosts)
+	slog.Debug("rescan hosts", "fcHosts", fcHosts)
 	wwid, err := storagecommon.RescanDeviceMap(fcHosts, diskIDs[0], connector.Lun)
 	if err != nil {
-		e := fmt.Errorf("rescan error %s", err.Error())
+		e := fmt.Errorf("rescan error: %s", err.Error())
 		slog.Error(e.Error())
 		return "", e
 	}

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path"
 	"strconv"
 	"time"
 
@@ -120,14 +121,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.Info("value", "NodeIP", nodeIP)
-	slog.Info("value", "KubeNodeName", os.Getenv("KUBE_NODE_NAME"))
-	slog.Info("value", "DriverName", driverName)
-	slog.Info("value", "Endpoint", csiEndpoint)
-	slog.Info("value", "Version", version)
-	slog.Info("value", "OS Version", osVersion)
-	slog.Info("value", "Kube Version", kubeVersion)
-	slog.Info("value", "Kube Node Count", nodeCount)
+	slog.Info("versionInfo", "NodeIP", nodeIP, "KubeNodeName", os.Getenv("KUBE_NODE_NAME"), "DriverName", driverName, "Endpoint", csiEndpoint)
+	slog.Info("versionInfo continued", "Version", version, "OS Version", osVersion, "Kube Version", kubeVersion, "Kube Node Count", nodeCount)
 
 	driverOptions := service.DriverOptions{
 		NodeID:     nodeIP,
@@ -169,6 +164,11 @@ func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
 		t := a.Value.Any().(time.Time)
 		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
 		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
+	}
+	if a.Key == slog.SourceKey {
+		s := a.Value.Any().(*slog.Source)
+		s.File = path.Base(s.File)
+		s.Function = path.Base(s.Function)
 	}
 	return a
 }
