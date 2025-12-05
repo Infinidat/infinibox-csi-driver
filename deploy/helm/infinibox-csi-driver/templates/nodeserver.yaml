@@ -30,6 +30,7 @@ spec:
     spec:
       serviceAccount: {{ .Release.Name }}-node
       hostNetwork: true
+      dnsPolicy: Default
       containers:  
         {{- if eq .Values.e2etesting "true" }}
         - name: socat
