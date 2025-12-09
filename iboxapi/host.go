@@ -215,7 +215,7 @@ func (client *IboxClient) GetHostByName(ctx context.Context, hostName string) (h
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if len(responseObject.Result) == 0 {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("host '%s' not found", hostName)}
+		return nil, ErrNotFound
 	}
 	if responseObject.Error.Code != "" {
 		return nil, fmt.Errorf("ibox API - error %v", responseObject.Error)
@@ -300,7 +300,7 @@ func (client *IboxClient) DeleteHost(ctx context.Context, hostID int) (response 
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "HOST_NOT_FOUND" {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("host ID '%d' not found", hostID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf("ibox API - error %v", responseObject.Error)
 	}
@@ -445,9 +445,7 @@ func (client *IboxClient) GetHostPort(ctx context.Context, hostID int, portAddre
 		}
 	}
 	if !portFound {
-		return nil, &APIError{
-			Code: RESOURCE_NOT_FOUND,
-			Err:  fmt.Errorf("portAddress '%s' not found", portAddress)}
+		return nil, ErrNotFound
 	}
 	if response.Error.Code != "" {
 		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
@@ -497,6 +495,9 @@ func (client *IboxClient) MapVolumeToHost(ctx context.Context, hostID, volumeID,
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
+		if responseObject.Error.Code == "MAPPING_ALREADY_EXISTS" {
+			return nil, ErrMappingExists
+		}
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}
 	return &responseObject.Result, nil
@@ -605,9 +606,7 @@ func (client *IboxClient) GetLunByHostVolume(ctx context.Context, hostID, volume
 	}
 
 	if lun == nil {
-		return nil, &APIError{
-			Code: RESOURCE_NOT_FOUND,
-			Err:  fmt.Errorf("host ID %d volume ID %d not found", hostID, volumeID)}
+		return nil, ErrNotFound
 	}
 
 	return lun, nil

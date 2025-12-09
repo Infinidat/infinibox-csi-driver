@@ -178,7 +178,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_VolumeID_empty() {
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
 	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
 	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
-	volumeID := "100#200"
+	volumeID := "100#200$$nfs_treeq"
 	var filesytemID, treeqID = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", suite.Suite.T().Context(), filesytemID, treeqID).Return(suite.someError)
 	_, err := suite.service.DeleteVolume(suite.Suite.T().Context(), getDeleteVolumeRequest(volumeID))
@@ -186,10 +186,10 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error() {
 }
 
 func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
-	volumeID := "100#200$$"
+	volumeID := "100#200$$nfs_treeq"
 	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
 	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
-	expectedErr := errors.New("FILESYSTEM_NOT_FOUND error")
+	expectedErr := iboxapi.ErrNotFound
 	var filesytemID, treeqID = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", suite.Suite.T().Context(), filesytemID, treeqID).Return(expectedErr)
 	_, err := suite.service.DeleteVolume(suite.Suite.T().Context(), getDeleteVolumeRequest(volumeID))
@@ -199,7 +199,7 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_Error_filenotfound() {
 func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
 	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
 	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
-	volumeID := "100#200$$"
+	volumeID := "100#200$$nfs_treeq"
 	var filesytemID, treeqID = 100, 200
 	suite.filesystem.On("DeleteTreeqVolume", suite.Suite.T().Context(), filesytemID, treeqID).Return(nil)
 	resp, err := suite.service.DeleteVolume(suite.Suite.T().Context(), getDeleteVolumeRequest(volumeID))
@@ -208,18 +208,33 @@ func (suite *TreeqControllerSuite) Test_DeleteVolume_success() {
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_VolumeID_empty() {
-	_, err := suite.service.ControllerExpandVolume(suite.Suite.T().Context(), getExpandVolumeRequest(""))
+	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
+	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
+	var capacity int64 = common.BytesInOneGibibyte
+	var maxSize string
+	var filesytemID, treeqID = 100, 200
+	volumeID := ""
+	suite.filesystem.On("UpdateTreeqVolume", suite.Suite.T().Context(), filesytemID, treeqID, capacity, maxSize).Return(suite.someError)
+	_, err := suite.service.ControllerExpandVolume(suite.Suite.T().Context(), getExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_InvalidVolumeID() {
+	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
+	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
+	var capacity int64 = common.BytesInOneGibibyte
+	var maxSize string
+	var filesytemID, treeqID = 100, 200
 	volumeID := "100"
+	suite.filesystem.On("UpdateTreeqVolume", suite.Suite.T().Context(), filesytemID, treeqID, capacity, maxSize).Return(suite.someError)
 	_, err := suite.service.ControllerExpandVolume(suite.Suite.T().Context(), getExpandVolumeRequest(volumeID))
 	assert.NotNil(suite.T(), err, "Volume ID missing in request")
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
-	volumeID := "100#200"
+	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
+	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
+	volumeID := "100#200$$nfs_treeq"
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string
@@ -229,7 +244,9 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error() {
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfound() {
-	volumeID := "100#200$$"
+	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
+	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
+	volumeID := "100#200$$nfs_treeq"
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string
@@ -239,7 +256,9 @@ func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_Error_filenotfoun
 }
 
 func (suite *TreeqControllerSuite) Test_ControllerExpandVolume_success() {
-	volumeID := "100#200$$"
+	suite.service.NFSstorage.CS.VolProto.TreeqID = 200
+	suite.service.NFSstorage.CS.VolProto.VolumeID = 100
+	volumeID := "100#200$$nfs_treeq"
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string

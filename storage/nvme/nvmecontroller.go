@@ -14,6 +14,7 @@ package nvme
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -56,7 +57,7 @@ func NewNVMEstorage(capacity int64, cs storagecommon.Commonservice) (nvme *NVMEs
 func (nvme *NVMEstorage) ValidateStorageClass(params map[string]string) error {
 	requiredNVMEParams := map[string]string{
 		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
-		common.StorageClassNetworkSpace: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassNetworkSpace: `\A.*\z`,
 	}
 	optionalNVMEParams := map[string]string{}
 
@@ -82,8 +83,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 
 	targetVolume, err := nvme.CS.IboxAPI.GetVolumeByName(ctx, name)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("volume not found, will proceed to create it", "volume", req.GetName())
 		} else {
 			e := fmt.Errorf("from GetVolumeByName - error: %s", err.Error())
@@ -394,8 +394,7 @@ func (nvme *NVMEstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 
 	volumeSnapshot, err := nvme.CS.IboxAPI.GetVolumeByName(ctx, snapshotName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("snapshot not found", "name", snapshotName)
 		} else {
 			slog.Error("GetVolumeByName error", "snapshot", snapshotName, "error", err.Error())
@@ -498,7 +497,7 @@ func (nvme *NVMEstorage) ControllerExpandVolume(ctx context.Context, req *csi.Co
 
 	nodeExpansionRequired := true
 	if req.GetVolumeCapability().GetBlock() != nil {
-		slog.Debug("volume is block so nodeExpansionRequired is false")
+		slog.Debug("volume is block so nodeExpansionRequired is false when nvme uses native multipath")
 		nodeExpansionRequired = false
 	}
 

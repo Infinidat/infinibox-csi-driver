@@ -394,7 +394,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqCnt_Error2() {
 func (suite *TreeqServiceSuite) Test_DeleteTreeqVolume_GetTreeq_error() {
 	fsID := 11
 	treeqID := 10
-	expectedErr := errors.New("TREEQ_ID_DOES_NOT_EXIST")
+	expectedErr := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetTreeq", suite.Suite.T().Context(), fsID, treeqID).Return(nil, expectedErr)
 	service := Service{CS: *suite.cs}
 	err := service.DeleteTreeqVolume(suite.Suite.T().Context(), fsID, treeqID)
@@ -520,7 +520,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetFileSystemByID_error()
 	var filesytemID, treeqID = 100, 200
 	var capacity int64 = common.BytesInOneGibibyte
 	var maxSize string
-	expectedErr := errors.New("FILESYSTEM_ID_DOES_NOT_EXIST")
+	expectedErr := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByID", suite.Suite.T().Context(), filesytemID).Return(nil, expectedErr)
 	service := Service{CS: *suite.cs}
 	err := service.UpdateTreeqVolume(suite.Suite.T().Context(), filesytemID, treeqID, capacity, maxSize)
@@ -551,7 +551,7 @@ func (suite *TreeqServiceSuite) Test_UpdateTreeqVolume_GetTreeq_Not_found_error(
 	expectedFileSystemResponse := api.FileSystem{}
 	expectedResponse := getTreeQResponse(filesytemID)
 	expectedResponse.UsedCapacity = 0
-	expectedErr := errors.New("TREEQ_ID_DOES_NOT_EXIST")
+	expectedErr := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByID", suite.Suite.T().Context(), filesytemID).Return(expectedFileSystemResponse, nil)
 	suite.iboxapi.On("GetTreeq", suite.Suite.T().Context(), filesytemID, treeqID).Return(nil, expectedErr)
 	service := Service{CS: *suite.cs}

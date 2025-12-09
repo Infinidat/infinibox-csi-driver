@@ -237,7 +237,6 @@ func (client *IboxClient) GetSystem(ctx context.Context) (system *SystemDetails,
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		// TODO check for NOT FOUND ?  return ErrNotFound for callers?
 		return nil, fmt.Errorf("ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil

@@ -528,8 +528,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 		}
 		volumeInfo.Host, err = commonService.IboxAPI.GetHostByName(ctx, hostName)
 		if err != nil {
-			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+			if errors.Is(err, iboxapi.ErrNotFound) {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
 			e := fmt.Errorf("GetHostByName - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
@@ -726,7 +725,6 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 		if persistentVolume.GetAnnotations()["pv.kubernetes.io/provisioned-by"] == common.ServiceName {
 			var status csi.ListVolumesResponse_VolumeStatus
 			status.PublishedNodeIds = append(status.PublishedNodeIds, persistentVolume.GetName())
-			// TODO Handle csi.ListVolumesResponse_VolumeStatus.VolumeCondition?
 			slog.Info("info", "status", status.String())
 
 			var volume csi.Volume

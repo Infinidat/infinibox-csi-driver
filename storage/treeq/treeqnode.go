@@ -43,12 +43,15 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	slog.Debug("info", "targetPath", hostTargetPath, "volume id", req.GetVolumeId())
 
-	fileSystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
+	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("from getVolumeIDs - error parsing volumeID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := fmt.Errorf("from ValidateVolumeID - error parsing volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, e
 	}
+	fileSystemID := volumeInfo.VolumeID
+	treeqID := volumeInfo.TreeqID
+
 	slog.Debug("info", "filesystem id", fileSystemID, "treeq id", treeqID, "volume context", req.GetVolumeContext(), "storageclass params", treeq.NFSstorage.StorageClassParameters)
 
 	treeq.NFSstorage.SnapdirVisible = false
@@ -116,8 +119,6 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			slog.Error("host target path exists", "error", err.Error())
 		}
 		slog.Debug("targetPath already exists, will not do anything", "targetpath", targetPath)
-		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
-		// don't return, this may be a second call after a mount timeout
 	}
 
 	mountOptions, err := treeq.NFSstorage.StorageHelper.GetNFSMountOptions(req)

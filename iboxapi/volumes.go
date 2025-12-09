@@ -255,7 +255,9 @@ func (client *IboxClient) DeleteVolume(ctx context.Context, volumeID int) (respo
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		// TODO check for NOT FOUND?  have callers check for ErrNotFound?
+		if responseObject.Error.Code == "VOLUME_NOT_FOUND" {
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
+		}
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}
 	return &responseObject, nil
@@ -302,14 +304,13 @@ func (client *IboxClient) GetVolumeByName(ctx context.Context, volumeName string
 			return nil, fmt.Errorf("unmarshal - error %w", err)
 		}
 		if response.Error.Code != "" {
-			// TODO check for NOT FOUND?  return ErrNotFound for callers?
 			return nil, fmt.Errorf("ibox API - error %v", response.Error)
 		}
-		if len(response.Result) > 0 {
-			volume = &response.Result[0]
-		} else {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("volume name '%s' not found", volumeName)}
+		if len(response.Result) == 0 {
+			return nil, fmt.Errorf("%s - %w", "no results", ErrNotFound)
 		}
+
+		volume = &response.Result[0]
 
 		if page == 1 {
 			totalPages = response.Metadata.PagesTotal
@@ -350,9 +351,7 @@ func (client *IboxClient) GetVolume(ctx context.Context, volumeID int) (volume *
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "VOLUME_NOT_FOUND" {
-			return nil, &APIError{
-				Code: RESOURCE_NOT_FOUND,
-				Err:  fmt.Errorf("volume ID %d not found", volumeID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}
@@ -397,7 +396,9 @@ func (client *IboxClient) UpdateVolume(ctx context.Context, volumeID int, volume
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		// TODO check for NOT FOUND?  return ErrNotFound for callers?
+		if responseObject.Error.Code == "VOLUME_NOT_FOUND" {
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
+		}
 		slog.Log(ctx, common.LevelTrace, "info", "URL", url, "error code", responseObject.Error.Code)
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}

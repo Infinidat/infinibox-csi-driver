@@ -14,6 +14,7 @@ package iscsi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -59,7 +60,7 @@ func (iscsi *ISCSIstorage) ValidateStorageClass(params map[string]string) error 
 	requiredISCSIParams := map[string]string{
 		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
 		common.StorageClassUseCHAP:      `(?i)\A(none|chap|mutual_chap)\z`,
-		common.StorageClassNetworkSpace: `\A.*\z`, // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassNetworkSpace: `\A.*\z`,
 	}
 	optionalISCSIParams := map[string]string{
 		common.StorageClassProvisionType: `(?i)\A(THICK|THIN)\z`,
@@ -89,8 +90,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	targetVol, err := iscsi.CS.IboxAPI.GetVolumeByName(ctx, name)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("volume not found, going to create", "volume", name)
 		} else {
 			e := fmt.Errorf("error from GetVolumeByName name: %s error: %s", name, err.Error())
@@ -398,8 +398,7 @@ func (iscsi *ISCSIstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	volumeSnapshot, err := iscsi.CS.IboxAPI.GetVolumeByName(ctx, snapshotName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("not found", "name", snapshotName)
 		} else {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -483,9 +482,12 @@ func (iscsi *ISCSIstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	slog.Debug("start", "ID", snapshotID)
 
 	_, err = storagecommon.DeleteVolume(ctx, iscsi.CS, snapshotID)
-	if err == nil {
-		slog.Debug("successfully deleted snapshot", "ID", snapshotID)
+	if err != nil {
+		e := fmt.Sprintf("error from DeleteVolume - snapshotID: %s error: %s", req.GetSnapshotId(), err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.Internal, e)
 	}
+	slog.Debug("successfully deleted snapshot", "ID", snapshotID)
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
@@ -508,8 +510,7 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	slog.Debug("volume size updated successfully", "ID", volumeID)
 	nodeExpansionRequired := true
 	if req.GetVolumeCapability().GetBlock() != nil {
-		slog.Debug("volume is block so nodeExpansionRequired is false")
-		nodeExpansionRequired = false
+		slog.Debug("volume is block so nodeExpansionRequired is true because multipath resize is required")
 	}
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,

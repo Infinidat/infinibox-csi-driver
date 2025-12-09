@@ -155,7 +155,9 @@ func (client *IboxClient) GetLink(ctx context.Context, linkID int) (link *Link, 
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		// TODO  check for NOT FOUND?  return ErrNotFound for callers?
+		if responseObject.Error.Code == "LINK_NOT_FOUND" {
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
+		}
 		return nil, fmt.Errorf("ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
 	}
 	return &responseObject.Result, nil

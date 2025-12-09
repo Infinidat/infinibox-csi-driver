@@ -156,8 +156,7 @@ func (ts *Service) CreateTreeqVolume(ctx context.Context, storageClassParameters
 
 	filesys, err = ts.getExpectedFileSystemID(ctx, maxFileSystemSize)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("CreateTreeqVolume - getExpectedFilesystemID file system not found")
 		} else {
 			slog.Error("CreateTreeqVolume - error in getExpectedFileSystemID", "error", err)
@@ -285,7 +284,7 @@ func (ts *Service) DeleteTreeqVolume(ctx context.Context, filesystemID, treeqID 
 	var treeq *iboxapi.Treeq
 	treeq, err = ts.CS.IboxAPI.GetTreeq(ctx, filesystemID, treeqID)
 	if err != nil {
-		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			//err = errors.New("treeq does not exist on infinibox")
 			return
 		}
@@ -375,7 +374,7 @@ func (ts *Service) UpdateTreeqVolume(ctx context.Context, filesystemID, treeqID 
 	// Get a treeq
 	treeq, err := ts.CS.IboxAPI.GetTreeq(ctx, filesystemID, treeqID)
 	if err != nil {
-		if strings.Contains(err.Error(), "TREEQ_ID_DOES_NOT_EXIST") {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("treeq not found", "treeqID", treeqID)
 			return nil
 		}
@@ -487,7 +486,7 @@ func (ts *Service) getExpectedFileSystemID(ctx context.Context, maxFileSystemSiz
 	}
 	if fileSystemMetaData != nil && len(fileSystemMetaData) == 0 {
 		slog.Debug("NO filesystem found.filesystem array is empty")
-		return nil, &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("no filesystem found, array is empty")}
+		return nil, iboxapi.ErrNotFound
 	}
 
 	for _, fileSystem := range fileSystemMetaData {
@@ -512,7 +511,7 @@ func (ts *Service) getExpectedFileSystemID(ctx context.Context, maxFileSystemSiz
 	}
 	e := fmt.Errorf("NO filesystem found to create treeQ")
 	slog.Debug(e.Error())
-	return nil, &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: e}
+	return nil, iboxapi.ErrNotFound
 }
 func (ts *Service) checkTreeqName(ctx context.Context, fileSystems []iboxapi.FileSystem, persistentVolumeName string) (treeqData *iboxapi.Treeq) {
 	type treeqInfo struct {

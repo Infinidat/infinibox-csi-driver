@@ -143,7 +143,7 @@ func (client *IboxClient) GetExportByID(ctx context.Context, exportID int) (ex *
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "EXPORT_NOT_FOUND" {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("export ID '%d' not found", exportID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}
@@ -238,7 +238,7 @@ func (client *IboxClient) DeleteExport(ctx context.Context, exportID int) (respo
 	}
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "EXPORT_NOT_FOUND" {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("export ID '%d' not found", exportID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)

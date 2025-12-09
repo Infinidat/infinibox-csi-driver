@@ -58,8 +58,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 
 	newCG, err = client.IboxAPI.GetConsistencyGroupByName(ctx, cgName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			var poolID int
 			var allVolumeIDs []int
 
@@ -121,9 +120,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 	// see if the SG name has already been used and fail if so
 	_, err = client.IboxAPI.GetConsistencyGroupByName(ctx, vgsName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-		} else {
+		if !errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Error("error getting SG CG by name", "error", err.Error())
 			return nil, status.Errorf(codes.Internal, "error getting sg cg %v", err)
 		}
@@ -162,7 +159,7 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 		slog.Debug("member info", "snapshot", snapshotName, "member", member)
 		volume, err := client.IboxAPI.GetVolume(ctx, member.ID)
 		if err != nil {
-			slog.Error("GetVolume - error", "error", err.Error())
+			slog.Error("from GetVolume", "error", err.Error())
 			return nil, status.Errorf(codes.Internal, "failed to get snapshot volume  error %v", err)
 		}
 
@@ -218,25 +215,25 @@ func (s *VolumeGroupServer) DeleteVolumeGroupSnapshot(ctx context.Context, req *
 
 	commonService, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
-		slog.Error(" BuildCommonService - error", "error", err.Error())
+		slog.Error("from BuildCommonService", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
 
 	client, err := commonService.API.NewClient()
 	if err != nil {
-		slog.Error("NewClient - error", "error", err.Error())
+		slog.Error("from NewClient", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get api client error %v", err)
 	}
 
 	snapshotGroupID, err := strconv.Atoi(req.GroupSnapshotId)
 	if err != nil {
-		slog.Error("ParseInt error", "group snapshot id", req.GroupSnapshotId, "error", err.Error())
+		slog.Error("parsing error", "group snapshot id", req.GroupSnapshotId, "error", err.Error())
 		return nil, status.Errorf(codes.InvalidArgument, "failed to convert group_snapshot_id %s to int error %v", req.GroupSnapshotId, err)
 	}
 	err = client.IboxAPI.DeleteConsistencyGroup(ctx, snapshotGroupID)
 	if err != nil {
-		slog.Error("DeleteSG - error", "error", err.Error())
-		return nil, status.Errorf(codes.Internal, "error deleting SG %s error %v", req.GroupSnapshotId, err)
+		slog.Error("from DeleteCG", "error", err.Error())
+		return nil, status.Errorf(codes.Internal, "error deleting CG %s error %v", req.GroupSnapshotId, err)
 	}
 	resp = &csi.DeleteVolumeGroupSnapshotResponse{}
 	slog.Info("Finish", "req", req)
@@ -248,26 +245,26 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 
 	commonService, err := storagecommon.BuildCommonService(make(map[string]string), req.Secrets, nil)
 	if err != nil {
-		slog.Error(" BuildCommonService - error", "error", err.Error())
+		slog.Error("from BuildCommonService", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get API connection error %v", err)
 	}
 
 	client, err := commonService.API.NewClient()
 	if err != nil {
-		slog.Error("NewClient - error", "error", err.Error())
+		slog.Error("from NewClient", "error", err.Error())
 		return nil, status.Errorf(codes.Internal, "failed to get api client error %v", err)
 	}
 
 	snapshotGroupID, err := strconv.Atoi(req.GroupSnapshotId)
 	if err != nil {
-		slog.Error("ParseInt error", "group snapshot id", req.GroupSnapshotId, "error", err.Error())
+		slog.Error("parsing error", "group snapshot id", req.GroupSnapshotId, "error", err.Error())
 		return nil, status.Errorf(codes.InvalidArgument, "failed to convert group_snapshot_id %s to int error %v", req.GroupSnapshotId, err)
 	}
 
 	// sgID is the volume ID of the snap group, the parent_id will be the consistencyGroup MASTER volume
 	consistencyGroup, err := client.IboxAPI.GetConsistencyGroup(ctx, snapshotGroupID)
 	if err != nil {
-		slog.Error("GetCGByID - error", "error", err.Error())
+		slog.Error("from GetConsistencyGroup", "error", err.Error())
 		return nil, status.Errorf(codes.NotFound, "error getting CG group_snapshot_id %s error %v", req.GroupSnapshotId, err)
 	}
 
@@ -327,7 +324,7 @@ func (s *VolumeGroupServer) GetVolumeGroupSnapshot(ctx context.Context, req *csi
 		GroupSnapshot: &csi.VolumeGroupSnapshot{
 			GroupSnapshotId: strconv.Itoa(snapshotGroupID),
 			Snapshots:       snapshots,
-			CreationTime:    creationTime, // TODO fix this with the right creation time
+			CreationTime:    creationTime,
 			ReadyToUse:      true,
 		},
 	}

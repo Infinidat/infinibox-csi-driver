@@ -263,7 +263,7 @@ func (client *IboxClient) GetFileSystemByID(ctx context.Context, fsID int) (fs *
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == FILESYSTEM_NOT_FOUND {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("fs ID '%d' not found", fsID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}
@@ -350,7 +350,7 @@ func (client *IboxClient) GetFileSystemByName(ctx context.Context, name string) 
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 	if len(responseObject.Result) == 0 {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("name '%s' not found", name)}
+		return nil, ErrNotFound
 	}
 	if responseObject.Error.Code != "" {
 		return nil, fmt.Errorf("API error - %s", responseObject.Error.Code)
@@ -490,7 +490,7 @@ func (client *IboxClient) UpdateFileSystem(ctx context.Context, fsID int, fs Fil
 	}
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == FILESYSTEM_NOT_FOUND {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("fs ID '%d' not found", fsID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
 	}

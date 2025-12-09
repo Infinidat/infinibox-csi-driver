@@ -14,6 +14,7 @@ package fc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -82,8 +83,7 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	targetVol, err := fc.CS.IboxAPI.GetVolumeByName(ctx, name)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("volume with name not found, proceeding to create", "name", name)
 		} else {
 			e := fmt.Errorf("error from GetVolumeByName name: %s - error: %s", name, err.Error())
@@ -382,8 +382,7 @@ func (fc *FCstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshot
 
 	volumeSnapshot, err := fc.CS.IboxAPI.GetVolumeByName(ctx, snapshotName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("snapshot with given name not found", "name", snapshotName)
 		} else {
 			e := fmt.Sprintf("error from GetVolumeByName - snapshotName: %s error: %s", snapshotName, err.Error())
@@ -491,8 +490,7 @@ func (fc *FCstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	slog.Debug("volume size updated successfully", "volume ID", volumeID)
 	nodeExpansionRequired := true
 	if req.GetVolumeCapability().GetBlock() != nil {
-		slog.Debug("volume is block so nodeExpansionRequired is false")
-		nodeExpansionRequired = false
+		slog.Debug("volume is block so nodeExpansionRequired is true due to multipath resize is required")
 	}
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         capacity,

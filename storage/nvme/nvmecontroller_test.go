@@ -4,7 +4,6 @@ package nvme
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/infinidat/infinibox-csi-driver/api"
@@ -227,7 +226,7 @@ func (suite *NVMEControllerSuite) Test_DeleteVolume_success() {
 
 func (suite *NVMEControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	createVolReq := storagecommon.GetDeleteRequest()
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("volume not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	_, err := suite.service.DeleteVolume(suite.Suite.T().Context(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: nvme DeleteVolume when already deleted")

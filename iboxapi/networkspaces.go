@@ -119,16 +119,12 @@ func (client *IboxClient) GetNetworkSpaceByName(ctx context.Context, netspaceNam
 			return nil, fmt.Errorf("unmarshal - error %w", err)
 		}
 		if response.Error.Code != "" {
-			// TODO check for NOT FOUND?  return ErrNotFound for callers?
 			return nil, fmt.Errorf("ibox API - error %v", response.Error)
 		}
-		if len(response.Result) > 0 {
-			networkSpace = &response.Result[0]
-		} else {
-			return nil, &APIError{
-				Code: RESOURCE_NOT_FOUND,
-				Err:  fmt.Errorf("netspace '%s' not found", netspaceName)}
+		if len(response.Result) == 0 {
+			return nil, ErrNotFound
 		}
+		networkSpace = &response.Result[0]
 
 		if page == 1 {
 			totalPages = response.Metadata.PagesTotal

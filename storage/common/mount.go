@@ -235,7 +235,6 @@ func UnmountAndCleanUp(targetPath string) (err error) {
 		return err
 	}
 	if isMounted {
-		// TODO - Should include volume ID
 		err := fmt.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
 		slog.Error(err.Error())
 		return err

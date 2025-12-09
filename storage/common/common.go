@@ -115,7 +115,7 @@ func BuildCommonService(config map[string]string, secrets map[string]string, vol
 func (cs *Commonservice) MapVolumeTohost(ctx context.Context, volumeID int, hostID int) (lunInfo *iboxapi.LunInfo, err error) {
 	lunInfo, err = cs.IboxAPI.MapVolumeToHost(ctx, hostID, volumeID, -1)
 	if err != nil {
-		if strings.Contains(err.Error(), "MAPPING_ALREADY_EXISTS") {
+		if errors.Is(err, iboxapi.ErrMappingExists) {
 			lunInfo, err = cs.IboxAPI.GetLunByHostVolume(ctx, hostID, volumeID)
 		}
 		if err != nil {
@@ -166,18 +166,17 @@ func (cs *Commonservice) AddChapSecurityForHost(hostID int, credentials map[stri
 */
 
 func (cs *Commonservice) ValidateHost(ctx context.Context, hostName string) (*iboxapi.Host, error) {
-	slog.Debug("Check if host available, create if not available")
+	slog.Debug("check if host available, create if not available")
 	removeDomainName := os.Getenv(common.EnvVarRemoveDomainName)
 	if removeDomainName != "" && removeDomainName == "true" {
 		shortName := strings.Split(hostName, ".")
-		slog.Debug("REMOVE_DOMAIN_NAME set to true, resulting in", "host", hostName, "short", shortName[0])
+		slog.Debug("env var REMOVE_DOMAIN_NAME set to true, resulting in", "host", hostName, "short", shortName[0])
 		hostName = shortName[0]
 	}
 	host, err := cs.IboxAPI.GetHostByName(ctx, hostName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-			slog.Debug("Creating host", "name", hostName)
+		if errors.Is(err, iboxapi.ErrNotFound) {
+			slog.Debug("creating host", "name", hostName)
 			host, err = cs.IboxAPI.CreateHost(ctx, hostName)
 			if err != nil {
 				e := fmt.Errorf("error failed to create host %s with error %s", hostName, err)
@@ -426,8 +425,7 @@ func HostCleanup(ctx context.Context, iboxClient iboxapi.Client, hostID int, hos
 	if createdByCSI {
 		response, err := iboxClient.DeleteHost(ctx, hostID)
 		if err != nil {
-			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+			if errors.Is(err, iboxapi.ErrNotFound) {
 				slog.Debug("hostCleanup: will not delete, host not found", "hostid", hostID, "response", response)
 			} else {
 				slog.Error("hostCleanup: failed to delete host with error", "error", err)
@@ -525,12 +523,15 @@ func (cs *Commonservice) getStoragePoolNameFromID(ctx context.Context, poolID in
 	storagePoolName := cs.storagePoolIDName[poolID]
 	if storagePoolName == "" {
 		pool, err := cs.IboxAPI.GetPoolByID(ctx, poolID)
-		if err == nil {
-			storagePoolName = pool.Name
-			cs.storagePoolIDName[poolID] = pool.Name
-		} else {
-			slog.Error("Could not find StoragePool", "pool id", poolID)
+		if err != nil {
+			if errors.Is(err, iboxapi.ErrNotFound) {
+				slog.Error("Could not find StoragePool", "pool id", poolID)
+			}
+			slog.Error("from GetPoolByID", "pool id", poolID, "error", err)
+			return ""
 		}
+		storagePoolName = pool.Name
+		cs.storagePoolIDName[poolID] = pool.Name
 	}
 	return storagePoolName
 }

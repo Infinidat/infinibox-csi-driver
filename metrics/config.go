@@ -61,7 +61,7 @@ const (
 	MetricIboxNodeName      = "node"
 	MetricIboxSystemMetrics = "ibox_system_metrics"
 
-	MetricIboxErrorRates                       = "ibox_error_rates" // TODO
+	MetricIboxErrorRates                       = "ibox_error_rates"
 	MetricIboxActiveCacheSSDDevices            = "ibox_active_cache_ssd_devices"
 	MetricIboxActiveDrives                     = "ibox_active_drives"
 	MetricIboxActiveEncryptedCacheSSDDevices   = "ibox_active_encrypted_cache_ssd_devices"

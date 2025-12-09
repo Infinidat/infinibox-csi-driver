@@ -4,7 +4,6 @@ package fc
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/infinidat/infinibox-csi-driver/api"
@@ -188,7 +187,7 @@ func (suite *FCControllerSuite) Test_DeleteVolume_success() {
 func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 	createVolReq := storagecommon.GetDeleteRequest()
 
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("volume not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	_, err := suite.service.DeleteVolume(suite.Suite.T().Context(), createVolReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc DeleteVolume already deleted")
@@ -228,7 +227,7 @@ func (suite *FCControllerSuite) Test_CreateVolume_content_AttachMetadataToObject
 }
 
 func (suite *FCControllerSuite) Test_ControllerPublishVolume_success() {
-	ctrPublishValReq := storagecommon.GetISCSIControllerPublishVolumeRequest()
+	ctrPublishValReq := storagecommon.GetControllerPublishVolumeRequest(common.ProtocolFC)
 	suite.accessMock.On("IsValidAccessMode", mock.Anything, mock.Anything).Return(true, nil)
 	suite.iboxapi.On("CreateHost", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetSystem(), nil)
@@ -243,7 +242,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_success() {
 }
 
 func (suite *FCControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatError() {
-	ctrPublishValReq := storagecommon.GetISCSIControllerPublishVolumeRequest()
+	ctrPublishValReq := storagecommon.GetControllerPublishVolumeRequest(common.ProtocolFC)
 	ctrPublishValReq.VolumeId = "1$"
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetSystem(), nil)
@@ -252,7 +251,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_VolumeIDFormatError
 }
 
 func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
-	ctrPublishValReq := storagecommon.GetISCSIControllerPublishVolumeRequest()
+	ctrPublishValReq := storagecommon.GetControllerPublishVolumeRequest(common.ProtocolFC)
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(nil, nil)
@@ -266,7 +265,7 @@ func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxVolumeError() {
 }
 
 func (suite *FCControllerSuite) Test_ControllerPublishVolume_MaxAllowedError() {
-	ctrPublishValReq := storagecommon.GetISCSIControllerPublishVolumeRequest()
+	ctrPublishValReq := storagecommon.GetControllerPublishVolumeRequest(common.ProtocolFC)
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetLunInfoArry(), nil)
 	suite.iboxapi.On("PutMetadata", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(nil, nil)
@@ -283,7 +282,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume() {
 	deleteHostResponse := &iboxapi.DeleteHostResponse{
 		Error: iboxapi.Error{},
 	}
-	unpublishVolReq := storagecommon.GetISCSIControllerUnpublishVolume()
+	unpublishVolReq := storagecommon.GetControllerUnpublishVolume(common.ProtocolFC)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("UnMapVolumeFromHost", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(mock.Anything, nil)
@@ -294,7 +293,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume() {
 }
 
 func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_hostNameErr() {
-	unpublishVolReq := storagecommon.GetISCSIControllerUnpublishVolume()
+	unpublishVolReq := storagecommon.GetControllerUnpublishVolume(common.ProtocolFC)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("GetAllLunByHost", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.LunInfo{}, nil)
@@ -304,7 +303,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_hostNameErr() {
 }
 
 func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_UnMapVolumeErr() {
-	unpublishVolReq := storagecommon.GetISCSIControllerUnpublishVolume()
+	unpublishVolReq := storagecommon.GetControllerUnpublishVolume(common.ProtocolFC)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("GetAllLunByHost", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.LunInfo{}, nil)
@@ -318,7 +317,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
 	deleteHostResponse := iboxapi.DeleteHostResponse{
 		Error: iboxapi.Error{},
 	}
-	unpublishVolReq := storagecommon.GetISCSIControllerUnpublishVolume()
+	unpublishVolReq := storagecommon.GetControllerUnpublishVolume(common.ProtocolFC)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("UnMapVolumeFromHost", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(mock.Anything, nil)
@@ -329,7 +328,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_DeleteHostErr() {
 }
 
 func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_MetadataErr() {
-	unpublishVolReq := storagecommon.GetISCSIControllerUnpublishVolume()
+	unpublishVolReq := storagecommon.GetControllerUnpublishVolume(common.ProtocolFC)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), errors.New("some error"))
 	suite.iboxapi.On("GetHostByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetHostByName(), nil)
 	suite.iboxapi.On("UnMapVolumeFromHost", mock.Anything, mock.Anything).Return(mock.Anything, nil)
@@ -340,7 +339,7 @@ func (suite *FCControllerSuite) Test_ControllerUnpublishVolume_MetadataErr() {
 }
 
 func (suite *FCControllerSuite) Test_CreateSnapshot_GetVolumeByNameErr() {
-	unpublishVolReq := storagecommon.GetISCSICreateSnapshotRequest()
+	unpublishVolReq := storagecommon.GetCreateSnapshotRequest(common.ProtocolFC)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.iboxapi.On("GetVolumeByName", suite.Suite.T().Context(), mock.Anything).Return(nil, suite.someError)
 	suite.iboxapi.On("CreateSnapshotVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetSnapshotResp(), nil)
@@ -351,7 +350,7 @@ func (suite *FCControllerSuite) Test_CreateSnapshot_GetVolumeByNameErr() {
 
 func (suite *FCControllerSuite) Test_CreateSnapshot_already_Created() {
 	suite.service.CS.VolProto.VolumeID = 1001
-	unpublishVolReq := storagecommon.GetISCSICreateSnapshotRequest()
+	unpublishVolReq := storagecommon.GetCreateSnapshotRequest(common.ProtocolFC)
 	unpublishVolReq.SourceVolumeId = "1001$$iscsi"
 	suite.iboxapi.On("GetVolumeByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.iboxapi.On("CreateSnapshotVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetSnapshotResp(), nil)
@@ -361,7 +360,7 @@ func (suite *FCControllerSuite) Test_CreateSnapshot_already_Created() {
 }
 
 func (suite *FCControllerSuite) Test_DeleteSnapshot() {
-	ctrdeleteSnapValReq := storagecommon.GetISCSIDeleteSnapshotRequest()
+	ctrdeleteSnapValReq := storagecommon.GetDeleteSnapshotRequest(common.ProtocolFC)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
 	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
@@ -375,7 +374,7 @@ func (suite *FCControllerSuite) Test_DeleteSnapshot() {
 }
 
 func (suite *FCControllerSuite) Test_ControllerExpandVolume() {
-	ctrExpandValReq := storagecommon.GetISCSIExpandVolumeRequest()
+	ctrExpandValReq := storagecommon.GetExpandVolumeRequest(common.ProtocolFC)
 	suite.iboxapi.On("UpdateVolume", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(nil, nil)
 	_, err := suite.service.ControllerExpandVolume(suite.Suite.T().Context(), ctrExpandValReq)
 	assert.Nil(suite.T(), err, "expected to succeed: fc ControllerExpandVolume")

@@ -18,8 +18,7 @@ import (
 func DeleteVolume(ctx context.Context, cs Commonservice, volumeID int) (response *csi.DeleteVolumeResponse, err error) {
 	vol, err := cs.IboxAPI.GetVolume(ctx, volumeID)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("volume already deleted", "volume ID", volumeID)
 			return &csi.DeleteVolumeResponse{}, nil
 		}

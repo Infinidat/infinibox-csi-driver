@@ -16,6 +16,7 @@ spec:
         app: {{ .Release.Name }}
     spec:
       serviceAccount: {{ .Release.Name }}
+      dnsPolicy: Default
       imagePullSecrets:
       - name: {{ .Values.imagePullSecret }}
       containers:

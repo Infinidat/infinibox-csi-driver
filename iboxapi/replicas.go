@@ -378,9 +378,7 @@ func (client *IboxClient) DeleteReplica(ctx context.Context, replicaID int) (err
 	}
 	if response.Error.Code != "" {
 		if response.Error.Code == "REPLICA_NOT_FOUND" {
-			return &APIError{
-				Code: RESOURCE_NOT_FOUND,
-				Err:  fmt.Errorf("replica ID %d not found", replicaID)}
+			return fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
 		}
 
 		return fmt.Errorf("ibox API - error: %v", response.Error)
@@ -419,7 +417,7 @@ func (client *IboxClient) GetReplica(ctx context.Context, replicaID int) (*Repli
 
 	if response.Error.Code != "" {
 		if response.Error.Code == "REPLICA_NOT_FOUND" {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" export ID %d not found", replicaID)}
+			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
 	}

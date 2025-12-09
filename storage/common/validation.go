@@ -60,18 +60,15 @@ func ValidateProtocolToNetworkSpace(ctx context.Context, protocol string, networ
 		slog.Debug("validating", "ns", networkSpace, "protocol", protocol)
 		nSpace, err := api.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
-			// api call throws error
 			slog.Error(err.Error())
 			return err
 		}
 		if len(nSpace.Service) == 0 {
-			// handle empty result - nSpace doesn't exist
 			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", networkSpace)
 			slog.Error(e.Error())
 			return e
 		}
 		if nSpace.Service != protoToServiceMap[protocol] {
-			// handle invalid protocol/networkspace configuration
 			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", networkSpace, protocol, nSpace.Service)
 			slog.Error(e.Error())
 			return e

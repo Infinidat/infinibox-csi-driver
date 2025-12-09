@@ -155,8 +155,6 @@ func getCollectorData(ctx context.Context, collectorID int64, ibox IboxCredentia
 		return nil, err
 	}
 
-	// TODO proper check of error code/message goes here
-
 	// curl -u "csitesting:csitestingisfun"
 	// https://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors/data?collector_id=35184372295290
 	// --insecure
@@ -259,8 +257,6 @@ func createCollectors(ctx context.Context, ibox IboxCredentials) (nasCollectorID
 		slog.Error(err.Error())
 		return nasCollectorID, sanCollectorID, err
 	}
-	// TODO proper check of error code/message goes here
-
 	// curl -u "csitesting:csitestingisfun" -d '{"collected_fields": ["ops","throughput","latency"],"type": "COUNTER","filters": {"protocol_type": "NAS"}}' -H "Content-Type: application/json" -X POST http://ibox1521.lab.wt.us.infinidat.com/api/rest/metrics/collectors --insecure
 	filters = Filters{
 		ProtocolType: "NAS",
@@ -313,8 +309,6 @@ func createCollectors(ctx context.Context, ibox IboxCredentials) (nasCollectorID
 		slog.Error(err.Error())
 		return nasCollectorID, sanCollectorID, err
 	}
-	// TODO proper check of error code/message goes here
-
 	if nasresponse.Result.ID == 0 {
 		return nasCollectorID, sanCollectorID, errors.New("nas collector not found")
 	}
@@ -389,7 +383,6 @@ func deleteCollector(ctx context.Context, collectorID int64, ibox IboxCredential
 	}
 	slog.Log(ctx, common.LevelTrace, "delete collector response", "delete response", deleteresponse)
 
-	// TODO proper check of error code/message goes here
 	return nil
 }
 

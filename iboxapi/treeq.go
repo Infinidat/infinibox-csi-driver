@@ -113,13 +113,13 @@ func (client *IboxClient) GetTreeqByName(ctx context.Context, fsID int, name str
 
 	if response.Error.Code != "" {
 		if response.Error.Code == FILESYSTEM_NOT_FOUND {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" fs ID '%d' not found", fsID)}
+			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf(" ibox API - error: %v", response.Error)
 	}
 
 	if len(response.Result) == 0 {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" treeq %s not found", name)}
+		return nil, ErrNotFound
 	}
 	return &response.Result[0], nil
 }
@@ -155,7 +155,7 @@ func (client *IboxClient) GetTreeq(ctx context.Context, fsID, treeqID int) (tree
 
 	if response.Error.Code != "" {
 		if response.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" fs %d treeq %d not found", fsID, treeqID)}
+			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf(" ibox API - error: %v", response.Error)
 	}
@@ -194,7 +194,7 @@ func (client *IboxClient) DeleteTreeq(ctx context.Context, fsID, treeqID int) (t
 
 	if response.Error.Code != "" {
 		if response.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" fs ID %d treeq ID %d not found", fsID, treeqID)}
+			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf(" ibox API - error: %v", response.Error)
 	}
@@ -282,11 +282,8 @@ func (client *IboxClient) UpdateTreeq(ctx context.Context, fsID, treeqID int, up
 		return nil, fmt.Errorf(" Unmarshal - error %w", err)
 	}
 	if resp.Error.Code != "" {
-		if resp.Error.Code == FILESYSTEM_NOT_FOUND {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("fs ID %d not found", fsID)}
-		}
-		if resp.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("fs ID %d treeq ID '%d' does not exist", fsID, treeqID)}
+		if resp.Error.Code == FILESYSTEM_NOT_FOUND || resp.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
+			return nil, fmt.Errorf("%s - %w", resp.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf(" ibox API - error: %v", resp.Error)
 	}

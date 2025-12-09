@@ -252,9 +252,7 @@ func UpdateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 		mountOptions = append(mountOptions, NFSMountOptionHard)
 	}
 
-	// Support readonly mount option.
 	if req.GetReadonly() {
-		// TODO: ensure ro / rw behavior is correct, CSIC-343. eg what if user specifies "rw" as a mountOption?
 		mountOptions = append(mountOptions, NFSMountOptionReadonly)
 	}
 

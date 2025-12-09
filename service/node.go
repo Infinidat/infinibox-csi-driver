@@ -227,7 +227,6 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	resp, err := protocolOperation.NodeUnpublishVolume(ctx, req)
 	if err != nil {
-		// TODO do we trust the error being correctly set with a valid gRPC status code?
 		slog.Error("NodeUnpublishVolume", "volume ID", req.GetVolumeId(), "error", err.Error())
 		return nil, err
 	}

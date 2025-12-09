@@ -14,13 +14,14 @@ package treeq
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 	"github.com/infinidat/infinibox-csi-driver/storage/nfs"
 
@@ -59,7 +60,7 @@ func NewTreeqstorage(capacity int64, comnserv storagecommon.Commonservice) (tree
 
 func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error {
 	requiredParams := map[string]string{
-		common.StorageClassNetworkSpace: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassNetworkSpace: `\A.*\z`,
 		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
 	}
 	optionalParams := map[string]string{
@@ -67,7 +68,7 @@ func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error 
 		common.StorageClassGID:               `^\d+$`,
 		common.StorageClassMaxFilesystems:    `^\d+$`,
 		common.StorageClassMaxTreeqsPerFS:    `^\d+$`,
-		common.StorageClassMaxFilesystemSize: `\A.*\z`, // TODO: add more specific pattern
+		common.StorageClassMaxFilesystemSize: `\A.*\z`,
 	}
 
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, params)
@@ -138,32 +139,6 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}, nil
 }
 
-// TODO duplicated code needs to be removed
-func getVolumeIDs(volumeID string) (filesystemID, treeqID int, err error) {
-	volproto := strings.Split(volumeID, "#")
-	if len(volproto) != 2 {
-		e := fmt.Errorf("volumeID: %s and other details not found", volumeID)
-		slog.Error(e.Error())
-		return 0, 0, e
-	}
-	if filesystemID, err = strconv.Atoi(volproto[0]); err != nil {
-		e := fmt.Errorf("error parsing filesystem ID  error: %s", err.Error())
-		slog.Error(e.Error())
-		return 0, 0, e
-	}
-
-	// volumeID example := "94148131#20000$$nfs_treeq"
-	treeqdetails := strings.Split(volproto[1], "$")
-
-	if treeqID, err = strconv.Atoi(treeqdetails[0]); err != nil {
-		e := fmt.Errorf("error parsing treeq ID error: %s", err.Error())
-		slog.Error(e.Error())
-		return 0, 0, e
-	}
-
-	return filesystemID, treeqID, nil
-}
-
 func (treeq *Treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
 	slog.Debug("start", "volume id", req.GetVolumeId())
 
@@ -172,7 +147,7 @@ func (treeq *Treeqstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	nfsDeleteErr := treeq.TreeqService.DeleteTreeqVolume(ctx, filesystemID, treeqID)
 	if nfsDeleteErr != nil {
 		slog.Error(nfsDeleteErr.Error())
-		if strings.Contains(nfsDeleteErr.Error(), "FILESYSTEM_NOT_FOUND") {
+		if errors.Is(nfsDeleteErr, iboxapi.ErrNotFound) {
 			slog.Error("already deleted from ibox")
 			return &csi.DeleteVolumeResponse{}, nil
 		}
@@ -210,12 +185,11 @@ func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	slog.Debug("starts")
 
 	maxFileSystemSize := treeq.NFSstorage.StorageClassParameters[common.StorageClassMaxFilesystemSize]
-	filesystemID, treeqID, err := getVolumeIDs(req.GetVolumeId())
-	if err != nil {
-		e := fmt.Errorf("from getVolumeIDs - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
+
+	slog.Debug("info", "volProto", treeq.NFSstorage.CS.VolProto)
+	filesystemID := treeq.NFSstorage.CS.VolProto.VolumeID
+	treeqID := treeq.NFSstorage.CS.VolProto.TreeqID
+	slog.Debug("info", "filesystemID", filesystemID, "treeqID", treeqID)
 
 	capacity := req.GetCapacityRange().GetRequiredBytes()
 	if capacity < storagecommon.GIB {
@@ -223,7 +197,7 @@ func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 		slog.Warn("volume minimum capacity should be greater 1 GB")
 	}
 
-	slog.Debug("info", "file system id", filesystemID, "treeq id", treeqID, "capacity", capacity, "max filesystem size", maxFileSystemSize)
+	slog.Debug("info", "filesystemID", filesystemID, "treeqID", treeqID, "capacity", capacity, "max filesystem size", maxFileSystemSize)
 	err = treeq.TreeqService.UpdateTreeqVolume(ctx, filesystemID, treeqID, capacity, maxFileSystemSize)
 	if err != nil {
 		e := fmt.Errorf("from UpdateTreeqVolume - error: %s", err.Error())

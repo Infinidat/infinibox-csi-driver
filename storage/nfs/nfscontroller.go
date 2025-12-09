@@ -14,6 +14,7 @@ package nfs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -93,7 +94,7 @@ func NewNFSstorage(capacity int64, cs storagecommon.Commonservice) (nfs *NFSstor
 
 func (nfs *NFSstorage) ValidateStorageClass(params map[string]string) error {
 	requiredParams := map[string]string{
-		common.StorageClassNetworkSpace: `\A.*\z`,    // TODO: could make this enforce IBOX network_space requirements, but probably not necessary
+		common.StorageClassNetworkSpace: `\A.*\z`,
 		common.StorageClassPoolName:     `[a-zA-Z]+`, // match all strings except empty string or blank string
 	}
 
@@ -184,8 +185,7 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 	if err != nil {
 		e := fmt.Errorf("from GetFileSystemByName pvName: %s error: %s", pvName, err.Error())
 		slog.Error(e.Error())
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
+		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("not found from GetFileSystemByName, will proceed to create it", "error", err)
 			// return nil, status.Errorf(codes.NotFound, "error CreateVolume failed: %v", err)
 		} else {
@@ -531,9 +531,7 @@ func (nfs *NFSstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapsh
 	sourceFilesystemID := nfs.CS.VolProto.VolumeID
 	snap, err := nfs.CS.IboxAPI.GetFileSystemByName(ctx, snapshotName)
 	if err != nil {
-		re, ok := err.(*iboxapi.APIError)
-		if ok && re.Code == iboxapi.RESOURCE_NOT_FOUND {
-		} else {
+		if !errors.Is(err, iboxapi.ErrNotFound) {
 			e := fmt.Errorf("from GetSnapshotByName volumeID: %d error: %s", nfs.CS.VolProto.VolumeID, err.Error())
 			slog.Error(e.Error())
 			return nil, e

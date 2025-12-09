@@ -4,7 +4,6 @@ package nfs
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/infinidat/infinibox-csi-driver/api"
@@ -131,7 +130,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_StoragePoolIDByName_Error() {
 	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportResponse(), nil)
 
 	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 
 	_, err := suite.service.CreateVolume(suite.Suite.T().Context(), createVolReq)
@@ -148,7 +147,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_CreateFileSystem_Error() {
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
 	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
 	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportPath(), nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	suite.iboxapi.On("CreateFileSystem", suite.Suite.T().Context(), mock.Anything).Return(nil, suite.someError)
 
@@ -172,7 +171,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_createExportPath_Error() {
 	suite.iboxapi.On("GetPoolByName", suite.Suite.T().Context(), mock.Anything).Return(&pool, nil)
 	suite.iboxapi.On("DeleteFileSystem", suite.Suite.T().Context(), mock.Anything).Return(nil)
 	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	suite.iboxapi.On("CreateFileSystem", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetFileSystem(), nil)
 	suite.iboxapi.On("CreateExport", suite.Suite.T().Context(), mock.Anything).Return(nil, suite.someError)
@@ -233,7 +232,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_poolID_name_invalid(
 	fs := storagecommon.GetFileSystem()
 	suite.service.Capacity = fs.Size
 	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
 	suite.iboxapi.On("GetExportsByFileSystemID", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetExportPath(), nil)
@@ -251,7 +250,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_createSnapshot_faile
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 
 	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	suite.iboxapi.On("GetFileSystemByID", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetFileSystem(), nil)
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
@@ -290,7 +289,7 @@ func (suite *NFSControllerSuite) Test_CreateVolume_Snapshot_metadatafailed() {
 	createVolReq.GetVolumeContentSource().GetSnapshot().SnapshotId = "1$$nfs"
 
 	suite.iboxapi.On("GetNetworkSpaceByName", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetNetworkSpace(), nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("not found")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	suite.iboxapi.On("GetFileSystemByID", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetFileSystem(), nil)
 	poolResult := &iboxapi.PoolResult{ID: 100}
@@ -459,7 +458,7 @@ func (suite *NFSControllerSuite) Test_NfsCreateSnapshot_CreateFileSystemS_succes
 
 	ctx := suite.Suite.T().Context()
 	suite.iboxapi.On("GetFileSystemByID", ctx, mock.Anything).Return(filesystem, nil)
-	notFoundError := &iboxapi.APIError{Code: iboxapi.RESOURCE_NOT_FOUND, Err: fmt.Errorf("GetFileSystemByName - name '%s' not found", "foo")}
+	notFoundError := iboxapi.ErrNotFound
 	suite.iboxapi.On("GetFileSystemByName", suite.Suite.T().Context(), mock.Anything).Return(nil, notFoundError)
 	suite.iboxapi.On("CreateFileSystemSnapshot", suite.Suite.T().Context(), mock.Anything).Return(filesystem, nil)
 	_, err := suite.service.CreateSnapshot(ctx, getNfsCreateSnapshotRequest("1$$nfs"))

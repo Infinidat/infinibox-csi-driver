@@ -16,7 +16,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"net/http"
 )
 
@@ -25,6 +25,9 @@ const (
 	DEBUG_LEVEL = 1
 	INFO_LEVEL  = 0
 )
+
+var ErrMappingExists = errors.New("mapping already exists")
+var ErrNotFound = errors.New("item not found")
 
 var ERROR_CODE_HOST_NOT_FOUND = "HOST_NOT_FOUND"
 
@@ -39,6 +42,7 @@ const (
 	PARAMETER_PAGE        = "page"
 )
 
+/**
 type APIError struct {
 	Code int
 	Err  error
@@ -47,6 +51,7 @@ type APIError struct {
 func (r *APIError) Error() string {
 	return fmt.Sprintf("iboxapi error code %d: err %v", r.Code, r.Err)
 }
+*/
 
 type Metadata struct {
 	Ready           bool `json:"ready"`

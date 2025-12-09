@@ -100,8 +100,6 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		}
 	} else {
 		slog.Debug("targetPath already exists, will not do anything", "targetPath", targetPath)
-		// TODO do I need or care about checking for existing Mount Refs?  k8s.io/utils/GetMountRefs
-		// dont' return, this may be a second call after a mount timeout
 	}
 
 	mountOptions, err := nfs.StorageHelper.GetNFSMountOptions(req)
@@ -198,8 +196,6 @@ func (nfs *NFSstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 }
 
 func (nfs *NFSstorage) UpdateExport(ctx context.Context, fileSystemID int, exportPerms string) (err error) {
-	// lookup file system information
-	// TODO pass in context
 	fileSystem, err := nfs.CS.IboxAPI.GetFileSystemByID(ctx, fileSystemID)
 	if err != nil {
 		e := fmt.Errorf("from GetFileSystemByID filesystemID: %d error: %s", fileSystemID, err.Error())

@@ -376,10 +376,6 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 		// mountOptions - could be nothing
 		diskMounter.mountOptions = mountVolCapability.GetMountFlags()
 
-		// TODO: other validations needed for file?
-		// - something about read-only access?
-		// - check that fstype is supported?
-		// - check that mount options are valid for fstype provided
 	} else if mountVolCapability == nil && blockVolCapability != nil {
 		// option B. user wants block access to their nvme device
 		nvmeDisk.isBlock = true
@@ -387,11 +383,6 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
 		}
-		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
-
-		// don't need to look at FsType or MountFlags here, only relevant for mountVol
-		// TODO: other validations needed for block?
-		// - something about read-only access?
 	} else {
 		errMsg := "getNVMEDiskMounter (nvme) - Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
 		slog.Error(errMsg)

@@ -303,7 +303,6 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 
 				_ = storagecommon.DebugWalkDir(stagePath)
 
-				// TODO - Review code
 				if err := os.RemoveAll(stagePath); err != nil {
 					slog.Error(err.Error())
 					slog.Warn("failed to RemoveAll", "stage path", stagePath, "error", err)
@@ -517,14 +516,13 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	iscsiTransport = iscsi.extractTransportName(commandOutput)
 	slog.Debug("info", "iscsiTransport", iscsiTransport)
 	if iscsiTransport == "" {
-		e := fmt.Errorf("could not find transport name in iface: %s", diskMounter.Iface) // TODO - b.Iface here really should be newIface...or does it matter?
+		e := fmt.Errorf("could not find transport name in iface: %s", diskMounter.Iface)
 		slog.Error(e.Error())
 		return "", e
 	}
 
 	// If not found, create new iface and copy parameters from pre-configured (default) iface to the created iface
 	// Use one interface per iSCSI network-space, i.e. usually one per IBox.
-	// TODO what does a blank Initiator name mean?
 	targets := diskMounter.Targets
 	if diskMounter.InitiatorName == "" {
 		for _, target := range targets {
@@ -622,7 +620,6 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	slog.Debug("list sessions after any logins", "sessions", sessionDetails)
 
 	// Rescan for LUN b.lun
-	// Find hosts. TODO - take heed of portals.
 	hosts, err := getHostIDs()
 	if err != nil {
 		e := fmt.Errorf("finding hosts failed: %s", err.Error())
@@ -794,10 +791,6 @@ func (iscsi *ISCSIstorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 		// mountOptions - could be nothing
 		diskMounter.mountOptions = mountVolCapability.GetMountFlags()
 
-		// TODO: other validations needed for file?
-		// - something about read-only access?
-		// - check that fstype is supported?
-		// - check that mount options are valid for fstype provided
 	} else if mountVolCapability == nil && blockVolCapability != nil {
 		// option B. user wants block access to their iSCSI device
 		iscsiDisk.IsBlock = true
@@ -805,11 +798,6 @@ func (iscsi *ISCSIstorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.No
 		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
 		}
-		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
-
-		// don't need to look at FsType or MountFlags here, only relevant for mountVol
-		// TODO: other validations needed for block?
-		// - something about read-only access?
 	} else {
 		errMsg := "getISCSIDiskMounter (iscsi) Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
 		slog.Error(errMsg)

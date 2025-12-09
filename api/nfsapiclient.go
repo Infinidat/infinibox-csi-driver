@@ -15,6 +15,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"strings"
@@ -217,8 +218,7 @@ func (c *ClientService) DeleteFileSystemComplete(ctx context.Context, fileSystem
 	for _, export := range exportResp {
 		_, err = c.IboxAPI.DeleteExport(ctx, export.ID)
 		if err != nil {
-			re, ok := err.(*iboxapi.APIError)
-			if ok && re.Code != iboxapi.RESOURCE_NOT_FOUND {
+			if errors.Is(err, iboxapi.ErrNotFound) {
 				slog.Error("failed to delete export path", "error", err)
 				return
 			}

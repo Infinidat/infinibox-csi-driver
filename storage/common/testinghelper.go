@@ -294,36 +294,35 @@ func GetIboxapiCreateVolumeResponse() *iboxapi.Volume {
 	return &vol
 }
 
-// TODO refactor protocol out of these test functions
-func GetISCSIControllerPublishVolumeRequest() *csi.ControllerPublishVolumeRequest {
+func GetControllerPublishVolumeRequest(protocol string) *csi.ControllerPublishVolumeRequest {
 	return &csi.ControllerPublishVolumeRequest{
-		VolumeId:      "1$$iscsi",
-		NodeId:        "10.20.20.50$$iscsi",
+		VolumeId:      "1$$" + protocol,
+		NodeId:        "10.20.20.50$$" + protocol,
 		VolumeContext: map[string]string{common.StorageClassMaxVolsPerHost: "10"},
 	}
 }
-func GetISCSIControllerUnpublishVolume() *csi.ControllerUnpublishVolumeRequest {
+func GetControllerUnpublishVolume(protocol string) *csi.ControllerUnpublishVolumeRequest {
 	return &csi.ControllerUnpublishVolumeRequest{
-		VolumeId: "1$$nfs",
-		NodeId:   "10.20.20.50$$iscsi",
+		VolumeId: "1$$" + protocol,
+		NodeId:   "10.20.20.50$$" + protocol,
 	}
 }
 
-func GetISCSIExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
+func GetExpandVolumeRequest(protocol string) *csi.ControllerExpandVolumeRequest {
 	return &csi.ControllerExpandVolumeRequest{
 		VolumeId: "1",
 	}
 }
 
-func GetISCSIDeleteSnapshotRequest() *csi.DeleteSnapshotRequest {
+func GetDeleteSnapshotRequest(protocol string) *csi.DeleteSnapshotRequest {
 	return &csi.DeleteSnapshotRequest{
-		SnapshotId: "1$$iscsi",
+		SnapshotId: "1$$" + protocol,
 	}
 }
 
-func GetISCSICreateSnapshotRequest() *csi.CreateSnapshotRequest {
+func GetCreateSnapshotRequest(protocol string) *csi.CreateSnapshotRequest {
 	return &csi.CreateSnapshotRequest{
-		SourceVolumeId: "1$$iscsi",
+		SourceVolumeId: "1$$" + protocol,
 		Name:           "snapshotName",
 	}
 }

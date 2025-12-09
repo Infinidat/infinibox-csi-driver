@@ -103,11 +103,10 @@ func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool 
 		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
 	}
 
-	if len(response.Result) > 0 {
-		pool = &response.Result[0]
-	} else {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("pool '%s' not found", name)}
+	if len(response.Result) == 0 {
+		return nil, ErrNotFound
 	}
+	pool = &response.Result[0]
 
 	return pool, nil
 }
@@ -142,11 +141,10 @@ func (client *IboxClient) GetPoolByID(ctx context.Context, poolID int) (pool *Po
 		return nil, fmt.Errorf("unmarshal - error %w", err)
 	}
 
-	if response.Error.Code == "POOL_NOT_FOUND" {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf("pool '%d' not found", poolID)}
-	}
-
 	if response.Error.Code != "" {
+		if response.Error.Code == "POOL_NOT_FOUND" {
+			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
+		}
 		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
 	}
 

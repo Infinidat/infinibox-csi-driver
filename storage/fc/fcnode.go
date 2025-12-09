@@ -452,7 +452,6 @@ func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 
 	// check accessMode - where we will eventually police R/W etc (CSIC-343)
 	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
-	// TODO: set readonly flag for RO accessmodes, any other validations needed?
 
 	// handle file (mount) and block parameters
 	mountVolCapability := reqVolCapability.GetMount()
@@ -476,10 +475,6 @@ func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		// mountOptions - could be nil
 		mountOptions = mountVolCapability.GetMountFlags()
 
-		// TODO: other validations needed for file?
-		// - something about read-only access?
-		// - check that fstype is supported?
-		// - check that mount options are valid for fstype provided
 	} else if mountVolCapability == nil && blockVolCapability != nil {
 		// option B. user wants block access to their FC device
 		fcDetails.isBlock = true
@@ -487,11 +482,6 @@ func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetai
 		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
 			slog.Warn("accessmode MULTI_NODE_MULTI_WRITER requested for raw block volume, could be dangerous")
 		}
-		// TODO: something about SINGLE_NODE_MULTI_WRITER (alpha feature) as well?
-
-		// don't need to look at FsType or MountFlags here, only relevant for mountVol
-		// TODO: other validations needed for block?
-		// - something about read-only access?
 	} else {
 		errMsg := "bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
 		slog.Error(errMsg)

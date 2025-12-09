@@ -374,7 +374,7 @@ func (client *IboxClient) GetConsistencyGroupByName(ctx context.Context, name st
 	}
 
 	if len(responseObject.Result) == 0 {
-		return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" cg name '%s' not found", name)}
+		return nil, ErrNotFound
 	}
 	cg = &responseObject.Result[0]
 
@@ -416,7 +416,9 @@ func (client *IboxClient) DeleteConsistencyGroup(ctx context.Context, cgID int) 
 		return fmt.Errorf("unmarshal - error %w", err)
 	}
 	if responseObject.Error.Code != "" {
-		// TODO check for NOT FOUND?  have callers check for ErrNotFound?
+		if responseObject.Error.Code == "CG_NOT_FOUND" {
+			return fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
+		}
 		return fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
 	return nil
@@ -452,7 +454,7 @@ func (client *IboxClient) GetConsistencyGroup(ctx context.Context, cgID int) (cg
 
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "CG_NOT_FOUND" {
-			return nil, &APIError{Code: RESOURCE_NOT_FOUND, Err: fmt.Errorf(" cg ID '%d' not found", cgID)}
+			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
 		}
 		return nil, fmt.Errorf(" ibox API - error: %v", responseObject.Error)
 	}
