@@ -108,7 +108,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
-		return nvme.createVolumeFromContentSource(ctx, req, name, nvme.Capacity, poolName)
+		return storagecommon.CreateVolumeFromVolumeContent(ctx, nvme.CS, req, name, nvme.Capacity, poolName)
 	}
 
 	volumeType, provided := params[common.StorageClassProvisionType]
@@ -512,100 +512,4 @@ func (nvme *NVMEstorage) ControllerGetVolume(
 ) (*csi.ControllerGetVolumeResponse, error) {
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (nvme *NVMEstorage) createVolumeFromContentSource(ctx context.Context, req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
-	var msg string
-
-	volumecontent := req.GetVolumeContentSource()
-	var volumeContentID string
-	var restoreType string
-	if volumecontent.GetSnapshot() != nil {
-		restoreType = storagecommon.RestoryTypeSnapshot
-		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
-	} else if volumecontent.GetVolume() != nil {
-		restoreType = storagecommon.RestoreTypeVolume
-		volumeContentID = volumecontent.GetVolume().GetVolumeId()
-	}
-
-	slog.Debug("info", "volume content id", volumeContentID, "restore type", restoreType, "size", sizeInBytes)
-
-	// Lookup the snapshot source volume.
-	volproto, err := storagecommon.ValidateVolumeID(volumeContentID)
-	if err != nil {
-		e := fmt.Errorf("failed to validate storage type restoreType: %s source id: %s, error: %s", restoreType, volumeContentID, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-
-	srcVol, err := nvme.CS.IboxAPI.GetVolume(ctx, volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("from GetVolume id: %d restoreType: %s error: %s", volproto.VolumeID, restoreType, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-
-	// Validate the size is the same.
-	if srcVol.Size != sizeInBytes {
-		msg := fmt.Sprintf("createVolumeFromContentSource (nvme) - %s %s has incompatible size. size is %d bytes with requested size %d bytes", restoreType, volumeContentID, srcVol.Size, sizeInBytes)
-		slog.Error(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
-
-	params := req.GetParameters()
-
-	// Check the storagePool is the same.
-	pool, err := nvme.CS.IboxAPI.GetPoolByName(ctx, storagePool)
-	if err != nil {
-		e := fmt.Errorf("from GetPoolByName name: %s error: %s", storagePool, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-	if pool.ID != srcVol.PoolID {
-		msg = fmt.Sprintf("createVolumeFromContentSource (nvme) - volume storage pool is different than the requested storage pool %s %d %d", storagePool, pool.ID, srcVol.PoolID)
-		slog.Error(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
-
-	// Create snapshot descriptor
-	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       volproto.VolumeID,
-		SnapshotName:   name,
-		WriteProtected: false,
-		LockExpiresAt:  0,
-	}
-
-	// Create snapshot
-	snapResponse, err := nvme.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
-	if err != nil {
-		e := fmt.Errorf("from CreateSnapshotVolume - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	// Retrieve created destination volume
-	volID := snapResponse.SnapShotID
-	dstVol, err := nvme.CS.IboxAPI.GetVolume(ctx, volID)
-	if err != nil {
-		e := fmt.Errorf("from GetVolume - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	// Create a volume response and return it
-	csiVolume := nvme.CS.GetCSIResponse(ctx, dstVol, req)
-	storagecommon.CopyRequestParameters(params, csiVolume.VolumeContext)
-
-	metadata := map[string]interface{}{
-		"host.k8s.pvname": dstVol.Name,
-	}
-	_, err = nvme.CS.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
-	if err != nil {
-		e := fmt.Errorf("from PutMetadata volume: %s, error: %s", dstVol.Name, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	slog.Debug("from", "restore type", restoreType, "volume id", volproto.VolumeID, "name", csiVolume.VolumeContext["Name"], "volume id2", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
-	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }

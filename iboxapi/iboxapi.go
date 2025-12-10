@@ -81,6 +81,7 @@ type Client interface {
 	GetVolume(ctx context.Context, volumeID int) (*Volume, error)
 	UpdateVolume(ctx context.Context, volumeID int, volume Volume) (*Volume, error)
 	CreateSnapshotVolume(ctx context.Context, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error)
+	PromoteSnapshot(ctx context.Context, snapshotID int) (*Volume, error)
 	GetVolumesByParentID(ctx context.Context, parentID int) ([]Volume, error)
 
 	// network spaces

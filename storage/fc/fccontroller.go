@@ -109,7 +109,7 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	// Volume content source support volume and snapshots
 	contentSource := req.GetVolumeContentSource()
 	if contentSource != nil {
-		return fc.createVolumeFromVolumeContent(ctx, req, name, fc.Capacity, poolName)
+		return storagecommon.CreateVolumeFromVolumeContent(ctx, fc.CS, req, name, fc.Capacity, poolName)
 	}
 
 	volType, provided := params[common.StorageClassProvisionType]
@@ -503,98 +503,4 @@ func (fc *FCstorage) ControllerGetVolume(
 ) (*csi.ControllerGetVolumeResponse, error) {
 	// Infinidat does not support ControllerGetVolume
 	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (fc *FCstorage) createVolumeFromVolumeContent(ctx context.Context, req *csi.CreateVolumeRequest, name string, sizeInKbytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
-	var err error
-
-	volumecontent := req.GetVolumeContentSource()
-	var volumeContentID string
-	var restoreType string
-	if volumecontent.GetSnapshot() != nil {
-		restoreType = storagecommon.RestoryTypeSnapshot
-		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
-	} else if volumecontent.GetVolume() != nil {
-		volumeContentID = volumecontent.GetVolume().GetVolumeId()
-		restoreType = storagecommon.RestoreTypeVolume
-	}
-
-	// Validate the source content id
-	volproto, err := storagecommon.ValidateVolumeID(volumeContentID)
-	if err != nil {
-		e := fmt.Sprintf("error from ValidateVolumeID - restoreType: %s volumeContentID: %s, error: %s", restoreType, volumeContentID, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.NotFound, e)
-	}
-
-	srcVol, err := fc.CS.IboxAPI.GetVolume(ctx, volproto.VolumeID)
-	if err != nil {
-		e := fmt.Sprintf("error from GetVolume - restoreType: %s volumeID: %d error: %s", restoreType, volproto.VolumeID, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.NotFound, e)
-	}
-
-	// Validate the size is the same.
-	if srcVol.Size != sizeInKbytes {
-		return nil, status.Errorf(codes.InvalidArgument,
-			restoreType+" %s has incompatible size %d kbytes with requested %d kbytes",
-			volumeContentID, srcVol.Size, sizeInKbytes)
-	}
-
-	// Validate the storagePool is the same.
-	pool, err := fc.CS.IboxAPI.GetPoolByName(ctx, storagePool)
-	if err != nil {
-		e := fmt.Sprintf("error from GetPoolByName - storagePool: %s  error: %s", storagePool, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
-	}
-	if pool.ID != srcVol.PoolID {
-		e := fmt.Sprintf("volume storage pool is different than requested storagePool: %s", storagePool)
-		slog.Error(e)
-		return nil, status.Error(codes.InvalidArgument, e)
-	}
-	ssd := req.GetParameters()[common.StorageClassSSDEnabled]
-	if ssd == "" {
-		ssd = strconv.FormatBool(false)
-	}
-	ssdEnabled, _ := strconv.ParseBool(ssd)
-	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       volproto.VolumeID,
-		SnapshotName:   name,
-		WriteProtected: false,
-		SSDEnabled:     ssdEnabled,
-		LockExpiresAt:  0,
-	}
-	// Create snapshot
-	snapResponse, err := fc.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
-	if err != nil {
-		e := fmt.Sprintf("error from CreateSnapshotVolume - error: %s", err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
-	}
-
-	// Retrieve created destination volume
-	volID := snapResponse.SnapShotID
-	dstVol, err := fc.CS.IboxAPI.GetVolume(ctx, volID)
-	if err != nil {
-		e := fmt.Sprintf("error from GetVolume - volumeID: %d error: %s", volID, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
-	}
-
-	// Create a volume response and return it
-	csiVolume := fc.CS.GetCSIResponse(ctx, dstVol, req)
-	storagecommon.CopyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
-
-	metadata := map[string]interface{}{
-		"host.k8s.pvname": dstVol.Name,
-	}
-	_, err = fc.CS.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
-	if err != nil {
-		e := fmt.Sprintf("error from PutMetadata - volumeName: %s, error: %s", dstVol.Name, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
-	}
-	slog.Debug("completes", "Volume (from snap)", csiVolume.VolumeContext["Name"], "volumeID", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
-	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }

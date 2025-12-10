@@ -503,3 +503,47 @@ func (client *IboxClient) GetVolumesByParentID(ctx context.Context, parentID int
 
 	return volumes, nil
 }
+
+func (client *IboxClient) PromoteSnapshot(ctx context.Context, snapshotID int) (*Volume, error) {
+	url := fmt.Sprintf("%s%s/%d/%s", client.Creds.URL, "api/rest/volumes", snapshotID, "promote")
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "snapshotID", snapshotID)
+
+	jsonBytes, err := json.Marshal("")
+	if err != nil {
+		return nil, fmt.Errorf("marshal - error %w", err)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return nil, fmt.Errorf("newRequest - error %w", err)
+	}
+
+	values := request.URL.Query()
+	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
+	request.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(request, client.Creds)
+	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
+
+	response, err := client.HTTPClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("do - error %w", err)
+	}
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			slog.Error("close", "error", err.Error())
+		}
+	}()
+
+	body, _ := io.ReadAll(response.Body)
+
+	var responseObject CreateVolumeResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal - error %w", err)
+	}
+	if responseObject.Error.Code != "" {
+		return nil, fmt.Errorf("ibox API - error: %v", responseObject.Error)
+	}
+	slog.Log(ctx, common.LevelTrace, "info", "Volume ID", responseObject.Result.ID)
+	return &responseObject.Result, nil
+}

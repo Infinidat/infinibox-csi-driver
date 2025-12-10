@@ -114,7 +114,7 @@ func (iscsi *ISCSIstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	// Volume content source support volume and snapshots
 	if req.GetVolumeContentSource() != nil {
-		return iscsi.createVolumeFromContentSource(ctx, req, name, iscsi.Capacity, poolName)
+		return storagecommon.CreateVolumeFromVolumeContent(ctx, iscsi.CS, req, name, iscsi.Capacity, poolName)
 	}
 
 	volType, provided := params[common.StorageClassProvisionType]
@@ -520,105 +520,4 @@ func (iscsi *ISCSIstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 
 func (iscsi *ISCSIstorage) ControllerGetVolume(_ context.Context, _ *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (iscsi *ISCSIstorage) createVolumeFromContentSource(ctx context.Context, req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
-	var msg, volumeContentID, restoreType string
-	volumecontent := req.GetVolumeContentSource()
-	if volumecontent.GetSnapshot() != nil {
-		restoreType = storagecommon.RestoryTypeSnapshot
-		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
-	} else if volumecontent.GetVolume() != nil {
-		restoreType = storagecommon.RestoreTypeVolume
-		volumeContentID = volumecontent.GetVolume().GetVolumeId()
-	}
-
-	slog.Debug("start", "source ID", volumeContentID, "type", restoreType, "size", sizeInBytes)
-
-	// Lookup the snapshot source volume.
-	volproto, err := storagecommon.ValidateVolumeID(volumeContentID)
-	if err != nil {
-		e := fmt.Errorf("error from ValidateVolumeID restoreType: %s volumeContentID: %s error: %s", restoreType, volumeContentID, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-
-	srcVol, err := iscsi.CS.IboxAPI.GetVolume(ctx, volproto.VolumeID)
-	if err != nil {
-		e := fmt.Errorf("error from GetVolume volumeID: %d restoreType: %s error: %s", volproto.VolumeID, restoreType, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
-	}
-
-	// Validate the size is the same.
-	if srcVol.Size != sizeInBytes {
-		msg := fmt.Sprintf("(iscsi) %s %s has incompatible size. size is %d bytes with requested size %d bytes", restoreType, volumeContentID, srcVol.Size, sizeInBytes)
-		slog.Error(msg)
-		return nil, status.Errorf(codes.InvalidArgument, "%s", msg)
-	}
-
-	params := req.GetParameters()
-
-	// Check the storagePool is the same.
-	pool, err := iscsi.CS.IboxAPI.GetPoolByName(ctx, storagePool)
-	if err != nil {
-		e := fmt.Errorf("error from GetPoolByName storagePool: %s error: %s", storagePool, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-	if pool.ID != srcVol.PoolID {
-		msg = fmt.Sprintf("(iscsi) volume storage pool is different than the requested storage pool %s", storagePool)
-		slog.Error(msg)
-		return nil, status.Error(codes.InvalidArgument, msg)
-	}
-
-	// Parse ssd enabled flag
-	ssd := params[common.StorageClassSSDEnabled]
-	if ssd == "" {
-		ssd = strconv.FormatBool(false)
-	}
-	ssdEnabled, _ := strconv.ParseBool(ssd)
-
-	// Create snapshot descriptor
-	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       volproto.VolumeID,
-		SnapshotName:   name,
-		WriteProtected: false,
-		SSDEnabled:     ssdEnabled,
-		LockExpiresAt:  0,
-	}
-
-	// Create snapshot
-	snapResponse, err := iscsi.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
-	if err != nil {
-		e := fmt.Errorf("error from CreateSnapshotVolume - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	// Retrieve created destination volume
-	volID := snapResponse.SnapShotID
-	dstVol, err := iscsi.CS.IboxAPI.GetVolume(ctx, volID)
-	if err != nil {
-		e := fmt.Errorf("error from GetVolume - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	// Create a volume response and return it
-	csiVolume := iscsi.CS.GetCSIResponse(ctx, dstVol, req)
-	storagecommon.CopyRequestParameters(params, csiVolume.VolumeContext)
-
-	metadata := map[string]interface{}{
-		"host.k8s.pvname": dstVol.Name,
-	}
-	_, err = iscsi.CS.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
-	if err != nil {
-		e := fmt.Errorf("error from PutMetadata volumeName: %s, error: %s", dstVol.Name, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	slog.Debug("created volume from source ", "restoreType", restoreType, "volume ID", volproto.VolumeID, "name", csiVolume.VolumeContext["Name"], "id", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
-	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }

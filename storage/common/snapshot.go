@@ -1,14 +1,22 @@
 package common
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
 	RestoreTypeVolume   = "Volume"
-	RestoryTypeSnapshot = "Snapshot"
+	RestoreTypeSnapshot = "Snapshot"
 )
 
 // validateSnapshotLockingParameter validates an input lock_expires parameter string and returns
@@ -57,4 +65,108 @@ func ValidateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMi
 	}
 
 	return futureTime, nil
+}
+
+func CreateVolumeFromVolumeContent(ctx context.Context, cs Commonservice, req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
+	var err error
+
+	volumecontent := req.GetVolumeContentSource()
+	var volumeContentID string
+	var restoreType string
+	if volumecontent.GetSnapshot() != nil {
+		restoreType = RestoreTypeSnapshot
+		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
+	} else if volumecontent.GetVolume() != nil {
+		volumeContentID = volumecontent.GetVolume().GetVolumeId()
+		restoreType = RestoreTypeVolume
+	}
+	slog.Debug("info", "volume content id", volumeContentID, "restore type", restoreType, "size", sizeInBytes)
+
+	// Validate the source content id
+	volproto, err := ValidateVolumeID(volumeContentID)
+	if err != nil {
+		e := fmt.Sprintf("error from ValidateVolumeID - restoreType: %s volumeContentID: %s, error: %s", restoreType, volumeContentID, err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.NotFound, e)
+	}
+
+	srcVol, err := cs.IboxAPI.GetVolume(ctx, volproto.VolumeID)
+	if err != nil {
+		e := fmt.Sprintf("error from GetVolume - restoreType: %s volumeID: %d error: %s", restoreType, volproto.VolumeID, err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.NotFound, e)
+	}
+
+	// Validate the size is the same.
+	if srcVol.Size != sizeInBytes {
+		return nil, status.Errorf(codes.InvalidArgument,
+			restoreType+" %s has incompatible size %d bytes with requested %d bytes",
+			volumeContentID, srcVol.Size, sizeInBytes)
+	}
+
+	// Validate the storagePool is the same.
+	pool, err := cs.IboxAPI.GetPoolByName(ctx, storagePool)
+	if err != nil {
+		e := fmt.Sprintf("error from GetPoolByName - storagePool: %s  error: %s", storagePool, err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.Internal, e)
+	}
+	if pool.ID != srcVol.PoolID {
+		e := fmt.Sprintf("volume storage pool is different than requested storagePool: %s", storagePool)
+		slog.Error(e)
+		return nil, status.Error(codes.InvalidArgument, e)
+	}
+	ssd := req.GetParameters()[common.StorageClassSSDEnabled]
+	if ssd == "" {
+		ssd = strconv.FormatBool(false)
+	}
+	ssdEnabled, _ := strconv.ParseBool(ssd)
+	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
+		ParentID:       volproto.VolumeID,
+		SnapshotName:   name,
+		WriteProtected: false,
+		SSDEnabled:     ssdEnabled,
+		LockExpiresAt:  0,
+	}
+	// Create snapshot
+	snapResponse, err := cs.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
+	if err != nil {
+		e := fmt.Sprintf("error from CreateSnapshotVolume - error: %s", err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.Internal, e)
+	}
+
+	// Retrieve created destination volume
+	volID := snapResponse.SnapShotID
+	dstVol, err := cs.IboxAPI.GetVolume(ctx, volID)
+	if err != nil {
+		e := fmt.Sprintf("error from GetVolume - volumeID: %d error: %s", volID, err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.Internal, e)
+	}
+
+	// promote the snapshot created just now to a MASTER volume
+	_, err = cs.IboxAPI.PromoteSnapshot(ctx, dstVol.ID)
+	if err != nil {
+		e := fmt.Errorf("from PromoteSnapshot - error: %s", err.Error())
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
+	slog.Debug("snapshot promoted to volume", "volume id", dstVol.ID)
+
+	// Create a volume response and return it
+	csiVolume := cs.GetCSIResponse(ctx, dstVol, req)
+	CopyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
+
+	metadata := map[string]interface{}{
+		"host.k8s.pvname": dstVol.Name,
+	}
+	_, err = cs.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
+	if err != nil {
+		e := fmt.Sprintf("error from PutMetadata - volumeName: %s, error: %s", dstVol.Name, err.Error())
+		slog.Error(e)
+		return nil, status.Error(codes.Internal, e)
+	}
+	slog.Debug("completes", "Volume (from snap)", csiVolume.VolumeContext["Name"], "volumeID", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
+	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
 }

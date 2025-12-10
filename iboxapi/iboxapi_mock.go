@@ -100,6 +100,12 @@ func (m *MockAPIService) CreateVolume(ctx context.Context, request CreateVolumeR
 	err, _ := args.Get(1).(error)
 	return res, err
 }
+func (m *MockAPIService) PromoteSnapshot(ctx context.Context, snapshotID int) (*Volume, error) {
+	args := m.Called(ctx, snapshotID)
+	res, _ := args.Get(0).(*Volume)
+	err, _ := args.Get(1).(error)
+	return res, err
+}
 func (m *MockAPIService) CreateHost(ctx context.Context, name string) (*Host, error) {
 	args := m.Called(ctx, name)
 	res, _ := args.Get(0).(*Host)
