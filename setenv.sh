@@ -17,11 +17,12 @@ fi
 #export X_CSI_DEBUG=true
 
 # Start infinibox-csi-driver or the iboxreplica-controller
-if [ -z "$IBOXREPLICA_CONTROLLER" ]
-then 
-	exec "/infinibox-csi-driver"
-else 
+if [[ "$IBOXREPLICA_CONTROLLER" == "true" ]]; then
 	exec "/iboxreplica-controller"
+elif [[ "$IBOXPROMOTE_CONTROLLER" == "true" ]]; then
+	exec "/iboxpromote-controller"
+else 
+	exec "/infinibox-csi-driver"
 fi
 
 # exec /infinibox-csi-driver $*

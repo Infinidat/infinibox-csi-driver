@@ -37,8 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/go-logr/logr"
-	csidriverv1 "github.com/infinidat/infinibox-csi-driver/api/v1"
-	"github.com/infinidat/infinibox-csi-driver/internal/controller"
+	csidriverv1 "github.com/infinidat/infinibox-csi-driver/iboxreplica/api/v1"
+	"github.com/infinidat/infinibox-csi-driver/iboxreplica/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 

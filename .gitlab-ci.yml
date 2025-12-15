@@ -81,20 +81,8 @@ go-build:
   artifacts:
     paths:
       - infinibox-csi-driver
-    expire_in: 1 day
-
-go-iboxreplica-build:
-  stage: build
-  tags:
-    - go-build
-  image:
-    name: quay.io/projectquay/golang:1.25
-    pull_policy: if-not-present
-  script:
-    - make -f Makefile-iboxreplica build
-  artifacts:
-    paths:
-      - bin/iboxreplica-controller
+      - iboxreplica/bin/iboxreplica-controller
+      - iboxpromote/bin/iboxpromote-controller
     expire_in: 1 day
 
 go-metrics-build:

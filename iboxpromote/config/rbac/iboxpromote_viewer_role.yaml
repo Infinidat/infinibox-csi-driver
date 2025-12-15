@@ -1,0 +1,23 @@
+# permissions for end users to view iboxpromotes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: api2
+    app.kubernetes.io/managed-by: kustomize
+  name: iboxpromote-viewer-role
+rules:
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxpromotes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxpromotes/status
+  verbs:
+  - get

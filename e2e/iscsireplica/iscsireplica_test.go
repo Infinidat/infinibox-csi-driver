@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
-	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/e2e"
+	v1 "github.com/infinidat/infinibox-csi-driver/iboxreplica/api/v1"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 

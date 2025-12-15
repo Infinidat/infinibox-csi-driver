@@ -27,9 +27,9 @@ setup-snapshot:  devEnv teardown-snapshot
 	sleep 5
 	envsubst < ./snapshot.yaml | $(_CLIN) create -f -
 	sleep 5
-	envsubst < ./pvc-restore-snapshot.yaml | $(_CLIN) create -f -
+	#envsubst < ./pvc-restore-snapshot.yaml | $(_CLIN) create -f -
 	sleep 5
-	envsubst < ./pod-restore-snapshot.yaml | $(_CLIN) create -f -
+	##envsubst < ./pod-restore-snapshot.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
 .PHONY: teardown-snapshot

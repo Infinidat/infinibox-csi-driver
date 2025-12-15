@@ -64,7 +64,8 @@ clean:  ## Clean source.
 build:  ## Build source.
 	@echo -e $(_begin)
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
-	make -f Makefile-iboxreplica build
+	make -f iboxreplica/Makefile
+	make -f iboxpromote/Makefile
 	@echo -e $(_finish)
 
 .PHONY: build-e2e

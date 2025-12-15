@@ -30,9 +30,9 @@ import (
 
 	"github.com/infinidat/infinibox-csi-driver/api"
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
-	csidriverinfinidatcomv1 "github.com/infinidat/infinibox-csi-driver/api/v1"
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	csidriverinfinidatcomv1 "github.com/infinidat/infinibox-csi-driver/iboxreplica/api/v1"
 )
 
 const (

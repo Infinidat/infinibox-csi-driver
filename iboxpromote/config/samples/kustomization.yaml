@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- csidriver.infinidat.com_v1_iboxpromote.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

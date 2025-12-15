@@ -81,6 +81,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"   
+            - "--feature-gates=CSIVolumeGroupSnapshot=true"
             - "--extra-create-metadata=true"   
             - "--snapshot-name-prefix={{ required "Must provide a value to prefix to driver created snapshot names" .Values.volumeNamePrefix }}"
             - "--snapshot-name-uuid-length=10"
@@ -114,6 +115,35 @@ spec:
           volumeMounts:
             - name: driver-path
               mountPath: /var/run/csi
+        - name: iboxpromote
+          ports:
+            - containerPort: 8088
+              name: healthz2
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz2
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true  
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
+          env:
+            - name: IBOXPROMOTE_CONTROLLER
+              value: "true"
+            - name: APP_LOG_LEVEL
+              value: {{ .Values.logLevel }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
         - name: iboxreplica
           ports:
             - containerPort: 8081
@@ -185,12 +215,12 @@ spec:
         {{- end }}
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
-            - name: IBOX_HOST_NAMING_CONVENTION
-              value: "{{ .Values.iboxHostNamingConvention }}"
             - name: PROTOCOL_SECRET
               value: {{ .Values.protocolSecret }}
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: IBOX_HOST_NAMING_CONVENTION
+              value: {{ .Values.iboxHostNamingConvention }}
             - name: CSI_DRIVER_NAME
               value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: KUBE_NODE_NAME

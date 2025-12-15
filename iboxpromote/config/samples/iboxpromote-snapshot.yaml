@@ -1,0 +1,12 @@
+apiVersion: csidriver.infinidat.com/v1
+kind: Iboxpromote
+metadata:
+  annotations:
+    infinidat.com/secret_name: infinibox-creds
+    infinidat.com/secret_namespace: infinidat-csi
+  name: iboxpromote-snapshot-sample
+spec:
+  description: "mysnapshotpromotetest"
+  entity_type: "SNAPSHOT"
+  entity_name: "csiosv-892d19d96f"
+  base_action: "NEW"

@@ -16,7 +16,7 @@ import (
 	"context"
 	"log/slog"
 
-	v1 "github.com/infinidat/infinibox-csi-driver/api/v1"
+	v1 "github.com/infinidat/infinibox-csi-driver/iboxreplica/api/v1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
