@@ -64,9 +64,7 @@ func (nvme *NVMEstorage) ValidateStorageClass(params map[string]string) error {
 	// validate required parameters
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredNVMEParams, optionalNVMEParams, params)
 	if err != nil {
-		e := fmt.Errorf("from Validate - error: %s", err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.InvalidArgument, e.Error())
+		return status.Error(codes.InvalidArgument, common.Errorf("from Validate - error: %w", err).Error())
 	}
 	return nil
 }
@@ -86,9 +84,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("volume not found, will proceed to create it", "volume", req.GetName())
 		} else {
-			e := fmt.Errorf("from GetVolumeByName - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.NotFound, e.Error())
+			return nil, status.Error(codes.NotFound, common.Errorf("from GetVolumeByName - error: %w", err).Error())
 		}
 	}
 	if targetVolume != nil {
@@ -131,9 +127,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 
 	pool, err := nvme.CS.IboxAPI.GetPoolByName(ctx, poolName)
 	if err != nil {
-		e := fmt.Errorf("from GetPoolByName name: %s error: %s", poolName, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from GetPoolByName name: %s error: %w", poolName, err).Error())
 	}
 
 	createVolumeRequest := iboxapi.CreateVolumeRequest{
@@ -145,18 +139,14 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	}
 	createVolumeResponse, err := nvme.CS.IboxAPI.CreateVolume(ctx, createVolumeRequest)
 	if err != nil {
-		e := fmt.Errorf("api CreateVolume - creating volume: %s pool: %s error: %s", name, poolName, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("api CreateVolume - creating volume: %s pool: %s error: %w", name, poolName, err).Error())
 	}
 	csiResponse := nvme.CS.GetCSIResponse(ctx, createVolumeResponse, req)
 
 	// check volume id format
 	volumeID, err := strconv.Atoi(csiResponse.VolumeId)
 	if err != nil {
-		e := fmt.Errorf("parsing volumeID: %s - error: %s", csiResponse.VolumeId, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("parsing volumeID: %s - error: %w", csiResponse.VolumeId, err).Error())
 	}
 
 	MAX_TRIES := 10
@@ -171,9 +161,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 		time.Sleep(1 * time.Second)
 	}
 	if volume == nil {
-		e := fmt.Errorf("from GetVolume - name: %s volumeID: %d", name, volumeID)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from GetVolume - name: %s volumeID: %d", name, volumeID).Error())
 	}
 
 	// Prepare response struct
@@ -188,9 +176,7 @@ func (nvme *NVMEstorage) CreateVolume(ctx context.Context, req *csi.CreateVolume
 	}
 	_, err = nvme.CS.IboxAPI.PutMetadata(ctx, volume.ID, metadata)
 	if err != nil {
-		e := fmt.Errorf("from PutMetadata - volume: %s, error: %s", name, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from PutMetadata - volume: %s, error: %w", name, err).Error())
 	}
 
 	slog.Debug("successfully created volume", "volume", name, "volumeID", volumeID)
@@ -219,40 +205,30 @@ func (nvme *NVMEstorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	volumeIDString := req.GetVolumeId()
 	volproto, err := storagecommon.ValidateVolumeID(volumeIDString)
 	if err != nil {
-		e := fmt.Errorf("from ValidateVolumeID - volumeID: %s, error: %s", volumeIDString, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
+		return nil, status.Error(codes.NotFound, common.Errorf("from ValidateVolumeID - volumeID: %s, error: %w", volumeIDString, err).Error())
 	}
 
 	slog.Debug("info", "volume id", volproto.VolumeID)
 	volume, err := nvme.CS.IboxAPI.GetVolume(ctx, volproto.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("from GetVolume - volumeID: %d error: %s", volproto.VolumeID, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.NotFound, e.Error())
+		return nil, status.Error(codes.NotFound, common.Errorf("from GetVolume - volumeID: %d error: %w", volproto.VolumeID, err).Error())
 	}
 
 	_, err = nvme.CS.AccessModesHelper.IsValidAccessMode(volume, req)
 	if err != nil {
-		e := fmt.Errorf("from IsValidAccessMode - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from IsValidAccessMode - error: %w", err).Error())
 	}
 
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("from DetermineHostName - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from DetermineHostName - error: %w", err)
 	}
 
 	// only nvme protocol uses a hostname suffix like this
 	hostName += NVMEHostSuffix
 	host, err := nvme.CS.ValidateHost(ctx, hostName)
 	if err != nil {
-		e := fmt.Errorf("from ValidateHost - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from ValidateHost - error: %w", err)
 	}
 	slog.Debug("found host name", "host name", host.Name, "hostID", host.ID, "ports", host.Ports, "luns", host.Luns)
 
@@ -270,9 +246,7 @@ func (nvme *NVMEstorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 
 	lunList, err := nvme.CS.IboxAPI.GetAllLunByHost(ctx, host.ID)
 	if err != nil {
-		e := fmt.Errorf("from GetAllLunByHost - host: %s, error: %s", hostName, err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from GetAllLunByHost - host: %s, error: %w", hostName, err)
 	}
 	slog.Debug("got LUNs", "host name", host.Name, "luns", lunList)
 	for _, lun := range lunList {
@@ -293,20 +267,14 @@ func (nvme *NVMEstorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	if maxVolsPerHostStr != "" {
 		maxAllowedVol, err := strconv.Atoi(maxVolsPerHostStr)
 		if err != nil {
-			e := fmt.Errorf("parse max vols per host - invalid parameter: %s error: %s", common.StorageClassMaxVolsPerHost, err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("parse max vols per host - invalid parameter: %s error: %w", common.StorageClassMaxVolsPerHost, err)
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Errorf("parse  max allowed - invalid parameter: %s required to be greater than 0", common.StorageClassMaxVolsPerHost)
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("parse  max allowed - invalid parameter: %s required to be greater than 0", common.StorageClassMaxVolsPerHost)
 		}
 		slog.Debug("host has volumes mapped", "host name", host.Name, "hostID", host.ID, "luns", len(lunList), "max allowed", maxAllowedVol)
 		if len(lunList) >= maxAllowedVol {
-			e := fmt.Errorf("max allowed error - unable to publish volume on host: %s, as maximum allowed volume per host: %d, limit reached", host.Name, maxAllowedVol)
-			slog.Error(e.Error())
-			return nil, status.Error(codes.ResourceExhausted, e.Error())
+			return nil, status.Error(codes.ResourceExhausted, common.Errorf("max allowed error - unable to publish volume on host: %s, as maximum allowed volume per host: %d, limit reached", host.Name, maxAllowedVol).Error())
 		}
 	}
 
@@ -314,9 +282,7 @@ func (nvme *NVMEstorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 	slog.Debug("mapping volume to host", "volumeID", volproto.VolumeID, "host name", host.Name)
 	luninfo, err := nvme.CS.MapVolumeTohost(ctx, volproto.VolumeID, host.ID)
 	if err != nil {
-		e := fmt.Errorf("failed to map volume to host  - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("failed to map volume to host  - error: %w", err).Error())
 	}
 
 	publishVolCtxt := map[string]string{
@@ -338,9 +304,7 @@ func (nvme *NVMEstorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 		slog.Debug("unmap volume from host", "volumeID", nvme.CS.VolProto.VolumeID, "hostID", host.ID)
 		err = nvme.CS.UnmapVolumeFromHost(ctx, host.ID, nvme.CS.VolProto.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("from UnmapVolumeFromHost - volumeID: %d hostID: %d - error: %s", nvme.CS.VolProto.VolumeID, host.ID, err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			return nil, status.Error(codes.Internal, common.Errorf("from UnmapVolumeFromHost - volumeID: %d hostID: %d - error: %w", nvme.CS.VolProto.VolumeID, host.ID, err).Error())
 		}
 	}
 
@@ -356,9 +320,7 @@ func (nvme *NVMEstorage) ControllerUnpublishVolume(ctx context.Context, req *csi
 	if len(luns) == 0 {
 		err = storagecommon.HostCleanup(ctx, nvme.CS.IboxAPI, host.ID, host.Name+NVMEHostSuffix)
 		if err != nil {
-			e := fmt.Errorf("from HostCleanup - hostID: %d - error: %s", host.ID, err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			return nil, status.Error(codes.Internal, common.Errorf("from HostCleanup - hostID: %d - error: %w", host.ID, err).Error())
 		}
 	}
 
@@ -412,9 +374,8 @@ func (nvme *NVMEstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 			},
 		}, nil
 	} else {
-		e := fmt.Errorf("snapshot: %s ID: %d exists. Different source volume with ID %d: requested",
+		e := common.Errorf("snapshot: %s ID: %d exists. Different source volume with ID %d: requested",
 			snapshotName, volumeSnapshot.ParentID, nvme.CS.VolProto.VolumeID)
-		slog.Error(e.Error())
 		return nil, status.Error(codes.AlreadyExists, e.Error())
 	}
 
@@ -429,15 +390,11 @@ func (nvme *NVMEstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 	if lockExpiresAtParameter != "" {
 		ntpStatus, err := nvme.CS.IboxAPI.GetNtpStatus(ctx)
 		if err != nil {
-			e := fmt.Errorf("from GetNtpStatus - error %s", err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("from GetNtpStatus - error %w", err)
 		}
 		lockExpiresAt, err = storagecommon.ValidateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
 		if err != nil {
-			e := fmt.Errorf("from ValidateSnapshotLocking - failed to create snapshot: %s error: %s, invalid lock_expires_at parameter ", snapshotName, err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("from ValidateSnapshotLocking - failed to create snapshot: %s error: %w, invalid lock_expires_at parameter ", snapshotName, err)
 		}
 		slog.Debug("snapshot param", "lockExpiresAtParam", lockExpiresAtParameter, "lockExpiresAt", lockExpiresAt, "timestamp", ntpStatus[0].LastProbeTimestamp)
 	}
@@ -446,9 +403,7 @@ func (nvme *NVMEstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnap
 
 	snapshot, err := nvme.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
 	if err != nil {
-		e := fmt.Errorf("from CreateSnapshotVolume - snapshot: %s error: %s", snapshotName, err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from CreateSnapshotVolume - snapshot: %s error: %w", snapshotName, err)
 	}
 
 	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + nvme.CS.VolProto.StorageType

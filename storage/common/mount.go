@@ -36,8 +36,7 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 	var mounted bool
 	mntPoints, err := mounter.List()
 	if err != nil {
-		e := fmt.Errorf("%s - mounter.List error %s", function, err.Error())
-		slog.Error(e.Error())
+		e := common.Errorf("%s - mounter.List error %s", function, err.Error())
 		return status.Error(codes.Internal, e.Error())
 	}
 
@@ -77,16 +76,14 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 		cmd := exec.Command("mkdir", "--parents", "--mode", mode, filepath.Dir(targetPath))
 		err = cmd.Run()
 		if err != nil {
-			e := fmt.Errorf("%s: failed to mkdir '%s': error: %s", function, targetPath, err)
-			slog.Error(e.Error())
+			e := common.Errorf("%s: failed to mkdir '%s': error: %s", function, targetPath, err)
 			return status.Error(codes.Internal, e.Error())
 		}
 
 		slog.Debug(function, "creating file:", chrootPath)
 		_, err = os.Create(chrootPath)
 		if err != nil {
-			e := fmt.Errorf("%s - failed to create target path for raw bind mount: %q, err: %v", function, targetPath, err)
-			slog.Error(e.Error())
+			e := common.Errorf("%s - failed to create target path for raw bind mount: %q, err: %v", function, targetPath, err)
 			return status.Error(codes.Internal, e.Error())
 		}
 		devicePath = strings.Replace(devicePath, config.RootDir, "", 1)
@@ -94,8 +91,7 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 		options = append(options, "bind")
 
 		if err := mounter.Mount(devicePath, targetPath, "", options); err != nil {
-			e := fmt.Errorf("%s: failed to mount fc volume %s to %s, error %v", function, devicePath, targetPath, err)
-			slog.Error(e.Error())
+			e := common.Errorf("%s: failed to mount fc volume %s to %s, error %v", function, devicePath, targetPath, err)
 			return e
 		}
 		if err := CreateConfigFile(config, stagePath); err != nil {
@@ -163,8 +159,7 @@ func CreateConfigFile(conf DiskInfo, mnt string) error {
 
 	file, err := os.Create(filePath)
 	if err != nil {
-		e := fmt.Errorf("%s: failed creating persist file with error %v file %s", function, err, filePath)
-		slog.Error(e.Error())
+		e := common.Errorf("%s: failed creating persist file with error %v file %s", function, err, filePath)
 		return e
 	}
 	defer func() {
@@ -175,8 +170,7 @@ func CreateConfigFile(conf DiskInfo, mnt string) error {
 
 	encoder := json.NewEncoder(file)
 	if err = encoder.Encode(conf); err != nil {
-		e := fmt.Errorf("%s: failed creating persist file with error %v", function, err)
-		slog.Error(e.Error())
+		e := common.Errorf("%s: failed creating persist file with error %v", function, err)
 		return e
 	}
 	slog.Debug("created persist config file", "path", filePath)
@@ -196,8 +190,7 @@ func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		e := fmt.Errorf("%s - Open - file: %s error %s", function, filePath, err.Error())
-		slog.Error(e.Error())
+		e := common.Errorf("%s - Open - file: %s error %s", function, filePath, err.Error())
 		return e
 	}
 	defer func() {
@@ -207,8 +200,7 @@ func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 	}()
 	decoder := json.NewDecoder(file)
 	if err = decoder.Decode(conf); err != nil {
-		e := fmt.Errorf("%s - Decode - error %s", function, err.Error())
-		slog.Error(e.Error())
+		e := common.Errorf("%s - Decode - error %s", function, err.Error())
 		return e
 	}
 	return nil
@@ -216,30 +208,28 @@ func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 
 // Unmount using targetPath and cleanup directories and files.
 func UnmountAndCleanUp(targetPath string) (err error) {
-	slog.Debug("Unmounting and cleaning up", "path for targetPath", targetPath)
+	slog.Debug("unmounting and cleaning up", "path for targetPath", targetPath)
 
 	mounter := mount.NewWithoutSystemd("")
 	targetHostPath := path.Join("/host", targetPath)
 
-	slog.Debug("Unmounting ", "targetPath", targetPath)
+	slog.Debug("unmounting ", "targetPath", targetPath)
 	if err := mounter.Unmount(targetPath); err != nil {
 		slog.Warn("failed to unmount", "targetPath", targetPath, "error", err)
 	} else {
-		slog.Debug("Successfully unmounted", "targetPath", targetPath)
+		slog.Debug("successfully unmounted", "targetPath", targetPath)
 	}
 
 	isMounted, isMountedErr := isMountedByListMethod(targetHostPath)
 	if isMountedErr != nil {
-		err := fmt.Errorf("error: failed to check if targetHostPath '%s' is unmounted after unmounting %v", targetHostPath, isMountedErr)
-		slog.Error(err.Error())
+		err := common.Errorf("error: failed to check if targetHostPath '%s' is unmounted after unmounting %v", targetHostPath, isMountedErr)
 		return err
 	}
 	if isMounted {
-		err := fmt.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
-		slog.Error(err.Error())
+		err := common.Errorf("error: volume remains mounted at targetHostPath '%s'", targetHostPath)
 		return err
 	}
-	slog.Debug("Verified is not mounted", "targetHostPath", targetHostPath)
+	slog.Debug("verified is not mounted", "targetHostPath", targetHostPath)
 
 	// Check if targetHostPath exists
 	if _, err := os.Stat(targetHostPath); os.IsNotExist(err) {
@@ -250,8 +240,7 @@ func UnmountAndCleanUp(targetPath string) (err error) {
 	// Check if targetHostPath is a directory or a file
 	isADir, isADirError := IsDirectory(targetHostPath)
 	if isADirError != nil {
-		err := fmt.Errorf("failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
-		slog.Error(err.Error())
+		err := common.Errorf("failed to check if targetHostPath '%s' is a directory: %v", targetHostPath, isADirError)
 		return err
 	}
 
@@ -261,18 +250,17 @@ func UnmountAndCleanUp(targetPath string) (err error) {
 			slog.Error(err.Error())
 			return err
 		}
-		slog.Debug("Successfully cleaned up directory", "targetHostPath", targetHostPath)
+		slog.Debug("successfully cleaned up directory", "targetHostPath", targetHostPath)
 		return nil
 	}
 
 	// not a directory
 	slog.Debug("targetHostPath is a file, not a directory", "targetHostPath", targetHostPath)
 	if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
-		err := fmt.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-		slog.Error(err.Error())
+		err := common.Errorf("failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 		return err
 	}
-	slog.Debug("Successfully cleaned up file based", "targetHostPath", targetHostPath)
+	slog.Debug("successfully cleaned up file based", "targetHostPath", targetHostPath)
 
 	return nil
 }
@@ -293,7 +281,7 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	//    Pass   int
 	// }
 
-	slog.Debug("Checking mount path using mounter's List() and searching with", "targetHostPath", targetHostPath)
+	slog.Debug("checking mount path using mounter's List() and searching with", "targetHostPath", targetHostPath)
 	mounter := mount.NewWithoutSystemd("")
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
@@ -310,23 +298,21 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 			break
 		}
 	}
-	slog.Debug("Path is mounted", "targetHostPath", targetHostPath, "isMounted", isMountedByListMethod)
+	slog.Debug("path is mounted", "targetHostPath", targetHostPath, "isMounted", isMountedByListMethod)
 	return isMountedByListMethod, nil
 }
 
 func cleanupOldMountDirectory(targetHostPath string) error {
 	ctx := context.Background()
-	slog.Debug("Cleaning up old mount directory", "targetHostPath", targetHostPath)
+	slog.Debug("cleaning up old mount directory", "targetHostPath", targetHostPath)
 	isMountEmpty, isMountEmptyErr := IsDirEmpty(targetHostPath)
 	// Verify mount/ directory is empty. Fail if mount/ is not empty as that may be volume data.
 	if isMountEmptyErr != nil {
-		err := fmt.Errorf("failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
-		slog.Error(err.Error())
+		err := common.Errorf("failed IsDirEmpty() using targetHostPath '%s': %v", targetHostPath, isMountEmptyErr)
 		return err
 	}
 	if !isMountEmpty {
-		err := fmt.Errorf("error: mount directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
-		slog.Error(err.Error())
+		err := common.Errorf("error: mount directory at targetHostPath '%s' is not empty and may contain volume data", targetHostPath)
 		return err
 	}
 	slog.Log(ctx, common.LevelTrace, "verified that targetHostPath directory, aka mount path, is empty of files", "targetHostPath", targetHostPath)
@@ -337,12 +323,11 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 	} else {
 		slog.Log(ctx, common.LevelTrace, "removing mount point", "targetHostPath", targetHostPath)
 		if removeMountErr := os.Remove(targetHostPath); removeMountErr != nil {
-			err := fmt.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
-			slog.Error(err.Error())
+			err := common.Errorf("after unmounting, failed to Remove() path '%s': %v", targetHostPath, removeMountErr)
 			return err
 		}
 	}
-	slog.Debug("Removed mount point", "targetHostPath", targetHostPath)
+	slog.Debug("removed mount point", "targetHostPath", targetHostPath)
 
 	csiHostPath := strings.TrimSuffix(targetHostPath, "/mount")
 	volData := "vol_data.json"
@@ -356,18 +341,18 @@ func cleanupOldMountDirectory(targetHostPath string) error {
 		if err := os.Remove(volDataPath); err != nil {
 			slog.Warn("after unmounting, failed to remove", "volData", volData, "volDataPath", volDataPath, "error", err)
 		}
-		slog.Debug("Successfully removed ", "volData", volData, "path", volDataPath)
+		slog.Debug("successfully removed ", "volData", volData, "path", volDataPath)
 	}
 
 	// Clean up csi-NNNNNNN directory
 	if _, statErr := os.Stat(csiHostPath); os.IsNotExist(statErr) {
-		slog.Debug("CSI volume directory already removed", "csihostPath", csiHostPath)
+		slog.Debug("csi volume directory already removed", "csihostPath", csiHostPath)
 	} else {
-		slog.Debug("Removing CSI volume directory", "csiHostPath", csiHostPath)
+		slog.Debug("removing CSI volume directory", "csiHostPath", csiHostPath)
 		if err := os.Remove(csiHostPath); err != nil {
-			slog.Error("After unmounting, failed to remove CSI volume directory", "csiHostPath", csiHostPath, "error", err)
+			slog.Error("after unmounting, failed to remove CSI volume directory", "csiHostPath", csiHostPath, "error", err)
 		}
-		slog.Debug("Successfully removed CSI volume", "csiHostPath", csiHostPath)
+		slog.Debug("successfully removed CSI volume", "csiHostPath", csiHostPath)
 	}
 	return nil
 }

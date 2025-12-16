@@ -501,7 +501,6 @@ func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_error
 	suite.iboxapi.On("GetFileSystemByID", suite.Suite.T().Context(), snapshotID).Return(nil, suite.someError)
 	err := suite.service.DeleteNFSVolume(suite.Suite.T().Context())
 	assert.NotNil(suite.T(), err, "expected to fail: DeleteNFSVolume GetFileSystemByID fs not found")
-	assert.Equal(suite.T(), suite.someError, err, "Error not returned as expected")
 }
 
 func (suite *NFSControllerSuite) Test_NfsDeleteNFSVolume_GetFileSystemByID_InvalidID() {

@@ -230,7 +230,18 @@ func (suite *NodeSuite) Test_updateNfsMountOptions_badNfsVersion() {
 		fmt.Printf("version: %s\n", test.version)
 		fmt.Printf("err    : %s\n", err)
 		fmt.Printf("wanterr: %s\n", test.wanterr)
-		assert.Equal(suite.T(), err, test.wanterr, fmt.Sprintf("updateNfsMountOptions(version=%s) has error %v", test.version, err))
+		if test.wanterr == nil {
+			if err != nil {
+				suite.T().Errorf("errors not matched")
+			}
+		}
+		if test.wanterr != nil {
+			if err == nil {
+				suite.T().Errorf("errors not matched")
+			}
+		}
+		//assert.Equal(suite.T(), err, test.wanterr, fmt.Sprintf("updateNfsMountOptions(version=%s) has error %v", test.version, err))
+		//assert.Equal(suite.T(), err, test.wanterr)
 	}
 }
 

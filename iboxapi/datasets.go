@@ -41,7 +41,7 @@ func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("NewRequest - error %w", err)
+			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
 		}
 
 		values := req.URL.Query()
@@ -54,7 +54,7 @@ func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("do - error %w", err)
+			return results, common.Errorf("do - error: %w url: %s", err, url)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -63,12 +63,12 @@ func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("readAll - error %w", err)
+			return results, common.Errorf("readAll - error: %w url: %s", err, url)
 		}
 		var responseObject GetAllSnapshotsResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("unmarshal - error %w", err)
+			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
 		results = append(results, responseObject.Result...)
 

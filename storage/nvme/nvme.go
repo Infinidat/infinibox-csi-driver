@@ -106,8 +106,7 @@ type NVMEDeviceInfo struct {
 func getHostNQN() (string, error) {
 	fileContent, err := os.ReadFile("/host/etc/nvme/hostnqn")
 	if err != nil {
-		slog.Error("getHostNQN (nvme) - failed to read hostnqn file", "error", err.Error())
-		return "", err
+		return "", common.Errorf("getHostNQN (nvme) - failed to read hostnqn file error: %w", err)
 	}
 	hostnqn := string(fileContent)
 	hostnqn = strings.TrimSuffix(hostnqn, "\n")
@@ -119,8 +118,7 @@ func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
 	cmd := "nvme list"
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		slog.Error("getNVMENamespacesByNormalOutput (nvme) failed", "command", cmd, "error", err, "output", rawOutput)
-		return devices, err
+		return devices, common.Errorf("(nvme) error command: %s error: %w output: %s", cmd, err, rawOutput)
 	}
 	slog.Log(context.Background(), common.LevelTrace, "getNVMENamespacesByNormalOutput (nvme)", "command", cmd, "raw output", rawOutput)
 
@@ -204,8 +202,7 @@ func nvmeConnectAll(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme connect-all -t tcp -a %s", ipAddress)
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		slog.Error("nvmeConnectAll (nvme) - failed", "command", cmd, "ipaddress", ipAddress, "output", rawOutput, "error", err)
-		return err
+		return common.Errorf("nvmeConnectAll (nvme) - failed command: %s ipaddress: %s output: %s error: %w", cmd, ipAddress, rawOutput, err)
 	}
 	slog.Debug("nvmeConnectAll (nvme)", "command", cmd, "output", rawOutput)
 
@@ -217,8 +214,7 @@ func nvmeDiscover(ipAddress string) (err error) {
 	cmd := fmt.Sprintf("nvme discover -t tcp -a %s -s %d", ipAddress, NVMEDiscoveryPort)
 	rawOutput, _, err := storagecommon.ExecCommand.Command(cmd, "")
 	if err != nil {
-		slog.Error("nvmeDiscover (nvme) failed", "command", cmd, "error", err, "output", rawOutput)
-		return err
+		return common.Errorf("nvmeDiscover (nvme) failed command: %s error: %w output: %s", cmd, err, rawOutput)
 	}
 	slog.Log(context.Background(), common.LevelTrace, "nvmeDiscover (nvme)", "command", cmd, "raw output", rawOutput)
 

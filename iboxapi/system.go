@@ -213,13 +213,13 @@ func (client *IboxClient) GetSystem(ctx context.Context) (system *SystemDetails,
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -229,15 +229,15 @@ func (client *IboxClient) GetSystem(ctx context.Context) (system *SystemDetails,
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("readAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var responseObject GetSystemResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf("ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, common.Errorf("ibox API - errorCode: %s message: %s url: %s", responseObject.Error.Code, responseObject.Error.Message, url)
 	}
 	return &responseObject.Result, nil
 }
@@ -253,7 +253,7 @@ func (client *IboxClient) GetNtpStatus(ctx context.Context) (results []NtpStatus
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("NewRequest - error %w", err)
+			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
 		}
 
 		values := req.URL.Query()
@@ -265,7 +265,7 @@ func (client *IboxClient) GetNtpStatus(ctx context.Context) (results []NtpStatus
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("do - error %w", err)
+			return results, common.Errorf("do - error: %w url: %s", err, url)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -274,12 +274,12 @@ func (client *IboxClient) GetNtpStatus(ctx context.Context) (results []NtpStatus
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("readAll - error %w", err)
+			return results, common.Errorf("readAll - error: %w url: %s", err, url)
 		}
 		var responseObject GetNtpStatusResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("unmarshal - error %w", err)
+			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
 		results = append(results, responseObject.Result...)
 

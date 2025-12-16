@@ -179,8 +179,7 @@ func (cs *Commonservice) ValidateHost(ctx context.Context, hostName string) (*ib
 			slog.Debug("creating host", "name", hostName)
 			host, err = cs.IboxAPI.CreateHost(ctx, hostName)
 			if err != nil {
-				e := fmt.Errorf("error failed to create host %s with error %s", hostName, err)
-				slog.Error(e.Error())
+				e := common.Errorf("error failed to create host %s with error %s", hostName, err.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
 
@@ -189,13 +188,11 @@ func (cs *Commonservice) ValidateHost(ctx context.Context, hostName string) (*ib
 			}
 			_, err = cs.IboxAPI.PutMetadata(ctx, host.ID, metadata)
 			if err != nil {
-				e := fmt.Errorf("error creating host metadata : %s id %d error : %v", hostName, host.ID, err)
-				slog.Error(e.Error())
+				e := common.Errorf("error creating host metadata: %s id: %d error: %v", hostName, host.ID, err.Error())
 				return nil, status.Error(codes.Internal, e.Error())
 			}
 		} else {
-			e := fmt.Errorf("validateHost - GetHostByName - hostname %s error %s", hostName, err.Error())
-			slog.Error(e.Error())
+			e := common.Errorf("validateHost - GetHostByName - hostname: %s error: %s", hostName, err.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
@@ -233,7 +230,7 @@ func (cs *Commonservice) GetNetworkSpaceIP(ctx context.Context, networkSpace str
 		return "", err
 	}
 	if len(existingNetworkSpace.Portals) == 0 {
-		return "", fmt.Errorf("error IP address not found")
+		return "", common.Errorf("error IP address not found")
 	}
 
 	index := GetRandomIndex(len(existingNetworkSpace.Portals))
@@ -393,13 +390,12 @@ func ValidatePublishContext(publishContext map[string]string) (hostID int, ports
 	hostIDString := publishContext[HostIDPublishContext]
 	hostID, err = strconv.Atoi(hostIDString)
 	if err != nil {
-		err := fmt.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
-		slog.Error(err.Error())
+		err := common.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
 		return 0, "", status.Error(codes.Internal, err.Error())
 	}
 
 	if hostID < 1 {
-		e := fmt.Errorf("hostID %d is not valid host ID", hostID)
+		e := common.Errorf("hostID %d is not valid host ID", hostID)
 		return 0, "", status.Error(codes.Internal, e.Error())
 	}
 
@@ -411,8 +407,7 @@ func ValidatePublishContext(publishContext map[string]string) (hostID int, ports
 func HostCleanup(ctx context.Context, iboxClient iboxapi.Client, hostID int, hostName string) error {
 	meta, err := iboxClient.GetMetadata(ctx, hostID)
 	if err != nil {
-		e := fmt.Errorf("hostCleanup: failed to get metadata for host ID %d. Error: %v", hostID, err)
-		slog.Error(e.Error())
+		e := common.Errorf("hostCleanup: failed to get metadata for host ID %d. Error: %v", hostID, err)
 		return status.Error(codes.Internal, e.Error())
 	}
 	var createdByCSI bool
@@ -462,19 +457,19 @@ func DetermineHostName(nodeID string) (hostName string, err error) {
 
 func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolConfig, err error) {
 	if volumeIDString == "" {
-		return volprotoconf, fmt.Errorf("volume Id string is empty, [%s]", volumeIDString)
+		return volprotoconf, common.Errorf("volume Id string is empty, [%s]", volumeIDString)
 	}
 	volproto := strings.Split(volumeIDString, "$$")
 	if len(volproto) != 2 {
-		return volprotoconf, fmt.Errorf("volume Id and other details not found, [%s]", volumeIDString)
+		return volprotoconf, common.Errorf("volume Id and other details not found, [%s]", volumeIDString)
 	}
 
 	if volproto[0] == "" {
-		return volprotoconf, fmt.Errorf("volume Id in volproto is empty, [%s]", volumeIDString)
+		return volprotoconf, common.Errorf("volume Id in volproto is empty, [%s]", volumeIDString)
 	}
 
 	if volproto[1] == "" {
-		return volprotoconf, fmt.Errorf("volume storagetype in volproto is empty, [%s]", volumeIDString)
+		return volprotoconf, common.Errorf("volume storagetype in volproto is empty, [%s]", volumeIDString)
 	}
 	volprotoconf.StorageType = volproto[1]
 
@@ -483,7 +478,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 		// example: volproto[0] == 2942184#20000
 		tmp := strings.Split(volproto[0], "#")
 		if len(tmp) != 2 {
-			return volprotoconf, fmt.Errorf("treeq volume not correctly formatted %s, [%s]", volproto[0], volumeIDString)
+			return volprotoconf, common.Errorf("treeq volume not correctly formatted %s, [%s]", volproto[0], volumeIDString)
 		}
 		volprotoconf.VolumeID, err = strconv.Atoi(tmp[0])
 		if err != nil {
@@ -493,7 +488,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 
 		volprotoconf.TreeqID, err = strconv.Atoi(tmp[1])
 		if err != nil {
-			return volprotoconf, fmt.Errorf("volume treeq id parse error %s on %s", err.Error(), tmp[1])
+			return volprotoconf, common.Errorf("volume treeq id parse error %s on %s", err.Error(), tmp[1])
 		}
 		return volprotoconf, nil
 	}
@@ -501,9 +496,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 	// for any other protocol than treeq
 	volprotoconf.VolumeID, err = strconv.Atoi(volproto[0])
 	if err != nil {
-		e := fmt.Errorf("failed to validate volume id %s, err: %v", volproto[0], err)
-		slog.Error(e.Error())
-		return volprotoconf, fmt.Errorf("volume id in volproto is not an integer, [%s]", volumeIDString)
+		return volprotoconf, common.Errorf("volume id in volproto is not an integer, [%s], error: %s", volproto[0], err.Error())
 	}
 
 	return volprotoconf, nil

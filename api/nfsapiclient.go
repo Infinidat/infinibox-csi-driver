@@ -48,8 +48,7 @@ func (c *ClientService) AddNodeInExport(ctx context.Context, exportID int, acces
 
 	export, err := c.IboxAPI.GetExportByID(ctx, exportID)
 	if err != nil {
-		slog.Error("Error occurred while getting export path for export", "export id", export.ID, "error", err)
-		return nil, err
+		return nil, common.Errorf("error getting export path for exportID:%d error: %w", export.ID, err)
 	}
 
 	slog.Debug("Current export", "export id", export.ID, "export", export)
@@ -77,15 +76,14 @@ func (c *ClientService) AddNodeInExport(ctx context.Context, exportID int, acces
 		}
 		permissionList = append(permissionList, newPermission)
 
-		slog.Debug("Setting export", "export id", export.ID, "permissions", permissionList)
+		slog.Debug("setting export", "export id", export.ID, "permissions", permissionList)
 
 		exportPathRef := iboxapi.ExportPathRef{
 			Permissions: permissionList,
 		}
 		export, err = c.IboxAPI.UpdateExportPermissions(ctx, *export, exportPathRef)
 		if err != nil {
-			slog.Error("Error: updating export rule", "export id", exportID, "access", access, "norootsquash", noRootSquash, "ipaddress", ipAddress, "error", err)
-			return nil, err
+			return nil, common.Errorf("error updating export rule - exportID: %d access: %s norootsquash: %s ipAddress: %s error: %w", exportID, access, noRootSquash, ipAddress, err)
 		}
 		slog.Debug("Updated export rule", "export id", export.ID, "export", export)
 	}
@@ -98,8 +96,7 @@ func (c *ClientService) DeleteExportRule(ctx context.Context, fileSystemID int, 
 	slog.Log(ctx, common.LevelTrace, "Delete export rule from filesystem", "filesystem id", fileSystemID)
 	exports, err := c.IboxAPI.GetExportsByFileSystemID(ctx, fileSystemID)
 	if err != nil {
-		slog.Error("Error occurred while getting export", "error", err)
-		return err
+		return common.Errorf("error occurred while getting export - error: %w", err)
 	}
 	for _, export := range exports {
 		permissionList := export.Permissions
@@ -107,19 +104,18 @@ func (c *ClientService) DeleteExportRule(ctx context.Context, fileSystemID int, 
 			if permission.Client == ipAddress {
 				_, err = c.DeleteNodeFromExport(ctx, export, permission.NoRootSquash, ipAddress)
 				if err != nil {
-					slog.Error("Error occurred while getting export path", "error", err)
-					return err
+					return common.Errorf("error occurred while getting export path - error: %w", err)
 				}
 			}
 		}
 	}
-	slog.Log(ctx, common.LevelTrace, "Deleted export rule from filesystem", "fs id", fileSystemID)
+	slog.Log(ctx, common.LevelTrace, "deleted export rule from filesystem", "fs id", fileSystemID)
 	return nil
 }
 
 // DeleteNodeFromExport Export should be updated in case of node deletion in k8s cluster
 func (c *ClientService) DeleteNodeFromExport(ctx context.Context, export iboxapi.Export, noRootSquash bool, ipAddress string) (*iboxapi.Export, error) {
-	slog.Log(ctx, common.LevelTrace, "Delete node from export", "export id", export.ID)
+	slog.Log(ctx, common.LevelTrace, "delete node from export", "export id", export.ID)
 	flag := false
 	var index int
 	exportPathRef := iboxapi.ExportPathRef{}
@@ -146,11 +142,10 @@ func (c *ClientService) DeleteNodeFromExport(ctx context.Context, export iboxapi
 		var err error
 		exportResponse, err = c.IboxAPI.UpdateExportPermissions(ctx, export, exportPathRef)
 		if err != nil {
-			slog.Error("Error occurred while updating permission", "error", err)
-			return nil, err
+			return nil, common.Errorf("error occurred while updating permission - error: %w", err)
 		}
 	} else {
-		slog.Error("Given ip address not found in the list", "ip address", ipAddress)
+		slog.Error("given ip address not found in the list", "ip address", ipAddress)
 	}
 	slog.Log(ctx, common.LevelTrace, "Deleted node from export", "export id", export.ID)
 	return exportResponse, nil

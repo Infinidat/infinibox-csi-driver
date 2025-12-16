@@ -89,7 +89,7 @@ func (client *IboxClient) GetNetworkSpaceByName(ctx context.Context, netspaceNam
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return nil, fmt.Errorf("NewRequest - error %w", err)
+			return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 		}
 
 		values := req.URL.Query()
@@ -102,7 +102,7 @@ func (client *IboxClient) GetNetworkSpaceByName(ctx context.Context, netspaceNam
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return nil, fmt.Errorf("do - error %w", err)
+			return nil, common.Errorf("do - error: %w url: %s", err, url)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -111,15 +111,15 @@ func (client *IboxClient) GetNetworkSpaceByName(ctx context.Context, netspaceNam
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return nil, fmt.Errorf("readAll - error %w", err)
+			return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 		}
 		var response GetNetworkSpaceByNameResponse
 		err = json.Unmarshal(bodyBytes, &response)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshal - error %w", err)
+			return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
 		if response.Error.Code != "" {
-			return nil, fmt.Errorf("ibox API - error %v", response.Error)
+			return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
 		}
 		if len(response.Result) == 0 {
 			return nil, ErrNotFound

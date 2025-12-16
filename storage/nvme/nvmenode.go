@@ -68,25 +68,19 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
-		e := fmt.Errorf("from ValidatePublishContext - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from ValidatePublishContext - error: %w", err).Error())
 	}
 
 	hostNQN, err := getHostNQN()
 	if err != nil {
-		e := fmt.Errorf("from getHostNQN - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from getHostNQN - error: %w", err).Error())
 	}
 
 	if !strings.Contains(ports, hostNQN) {
 		slog.Debug("host nqn is not created, creating one")
 		err = nvme.CS.AddPortForHost(ctx, hostID, "NVME", hostNQN)
 		if err != nil {
-			e := fmt.Errorf("from AddPortForHost - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			return nil, status.Error(codes.Internal, common.Errorf("from AddPortForHost - error: %w", err).Error())
 		}
 	}
 
@@ -99,33 +93,25 @@ func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 	targets, err := nvme.getNVMETargets(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("from getNVMETargets - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from getNVMETargets - error: %w", err).Error())
 	}
 	slog.Debug("info", "nvme targets", len(targets), "targets", targets)
 
 	nvmeDisk, err := nvme.getNVMEDisk(req)
 	if err != nil {
-		e := fmt.Errorf("from getNVMEDisk - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from getNVMEDisk - error: %w", err).Error())
 	}
 	nvmeDisk.Targets = targets
 	slog.Debug("nvmeDisk", "volume id", nvmeDisk.VolumeID, "lun", nvmeDisk.lun)
 
 	diskMounter, err := nvme.getNVMEDiskMounter(nvmeDisk, req)
 	if err != nil {
-		e := fmt.Errorf("from getNVMEDiskMounter - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, status.Error(codes.Internal, common.Errorf("from getNVMEDiskMounter - error: %w", err).Error())
 	}
 
 	_, err = nvme.AttachDisk(*diskMounter, targets)
 	if err != nil {
-		e := fmt.Errorf("from AttachDisk - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from AttachDisk - error: %w", err).Error())
 	}
 	slog.Debug("nvme attachDisk succeeded")
 
@@ -134,9 +120,7 @@ func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 	} else {
 		err = nvme.StorageHelper.SetVolumePermissions(req)
 		if err != nil {
-			e := fmt.Errorf("from SetVolumePermissions - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			return nil, status.Error(codes.Internal, common.Errorf("from SetVolumePermissions - error: %w", err).Error())
 		}
 	}
 
@@ -152,9 +136,7 @@ func (nvme *NVMEstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeU
 
 	err := storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
-		e := fmt.Errorf("from UnmountAndCleanup - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from UnmountAndCleanup - error: %w", err).Error())
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -173,17 +155,13 @@ func (nvme *NVMEstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 	slog.Debug("removePath is a directory", "removePath", removePath)
 	jsonPath := fmt.Sprintf("%s/%d.json", removePath, nvme.CS.VolProto.VolumeID)
 	if err := os.Remove(jsonPath); err != nil {
-		e := fmt.Errorf("from Remove - failed to remove json file: %s error: %s", jsonPath, err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from Remove - failed to remove json file: %s error: %w", jsonPath, err)
 	}
 
 	// Remove directory or file
 	slog.Debug("removing removePath", "removePath", removePath)
 	if err := os.Remove(removePath); err != nil {
-		e := fmt.Errorf("from Remove - failed to remove path: %s error: %s", removePath, err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from Remove - failed to remove path: %s error: %w", removePath, err)
 	}
 
 	// logout all nvme connections if there are zero devices
@@ -231,18 +209,14 @@ func (nvme *NVMEstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	// run find the multipath device name (e.g. /dev/nvme0n2) in the list of mounts
 	multipathDevice, err := storagecommon.FindMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		e := fmt.Errorf("from FindMultipathDevice - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from FindMultipathDevice - error: %w", err)
 	}
 
 	// run resize2fs or xfs_growfs on /dev/nvme0n2
 	fsType := req.GetVolumeCapability().GetMount().FsType
 	err = storagecommon.ExpandFileSystem(multipathDevice, fsType)
 	if err != nil {
-		e := fmt.Errorf("from ExpandFileSystem error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from ExpandFileSystem error: %w", err)
 	}
 
 	return response, nil
@@ -264,8 +238,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 		ipAddressOnly := strings.Split(target.Portals[0], ":")
 		err = nvmeDiscover(ipAddressOnly[0])
 		if err != nil {
-			slog.Error("error nvme discover", "error", err.Error())
-			return "", err
+			return "", common.Errorf("error nvme discover error: %w", err)
 		}
 
 		err = nvmeConnectAll(ipAddressOnly[0])
@@ -285,7 +258,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 	for _, device := range devices {
 		lunInt, err := strconv.Atoi(diskMounter.nvmeDiskInfo.lun)
 		if err != nil {
-			return "", fmt.Errorf("could not convert lun: %s to integer - error %s", diskMounter.nvmeDiskInfo.lun, err.Error())
+			return "", common.Errorf("could not convert lun: %s to integer - error: %w", diskMounter.nvmeDiskInfo.lun, err)
 		}
 		if device.Namespace == lunInt {
 			nvmeDevicePath = device.Node
@@ -294,7 +267,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 		}
 	}
 	if nvmeDevicePath == "" {
-		return "", fmt.Errorf("could not find nvme device path using lun: %s", diskMounter.nvmeDiskInfo.lun)
+		return "", common.Errorf("could not find nvme device path using lun: %s", diskMounter.nvmeDiskInfo.lun)
 	}
 
 	diskinf := storagecommon.DiskInfo{
@@ -308,8 +281,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 
 	err = storagecommon.MountLogic(diskinf, diskMounter.targetPath, nvmeDevicePath, diskMounter.stagePath, diskMounter.fsType, diskMounter.mountOptions, diskMounter.nvmeDiskInfo.isBlock, diskMounter.readOnly)
 	if err != nil {
-		slog.Error("from MountLogic", "error", err.Error())
-		return "", err
+		return "", common.Errorf("from MountLogic error: %w", err)
 	}
 
 	slog.Debug("mounted volume", "device path", nvmeDevicePath)
@@ -384,9 +356,7 @@ func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePub
 			slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
 		}
 	} else {
-		errMsg := "getNVMEDiskMounter (nvme) - Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
-		slog.Error(errMsg)
-		return nil, status.Error(codes.InvalidArgument, errMsg)
+		return nil, status.Error(codes.InvalidArgument, common.Errorf("getNVMEDiskMounter (nvme) - Bad VolumeCapability parameters: both block and mount modes, for volume: ", req.GetVolumeId()).Error())
 	}
 
 	diskMounter.nvmeDiskInfo = nvmeDisk
@@ -411,9 +381,7 @@ func (nvme *NVMEstorage) getNVMETargets(ctx context.Context, req *csi.NodePublis
 		slog.Debug("getting nspace by name", "networkSpace", networkSpace)
 		nspace, err := nvme.CS.IboxAPI.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
-			e := fmt.Errorf("error getting network space: %s error: %s", networkSpace, err.Error())
-			slog.Error(e.Error())
-			return targets, status.Error(codes.InvalidArgument, e.Error())
+			return targets, status.Error(codes.InvalidArgument, common.Errorf("error getting network space: %s error: %w", networkSpace, err).Error())
 		}
 		slog.Debug("got nspace by name", "name", nspace.Name)
 

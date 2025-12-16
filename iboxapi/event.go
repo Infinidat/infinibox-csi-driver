@@ -52,18 +52,18 @@ func (client *IboxClient) CreateEvent(ctx context.Context, eventRequest EventReq
 
 	jsonBytes, err := json.Marshal(eventRequest)
 	if err != nil {
-		return fmt.Errorf("marshal - error %w", err)
+		return common.Errorf("marshal - error: %w url: %s", err, url)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return fmt.Errorf("newRequest - error %w", err)
+		return common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return fmt.Errorf("do - error %w", err)
+		return common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
@@ -73,17 +73,17 @@ func (client *IboxClient) CreateEvent(ctx context.Context, eventRequest EventReq
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return fmt.Errorf("readAll - error %w", err)
+		return common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 
 	var responseObject CreateEventResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return fmt.Errorf("unmarshal - error %w", err)
+		return common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 	slog.Debug("CreateEvent", "Event ID", responseObject.Result.ID)
 	if responseObject.Error.Code != "" {
-		return fmt.Errorf("ibox API - error: %v", responseObject.Error)
+		return common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
 	}
 	return nil
 }

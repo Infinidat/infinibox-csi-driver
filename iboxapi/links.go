@@ -87,7 +87,7 @@ func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err err
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf("newRequest - error %w", err)
+			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
 		}
 
 		values := req.URL.Query()
@@ -99,7 +99,7 @@ func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err err
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf("do - error %w", err)
+			return results, common.Errorf("do - error: %w url: %s", err, url)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -109,12 +109,12 @@ func (client *IboxClient) GetLinks(ctx context.Context) (results []Link, err err
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf("readAll - error %w", err)
+			return results, common.Errorf("readAll - error: %w url: %s", err, url)
 		}
 		var responseObject GetLinksResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf("unmarshal - error %w", err)
+			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
 		results = append(results, responseObject.Result...)
 
@@ -132,13 +132,13 @@ func (client *IboxClient) GetLink(ctx context.Context, linkID int) (link *Link, 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("newRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -147,18 +147,18 @@ func (client *IboxClient) GetLink(ctx context.Context, linkID int) (link *Link, 
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("readAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var responseObject GetLinkResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 	if responseObject.Error.Code != "" {
 		if responseObject.Error.Code == "LINK_NOT_FOUND" {
-			return nil, fmt.Errorf("%s - %w", responseObject.Error.Code, ErrNotFound)
+			return nil, common.Errorf("errorCode: %s - error: %w url: %s", responseObject.Error.Code, ErrNotFound, url)
 		}
-		return nil, fmt.Errorf("ibox API - error:  code: %s message: %s", responseObject.Error.Code, responseObject.Error.Message)
+		return nil, common.Errorf("ibox API - errorcode: %s message: %s, url: %s", responseObject.Error.Code, responseObject.Error.Message, url)
 	}
 	return &responseObject.Result, nil
 }

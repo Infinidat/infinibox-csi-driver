@@ -58,18 +58,14 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if snapDir != "" {
 		nfs.SnapdirVisible, err = strconv.ParseBool(snapDir)
 		if err != nil {
-			e := fmt.Errorf("error parsing snapsdir visible error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("error parsing snapsdir visible error: %w", err)
 		}
 	}
 	privPorts := req.GetVolumeContext()[common.StorageClassPrivPorts]
 	if privPorts != "" {
 		nfs.UsePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
-			e := fmt.Errorf("error parsing priv ports error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("error parsing priv ports error: %w", err)
 		}
 	}
 
@@ -82,9 +78,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 		exportPerms := fmt.Sprintf("[{'access':'%s','client':'"+req.GetVolumeContext()["nodeID"]+"','no_root_squash':true}]", exportAccess)
 		err = nfs.UpdateExport(ctx, fileSystemID, exportPerms)
 		if err != nil {
-			e := fmt.Errorf("from updateExport - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("from updateExport - error: %w", err)
 		}
 	} else {
 		slog.Log(ctx, common.LevelTrace, "nfs_export_permissions was specified, will not create default export rule", "perms", req.GetVolumeContext()[common.StorageClassNFSExportPermissions])
@@ -94,9 +88,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	if os.IsNotExist(err) {
 		slog.Debug("targetPath does not exist, will create", "targetPath", targetPath)
 		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-			e := fmt.Errorf("from MkdirAll - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("from MkdirAll - error: %w", err)
 		}
 	} else {
 		slog.Debug("targetPath already exists, will not do anything", "targetPath", targetPath)
@@ -104,9 +96,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	mountOptions, err := nfs.StorageHelper.GetNFSMountOptions(req)
 	if err != nil {
-		e := fmt.Errorf("from GetNFSMountOptions - targetPath: %s error: %s", hostTargetPath, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from GetNFSMountOptions - targetPath: %s error: %w", hostTargetPath, err).Error())
 	}
 
 	nfsVersion, nfsPort := GetNFSVersionPort(mountOptions)
@@ -121,16 +111,12 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	port, err := strconv.Atoi(nfsPort)
 	if err != nil {
-		e := fmt.Errorf("parsing error nfs port error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("parsing error nfs port error: %w", err).Error())
 	}
 
 	err = nfs.StorageHelper.ValidateIPAddress(sourceIP, port)
 	if err != nil {
-		e := fmt.Errorf("from ValidateIPAddress - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from ValidateIPAddress - error: %w", err).Error())
 	}
 
 	ep := req.GetVolumeContext()["volPathd"]
@@ -138,9 +124,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 	slog.Debug("mounting", "sourceIP", source, "targetPath", targetPath)
 	err = nfs.Mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		e := fmt.Errorf("from Mount - failed to mount source: %s targetPath: %s error: %s", source, targetPath, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from Mount - failed to mount source: %s targetPath: %s error: %w", source, targetPath, err).Error())
 	}
 	slog.Debug("successfully mounted nfs volume to mount point with options", "sourceIP", source, "target", targetPath, "mountoptions", mountOptions)
 
@@ -151,9 +135,7 @@ func (nfs *NFSstorage) NodePublishVolume(ctx context.Context, req *csi.NodePubli
 
 	err = nfs.StorageHelper.SetVolumePermissions(req)
 	if err != nil {
-		e := fmt.Errorf("from SetVolumePermissions - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.Internal, common.Errorf("from SetVolumePermissions - error: %w", err).Error())
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -164,9 +146,7 @@ func (nfs *NFSstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnp
 	slog.Debug("start", "target", targetPath, "vol id", req.GetVolumeId())
 	err := storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
-		e := fmt.Errorf("from UnmountAndCleanup - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("from UnmountAndCleanup - error: %w", err)
 	}
 
 	if isCleanupNFSPermsSet() {
@@ -198,9 +178,7 @@ func (nfs *NFSstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpand
 func (nfs *NFSstorage) UpdateExport(ctx context.Context, fileSystemID int, exportPerms string) (err error) {
 	fileSystem, err := nfs.CS.IboxAPI.GetFileSystemByID(ctx, fileSystemID)
 	if err != nil {
-		e := fmt.Errorf("from GetFileSystemByID filesystemID: %d error: %s", fileSystemID, err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.Internal, e.Error())
+		return status.Error(codes.Internal, common.Errorf("from GetFileSystemByID filesystemID: %d error: %w", fileSystemID, err).Error())
 	}
 
 	// use the volumeID to get the filesystem information,
@@ -215,18 +193,14 @@ func (nfs *NFSstorage) UpdateExport(ctx context.Context, fileSystemID int, expor
 
 	permissionsMapArray, err := getPermissionMaps(exportPerms)
 	if err != nil {
-		e := fmt.Errorf("from getPermissionMaps exportPerms: %s error: %s", exportPerms, err.Error())
-		slog.Error(e.Error())
-		return e
+		return common.Errorf("from getPermissionMaps exportPerms: %s error: %w", exportPerms, err)
 	}
 	updatePerms := convertToExportRulePermissions(permissionsMapArray)
 	slog.Debug("updatePermissions", "len", len(updatePerms), "perms", updatePerms)
 
 	existingExports, err := nfs.CS.IboxAPI.GetExportsByFileSystemID(ctx, fileSystemID)
 	if err != nil {
-		e := fmt.Errorf("error from GetExportByFileSystem fileSystemID: %d error: %s", fileSystemID, err.Error())
-		slog.Error(e.Error())
-		return e
+		return common.Errorf("error from GetExportByFileSystem fileSystemID: %d error: %w", fileSystemID, err)
 	}
 	slog.Debug("from GetExportByFileSystem", "existingExports", existingExports)
 	for _, existingExport := range existingExports {
@@ -250,9 +224,7 @@ func (nfs *NFSstorage) UpdateExport(ctx context.Context, fileSystemID int, expor
 			}
 			_, err = nfs.CS.IboxAPI.UpdateExportPermissions(ctx, existingExport, exportPathRef)
 			if err != nil {
-				e := fmt.Errorf("error from UpdateExportPermissions exportID: %d filesystemID: %d error: %s", existingExport.ID, fileSystemID, err.Error())
-				slog.Error(e.Error())
-				return e
+				return common.Errorf("error from UpdateExportPermissions exportID: %d filesystemID: %d error: %w", existingExport.ID, fileSystemID, err)
 			}
 			nfs.ExportID = existingExport.ID
 			nfs.ExportBlock = existingExport.ExportPath
@@ -266,9 +238,7 @@ func (nfs *NFSstorage) UpdateExport(ctx context.Context, fileSystemID int, expor
 	slog.Debug("info", "exportFileSystem", exportFileSystem)
 	exportResp, err := nfs.CS.IboxAPI.CreateExport(ctx, exportFileSystem)
 	if err != nil {
-		e := fmt.Errorf("from CreateExport filesystem: %s error: %s", fileSystem.Name, err.Error())
-		slog.Error(e.Error())
-		return e
+		return common.Errorf("from CreateExport filesystem: %s error: %w", fileSystem.Name, err)
 	}
 	nfs.ExportID = exportResp.ID
 	nfs.ExportBlock = exportResp.ExportPath

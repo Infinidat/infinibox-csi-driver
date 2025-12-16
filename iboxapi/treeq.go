@@ -83,7 +83,7 @@ func (client *IboxClient) GetTreeqByName(ctx context.Context, fsID int, name str
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf(" NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 
 	values := req.URL.Query()
@@ -94,7 +94,7 @@ func (client *IboxClient) GetTreeqByName(ctx context.Context, fsID int, name str
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf(" Do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -103,19 +103,19 @@ func (client *IboxClient) GetTreeqByName(ctx context.Context, fsID int, name str
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf(" ReadAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var response GetTreeqByNameResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf(" Unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 
 	if response.Error.Code != "" {
 		if response.Error.Code == FILESYSTEM_NOT_FOUND {
-			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
+			return nil, common.Errorf("errorCode: %s - error: %w url: %s", response.Error.Code, ErrNotFound, url)
 		}
-		return nil, fmt.Errorf(" ibox API - error: %v", response.Error)
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
 	}
 
 	if len(response.Result) == 0 {
@@ -130,13 +130,13 @@ func (client *IboxClient) GetTreeq(ctx context.Context, fsID, treeqID int) (tree
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf(" NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf(" Do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -145,19 +145,19 @@ func (client *IboxClient) GetTreeq(ctx context.Context, fsID, treeqID int) (tree
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf(" ReadAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var response GetTreeqResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf(" Unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 
 	if response.Error.Code != "" {
 		if response.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
-			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
+			return nil, common.Errorf("errorCode: %s - error: %w url; %s", response.Error.Code, ErrNotFound, url)
 		}
-		return nil, fmt.Errorf(" ibox API - error: %v", response.Error)
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
 	}
 	return &response.Result, nil
 }
@@ -168,13 +168,13 @@ func (client *IboxClient) DeleteTreeq(ctx context.Context, fsID, treeqID int) (t
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf(" NewRquest -  error %w", err)
+		return nil, common.Errorf("newRequest -  error: %w url: %s", err, url)
 	}
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf(" Do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -183,20 +183,20 @@ func (client *IboxClient) DeleteTreeq(ctx context.Context, fsID, treeqID int) (t
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf(" ReadAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 
 	var response DeleteTreeqResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf(" Unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 
 	if response.Error.Code != "" {
 		if response.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
-			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
+			return nil, common.Errorf("errorCode: %s - error: %w url: %s", response.Error.Code, ErrNotFound, url)
 		}
-		return nil, fmt.Errorf(" ibox API - error: %v", response.Error)
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
 	}
 
 	return &response.Result, nil
@@ -208,18 +208,18 @@ func (client *IboxClient) CreateTreeq(ctx context.Context, fsID int, treeqReques
 
 	jsonBytes, err := json.Marshal(treeqRequest)
 	if err != nil {
-		return nil, fmt.Errorf(" Marshal - error %w", err)
+		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf(" NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf(" Do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
@@ -229,17 +229,17 @@ func (client *IboxClient) CreateTreeq(ctx context.Context, fsID int, treeqReques
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("ReadAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 
 	var responseObject CreateTreeqResponse
 	err = json.Unmarshal(body, &responseObject)
 	if err != nil {
-		return nil, fmt.Errorf(" Unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 
 	if responseObject.Error.Code != "" {
-		return nil, fmt.Errorf(" ibox API - error %v", responseObject.Error)
+		return nil, common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
 	}
 	return &responseObject.Result, nil
 }
@@ -250,11 +250,11 @@ func (client *IboxClient) UpdateTreeq(ctx context.Context, fsID, treeqID int, up
 
 	jsonBytes, err := json.Marshal(updateRequest)
 	if err != nil {
-		return nil, fmt.Errorf(" Marshal - error %w", err)
+		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return nil, fmt.Errorf(" NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 
 	SetAuthHeader(request, client.Creds)
@@ -263,7 +263,7 @@ func (client *IboxClient) UpdateTreeq(ctx context.Context, fsID, treeqID int, up
 
 	response, err := client.HTTPClient.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf(" Do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
@@ -273,19 +273,19 @@ func (client *IboxClient) UpdateTreeq(ctx context.Context, fsID, treeqID int, up
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf(" ReadAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 
 	var resp UpdateTreeqResponse
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
-		return nil, fmt.Errorf(" Unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: % url: %ss", err, url)
 	}
 	if resp.Error.Code != "" {
 		if resp.Error.Code == FILESYSTEM_NOT_FOUND || resp.Error.Code == TREEQ_ID_DOES_NOT_EXIST {
-			return nil, fmt.Errorf("%s - %w", resp.Error.Code, ErrNotFound)
+			return nil, common.Errorf("errorCode: %s - error: %w url: %s", resp.Error.Code, ErrNotFound, url)
 		}
-		return nil, fmt.Errorf(" ibox API - error: %v", resp.Error)
+		return nil, common.Errorf("ibox API - error: %v url: %s", resp.Error, url)
 	}
 	return &resp.Result, nil
 }
@@ -301,7 +301,7 @@ func (client *IboxClient) GetTreeqsByFileSystem(ctx context.Context, fsID int) (
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return results, fmt.Errorf(" NewRequest - error %w", err)
+			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
 		}
 
 		values := req.URL.Query()
@@ -313,7 +313,7 @@ func (client *IboxClient) GetTreeqsByFileSystem(ctx context.Context, fsID int) (
 
 		resp, err := client.HTTPClient.Do(req)
 		if err != nil {
-			return results, fmt.Errorf(" Do - error %w", err)
+			return results, common.Errorf("do - error: %w url: %s", err, url)
 		}
 		defer func() {
 			if err := resp.Body.Close(); err != nil {
@@ -322,12 +322,12 @@ func (client *IboxClient) GetTreeqsByFileSystem(ctx context.Context, fsID int) (
 		}()
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return results, fmt.Errorf(" ReadAll - error %w", err)
+			return results, common.Errorf("readAll - error: %w url: %s", err, url)
 		}
 		var responseObject GetTreeqByFileSystemResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, fmt.Errorf(" Unmarshal - error %w", err)
+			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
 		results = append(results, responseObject.Result...)
 

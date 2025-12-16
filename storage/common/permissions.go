@@ -86,9 +86,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	if tmp != "" {
 		UID, err = strconv.Atoi(tmp)
 		if err != nil || UID < -1 {
-			e := fmt.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", UID, err)
-			slog.Error(e.Error())
-			return e
+			return common.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", UID, err)
 		}
 	}
 
@@ -96,9 +94,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	if tmp != "" {
 		GID, err = strconv.Atoi(tmp)
 		if err != nil || GID < -1 {
-			e := fmt.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", GID, err)
-			slog.Error(e.Error())
-			return e
+			return common.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", GID, err)
 		}
 	}
 
@@ -110,9 +106,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		slog.Debug("user specified uid or gid in StorageClass parameters", "command", fmt.Sprintf("chown mount %s uid=%d gid=%d", hostTargetPath, UID, GID))
 		err = os.Chown(hostTargetPath, UID, GID)
 		if err != nil {
-			e := fmt.Errorf("failed to chown path '%s': %v", hostTargetPath, err)
-			slog.Error(e.Error())
-			return status.Error(codes.Internal, e.Error())
+			return status.Error(codes.Internal, common.Errorf("failed to chown path '%s': %v", hostTargetPath, err).Error())
 		}
 	}
 
@@ -122,16 +116,12 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		slog.Debug("user specified unix_permissions in StorageClass parameters, chmod mount ", "hostTargetPath", hostTargetPath, "perms", unixPermissions)
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
-			e := fmt.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error())
-			slog.Error(e.Error())
-			return status.Error(codes.Internal, e.Error())
+			return status.Error(codes.Internal, common.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error()).Error())
 		}
 		mode := uint(tempVal)
 		err = os.Chmod(hostTargetPath, os.FileMode(mode))
 		if err != nil {
-			e := fmt.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err)
-			slog.Error(e.Error())
-			return status.Error(codes.Internal, e.Error())
+			return status.Error(codes.Internal, common.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err).Error())
 		}
 	}
 
@@ -218,9 +208,7 @@ func UpdateNfsMountOptions(mountOptions []string, req *csi.NodePublishVolumeRequ
 		if len(matches) > 0 {
 			version := matches[2]
 			if version != "3" && version != "4" && version != "4.1" {
-				e := fmt.Errorf("nfs version mount option '%s' encountered, but only NFS versions 3 and 4 are supported", opt)
-				slog.Error(e.Error())
-				return nil, e
+				return nil, common.Errorf("nfs version mount option '%s' encountered, but only NFS versions 3 and 4 are supported", opt)
 			}
 		}
 	}

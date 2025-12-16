@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"regexp"
 
@@ -40,9 +39,7 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 	}
 
 	if len(badParamsMap) > 0 {
-		e := fmt.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
-		slog.Error(e.Error())
-		return e
+		return common.Errorf("invalid StorageClass parameters provided: %s", badParamsMap)
 	}
 
 	return nil
@@ -51,27 +48,20 @@ func ValidateRequiredOptionalSCParameters(requiredStorageClassParams, optionalSC
 // validateProtocolToNetworkSpace - ensure specified protocol is valid for specified network space
 func ValidateProtocolToNetworkSpace(ctx context.Context, protocol string, networkSpaces []string, api iboxapi.Client) error {
 	if len(networkSpaces) == 0 {
-		err := fmt.Errorf("no network spaces provided")
-		slog.Error(err.Error())
-		return err
+		return common.Errorf("no network spaces provided")
 	}
 
 	for _, networkSpace := range networkSpaces {
 		slog.Debug("validating", "ns", networkSpace, "protocol", protocol)
 		nSpace, err := api.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
-			slog.Error(err.Error())
 			return err
 		}
 		if len(nSpace.Service) == 0 {
-			e := fmt.Errorf("ibox not configured with specified network space: '%s' Service is empty", networkSpace)
-			slog.Error(e.Error())
-			return e
+			return common.Errorf("ibox not configured with specified network space: '%s' Service is empty", networkSpace)
 		}
 		if nSpace.Service != protoToServiceMap[protocol] {
-			e := fmt.Errorf("specified network space '%s' does not support %s protocol with %s service", networkSpace, protocol, nSpace.Service)
-			slog.Error(e.Error())
-			return e
+			return common.Errorf("specified network space '%s' does not support %s protocol with %s service", networkSpace, protocol, nSpace.Service)
 		}
 		slog.Debug("Network space supports protocol with service", "networkSpace", networkSpace, "protocol", protocol, "service", nSpace.Service)
 	}

@@ -50,7 +50,7 @@ func (client *IboxClient) GetFCPorts(ctx context.Context) (nodes []FCNode, err e
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nodes, fmt.Errorf("newRequest - error %w", err)
+		return nodes, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 
 	values := req.URL.Query()
@@ -61,7 +61,7 @@ func (client *IboxClient) GetFCPorts(ctx context.Context) (nodes []FCNode, err e
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nodes, fmt.Errorf("do - error %w", err)
+		return nodes, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -71,15 +71,15 @@ func (client *IboxClient) GetFCPorts(ctx context.Context) (nodes []FCNode, err e
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nodes, fmt.Errorf("readAll - error %w", err)
+		return nodes, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var responseObject GetFCPortsResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return nodes, fmt.Errorf("unmarshal - error %w", err)
+		return nodes, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 	if responseObject.Error.Code != "" {
-		return nodes, fmt.Errorf("ibox API - error %v", responseObject.Error)
+		return nodes, common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
 	}
 
 	return responseObject.Result, nil

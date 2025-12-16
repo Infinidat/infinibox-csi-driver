@@ -70,7 +70,7 @@ func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 	values := req.URL.Query()
 	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOXDefaultQueryPageSize))
@@ -82,7 +82,7 @@ func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool 
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -91,16 +91,16 @@ func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool 
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("readAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var response GetPoolByNameResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 
 	if response.Error.Code != "" {
-		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
 	}
 
 	if len(response.Result) == 0 {
@@ -117,14 +117,14 @@ func (client *IboxClient) GetPoolByID(ctx context.Context, poolID int) (pool *Po
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("NewRequest - error %w", err)
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 
 	SetAuthHeader(req, client.Creds)
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do - error %w", err)
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -133,19 +133,19 @@ func (client *IboxClient) GetPoolByID(ctx context.Context, poolID int) (pool *Po
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("readAll - error %w", err)
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var response GetPoolByIDResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal - error %w", err)
+		return nil, common.Errorf("unmarshal - error: %w url; %s", err, url)
 	}
 
 	if response.Error.Code != "" {
 		if response.Error.Code == "POOL_NOT_FOUND" {
-			return nil, fmt.Errorf("%s - %w", response.Error.Code, ErrNotFound)
+			return nil, common.Errorf("errorCode: %s - error: %w url: %s", response.Error.Code, ErrNotFound, url)
 		}
-		return nil, fmt.Errorf("ibox API - error: %v", response.Error)
+		return nil, common.Errorf("ibox API - error: %v", response.Error)
 	}
 
 	return &response.Result, nil

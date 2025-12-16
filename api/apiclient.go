@@ -73,19 +73,19 @@ func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
 	if c.SecretsMap == nil {
 		return hostConfig, errors.New("secret not found")
 	}
-	if c.SecretsMap["hostname"] != "" && c.SecretsMap["username"] != "" && c.SecretsMap["password"] != "" {
-		hostnameURL, err := url.Parse(c.SecretsMap["hostname"])
+	if c.SecretsMap[common.CredentialHostname] != "" && c.SecretsMap[common.CredentialUsername] != "" && c.SecretsMap[common.CredentialPassword] != "" {
+		hostnameURL, err := url.Parse(c.SecretsMap[common.CredentialHostname])
 
 		if err != nil {
-			slog.Error("Error parsing IBox hostname", "error", err.Error())
+			slog.Error("error parsing ibox hostname", "error", err.Error())
 		}
 
 		// check for scheme, add if missing.
 		urlScheme := hostnameURL.Scheme
 
 		if urlScheme == "" {
-			slog.Log(ctx, common.LevelTrace, "IBox Hostname is missing scheme, setting https as scheme")
-			hostConfig.APIHost = "https://" + c.SecretsMap["hostname"] + "/"
+			slog.Log(ctx, common.LevelTrace, "ibox hostname is missing scheme, setting https as scheme")
+			hostConfig.APIHost = "https://" + c.SecretsMap[common.CredentialHostname] + "/"
 		} else {
 			hostConfig.APIHost = hostnameURL.String()
 		}
@@ -93,13 +93,13 @@ func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
 		// check for URI validity.
 		hostnameURL, err = url.ParseRequestURI(hostConfig.APIHost)
 		if err != nil {
-			slog.Error("IBox hostname is invalid", "URI", hostnameURL.String(), "error", err.Error())
+			slog.Error("ibox hostname is invalid", "URI", hostnameURL.String(), "error", err.Error())
 		} else {
 			slog.Log(ctx, common.LevelTrace, "info", "IBox URL", hostConfig.APIHost)
 		}
 
-		hostConfig.UserName = c.SecretsMap["username"]
-		hostConfig.Password = c.SecretsMap["password"]
+		hostConfig.UserName = c.SecretsMap[common.CredentialUsername]
+		hostConfig.Password = c.SecretsMap[common.CredentialPassword]
 		return hostConfig, nil
 	}
 	return hostConfig, errors.New("host configuration is not valid")

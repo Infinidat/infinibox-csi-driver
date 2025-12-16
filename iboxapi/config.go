@@ -39,7 +39,7 @@ func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err e
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("newRequest - error %w", err)
+		return 0, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 
 	values := req.URL.Query()
@@ -50,7 +50,7 @@ func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err e
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("do - error %w", err)
+		return 0, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -60,12 +60,12 @@ func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err e
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, fmt.Errorf("readAll - error %w", err)
+		return 0, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var responseObject ParameterResult
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return 0, fmt.Errorf("unmarshal - error %w", err)
+		return 0, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 	return responseObject.Result.NasMaxFilesystemsInSystem, nil
 }
@@ -75,7 +75,7 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 		Result struct {
 			NasTreeqMaxCountPerFilesystem int `json:"nas.treeq_max_count_per_filesystem"`
 		} `json:"result"`
-		Error    interface{} `json:"error"`
+		Error    any `json:"error"`
 		Metadata struct {
 			Ready bool `json:"ready"`
 		} `json:"metadata"`
@@ -86,7 +86,7 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return 0, fmt.Errorf("newRequest - error %w", err)
+		return 0, common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
 
 	values := req.URL.Query()
@@ -97,7 +97,7 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 
 	resp, err := client.HTTPClient.Do(req)
 	if err != nil {
-		return 0, fmt.Errorf("do - error %w", err)
+		return 0, common.Errorf("do - error: %w url: %s", err, url)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -106,12 +106,12 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 	}()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, fmt.Errorf("readAll - error %w", err)
+		return 0, common.Errorf("readAll - error: %w url: %s", err, url)
 	}
 	var responseObject ParameterResult
 	err = json.Unmarshal(bodyBytes, &responseObject)
 	if err != nil {
-		return 0, fmt.Errorf("unmarshal - error %w", err)
+		return 0, common.Errorf("unmarshal - error: %w url: %s", err, url)
 	}
 	return responseObject.Result.NasTreeqMaxCountPerFilesystem, nil
 }

@@ -14,7 +14,6 @@ package nfs
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -42,8 +41,7 @@ func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
 	var permissionsMapArray []map[string]interface{}
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
-		slog.Error("invalid format, fixed", "export perms", common.StorageClassNFSExportPermissions, "error", err, "permission", permission, "permissionFixed", permissionFixed)
-		return permissionsMapArray, err
+		return permissionsMapArray, common.Errorf("unmarshal error permission: %s permissionFixed: %s perms: %s error: %w", permission, permissionFixed, common.StorageClassNFSExportPermissions, err)
 	}
 
 	for _, pass := range permissionsMapArray {
@@ -81,7 +79,6 @@ func ValidateNFSExportPermissions(scParameters map[string]string) error {
 	if scParameters[common.StorageClassNFSExportPermissions] != "" {
 		permissionsMapArray, err := getPermissionMaps(scParameters[common.StorageClassNFSExportPermissions])
 		if err != nil {
-			slog.Error(err.Error())
 			return err
 		}
 
@@ -90,9 +87,7 @@ func ValidateNFSExportPermissions(scParameters map[string]string) error {
 			if len(permissionsMapArray) > 0 {
 				noRootSquash := permissionsMapArray[0][NFSExportPermNoRootSquash]
 				if noRootSquash == false {
-					e := fmt.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
-					slog.Error(e.Error())
-					return e
+					return common.Errorf("error: uid, gid, or unix_permissions were set, but no_root_squash is false, this is not valid, no_root_squash is required to be true for uid,gid,unix_permissions to be applied")
 				}
 			}
 		}

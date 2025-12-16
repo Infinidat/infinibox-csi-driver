@@ -80,8 +80,7 @@ func (kc *kubeclient) GetSecret(ctx context.Context, secretName, namespace strin
 	secretMap := make(map[string]string)
 	secret, err := kc.client.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		slog.Error("error getting secret", "namespace", namespace, "secretname", secretName, "Error", err.Error())
-		return secretMap, err
+		return secretMap, common.Errorf("error getting secret - namespace: %s secretName: %s error: %w", namespace, secretName, err)
 	}
 	for key, value := range secret.Data {
 		secretMap[key] = string(value)
@@ -97,7 +96,7 @@ func (kc *kubeclient) GetSecrets(ctx context.Context, namespace string) ([]map[s
 	}
 	secrets, err := kc.client.CoreV1().Secrets(namespace).List(ctx, options)
 	if err != nil {
-		return secretMaps, err
+		return secretMaps, common.Errorf("error getting secrets - namespace: %s error: %w", namespace, err)
 	}
 	slog.Debug("got secrets for app=infinidat-csi-driver", "item count", len(secrets.Items), "namespace", namespace)
 	for _, secret := range secrets.Items {
@@ -229,8 +228,7 @@ func (kc *kubeclient) GetRunningDriverNodePods(ctx context.Context, namespace st
 		}
 	}
 	if len(pods) == 0 {
-		e := fmt.Errorf("no CSI driver node pods are in running status")
-		return pods, e
+		return pods, fmt.Errorf("no CSI driver node pods are in running status")
 	}
 
 	return pods, nil
