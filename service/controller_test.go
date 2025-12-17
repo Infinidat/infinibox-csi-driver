@@ -367,6 +367,9 @@ func getControllerExpandVolumeRequest() *csi.ControllerExpandVolumeRequest {
 		VolumeId:      "100$$nfs",
 		CapacityRange: &csi.CapacityRange{RequiredBytes: 10000},
 		Secrets:       tests.GetSecret(),
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Block{},
+		},
 	}
 }
 

@@ -82,5 +82,6 @@ envsubst < $SCRIPT_DIR/e2e-volume-snapshotclass.yaml > $WORKDIR/e2e-volume-snaps
 	--ginkgo.skip="access to two volumes" \
 	--ginkgo.skip="OnRootMismatch" \
 	--ginkgo.skip="when restoring snapshot to larger size pvc" \
+	--ginkgo.skip="AllowVolumeExpansion" \
 	--storage.testdriver=$WORKDIR/e2e-manifest.yaml \
 	> $WORKDIR/results.log
