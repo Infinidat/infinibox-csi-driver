@@ -265,13 +265,10 @@ func getClusterVersion() string {
 func (cs *Commonservice) PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
-		slog.Debug("path exists", "path", path)
 		return true, nil
 	} else if os.IsNotExist(err) {
-		slog.Debug("path does not exist", "path", path)
 		return false, nil
 	} else if cs.IsCorruptedMnt(err) {
-		slog.Debug("path is corrupted", "path", path)
 		return true, err
 	}
 	slog.Debug("unable to validate path", "path", path)

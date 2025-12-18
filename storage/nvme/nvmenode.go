@@ -147,21 +147,35 @@ func (nvme *NVMEstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 	stagePath := req.GetStagingTargetPath()
 
 	removePath := path.Join("/host", stagePath)
-	slog.Debug("start", "volume id", req.GetVolumeId(), "stagePath", stagePath, "removePath", removePath)
+	slog.Debug("start", "volume id", req.GetVolumeId(), "removePath", removePath)
 
 	_ = storagecommon.DebugWalkDir(removePath)
 
 	// Remove directory contents
-	slog.Debug("removePath is a directory", "removePath", removePath)
 	jsonPath := fmt.Sprintf("%s/%d.json", removePath, nvme.CS.VolProto.VolumeID)
-	if err := os.Remove(jsonPath); err != nil {
-		return nil, common.Errorf("from Remove - failed to remove json file: %s error: %w", jsonPath, err)
+	pathExists, pathErr := nvme.CS.PathExists(jsonPath)
+	if pathErr != nil {
+		slog.Error("path doesn't exist error", "path", jsonPath, "error", pathErr)
+	} else {
+		if pathExists {
+			slog.Debug("removing json config file", "jsonPath", jsonPath)
+			if err := os.Remove(jsonPath); err != nil {
+				return nil, common.Errorf("from Remove - failed to remove json file: %s error: %w", jsonPath, err)
+			}
+		}
 	}
 
 	// Remove directory or file
-	slog.Debug("removing removePath", "removePath", removePath)
-	if err := os.Remove(removePath); err != nil {
-		return nil, common.Errorf("from Remove - failed to remove path: %s error: %w", removePath, err)
+	pathExists, pathErr = nvme.CS.PathExists(removePath)
+	if pathErr != nil {
+		slog.Error("path doesn't exist error", "path", removePath, "error", pathErr)
+	} else {
+		if pathExists {
+			slog.Debug("removing removePath", "removePath", removePath)
+			if err := os.Remove(removePath); err != nil {
+				return nil, common.Errorf("from Remove - failed to remove path: %s error: %w", removePath, err)
+			}
+		}
 	}
 
 	// logout all nvme connections if there are zero devices

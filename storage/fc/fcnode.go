@@ -227,7 +227,7 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	} else {
 		slog.Debug("fc config not existing at staging path")
 		confFile := path.Join("/host", stagePath, strconv.Itoa(fc.CS.VolProto.VolumeID)+".json")
-		slog.Debug("check if fc config file exists")
+		slog.Debug("check if fc config file exists", "path", confFile)
 		pathExist, pathErr := fc.CS.PathExists(confFile)
 		if pathErr == nil {
 			if !pathExist {

@@ -292,7 +292,7 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	} else {
 		// confFile := path.Join("/host", stagePath, diskUnmounter.iscsiDisk.VolName+".json")
 		confFile := path.Join("/host", stagePath, strconv.Itoa(diskUnmounter.iscsiDiskInfo.VolumeID)+".json")
-		slog.Debug("check if config file exists")
+		slog.Debug("check if config file exists", "path", confFile)
 		pathExist, pathErr := iscsi.CS.PathExists(confFile)
 		if pathErr != nil {
 			slog.Error("pathExists", "error", pathErr.Error())

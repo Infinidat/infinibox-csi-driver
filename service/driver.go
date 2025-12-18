@@ -14,6 +14,7 @@ package service
 
 import (
 	"log/slog"
+	"os"
 	"runtime"
 
 	"github.com/infinidat/infinibox-csi-driver/helper"
@@ -109,10 +110,19 @@ func NewNodeServer(driver *Driver, mounter mount.Interface) *NodeServer {
 }
 
 func (driver *Driver) Run(testMode bool) {
-	mounter := mount.New("")
-	if runtime.GOOS == "linux" {
-		// MounterForceUnmounter is only implemented on Linux now
-		mounter = mounter.(mount.MounterForceUnmounter)
+	var mounter mount.Interface
+	role := os.Getenv("CSI_DRIVER_ROLE")
+	slog.Info("startup", "role", role)
+	if role != "controller" {
+		// creating the mounter is only required for the 'node' role
+		// it doesn't hurt to create it for the 'controller' but you
+		// will see an error in the logs when it tries to test the mounter
+		// since we don't mount / under /host on the controller
+		mounter = mount.New("")
+		if runtime.GOOS == "linux" {
+			// MounterForceUnmounter is only implemented on Linux now
+			mounter = mounter.(mount.MounterForceUnmounter)
+		}
 	}
 	driver.ns = NewNodeServer(driver, mounter)
 	server := NewNonBlockingGRPCServer()
