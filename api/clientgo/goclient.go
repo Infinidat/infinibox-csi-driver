@@ -31,20 +31,22 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
+/**
 type KubeClient interface {
 	GetSecret(secretName, nameSpace string) (map[string]string, error)
 	GetClusterVerion() (string, error)
 }
+*/
 
-type kubeclient struct {
-	client     kubernetes.Interface
-	restConfig *rest.Config
+type KubeClient struct {
+	KubeClientInterface kubernetes.Interface
+	KubeRestConfig      *rest.Config
 }
 
-var clientAPI kubeclient
+var clientAPI KubeClient
 
-func BuildOffClusterClient(kubeConfigPath string) (kubeClient *kubeclient, err error) {
-	if clientAPI.client == nil {
+func BuildOffClusterClient(kubeConfigPath string) (kubeClient *KubeClient, err error) {
+	if clientAPI.KubeClientInterface == nil {
 		config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 		if err != nil {
 			return nil, err
@@ -54,14 +56,14 @@ func BuildOffClusterClient(kubeConfigPath string) (kubeClient *kubeclient, err e
 			return nil, err
 		}
 
-		clientAPI = kubeclient{client: clientset, restConfig: config}
+		clientAPI = KubeClient{KubeClientInterface: clientset, KubeRestConfig: config}
 	}
 	return &clientAPI, err
 }
 
 // BuildClient
-func BuildClient() (kubeClient *kubeclient, err error) {
-	if clientAPI.client == nil {
+func BuildClient() (kubeClient *KubeClient, err error) {
+	if clientAPI.KubeClientInterface == nil {
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			return nil, err
@@ -71,14 +73,14 @@ func BuildClient() (kubeClient *kubeclient, err error) {
 		if err != nil {
 			return nil, err
 		}
-		clientAPI = kubeclient{client: clientset, restConfig: config}
+		clientAPI = KubeClient{KubeClientInterface: clientset, KubeRestConfig: config}
 	}
 	return &clientAPI, err
 }
 
-func (kc *kubeclient) GetSecret(ctx context.Context, secretName, namespace string) (map[string]string, error) {
+func (kc *KubeClient) GetSecret(ctx context.Context, secretName, namespace string) (map[string]string, error) {
 	secretMap := make(map[string]string)
-	secret, err := kc.client.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	secret, err := kc.KubeClientInterface.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		return secretMap, common.Errorf("error getting secret - namespace: %s secretName: %s error: %w", namespace, secretName, err)
 	}
@@ -89,12 +91,12 @@ func (kc *kubeclient) GetSecret(ctx context.Context, secretName, namespace strin
 	return secretMap, nil
 }
 
-func (kc *kubeclient) GetSecrets(ctx context.Context, namespace string) ([]map[string]string, error) {
+func (kc *KubeClient) GetSecrets(ctx context.Context, namespace string) ([]map[string]string, error) {
 	secretMaps := make([]map[string]string, 0)
 	options := metav1.ListOptions{
 		LabelSelector: "app=infinidat-csi-driver",
 	}
-	secrets, err := kc.client.CoreV1().Secrets(namespace).List(ctx, options)
+	secrets, err := kc.KubeClientInterface.CoreV1().Secrets(namespace).List(ctx, options)
 	if err != nil {
 		return secretMaps, common.Errorf("error getting secrets - namespace: %s error: %w", namespace, err)
 	}
@@ -110,8 +112,8 @@ func (kc *kubeclient) GetSecrets(ctx context.Context, namespace string) ([]map[s
 	return secretMaps, nil
 }
 
-func (kc *kubeclient) GetPersistantVolumeByName(ctx context.Context, volumeName string) (*v1.PersistentVolume, error) {
-	persistVol, err := kc.client.CoreV1().PersistentVolumes().Get(ctx, volumeName, metav1.GetOptions{})
+func (kc *KubeClient) GetPersistantVolumeByName(ctx context.Context, volumeName string) (*v1.PersistentVolume, error) {
+	persistVol, err := kc.KubeClientInterface.CoreV1().PersistentVolumes().Get(ctx, volumeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +121,8 @@ func (kc *kubeclient) GetPersistantVolumeByName(ctx context.Context, volumeName 
 }
 
 // Return a PersistentVolumeList listing PVs created by this CSI Driver.
-func (kc *kubeclient) GetAllPersistentVolumes(ctx context.Context) (*v1.PersistentVolumeList, error) {
-	persistentVolumes, err := kc.client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+func (kc *KubeClient) GetAllPersistentVolumes(ctx context.Context) (*v1.PersistentVolumeList, error) {
+	persistentVolumes, err := kc.KubeClientInterface.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +143,8 @@ func (kc *kubeclient) GetAllPersistentVolumes(ctx context.Context) (*v1.Persiste
 	return &infiPersistentVolumeList, nil
 }
 
-func (kc *kubeclient) GetAllStorageClasses(ctx context.Context) (*storagev1.StorageClassList, error) {
-	storageclasses, err := kc.client.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
+func (kc *KubeClient) GetAllStorageClasses(ctx context.Context) (*storagev1.StorageClassList, error) {
+	storageclasses, err := kc.KubeClientInterface.StorageV1().StorageClasses().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -150,24 +152,24 @@ func (kc *kubeclient) GetAllStorageClasses(ctx context.Context) (*storagev1.Stor
 	return storageclasses, nil
 }
 
-func (kc *kubeclient) GetNodes(ctx context.Context) (nodes []v1.Node, err error) {
-	nodeList, err := kc.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+func (kc *KubeClient) GetNodes(ctx context.Context) (nodes []v1.Node, err error) {
+	nodeList, err := kc.KubeClientInterface.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nodes, err
 	}
 	return nodeList.Items, nil
 }
-func (kc *kubeclient) GetPV(ctx context.Context, name string) (pv *v1.PersistentVolume, err error) {
-	pv, err = kc.client.CoreV1().PersistentVolumes().Get(ctx, name, metav1.GetOptions{})
+func (kc *KubeClient) GetPV(ctx context.Context, name string) (pv *v1.PersistentVolume, err error) {
+	pv, err = kc.KubeClientInterface.CoreV1().PersistentVolumes().Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return pv, nil
 }
 
-func (kc *kubeclient) GetPVByVolumeID(ctx context.Context, volumeID int, protocol string) (*v1.PersistentVolume, error) {
+func (kc *KubeClient) GetPVByVolumeID(ctx context.Context, volumeID int, protocol string) (*v1.PersistentVolume, error) {
 	volumeHandle := fmt.Sprintf("%d$$%s", volumeID, protocol)
-	pvList, err := kc.client.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	pvList, err := kc.KubeClientInterface.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -179,24 +181,24 @@ func (kc *kubeclient) GetPVByVolumeID(ctx context.Context, volumeID int, protoco
 	return nil, fmt.Errorf("no PV found for volumeHandle %d$$nfs", volumeID)
 }
 
-func (kc *kubeclient) GetClusterVerion() (string, error) {
-	info, err := kc.client.Discovery().ServerVersion()
+func (kc *KubeClient) GetClusterVerion() (string, error) {
+	info, err := kc.KubeClientInterface.Discovery().ServerVersion()
 	if err != nil {
 		return "", err
 	}
 	return info.GitVersion, nil
 }
 
-func (kc *kubeclient) GetPVCs(ctx context.Context, namespace string) (pvcList *v1.PersistentVolumeClaimList, err error) {
-	pvcList, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
+func (kc *KubeClient) GetPVCs(ctx context.Context, namespace string) (pvcList *v1.PersistentVolumeClaimList, err error) {
+	pvcList, err = kc.KubeClientInterface.CoreV1().PersistentVolumeClaims(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return pvcList, nil
 }
 
-func (kc *kubeclient) GetPVC(ctx context.Context, namespace, name string) (pvc *v1.PersistentVolumeClaim, err error) {
-	pvc, err = kc.client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
+func (kc *KubeClient) GetPVC(ctx context.Context, namespace, name string) (pvc *v1.PersistentVolumeClaim, err error) {
+	pvc, err = kc.KubeClientInterface.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +206,7 @@ func (kc *kubeclient) GetPVC(ctx context.Context, namespace, name string) (pvc *
 }
 
 // GetPVCAnnotations : Get pvc annotations for a given volumeName
-func (kc *kubeclient) GetPVCAnnotations(ctx context.Context, pvcName, pvcNamespace string) (annotations map[string]string, err error) {
+func (kc *KubeClient) GetPVCAnnotations(ctx context.Context, pvcName, pvcNamespace string) (annotations map[string]string, err error) {
 	var pvc *v1.PersistentVolumeClaim
 	pvc, err = kc.GetPVC(ctx, pvcNamespace, pvcName)
 	if err != nil {
@@ -214,11 +216,11 @@ func (kc *kubeclient) GetPVCAnnotations(ctx context.Context, pvcName, pvcNamespa
 }
 
 // get the CSI Driver pods that would be created by the driver's Daemonset
-func (kc *kubeclient) GetRunningDriverNodePods(ctx context.Context, namespace string) (pods []v1.Pod, err error) {
+func (kc *KubeClient) GetRunningDriverNodePods(ctx context.Context, namespace string) (pods []v1.Pod, err error) {
 	options := metav1.ListOptions{
 		LabelSelector: "part-of=infiniboxcsidriver-node",
 	}
-	podList, err := kc.client.CoreV1().Pods(namespace).List(ctx, options)
+	podList, err := kc.KubeClientInterface.CoreV1().Pods(namespace).List(ctx, options)
 	if err != nil {
 		return pods, err
 	}
@@ -235,7 +237,7 @@ func (kc *kubeclient) GetRunningDriverNodePods(ctx context.Context, namespace st
 }
 
 // ExecCmdInPod - exec command on specific pod and wait the command's output.
-func (kc *kubeclient) ExecCmdInPod(ctx context.Context, podName, nameSpace, command, containerName string) (string, string, error) {
+func (kc *KubeClient) ExecCmdInPod(ctx context.Context, podName, nameSpace, command, containerName string) (string, string, error) {
 	stdOut := &bytes.Buffer{}
 	stdErr := &bytes.Buffer{}
 
@@ -244,7 +246,7 @@ func (kc *kubeclient) ExecCmdInPod(ctx context.Context, podName, nameSpace, comm
 		"-c",
 		command,
 	}
-	req := kc.client.CoreV1().RESTClient().Post().
+	req := kc.KubeClientInterface.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
 		Namespace(nameSpace).
@@ -265,7 +267,7 @@ func (kc *kubeclient) ExecCmdInPod(ctx context.Context, podName, nameSpace, comm
 
 	// fmt.Printf("execCmdInPod - Running command: %s\n", command)
 
-	exec, err := remotecommand.NewSPDYExecutor(kc.restConfig, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(kc.KubeRestConfig, "POST", req.URL())
 	if err != nil {
 		return stdOut.String(), stdErr.String(), err
 	}

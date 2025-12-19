@@ -33,10 +33,10 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
-func (kc *kubeclient) GetIboxreplicas(ctx context.Context) (v1.IboxreplicaList, error) {
+func (kc *KubeClient) GetIboxreplicas(ctx context.Context) (v1.IboxreplicaList, error) {
 	slog.Info("GetIboxreplicas called")
 	replicas := v1.IboxreplicaList{}
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
+	crClient, err := crclient.New(kc.KubeRestConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return replicas, err
 	}
@@ -47,10 +47,10 @@ func (kc *kubeclient) GetIboxreplicas(ctx context.Context) (v1.IboxreplicaList, 
 	return replicas, nil
 }
 
-func (kc *kubeclient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxreplica, error) {
+func (kc *KubeClient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxreplica, error) {
 	slog.Debug("GetIboxreplica", "name", name)
 	replica := v1.Iboxreplica{}
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
+	crClient, err := crclient.New(kc.KubeRestConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return replica, err
 	}
@@ -64,9 +64,9 @@ func (kc *kubeclient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxr
 	return replica, nil
 }
 
-func (kc *kubeclient) CreateIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
+func (kc *KubeClient) CreateIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
 	slog.Debug("CreateIboxreplica", "replica", replica)
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
+	crClient, err := crclient.New(kc.KubeRestConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
 	}
@@ -78,9 +78,9 @@ func (kc *kubeclient) CreateIboxreplica(ctx context.Context, replica v1.Iboxrepl
 	return nil
 }
 
-func (kc *kubeclient) DeleteIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
+func (kc *KubeClient) DeleteIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
 	slog.Debug("DeleteIboxreplica", "replica", replica)
-	crClient, err := crclient.New(kc.restConfig, crclient.Options{Scheme: schemeForReplica})
+	crClient, err := crclient.New(kc.KubeRestConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
 	}

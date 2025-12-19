@@ -404,7 +404,7 @@ func WaitForSnapshot(t *testing.T, snapshotName string, namespace string, client
 			return false, err
 		}
 
-		if volumeSnapshot != nil {
+		if volumeSnapshot != nil && volumeSnapshot.Status != nil {
 			if *volumeSnapshot.Status.ReadyToUse {
 				t.Logf("✓ volumesnapshot %s is created and ready\n", snapshotName)
 				return true, nil
