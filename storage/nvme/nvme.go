@@ -128,6 +128,12 @@ func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
 		slog.Debug("line", "number", lineNo, "length", len(line), "value", line)
 	}
 
+	header := lines[0]
+	headerFields := strings.Fields(header)
+	content := []string{}
+	content = append(content, headerFields...)
+	slog.Debug("nvme list header", "columns", content)
+
 	//remove the header which is 2 lines
 	slog.Debug("nvmeOutput with lines removed...")
 	lines = append(lines[:0], lines[2:]...)
@@ -136,25 +142,26 @@ func getNVMENamespacesByNormalOutput() (devices []NVMEDeviceInfo, err error) {
 		if len(line) > 0 {
 			fields := strings.Fields(line)
 			slog.Debug("parsed", "fields", fields)
-			// Remove the "0x" prefix if present
-			namespaceField := fields[4]
-			if len(namespaceField) > 2 && namespaceField[0:2] == "0x" {
-				namespaceField = namespaceField[2:]
+			element := NVMEDeviceInfo{}
+			for i := 0; i < len(content); i++ {
+				switch content[i] {
+				case "Node":
+					element.Node = fields[i]
+				case "Namespace":
+					// Remove the "0x" prefix if present
+					namespaceField := fields[i]
+					if len(namespaceField) > 2 && namespaceField[0:2] == "0x" {
+						namespaceField = namespaceField[2:]
+					}
+					namespaceNumber, err := strconv.ParseInt(namespaceField, 16, 0)
+					if err != nil {
+						slog.Error("error converting namespace to int", "field", namespaceField, "error", err.Error())
+						return devices, err
+					}
+					element.Namespace = int(namespaceNumber)
+				}
 			}
-			namespaceNumber, err := strconv.ParseInt(namespaceField, 16, 0)
-			if err != nil {
-				slog.Debug("error converting namespace to int", "field", namespaceField, "error", err.Error())
-				return devices, err
-			}
-			element := NVMEDeviceInfo{
-				Node: fields[0],
-				//Generic:   fields[1],
-				//SN:        fields[2],
-				//Model:     fields[3],
-				Namespace: int(namespaceNumber),
-				//Unused:    "unused",
-			}
-			slog.Debug("parsed", "element", element)
+			slog.Info("parsed", "element", element)
 			devices = append(devices, element)
 		}
 	}
