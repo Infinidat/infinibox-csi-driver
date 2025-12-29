@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/go-logr/logr"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	csidriverv1 "github.com/infinidat/infinibox-csi-driver/iboxpromote/api/v1"
 	"github.com/infinidat/infinibox-csi-driver/iboxpromote/internal/controller"
 	// +kubebuilder:scaffold:imports
@@ -80,7 +81,7 @@ func main() {
 	case "debug":
 		logLevel = slog.LevelDebug
 	case "trace":
-		logLevel = slog.LevelDebug
+		logLevel = common.LevelTrace
 	default:
 		logLevel = slog.LevelInfo
 	}
