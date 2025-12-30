@@ -220,7 +220,7 @@ copyimages:
     DOCKER_TLS_CERTDIR: ""
   before_script:
    - mkdir ~/.docker
-   - echo "$DOCKER_AUTH_CONFIG" > ~/.docker/config.json
+   - echo "$RELEASES_AUTH_CONFIG" > ~/.docker/config.json
    - echo -n ci registry user is $CI_REGISTRY_USER
    - echo -n ci registry is $CI_REGISTRY
    - echo -n ci project namespace is $CI_PROJECT_NAMESPACE
