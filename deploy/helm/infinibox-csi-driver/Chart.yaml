@@ -14,11 +14,11 @@ type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
 # to the chart and its templates, including the app version.
-version: 2.25.0
+version: 2.26.0
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application.
-appVersion: 2.25.0
+appVersion: 2.26.0
 
 # tested on these kube versions
 kubeVersion: '>=1.23.0-0'
