@@ -33,28 +33,7 @@ var gitHash string
 
 // starting method of CSI-Driver
 func main() {
-	appLogLevel := os.Getenv("APP_LOG_LEVEL")
-	var logLevel slog.Leveler
-	switch appLogLevel {
-	case "error":
-		logLevel = slog.LevelError
-	case "warn":
-		logLevel = slog.LevelWarn
-	case "info":
-		logLevel = slog.LevelInfo
-	case "debug":
-		logLevel = slog.LevelDebug
-	case "trace":
-		logLevel = common.LevelTrace
-	default:
-		logLevel = slog.LevelInfo
-	}
-	opts := &slog.HandlerOptions{
-		Level:       logLevel,
-		AddSource:   true,
-		ReplaceAttr: common.CustomSlogFormatter,
-	}
-	ThisLogger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	ThisLogger := common.SetupSlog(false)
 
 	// Set the default logger
 	slog.SetDefault(ThisLogger)

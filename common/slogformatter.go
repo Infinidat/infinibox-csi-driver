@@ -30,3 +30,13 @@ func CustomSlogFormatter(groups []string, a slog.Attr) slog.Attr {
 	}
 	return a
 }
+
+func CustomControllerTimeFormatter(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		// Cast the value to time.Time
+		t := a.Value.Any().(time.Time)
+		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
+		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
+	}
+	return a
+}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	metric "github.com/infinidat/infinibox-csi-driver/metrics"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -26,28 +27,7 @@ const (
 )
 
 func main() {
-	appLogLevel := os.Getenv("APP_LOG_LEVEL")
-	var logLevel slog.Leveler
-	switch appLogLevel {
-	case "error":
-		logLevel = slog.LevelError
-	case "warn":
-		logLevel = slog.LevelWarn
-	case "info":
-		logLevel = slog.LevelInfo
-	case "debug":
-		logLevel = slog.LevelDebug
-	case "trace":
-		logLevel = slog.LevelDebug
-	default:
-		logLevel = slog.LevelInfo
-	}
-	opts := &slog.HandlerOptions{
-		Level:       logLevel,
-		AddSource:   true,
-		ReplaceAttr: customTimeFormatter,
-	}
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	logger := common.SetupSlog(true)
 
 	logger.Info("infinidat CSI metrics starting", "version", version, "compile date", compileDate, "compile git hash", gitHash)
 
@@ -196,13 +176,4 @@ func (h *home) ServeHTTP(responseWriter http.ResponseWriter, request *http.Reque
 	if err != nil {
 		slog.Error("error", "in ServeHTTP - error", err.Error(), "bytes written", bytesWritten)
 	}
-}
-func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
-	if a.Key == slog.TimeKey {
-		// Cast the value to time.Time
-		t := a.Value.Any().(time.Time)
-		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
-		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
-	}
-	return a
 }

@@ -21,7 +21,6 @@ import (
 	"flag"
 	"log/slog"
 	"os"
-	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -69,29 +68,7 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", false, "If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.Parse()
 
-	appLogLevel := os.Getenv("APP_LOG_LEVEL")
-	var logLevel slog.Leveler
-	switch appLogLevel {
-	case "error":
-		logLevel = slog.LevelError
-	case "warn":
-		logLevel = slog.LevelWarn
-	case "info":
-		logLevel = slog.LevelInfo
-	case "debug":
-		logLevel = slog.LevelDebug
-	case "trace":
-		logLevel = common.LevelTrace
-	default:
-		logLevel = slog.LevelInfo
-	}
-	slogOpts := &slog.HandlerOptions{
-		Level:       logLevel,
-		AddSource:   true,
-		ReplaceAttr: customTimeFormatter,
-	}
-	ThisLogger := slog.New(slog.NewJSONHandler(os.Stdout, slogOpts))
-
+	ThisLogger := common.SetupSlog(true)
 	// Set the default logger
 	slog.SetDefault(ThisLogger)
 
@@ -187,13 +164,4 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-}
-func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
-	if a.Key == slog.TimeKey {
-		// Cast the value to time.Time
-		t := a.Value.Any().(time.Time)
-		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
-		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
-	}
-	return a
 }
