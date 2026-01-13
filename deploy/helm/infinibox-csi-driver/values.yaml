@@ -15,6 +15,9 @@ volumeNamePrefix: ibox
 # log level of driver
 logLevel: "info"
 
+# log format, defaults is 'json', but 'text' is also valid
+logFormat: "json"
+
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"

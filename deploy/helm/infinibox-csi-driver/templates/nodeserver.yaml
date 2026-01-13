@@ -92,6 +92,8 @@ spec:
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: APP_LOG_FORMAT
+              value: {{ .Values.logFormat }}
             - name: PROTOCOL_SECRET
               value: "{{ .Values.protocolSecret }}"
             - name: CREATE_EVENTS

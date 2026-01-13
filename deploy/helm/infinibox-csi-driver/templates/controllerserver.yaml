@@ -140,6 +140,8 @@ spec:
               value: "true"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: APP_LOG_FORMAT
+              value: {{ .Values.logFormat }}
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -169,6 +171,8 @@ spec:
               value: "true"
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: APP_LOG_FORMAT
+              value: {{ .Values.logFormat }}
             - name: PROTOCOL_SECRET
               value: {{ .Values.protocolSecret }}
             - name: NODE_IP
@@ -221,6 +225,8 @@ spec:
               value: {{ .Values.protocolSecret }}
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: APP_LOG_FORMAT
+              value: {{ .Values.logFormat }}
             - name: IBOX_HOST_NAMING_CONVENTION
               value: {{ .Values.iboxHostNamingConvention }}
             - name: CSI_DRIVER_NAME
