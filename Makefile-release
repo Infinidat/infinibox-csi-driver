@@ -1,15 +1,28 @@
-# vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
-
 ##@ release targets
-.PHONY: release-backup
-release-backup:
+
+LIST_ITEMS := infinidat-csi-driver infinidat-csi-metrics
+
+.PHONY: release-backup-pull-tag
+release-backup-pull-tag:
 	@echo -e $(_begin)
-	docker pull git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG)
-	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-driver:$(_IMAGE_TAG) \
-		git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-driver:$(_IMAGE_TAG)
-	docker pull git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:$(_IMAGE_TAG)
-	docker tag git.infinidat.com:4567/host-opensource/infinidat-csi-driver/infinidat-csi-metrics:$(_IMAGE_TAG) \
-		git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-metrics:$(_IMAGE_TAG)
-	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-driver:$(_IMAGE_TAG)
-	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-releases/infinidat-csi-metrics:$(_IMAGE_TAG)
+	@for image in $(LIST_ITEMS); do \
+		echo "processing $$image"; \
+		IMAGETOPULL="git.infinidat.com:4567/host-opensource/infinidat-csi-driver/$$image:$(_IMAGE_TAG)"; \
+		TAGGEDIMAGE="git.infinidat.com:4567/host-opensource/infinidat-csi-releases/$$image:$(_IMAGE_TAG)"; \
+		echo "running docker pull $$IMAGETOPULL"; \
+		docker pull $$IMAGETOPULL; \
+		echo "running docker tag $$IMAGETOPULL $$TAGGEDIMAGE"; \
+		docker tag $$IMAGETOPULL $$TAGGEDIMAGE; \
+        done
+	@echo -e $(_finish)
+
+.PHONY: release-backup-push
+release-backup-push:
+	@echo -e $(_begin)
+	@for image in $(LIST_ITEMS); do \
+		echo "processing $$image"; \
+		TAGGEDIMAGE="git.infinidat.com:4567/host-opensource/infinidat-csi-releases/$$image:$(_IMAGE_TAG)"; \
+		echo "running docker push $$TAGGEDIMAGE"; \
+		docker push $$TAGGEDIMAGE; \
+        done
 	@echo -e $(_finish)
