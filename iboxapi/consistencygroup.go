@@ -220,6 +220,11 @@ func (client *IboxClient) AddMemberToSnapshotGroup(ctx context.Context, volumeID
 	if err != nil {
 		return common.Errorf("newRequest - error: %w url: %s", err, url)
 	}
+
+	values := request.URL.Query()
+	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
+	request.URL.RawQuery = values.Encode()
+
 	SetAuthHeader(request, client.Creds)
 	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
 

@@ -1,0 +1,45 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-iboxpromote-controller
+rules:
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxpromotes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxpromotes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csidriver.infinidat.com
+  resources:
+  - iboxpromotes/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-iboxpromote-controller
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-controller
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-iboxpromote-controller
+  apiGroup: rbac.authorization.k8s.io
