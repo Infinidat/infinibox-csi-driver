@@ -936,6 +936,11 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 	return createSnapshotResp, nil
 }
 
+func (s *ControllerServer) GetSnapshot(ctx context.Context, req *csi.GetSnapshotRequest) (getSnapshotResp *csi.GetSnapshotResponse, err error) {
+	slog.Info("GetSnapshot is not implemented")
+	return getSnapshotResp, nil
+}
+
 func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (deleteSnapshotResp *csi.DeleteSnapshotResponse, err error) {
 	snapshotID := req.GetSnapshotId()
 	slog.Info("Start", "snapshot ID", snapshotID)

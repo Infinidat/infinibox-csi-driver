@@ -5,7 +5,7 @@ go 1.25
 toolchain go1.25.4
 
 require (
-	github.com/container-storage-interface/spec v1.11.0
+	github.com/container-storage-interface/spec v1.12.0
 	github.com/containerd/containerd v1.7.29
 	github.com/go-logr/logr v1.4.3
 	github.com/kubernetes-csi/csi-lib-utils v0.21.0
