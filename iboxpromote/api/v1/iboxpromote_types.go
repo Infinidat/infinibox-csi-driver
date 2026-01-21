@@ -28,10 +28,11 @@ type IboxpromoteSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Description string `json:"description,omitempty"`
-	EntityType  string `json:"entity_type,omitempty"`
-	EntityName  string `json:"entity_name,omitempty"`
-	BaseAction  string `json:"base_action,omitempty"`
+	Description     string `json:"description,omitempty"`
+	EntityType      string `json:"entity_type,omitempty"`
+	EntityName      string `json:"entity_name,omitempty"`
+	EntityNamespace string `json:"entity_namespace,omitempty"`
+	BaseAction      string `json:"base_action,omitempty"`
 }
 
 // IboxpromoteStatus defines the observed state of Iboxpromote

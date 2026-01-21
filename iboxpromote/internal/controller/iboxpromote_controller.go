@@ -18,7 +18,14 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+
+	snapshotv6 "github.com/kubernetes-csi/external-snapshotter/client/v6/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -171,11 +178,23 @@ func (r *IboxpromoteReconciler) createPromote(ctx context.Context, promote *csid
 	}
 
 	logger.Info("handling promote", "promote.Name", promote.Name)
-	var entityID int
 
 	var volume *iboxapi.Volume
 
 	switch promote.Spec.EntityType {
+	case "KUBE_SNAPSHOT":
+		// look up the snapshot by kube volumesnapshot name
+		volume, err = lookupEntityByVolumeSnapshotName(ctx, promote, clientsvc)
+		if err != nil {
+			logger.Error(err, "error getting volume by volumesnapshot name", "EntityName", promote.Spec.EntityName)
+			promote.Status = csidriverinfinidatcomv1.IboxpromoteStatus{
+				State: err.Error(),
+			}
+			if e := r.Status().Update(ctx, promote); e != nil {
+				logger.Error(e, "unable to update iboxpromote state")
+			}
+			return err
+		}
 	case "SNAPSHOT":
 		// look up the snapshot by name
 		volume, err = clientsvc.IboxAPI.GetVolumeByName(ctx, promote.Spec.EntityName)
@@ -189,7 +208,6 @@ func (r *IboxpromoteReconciler) createPromote(ctx context.Context, promote *csid
 			}
 			return err
 		}
-		entityID = volume.ID
 	default:
 		err = fmt.Errorf("error getting entity type, unknown entity type in the CR %s", promote.Spec.EntityType)
 		logger.Error(err, "error invalid CR entity type")
@@ -202,13 +220,13 @@ func (r *IboxpromoteReconciler) createPromote(ctx context.Context, promote *csid
 		return err
 	}
 
-	logger.Info("handling promote", "entity look up worked", entityID)
+	logger.Info("handling promote, lookup worked", "will promote volumeID", volume.ID)
 	if volume.Type == "MASTER" {
 		logger.Info("info", "volume", promote.Spec.EntityName, "already a MASTER, will not promote")
 		return nil
 	}
 
-	response, err := clientsvc.IboxAPI.PromoteSnapshot(ctx, entityID)
+	response, err := clientsvc.IboxAPI.PromoteSnapshot(ctx, volume.ID)
 	if err != nil {
 		logger.Error(err, "error promoting snapshot")
 		promote.Status = csidriverinfinidatcomv1.IboxpromoteStatus{
@@ -299,4 +317,71 @@ func getClientService(ctx context.Context, promote *csidriverinfinidatcomv1.Ibox
 	}
 
 	return clientsvc, nil
+}
+
+func lookupEntityByVolumeSnapshotName(ctx context.Context, promoteCR *csidriverinfinidatcomv1.Iboxpromote, clientsvc *api.ClientService) (volume *iboxapi.Volume, err error) {
+	// look up the ibox volume name for the snapshot just created, we pass
+	// that into the iboxpromote spec as the 'snapshot' name
+	// Get a k8s go client for in-cluster use
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("unable to load in-cluster config: %v", err)
+	}
+
+	var snapshotClient *snapshotv6.Clientset
+	snapshotClient, err = snapshotv6.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1 - get the volumesnapshot
+	getOptions := metav1.GetOptions{}
+	volumeSnapshot, err := snapshotClient.SnapshotV1().VolumeSnapshots(promoteCR.Spec.EntityNamespace).Get(ctx, promoteCR.Spec.EntityName, getOptions)
+	if err != nil {
+		logger.Error(err, "error getting volumesnapshot")
+		return nil, err
+	}
+	// 2 - get the volumesnapshotcontent
+	vscName := volumeSnapshot.Status.BoundVolumeSnapshotContentName
+	if vscName == nil {
+		err = errors.New("error volumeSnapshotContentName is nil")
+		logger.Error(err, "error")
+		return nil, err
+	}
+	volumeSnapshotContent, err := snapshotClient.SnapshotV1().VolumeSnapshotContents().Get(ctx, *vscName, getOptions)
+	if err != nil {
+		logger.Error(err, "error getting volumesnapshot")
+		return nil, err
+	}
+
+	// 3 - look up the volume using the volume handle in the volumesnapshotcontent
+	snapshotHandle := volumeSnapshotContent.Status.SnapshotHandle
+	if snapshotHandle == nil {
+		err = errors.New("error volumeSnapshotContentName snapshotHandle is nil")
+		logger.Error(err, "error")
+		return nil, err
+	}
+
+	handleParts := strings.Split(*snapshotHandle, "$$")
+	if len(handleParts) != 2 {
+		err = errors.New("error snapshot Handle is not formatted correctly")
+		logger.Error(err, "snapshotHandle", handleParts)
+		return nil, err
+	}
+	volumeIDString := handleParts[0]
+	volumeID, err := strconv.Atoi(volumeIDString)
+	if err != nil {
+		logger.Error(err, "error volumeID incorrect integer conversion", "volumeIDString", volumeIDString)
+		return nil, err
+	}
+
+	volume, err = clientsvc.IboxAPI.GetVolume(ctx, volumeID)
+	if err != nil {
+		logger.Error(err, "error getting snapshot volume", "volumeID", volumeID)
+		return nil, err
+	}
+	logger.Info("got volume for snapshot", "volume name", volume.Name, "volume id", volume.ID)
+
+	return volume, nil
+
 }

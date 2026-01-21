@@ -45,6 +45,8 @@ spec:
                 type: string
               entity_name:
                 type: string
+              entity_namespace:
+                type: string
               entity_type:
                 type: string
             type: object
