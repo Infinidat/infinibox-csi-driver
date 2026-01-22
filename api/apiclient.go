@@ -73,34 +73,33 @@ func (c *ClientService) getAPIConfig() (hostConfig HostConfig, err error) {
 	if c.SecretsMap == nil {
 		return hostConfig, errors.New("secret not found")
 	}
-	if c.SecretsMap[common.CredentialHostname] != "" && c.SecretsMap[common.CredentialUsername] != "" && c.SecretsMap[common.CredentialPassword] != "" {
-		hostnameURL, err := url.Parse(c.SecretsMap[common.CredentialHostname])
-
-		if err != nil {
-			slog.Error("error parsing ibox hostname", "error", err.Error())
-		}
-
-		// check for scheme, add if missing.
-		urlScheme := hostnameURL.Scheme
-
-		if urlScheme == "" {
-			slog.Log(ctx, common.LevelTrace, "ibox hostname is missing scheme, setting https as scheme")
-			hostConfig.APIHost = "https://" + c.SecretsMap[common.CredentialHostname] + "/"
-		} else {
-			hostConfig.APIHost = hostnameURL.String()
-		}
-
-		// check for URI validity.
-		hostnameURL, err = url.ParseRequestURI(hostConfig.APIHost)
-		if err != nil {
-			slog.Error("ibox hostname is invalid", "URI", hostnameURL.String(), "error", err.Error())
-		} else {
-			slog.Log(ctx, common.LevelTrace, "info", "IBox URL", hostConfig.APIHost)
-		}
-
-		hostConfig.UserName = c.SecretsMap[common.CredentialUsername]
-		hostConfig.Password = c.SecretsMap[common.CredentialPassword]
-		return hostConfig, nil
+	if c.SecretsMap[common.CredentialHostname] == "" || c.SecretsMap[common.CredentialUsername] == "" || c.SecretsMap[common.CredentialPassword] == "" {
+		return hostConfig, errors.New("host configuration is not valid, verify hostname, username, password is not blank")
 	}
-	return hostConfig, errors.New("host configuration is not valid")
+	hostConfig.UserName = c.SecretsMap[common.CredentialUsername]
+	hostConfig.Password = c.SecretsMap[common.CredentialPassword]
+
+	hostnameURL, err := url.Parse(c.SecretsMap[common.CredentialHostname])
+	if err != nil {
+		slog.Error("error parsing ibox hostname", "error", err.Error())
+	}
+
+	// check for scheme, add if missing.
+	hostConfig.APIHost = hostnameURL.String()
+	urlScheme := hostnameURL.Scheme
+
+	if urlScheme == "" {
+		slog.Log(ctx, common.LevelTrace, "ibox hostname is missing scheme, setting https as scheme")
+		hostConfig.APIHost = "https://" + c.SecretsMap[common.CredentialHostname] + "/"
+	}
+
+	// check for URI validity.
+	hostnameURL, err = url.ParseRequestURI(hostConfig.APIHost)
+	if err != nil {
+		slog.Error("ibox hostname is invalid", "URI", hostnameURL.String(), "error", err.Error())
+	} else {
+		slog.Log(ctx, common.LevelTrace, "info", "IBox URL", hostConfig.APIHost)
+	}
+
+	return hostConfig, nil
 }

@@ -527,80 +527,84 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 	dstPath := mpathDevice
 	var mpath string
 	slog.Debug("called with", "mpathDevice", mpathDevice, "for protocol", protocol)
-	if dstPath != "" {
-		if strings.HasPrefix(dstPath, "/host") {
-			dstPath = strings.Replace(dstPath, "/host", "", 1)
-		}
 
-		if strings.HasPrefix(dstPath, "/dev/dm-") {
-			// older versions of the driver < 2.21.0 would pass a dm- device here instead of an mpath name
-			devices, err = FindSlaveDevicesOnMultipath(dstPath)
-			if err != nil {
-				slog.Error("error looking for slave devices for ", "multipath", dstPath)
-				return err
-			}
-			mpath, err = FindMpathFromDevice(mpathDevice)
-			if err != nil {
-				slog.Error("for", "mpathDevice", mpathDevice, "failed, error", err)
-				return err
-			}
-		} else {
-			mpath = mpathDevice
-			devices, err = findDevicesForMpath(mpath)
-			if err != nil {
-				slog.Error("error looking for devices for", "multipath", mpath)
-				return err
-			}
-		}
+	if dstPath == "" {
+		slog.Debug("completed", "with mpathDevice", mpathDevice, "protocol", protocol)
+		return nil
+	}
 
-		helper.PrettyKlogDebug("multipath devices", devices)
+	if strings.HasPrefix(dstPath, "/host") {
+		dstPath = strings.Replace(dstPath, "/host", "", 1)
+	}
 
-		slog.Debug("mpath", "device is", mpath)
-
-		// 1
-		multipathFlush(mpath)
-
-		const defaultSleepAfterFlush = 1
-		sleepAfterFlushThisExecution := defaultSleepAfterFlush
-		tmp := os.Getenv(MultipathCleanupDelay)
-		if tmp != "" {
-			userSpecifiedValue, err := strconv.Atoi(tmp)
-			if err != nil {
-				slog.Error("conversion failed", "env var", MultipathCleanupDelay, "using default value ", defaultSleepAfterFlush)
-			} else {
-				sleepAfterFlushThisExecution = userSpecifiedValue
-				slog.Warn("using non-default value for", "env var", MultipathCleanupDelay, "user has specified", sleepAfterFlushThisExecution, "default is", defaultSleepAfterFlush)
-			}
-		}
-		slog.Debug("sleeping in between flush of device and detach of scsi disks", "for seconds", sleepAfterFlushThisExecution)
-		time.Sleep(time.Second * time.Duration(sleepAfterFlushThisExecution))
-
-		// Warn if there are not exactly mpathDeviceCount devices
-		if deviceCount := len(devices); deviceCount != mpathDeviceCount {
-			slog.Warn("invalid mpath device count found while unstaging.", "Devices", devices)
-		}
-
-		// 2
-		for i := range devices {
-			err = detachDiskByDeviceName(devices[i])
-			if err != nil {
-				slog.Error(err.Error())
-			}
-		}
-
-		// 3
-		for _, device := range devices {
-			err = removeMultipathDevices(device)
-			if err != nil {
-				slog.Debug("error from removeMultipathDevices but continuing", "error", err.Error())
-			}
-		}
-
-		// 4
-		err = removeWWIDEntry(mpath)
+	if strings.HasPrefix(dstPath, "/dev/dm-") {
+		// older versions of the driver < 2.21.0 would pass a dm- device here instead of an mpath name
+		devices, err = FindSlaveDevicesOnMultipath(dstPath)
 		if err != nil {
-			slog.Debug("error from removeWWIDEntry but continuing", "error", err.Error())
+			slog.Error("error looking for slave devices for ", "multipath", dstPath)
+			return err
 		}
+		mpath, err = FindMpathFromDevice(mpathDevice)
+		if err != nil {
+			slog.Error("for", "mpathDevice", mpathDevice, "failed, error", err)
+			return err
+		}
+	} else {
+		mpath = mpathDevice
+		devices, err = findDevicesForMpath(mpath)
+		if err != nil {
+			slog.Error("error looking for devices for", "multipath", mpath)
+			return err
+		}
+	}
+
+	helper.PrettyKlogDebug("multipath devices", devices)
+
+	slog.Debug("mpath", "device is", mpath)
+
+	// 1
+	multipathFlush(mpath)
+
+	const defaultSleepAfterFlush = 1
+	sleepAfterFlushThisExecution := defaultSleepAfterFlush
+	tmp := os.Getenv(MultipathCleanupDelay)
+	if tmp != "" {
+		userSpecifiedValue, err := strconv.Atoi(tmp)
+		if err != nil {
+			slog.Error("conversion failed", "env var", MultipathCleanupDelay, "using default value ", defaultSleepAfterFlush)
+		} else {
+			sleepAfterFlushThisExecution = userSpecifiedValue
+			slog.Warn("using non-default value for", "env var", MultipathCleanupDelay, "user has specified", sleepAfterFlushThisExecution, "default is", defaultSleepAfterFlush)
+		}
+	}
+	slog.Debug("sleeping in between flush of device and detach of scsi disks", "for seconds", sleepAfterFlushThisExecution)
+	time.Sleep(time.Second * time.Duration(sleepAfterFlushThisExecution))
+
+	// Warn if there are not exactly mpathDeviceCount devices
+	if deviceCount := len(devices); deviceCount != mpathDeviceCount {
+		slog.Warn("invalid mpath device count found while unstaging.", "Devices", devices)
+	}
+
+	// 2
+	for i := range devices {
+		err = detachDiskByDeviceName(devices[i])
+		if err != nil {
+			slog.Error(err.Error())
+		}
+	}
+
+	// 3
+	for _, device := range devices {
+		err = removeMultipathDevices(device)
+		if err != nil {
+			slog.Debug("error from removeMultipathDevices but continuing", "error", err.Error())
+		}
+	}
+
+	// 4
+	err = removeWWIDEntry(mpath)
+	if err != nil {
+		slog.Debug("error from removeWWIDEntry but continuing", "error", err.Error())
 	}
 	slog.Debug("completed", "with mpathDevice", mpathDevice, "protocol", protocol)
 	return nil

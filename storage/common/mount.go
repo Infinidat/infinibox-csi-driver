@@ -45,7 +45,6 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 	for i := range mntPoints {
 		if mntPoints[i].Path == chrootPath {
 			mounted = true
-
 			break
 		}
 	}
@@ -99,54 +98,55 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 			return err
 		}
 		slog.Debug("volume mounted successfully")
-	} else {
-		// option B: local filesystem access
-		slog.Debug("mounting volume with filesystem at given", "path", targetPath)
+		return nil
+	}
 
-		// Create mountPoint, if it does not exist.
-		mountPoint := targetPath
-		_, err := os.Stat(mountPoint)
+	// option B: local filesystem access
+	slog.Debug("mounting volume with filesystem at given", "path", targetPath)
+
+	// Create mountPoint, if it does not exist.
+	mountPoint := targetPath
+	_, err = os.Stat(mountPoint)
+	if err != nil {
+		slog.Error("stat", "error", err.Error())
+	}
+	if os.IsNotExist(err) {
+		slog.Debug(" mount point does not exist, creating mount point.", "mount point", mountPoint)
+		_, _, err := ExecCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
 		if err != nil {
-			slog.Error("stat", "error", err.Error())
-		}
-		if os.IsNotExist(err) {
-			slog.Debug(" mount point does not exist, creating mount point.", "mount point", mountPoint)
-			_, _, err := ExecCommand.Command("mkdir", fmt.Sprintf("--parents --mode %s '%s'", mode, mountPoint))
-			if err != nil {
-				slog.Error("failed to mkdir", "mountPoint", mountPoint, "error", err)
-				return err
-			}
-		} else {
-			slog.Debug("mkdir of mountPoint not required. already exists", "mountPoint", mountPoint)
-		}
-
-		options = append(options, mountOptions...)
-
-		// Persist here so that even if mount fails, the globalmount metadata json
-		// file will contain an mpath to use during clean up.
-		slog.Debug("persist disk config to json file for later use, when detaching the disk")
-		if err = CreateConfigFile(config, stagePath); err != nil {
-			slog.Error("failed to save config ", "error", err)
+			slog.Error("failed to mkdir", "mountPoint", mountPoint, "error", err)
 			return err
 		}
+	} else {
+		slog.Debug("mkdir of mountPoint not required. already exists", "mountPoint", mountPoint)
+	}
 
-		if fsType == common.FSTypeXFS {
-			slog.Debug("device is of type xfs, mounting using 'nouuid' option.", "device", devicePath)
-			options = append(options, "nouuid")
-		}
+	options = append(options, mountOptions...)
 
-		err = mounter.FormatAndMount(devicePath, targetPath, fsType, options)
-		if err != nil {
-			slog.Error("mounter.FormatAndMount error.", "devicePath", devicePath, "targetPath", targetPath, "fsType", fsType, "error", err)
-			searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
+	// Persist here so that even if mount fails, the globalmount metadata json
+	// file will contain an mpath to use during clean up.
+	slog.Debug("persist disk config to json file for later use, when detaching the disk")
+	if err = CreateConfigFile(config, stagePath); err != nil {
+		slog.Error("failed to save config ", "error", err)
+		return err
+	}
 
-			if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
-				slog.Error("device is already mounted", "device", devicePath, "mountPoint", mountPoint)
-			} else {
-				msg := fmt.Sprintf("%s - failed to mount volume %s [%s] to %s, err: %v", function, devicePath, fsType, targetPath, err)
-				slog.Error(msg)
-				return status.Errorf(codes.Internal, "%s", msg)
-			}
+	if fsType == common.FSTypeXFS {
+		slog.Debug("device is of type xfs, mounting using 'nouuid' option.", "device", devicePath)
+		options = append(options, "nouuid")
+	}
+
+	err = mounter.FormatAndMount(devicePath, targetPath, fsType, options)
+	if err != nil {
+		slog.Error("mounter.FormatAndMount error.", "devicePath", devicePath, "targetPath", targetPath, "fsType", fsType, "error", err)
+		searchAlreadyMounted := fmt.Sprintf("already mounted on %s", mountPoint)
+
+		if isAlreadyMounted := strings.Contains(err.Error(), searchAlreadyMounted); isAlreadyMounted {
+			slog.Error("device is already mounted", "device", devicePath, "mountPoint", mountPoint)
+		} else {
+			msg := fmt.Sprintf("%s - failed to mount volume %s [%s] to %s, err: %v", function, devicePath, fsType, targetPath, err)
+			slog.Error(msg)
+			return status.Errorf(codes.Internal, "%s", msg)
 		}
 	}
 	return nil

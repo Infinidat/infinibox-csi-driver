@@ -164,6 +164,10 @@ func (ts *Service) CreateTreeqVolume(ctx context.Context, storageClassParameters
 		}
 	}
 	var filesystemID int
+	if filesys != nil {
+		filesystemID = filesys.ID
+	}
+
 	if filesys == nil { // if pool is empty or no file system found to createTreeq
 		pvSplit := strings.Split(ts.NFSstorage.PVName, "-")
 		if len(pvSplit) < 2 {
@@ -189,8 +193,6 @@ func (ts *Service) CreateTreeqVolume(ctx context.Context, storageClassParameters
 			return
 		}
 		filesystemID = ts.NFSstorage.FileSystemID
-	} else {
-		filesystemID = filesys.ID
 	}
 
 	// create treeq

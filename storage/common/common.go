@@ -174,27 +174,25 @@ func (cs *Commonservice) ValidateHost(ctx context.Context, hostName string) (*ib
 		hostName = shortName[0]
 	}
 	host, err := cs.IboxAPI.GetHostByName(ctx, hostName)
-	if err != nil {
-		if errors.Is(err, iboxapi.ErrNotFound) {
-			slog.Debug("creating host", "name", hostName)
-			host, err = cs.IboxAPI.CreateHost(ctx, hostName)
-			if err != nil {
-				e := common.Errorf("error failed to create host %s with error %s", hostName, err.Error())
-				return nil, status.Error(codes.Internal, e.Error())
-			}
-
-			metadata := map[string]interface{}{
-				common.CSICreatedHost: true,
-			}
-			_, err = cs.IboxAPI.PutMetadata(ctx, host.ID, metadata)
-			if err != nil {
-				e := common.Errorf("error creating host metadata: %s id: %d error: %v", hostName, host.ID, err.Error())
-				return nil, status.Error(codes.Internal, e.Error())
-			}
-		} else {
-			e := common.Errorf("validateHost - GetHostByName - hostname: %s error: %s", hostName, err.Error())
+	if errors.Is(err, iboxapi.ErrNotFound) {
+		slog.Debug("creating host", "name", hostName)
+		host, err = cs.IboxAPI.CreateHost(ctx, hostName)
+		if err != nil {
+			e := common.Errorf("error failed to create host %s with error %s", hostName, err.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
+
+		metadata := map[string]interface{}{
+			common.CSICreatedHost: true,
+		}
+		_, err = cs.IboxAPI.PutMetadata(ctx, host.ID, metadata)
+		if err != nil {
+			e := common.Errorf("error creating host metadata: %s id: %d error: %v", hostName, host.ID, err.Error())
+			return nil, status.Error(codes.Internal, e.Error())
+		}
+	} else if err != nil {
+		e := common.Errorf("validateHost - GetHostByName - hostname: %s error: %s", hostName, err.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	return host, nil
@@ -416,18 +414,17 @@ func HostCleanup(ctx context.Context, iboxClient iboxapi.Client, hostID int, hos
 
 	if createdByCSI {
 		response, err := iboxClient.DeleteHost(ctx, hostID)
-		if err != nil {
-			if errors.Is(err, iboxapi.ErrNotFound) {
-				slog.Debug("hostCleanup: will not delete, host not found", "hostid", hostID, "response", response)
-			} else {
-				slog.Error("hostCleanup: failed to delete host with error", "error", err)
-				return status.Error(codes.Internal, err.Error())
-			}
+		if errors.Is(err, iboxapi.ErrNotFound) {
+			slog.Debug("hostCleanup: will not delete, host not found", "hostid", hostID, "response", response)
+		} else if err != nil {
+			slog.Error("hostCleanup: failed to delete host with error", "error", err)
+			return status.Error(codes.Internal, err.Error())
 		}
 		slog.Debug("hostCleanup: deleted host on ibox because it was created by CSI host", "hostid", hostID, "hostname", hostName)
-	} else {
-		slog.Debug("hostCleanup: not deleting host because it was not created by CSI host", "hostid", hostID)
+		return nil
 	}
+
+	slog.Debug("hostCleanup: not deleting host because it was not created by CSI host", "hostid", hostID)
 	return nil
 }
 

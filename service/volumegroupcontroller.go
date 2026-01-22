@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/infinidat/infinibox-csi-driver/api"
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
@@ -57,58 +58,15 @@ func (s *VolumeGroupServer) CreateVolumeGroupSnapshot(ctx context.Context, req *
 	cgName := req.Parameters["infinidat.com/cgname"]
 
 	newCG, err = client.IboxAPI.GetConsistencyGroupByName(ctx, cgName)
-	if err != nil {
-		if errors.Is(err, iboxapi.ErrNotFound) {
-			var poolID int
-			var allVolumeIDs []int
-
-			// get the volume ids that are in the group
-			for _, id := range req.SourceVolumeIds {
-				slog.Debug("info", "source Volume ID", id)
-				volproto := strings.Split(id, "$$")
-				if len(volproto) != 2 {
-					slog.Error("vol proto invalid", "volproto", volproto)
-					return nil, errors.New("volume Id and other details not found")
-				}
-				volumeID, err := strconv.Atoi(volproto[0])
-				if err != nil {
-					slog.Error("parseInt - error", "error", err.Error())
-					return nil, status.Errorf(codes.Internal, "failed to convert volume ID %s to int error %v", volproto[0], err)
-				}
-				slog.Debug("info", "volume ID", volumeID)
-				// look up the volume
-				volume, err := commonService.IboxAPI.GetVolume(ctx, volumeID)
-				if err != nil {
-					slog.Error("GetVolume - error", "error", err.Error())
-					return nil, status.Errorf(codes.Internal, "failed to get Volume with ID %d error %v", volumeID, err)
-				}
-				slog.Debug("volume found", "name", volume.Name, "id", volumeID, "pool id", volume.PoolID)
-				poolID = volume.PoolID
-				allVolumeIDs = append(allVolumeIDs, volumeID)
-			}
-
-			createCGRequest := iboxapi.CreateConsistencyGroupRequest{
-				PoolID: poolID,
-				Name:   cgName,
-			}
-			newCG, err = client.IboxAPI.CreateConsistencyGroup(ctx, createCGRequest)
-			if err != nil {
-				slog.Error("CreateCG - error", "error", err.Error())
-				return nil, status.Errorf(codes.Internal, "failed to create cg error %v", err)
-			}
-			slog.Debug("new CG", "id", newCG.ID)
-			// add members to the CG
-			for _, volumeID := range allVolumeIDs {
-				err = client.IboxAPI.AddMemberToSnapshotGroup(ctx, volumeID, newCG.ID)
-				if err != nil {
-					slog.Error("AddMemberToSnapshotGroup - error", "error", err.Error())
-					return nil, status.Errorf(codes.Internal, "failed to add volume to cg error %v", err)
-				}
-			}
-		} else {
-			slog.Error("getCG", "error", err)
-			return nil, status.Errorf(codes.Internal, "error getting cg %v", err)
+	if errors.Is(err, iboxapi.ErrNotFound) {
+		newCG, err = createCG(ctx, cgName, req, commonService, client)
+		if err != nil {
+			slog.Error("createCG - error", "error", err.Error())
+			return nil, status.Errorf(codes.Internal, "failed to createCG error %v", err)
 		}
+	} else if err != nil {
+		slog.Error("getCG", "error", err)
+		return nil, status.Errorf(codes.Internal, "error getting cg %v", err)
 	} else {
 		slog.Info("CG already exists, will not create", "cg", cgName)
 	}
@@ -336,4 +294,54 @@ func (s *VolumeGroupServer) GroupControllerGetCapabilities(ctx context.Context, 
 	return &csi.GroupControllerGetCapabilitiesResponse{
 		Capabilities: s.Driver.groupcap,
 	}, nil
+}
+
+func createCG(ctx context.Context, cgName string, req *csi.CreateVolumeGroupSnapshotRequest, commonService storagecommon.Commonservice, client *api.ClientService) (newCG *iboxapi.ConsistencyGroupInfo, err error) {
+	var poolID int
+	var allVolumeIDs []int
+
+	// get the volume ids that are in the group
+	for _, id := range req.SourceVolumeIds {
+		slog.Debug("info", "source Volume ID", id)
+		volproto := strings.Split(id, "$$")
+		if len(volproto) != 2 {
+			slog.Error("vol proto invalid", "volproto", volproto)
+			return nil, errors.New("volume Id and other details not found")
+		}
+		volumeID, err := strconv.Atoi(volproto[0])
+		if err != nil {
+			slog.Error("parseInt - error", "error", err.Error())
+			return nil, status.Errorf(codes.Internal, "failed to convert volume ID %s to int error %v", volproto[0], err)
+		}
+		slog.Debug("info", "volume ID", volumeID)
+		// look up the volume
+		volume, err := commonService.IboxAPI.GetVolume(ctx, volumeID)
+		if err != nil {
+			slog.Error("GetVolume - error", "error", err.Error())
+			return nil, status.Errorf(codes.Internal, "failed to get Volume with ID %d error %v", volumeID, err)
+		}
+		slog.Debug("volume found", "name", volume.Name, "id", volumeID, "pool id", volume.PoolID)
+		poolID = volume.PoolID
+		allVolumeIDs = append(allVolumeIDs, volumeID)
+	}
+
+	createCGRequest := iboxapi.CreateConsistencyGroupRequest{
+		PoolID: poolID,
+		Name:   cgName,
+	}
+	newCG, err = client.IboxAPI.CreateConsistencyGroup(ctx, createCGRequest)
+	if err != nil {
+		slog.Error("CreateCG - error", "error", err.Error())
+		return nil, status.Errorf(codes.Internal, "failed to create cg error %v", err)
+	}
+	slog.Debug("new CG", "id", newCG.ID)
+	// add members to the CG
+	for _, volumeID := range allVolumeIDs {
+		err = client.IboxAPI.AddMemberToSnapshotGroup(ctx, volumeID, newCG.ID)
+		if err != nil {
+			slog.Error("AddMemberToSnapshotGroup - error", "error", err.Error())
+			return nil, status.Errorf(codes.Internal, "failed to add volume to cg error %v", err)
+		}
+	}
+	return newCG, nil
 }

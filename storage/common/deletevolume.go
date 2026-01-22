@@ -64,16 +64,13 @@ func DeleteVolume(ctx context.Context, cs Commonservice, volumeID int) (response
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		var toBeDeleted bool
 		for _, m := range metadata {
 			if m.Key == api.TOBEDELETED {
-				toBeDeleted = true
-			}
-		}
-		if toBeDeleted {
-			_, err = DeleteVolume(ctx, cs, vol.ParentID)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+				_, err = DeleteVolume(ctx, cs, vol.ParentID)
+				if err != nil {
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+				return &csi.DeleteVolumeResponse{}, nil
 			}
 		}
 	}

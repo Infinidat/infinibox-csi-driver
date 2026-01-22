@@ -75,20 +75,17 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 		if protocolSecretInUse {
 			storageProtocol = protocolSecretMap[common.StorageClassStorageProtocol]
-			if storageProtocol == "" {
-				// assume FC during CreateVolume if protocol is not set
-				// this means node labels will be used when mounting this volume
-				storageProtocol = common.ProtocolFC
-			}
-			if storageProtocol == common.ProtocolAuto {
+			switch storageProtocol {
+			case common.ProtocolAuto:
 				calculatedProtocol, _, err := DetermineProtocol(ctx)
 				if err != nil {
 					return nil, status.Error(codes.Internal, err.Error())
 				}
 				storageProtocol = calculatedProtocol
-			}
-
-			switch storageProtocol {
+			case "":
+				// assume FC during CreateVolume if protocol is not set
+				// this means node labels will be used when mounting this volume
+				storageProtocol = common.ProtocolFC
 			case common.ProtocolISCSI:
 				reqParameters[common.StorageClassUseCHAP] = protocolSecretMap[ProtocolSecretISCSIUseCHAP]
 				reqParameters[common.StorageClassNetworkSpace] = protocolSecretMap[ProtocolSecretISCSINetworkSpace]
@@ -110,7 +107,6 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	slog.Debug("info", "volume name", volName, "node id", s.Driver.nodeID, "protocol", storageProtocol)
 
 	// Basic CSI parameter checking across protocols
-
 	if storageProtocol == "" {
 		e := fmt.Errorf("storage protocol empty")
 		slog.Error(e.Error())
@@ -404,15 +400,15 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
 
-		if nodeProtocol == common.ProtocolISCSI {
+		switch nodeProtocol {
+		case common.ProtocolISCSI:
 			networkSpace := protocolSecret[ProtocolSecretISCSINetworkSpace]
 			if networkSpace == "" {
 				e := fmt.Errorf("error: protocol secret specified ISCSI but network_space is empty")
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
-		}
-		if nodeProtocol == common.ProtocolNVME {
+		case common.ProtocolNVME:
 			networkSpace := protocolSecret[ProtocolSecretNVMENetworkSpace]
 			if networkSpace == "" {
 				e := fmt.Errorf("error: protocol secret specified NVMe but network_space is empty")
@@ -863,13 +859,12 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 					e := fmt.Errorf("ValidateVolumeID - error validating sourceVolumeId %s %s", req.SourceVolumeId, err.Error())
 					slog.Error(e.Error())
 					return nil, status.Error(codes.InvalidArgument, e.Error())
-				} else {
-					slog.Log(ctx, common.LevelTrace, "comparing", "volume id", volumeInfo.VolumeID, "source volume id", entry.Snapshot.SourceVolumeId, "snapshot", entry.Snapshot)
-					if strconv.Itoa(volumeInfo.VolumeID) == entry.Snapshot.SourceVolumeId {
-						slog.Log(ctx, common.LevelTrace, "matches!")
-						entry.Snapshot.SourceVolumeId = req.SourceVolumeId // set the SourceVolumeId sent back to the incoming format xxxx$$nfs
-						res.Entries = append(res.Entries, &entry)
-					}
+				}
+				slog.Log(ctx, common.LevelTrace, "comparing", "volume id", volumeInfo.VolumeID, "source volume id", entry.Snapshot.SourceVolumeId, "snapshot", entry.Snapshot)
+				if strconv.Itoa(volumeInfo.VolumeID) == entry.Snapshot.SourceVolumeId {
+					slog.Log(ctx, common.LevelTrace, "matches!")
+					entry.Snapshot.SourceVolumeId = req.SourceVolumeId // set the SourceVolumeId sent back to the incoming format xxxx$$nfs
+					res.Entries = append(res.Entries, &entry)
 				}
 			} else if req.SnapshotId != "" {
 				slog.Log(ctx, common.LevelTrace, "comparing", "volumeid", volumeID, "snapshot id", snapshot.ID)

@@ -208,18 +208,22 @@ func (nfs *NFSstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRe
 			if err != nil {
 				return nil, common.Errorf("from createVolumeFromPVCSource - failed to create volume from snapshot with error: %w", err)
 			}
-		} else if contentSource.GetVolume() != nil {
+			return csiResp, nil
+		}
+		if contentSource.GetVolume() != nil {
 			volume := req.GetVolumeContentSource().GetVolume()
 			csiResp, err = nfs.createVolumeFromPVCSource(ctx, req, nfs.Capacity, params[common.StorageClassPoolName], volume.GetVolumeId())
 			if err != nil {
 				return nil, common.Errorf("from createVolumeFromPVCSource - failed to create volume from pvc with error: %w", err)
 			}
+			return csiResp, nil
 		}
-	} else {
-		csiResp, err = nfs.CreateNFSVolume(ctx, req)
-		if err != nil {
-			return nil, common.Errorf("from CreateNFSVolume - error: %w", err)
-		}
+	}
+
+	// no contentsource so create the nfs volume
+	csiResp, err = nfs.CreateNFSVolume(ctx, req)
+	if err != nil {
+		return nil, common.Errorf("from CreateNFSVolume - error: %w", err)
 	}
 	return csiResp, nil
 }

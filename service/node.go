@@ -114,15 +114,15 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			e := fmt.Errorf("error: protocol secret not in use, but is required when nodeProtocol label is set on node")
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
-		if nodeProtocol == common.ProtocolISCSI {
+		switch nodeProtocol {
+		case common.ProtocolISCSI:
 			networkSpace := protocolSecret[ProtocolSecretISCSINetworkSpace]
 			if networkSpace == "" {
 				e := fmt.Errorf("error: protocol secret in use, but ISCSI network space is empty")
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
-		}
-		if nodeProtocol == common.ProtocolNVME {
+		case common.ProtocolNVME:
 			networkSpace := protocolSecret[ProtocolSecretNVMENetworkSpace]
 			if networkSpace == "" {
 				e := fmt.Errorf("error: protocol secret in use, but NVMEe network space is empty")

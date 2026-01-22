@@ -76,74 +76,75 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 		return
 	}
 
-	if len(exports) == 0 {
+	exportCount := len(exports)
+	if exportCount == 0 {
 		slog.Debug("no exports found for volumeID, no need to cleanup export rule perms for this ip", "volumeid", volumeID)
 		return
 	}
 
-	if len(exports) > 0 {
-		slog.Error("found exports for volumeID", "len", len(exports), "volumeid", volumeID)
-		// call nfsstat on this node to get the mounted volumes
-		// get nfsstats mount information for this node,look for lines that
-		// have the 'kube' string and the file system name in them
-		nfsstatCommand := "nfsstat -m"
-		slog.Debug("info", "command", nfsstatCommand)
-		out, _, err := storagecommon.ExecCommand.Command(nfsstatCommand, "")
-		if err != nil {
-			slog.Error("error executing nfsstat", "error", err.Error())
-			return
+	slog.Error("found exports for volumeID", "len", exportCount, "volumeid", volumeID)
+	// call nfsstat on this node to get the mounted volumes
+	// get nfsstats mount information for this node,look for lines that
+	// have the 'kube' string and the file system name in them
+	nfsstatCommand := "nfsstat -m"
+	slog.Debug("info", "command", nfsstatCommand)
+	out, _, err := storagecommon.ExecCommand.Command(nfsstatCommand, "")
+	if err != nil {
+		slog.Error("error executing nfsstat", "error", err.Error())
+		return
+	}
+	slog.Debug("nfsstat", "output", strings.TrimSpace(out))
+
+	volumeMounted := isVolumeMounted(out, fileSystem.Name)
+	slog.Debug("info", "volumeMounted", volumeMounted)
+
+	// only perform this logic if there are no more mounts for this volume
+	// on this kube node
+	if volumeMounted {
+		return
+	}
+
+	// find the right export in the list
+	for _, export := range exports {
+		numPermissions := len(export.Permissions)
+		slog.Debug("export", "exportPath", export.ExportPath, "export perms", export.Permissions, "num perms", numPermissions)
+
+		// look for the node ip
+		var foundNodeIP bool
+		var foundNodeIPIndex int
+		for index, permission := range export.Permissions {
+			if permission.Client == nodeIP {
+				// node ip permission found
+				slog.Debug("node ip found in permissions, delete this perm!", "node ip", nodeIP)
+				foundNodeIP = true
+				foundNodeIPIndex = index
+			}
 		}
-		slog.Debug("nfsstat", "output", strings.TrimSpace(out))
-
-		volumeMounted := isVolumeMounted(out, fileSystem.Name)
-		slog.Debug("info", "volumeMounted", volumeMounted)
-
-		// only perform this logic if there are no more mounts for this volume
-		// on this kube node
-		if !volumeMounted {
-			// find the right export in the list
-			for _, export := range exports {
-				numPermissions := len(export.Permissions)
-				slog.Debug("export", "exportPath", export.ExportPath, "export perms", export.Permissions, "num perms", numPermissions)
-
-				// look for the node ip
-				var foundNodeIP bool
-				var foundNodeIPIndex int
-				for index, permission := range export.Permissions {
-					if permission.Client == nodeIP {
-						// node ip permission found
-						slog.Debug("node ip found in permissions, delete this perm!", "node ip", nodeIP)
-						foundNodeIP = true
-						foundNodeIPIndex = index
-					}
+		if numPermissions == 1 {
+			// in this case, we can just delete the export entirely since
+			// you can't have an export with zero permissions
+			// if the filesystem is remounted ever it will cause a new
+			// export to be created
+			if foundNodeIP {
+				_, err := clientService.IboxAPI.DeleteExport(ctx, export.ID)
+				if err != nil {
+					slog.Error("error deleting export", "export id", export.ID)
+					return
 				}
-				if numPermissions == 1 {
-					// in this case, we can just delete the export entirely since
-					// you can't have an export with zero permissions
-					// if the filesystem is remounted ever it will cause a new
-					// export to be created
-					if foundNodeIP {
-						_, err := clientService.IboxAPI.DeleteExport(ctx, export.ID)
-						if err != nil {
-							slog.Error("error deleting export", "export id", export.ID)
-							return
-						}
-						slog.Debug("deleted export succeeded for fs", "export id", export.ID, "fs name", fileSystem.Name)
-					}
-				} else if len(export.Permissions) > 1 {
-					// in this case we seletively delete the ip address permission
-					// by updating the export with updated permissions list
-					if foundNodeIP {
-						updatedPerms := slices.Delete(export.Permissions, foundNodeIPIndex, foundNodeIPIndex+1)
-						slog.Debug("info", "originalPerms", export.Permissions, "updatedPerms", updatedPerms)
-						exportPathRef := iboxapi.ExportPathRef{
-							Permissions: updatedPerms,
-						}
-						_, err = clientService.IboxAPI.UpdateExportPermissions(ctx, export, exportPathRef)
-						if err != nil {
-							slog.Error("error updating export permissions", "error", err.Error())
-						}
-					}
+				slog.Debug("deleted export succeeded for fs", "export id", export.ID, "fs name", fileSystem.Name)
+			}
+		} else if len(export.Permissions) > 1 {
+			// in this case we seletively delete the ip address permission
+			// by updating the export with updated permissions list
+			if foundNodeIP {
+				updatedPerms := slices.Delete(export.Permissions, foundNodeIPIndex, foundNodeIPIndex+1)
+				slog.Debug("info", "originalPerms", export.Permissions, "updatedPerms", updatedPerms)
+				exportPathRef := iboxapi.ExportPathRef{
+					Permissions: updatedPerms,
+				}
+				_, err = clientService.IboxAPI.UpdateExportPermissions(ctx, export, exportPathRef)
+				if err != nil {
+					slog.Error("error updating export permissions", "error", err.Error())
 				}
 			}
 		}
