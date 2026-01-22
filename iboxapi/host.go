@@ -145,40 +145,57 @@ type MapVolumeToHostResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetAllHosts(ctx context.Context) (host []Host, err error) {
+func (client *IboxClient) GetAllHosts(ctx context.Context) (hosts []Host, err error) {
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/hosts")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return host, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(req, client.Creds)
+	pageSize := common.IBOXDefaultQueryPageSize
+	totalPages := 1 // start with 1, update after first query.
 
-	resp, err := client.HTTPClient.Do(req)
-	if err != nil {
-		return host, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
+	for page := 1; page <= totalPages; page++ {
+		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return hosts, common.Errorf("newRequest - error: %w url: %s", err, url)
 		}
-	}()
+		values := req.URL.Query()
+		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
+		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
+		req.URL.RawQuery = values.Encode()
+		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages, "URL", req.URL.RawQuery)
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return host, common.Errorf("readAll - error: %w url: %s", err, url)
-	}
-	var response HostResponse
-	err = json.Unmarshal(bodyBytes, &response)
-	if err != nil {
-		return host, common.Errorf("unmarshal - error: %w url: %s", err, url)
-	}
-	if response.Error.Code != "" {
-		return host, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+		SetAuthHeader(req, client.Creds)
+
+		resp, err := client.HTTPClient.Do(req)
+		if err != nil {
+			return hosts, common.Errorf("do - error: %w url: %s", err, url)
+		}
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				slog.Error("error in Close()", "error", err.Error())
+			}
+		}()
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return hosts, common.Errorf("readAll - error: %w url: %s", err, url)
+		}
+		var response HostResponse
+		err = json.Unmarshal(bodyBytes, &response)
+		if err != nil {
+			return hosts, common.Errorf("unmarshal - error: %w url: %s", err, url)
+		}
+		if response.Error.Code != "" {
+			return hosts, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+		}
+
+		hosts = append(hosts, response.Result...)
+
+		if page == 1 {
+			totalPages = response.Metadata.PagesTotal
+		}
 	}
 
-	return response.Result, nil
+	return hosts, nil
 }
 
 func (client *IboxClient) GetHostByName(ctx context.Context, hostName string) (host *Host, err error) {
