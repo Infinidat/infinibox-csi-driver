@@ -1,13 +1,10 @@
 package iboxapi
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 )
@@ -50,30 +47,11 @@ func (client *IboxClient) CreateEvent(ctx context.Context, eventRequest EventReq
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/events")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "event", eventRequest)
 
-	jsonBytes, err := json.Marshal(eventRequest)
-	if err != nil {
-		return common.Errorf("marshal - error: %w url: %s", err, url)
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(request, client.Creds)
-	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
+	parameters := make(map[string]string)
 
-	response, err := client.HTTPClient.Do(request)
+	body, err := commonPostLogic(ctx, url, client, parameters, eventRequest)
 	if err != nil {
-		return common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return common.Errorf("readAll - error: %w url: %s", err, url)
+		return common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
 
 	var responseObject CreateEventResponse

@@ -16,9 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 )
@@ -37,30 +35,12 @@ func (client *IboxClient) GetMaxFileSystems(ctx context.Context) (cnt int, err e
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	parameters := make(map[string]string)
+	parameters["fields"] = "nas.max_filesystems_in_system"
+
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return 0, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-
-	values := req.URL.Query()
-	values.Add("fields", "nas.max_filesystems_in_system")
-	req.URL.RawQuery = values.Encode()
-
-	SetAuthHeader(req, client.Creds)
-
-	resp, err := client.HTTPClient.Do(req)
-	if err != nil {
-		return 0, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, common.Errorf("readAll - error: %w url: %s", err, url)
+		return 0, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var responseObject ParameterResult
 	err = json.Unmarshal(bodyBytes, &responseObject)
@@ -84,29 +64,12 @@ func (client *IboxClient) GetMaxTreeqPerFs(ctx context.Context) (cnt int, err er
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/config/limits")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return 0, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
+	parameters := make(map[string]string)
+	parameters["fields"] = "nas.treeq_max_count_per_filesystem"
 
-	values := req.URL.Query()
-	values.Add("fields", "nas.treeq_max_count_per_filesystem")
-	req.URL.RawQuery = values.Encode()
-
-	SetAuthHeader(req, client.Creds)
-
-	resp, err := client.HTTPClient.Do(req)
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return 0, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("Close()", "error", err.Error())
-		}
-	}()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, common.Errorf("readAll - error: %w url: %s", err, url)
+		return 0, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var responseObject ParameterResult
 	err = json.Unmarshal(bodyBytes, &responseObject)

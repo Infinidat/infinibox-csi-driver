@@ -13,7 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -254,33 +253,13 @@ func (client *IboxClient) CreateReplica(ctx context.Context, req CreateReplicaRe
 
 	slog.Debug("info", "is_preferred", req.IsPreferred)
 
-	jsonBytes, err := json.Marshal(req)
+	parameters := make(map[string]string)
+	parameters[PARAMETER_APPROVED] = PARAMETER_VALUE_TRUE
+
+	body, err := commonPostLogic(ctx, url, client, parameters, req)
 	if err != nil {
-		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-
-	values := request.URL.Query()
-	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
-	request.URL.RawQuery = values.Encode()
-
-	SetAuthHeader(request, client.Creds)
-	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
-
-	response, err := client.HTTPClient.Do(request)
-	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-
-	body, _ := io.ReadAll(response.Body)
 
 	var responseObject CreateReplicaResponse
 	err = json.Unmarshal(body, &responseObject)
@@ -303,30 +282,13 @@ func (client *IboxClient) GetReplicas(ctx context.Context) (results []Replica, e
 	for page := 1; page <= totalPages; page++ {
 		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
-		}
+		parameters := make(map[string]string)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
 
-		values := req.URL.Query()
-		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
-		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
-		req.URL.RawQuery = values.Encode()
-
-		SetAuthHeader(req, client.Creds)
-
-		resp, err := client.HTTPClient.Do(req)
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return results, common.Errorf("do - error: %w url: %s", err, url)
-		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("error in Close()", "error", err.Error())
-			}
-		}()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return results, common.Errorf("readAll - error: %w url: %s", err, url)
+			return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 		var responseObject GetReplicasResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
@@ -390,24 +352,11 @@ func (client *IboxClient) GetReplica(ctx context.Context, replicaID int) (*Repli
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/replicas", replicaID)
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "replica ID", replicaID)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(req, client.Creds)
+	parameters := make(map[string]string)
 
-	resp, err := client.HTTPClient.Do(req)
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var response GetReplicaResponse
 	err = json.Unmarshal(bodyBytes, &response)

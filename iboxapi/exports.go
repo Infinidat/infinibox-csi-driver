@@ -116,24 +116,10 @@ func (client *IboxClient) GetExportByID(ctx context.Context, exportID int) (ex *
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/exports", exportID)
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "export ID", exportID)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	parameters := make(map[string]string)
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(req, client.Creds)
-
-	resp, err := client.HTTPClient.Do(req)
-	if err != nil {
-		return nil, common.Errorf("do - error %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var responseObject GetExportByIDResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
@@ -160,32 +146,14 @@ func (client *IboxClient) GetExportsByFileSystemID(ctx context.Context, fsID int
 	for page := 1; page <= totalPages; page++ {
 		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		parameters := make(map[string]string)
+		parameters["filesystem_id"] = strconv.Itoa(fsID)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
+
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
-		}
-
-		values := req.URL.Query()
-		values.Add("filesystem_id", strconv.Itoa(fsID))
-		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
-		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
-		req.URL.RawQuery = values.Encode()
-
-		SetAuthHeader(req, client.Creds)
-
-		resp, err := client.HTTPClient.Do(req)
-		if err != nil {
-			return results, common.Errorf("do - error: %w url: %s", err, url)
-		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("error in Close()", "error", err.Error())
-			}
-		}()
-
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return results, common.Errorf("readAll - error: %w url: %s", err, url)
+			return results, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 		var responseObject GetExportsByFileSystemIDResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
@@ -251,28 +219,12 @@ func (client *IboxClient) CreateExport(ctx context.Context, req CreateExportRequ
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/exports")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "request", req)
 
-	jsonBytes, err := json.Marshal(req)
-	if err != nil {
-		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(request, client.Creds)
-	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
+	parameters := make(map[string]string)
 
-	response, err := client.HTTPClient.Do(request)
+	body, err := commonPostLogic(ctx, url, client, parameters, req)
 	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-
-	body, _ := io.ReadAll(response.Body)
 
 	var responseObject CreateExportResponse
 	err = json.Unmarshal(body, &responseObject)

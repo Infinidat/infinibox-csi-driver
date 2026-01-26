@@ -30,7 +30,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const NVMEHostSuffix = "-nvme"
@@ -297,35 +296,7 @@ func (nvme *NVMEstorage) ControllerPublishVolume(ctx context.Context, req *csi.C
 }
 
 func (nvme *NVMEstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	slog.Debug("start", "nodeID", req.GetNodeId(), "volumeID", req.GetVolumeId())
-	host := nvme.CS.VolProto.Host
-	slog.Debug("unmapping host's luns", "hostID", host.ID, "host name", host.Name, "luns", len(host.Luns))
-	if len(host.Luns) > 0 {
-		slog.Debug("unmap volume from host", "volumeID", nvme.CS.VolProto.VolumeID, "hostID", host.ID)
-		err = nvme.CS.UnmapVolumeFromHost(ctx, host.ID, nvme.CS.VolProto.VolumeID)
-		if err != nil {
-			return nil, status.Error(codes.Internal, common.Errorf("from UnmapVolumeFromHost - volumeID: %d hostID: %d - error: %w", nvme.CS.VolProto.VolumeID, host.ID, err).Error())
-		}
-	}
-
-	// avoid a race condition when there is a single LUN that you just unmapped
-	if len(host.Luns) == 1 {
-		time.Sleep(2 * time.Second)
-	}
-
-	luns, err := nvme.CS.IboxAPI.GetAllLunByHost(ctx, host.ID)
-	if err != nil {
-		slog.Error("failed to get LUNs for host", "hostID", host.ID, "error", err)
-	}
-	if len(luns) == 0 {
-		err = storagecommon.HostCleanup(ctx, nvme.CS.IboxAPI, host.ID, host.Name+NVMEHostSuffix)
-		if err != nil {
-			return nil, status.Error(codes.Internal, common.Errorf("from HostCleanup - hostID: %d - error: %w", host.ID, err).Error())
-		}
-	}
-
-	slog.Debug("completed", "node id", req.GetNodeId(), "volume id", req.GetVolumeId())
-	return &csi.ControllerUnpublishVolumeResponse{}, nil
+	return storagecommon.CommonUnpublishVolume(ctx, req, nvme.CS, NVMEHostSuffix)
 }
 
 func (nvme *NVMEstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
@@ -350,75 +321,7 @@ func (nvme *NVMEstorage) ControllerGetCapabilities(ctx context.Context, req *csi
 }
 
 func (nvme *NVMEstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
-	var snapshotID string
-	snapshotName := req.GetName()
-	slog.Debug("called to create snapshot", "snapshot", snapshotName, "source volume id", req.GetSourceVolumeId())
-
-	volumeSnapshot, err := nvme.CS.IboxAPI.GetVolumeByName(ctx, snapshotName)
-	if err != nil {
-		if errors.Is(err, iboxapi.ErrNotFound) {
-			slog.Debug("snapshot not found", "name", snapshotName)
-		} else {
-			slog.Error("GetVolumeByName error", "snapshot", snapshotName, "error", err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	} else if volumeSnapshot.ParentID == nvme.CS.VolProto.VolumeID {
-		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + nvme.CS.VolProto.StorageType
-		return &csi.CreateSnapshotResponse{
-			Snapshot: &csi.Snapshot{
-				SizeBytes:      volumeSnapshot.Size,
-				SnapshotId:     snapshotID,
-				SourceVolumeId: req.GetSourceVolumeId(),
-				CreationTime:   timestamppb.Now(),
-				ReadyToUse:     true,
-			},
-		}, nil
-	} else {
-		e := common.Errorf("snapshot: %s ID: %d exists. Different source volume with ID %d: requested",
-			snapshotName, volumeSnapshot.ParentID, nvme.CS.VolProto.VolumeID)
-		return nil, status.Error(codes.AlreadyExists, e.Error())
-	}
-
-	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       nvme.CS.VolProto.VolumeID,
-		SnapshotName:   snapshotName,
-		WriteProtected: true,
-	}
-
-	lockExpiresAtParameter := req.Parameters[common.LockExpiresAtParameter]
-	var lockExpiresAt int64
-	if lockExpiresAtParameter != "" {
-		ntpStatus, err := nvme.CS.IboxAPI.GetNtpStatus(ctx)
-		if err != nil {
-			return nil, common.Errorf("from GetNtpStatus - error %w", err)
-		}
-		lockExpiresAt, err = storagecommon.ValidateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
-		if err != nil {
-			return nil, common.Errorf("from ValidateSnapshotLocking - failed to create snapshot: %s error: %w, invalid lock_expires_at parameter ", snapshotName, err)
-		}
-		slog.Debug("snapshot param", "lockExpiresAtParam", lockExpiresAtParameter, "lockExpiresAt", lockExpiresAt, "timestamp", ntpStatus[0].LastProbeTimestamp)
-	}
-
-	snapshotParam.LockExpiresAt = lockExpiresAt
-
-	snapshot, err := nvme.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
-	if err != nil {
-		return nil, common.Errorf("from CreateSnapshotVolume - snapshot: %s error: %w", snapshotName, err)
-	}
-
-	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + nvme.CS.VolProto.StorageType
-	csiSnapshot := &csi.Snapshot{
-		SnapshotId:     snapshotID,
-		SourceVolumeId: req.GetSourceVolumeId(),
-		ReadyToUse:     true,
-		CreationTime:   timestamppb.Now(),
-		SizeBytes:      snapshot.Size,
-	}
-	slog.Debug("CreateFileSystemSnapshot", "response", csiSnapshot)
-	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
-
-	slog.Debug("successfully created snapshot", "snapshot name", snapshotName, "source volume id", req.GetSourceVolumeId())
-	return snapshotResp, nil
+	return storagecommon.CommonCreateSnapshot(ctx, req, nvme.CS)
 }
 
 func (nvme *NVMEstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (resp *csi.DeleteSnapshotResponse, err error) {

@@ -16,9 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"strconv"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -87,31 +85,14 @@ func (client *IboxClient) GetNetworkSpaceByName(ctx context.Context, netspaceNam
 	for page := 1; page <= totalPages; page++ {
 		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-		}
+		parameters := make(map[string]string)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
+		parameters["name"] = netspaceName
 
-		values := req.URL.Query()
-		values.Add("name", netspaceName)
-		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
-		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
-		req.URL.RawQuery = values.Encode()
-
-		SetAuthHeader(req, client.Creds)
-
-		resp, err := client.HTTPClient.Do(req)
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return nil, common.Errorf("do - error: %w url: %s", err, url)
-		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("error in Close()", "error", err.Error())
-			}
-		}()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+			return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 		var response GetNetworkSpaceByNameResponse
 		err = json.Unmarshal(bodyBytes, &response)

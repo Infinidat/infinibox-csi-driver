@@ -13,11 +13,17 @@ limitations under the License.
 package iboxapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
+
+	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
 const (
@@ -198,4 +204,71 @@ func SetAuthHeader(req *http.Request, creds Credentials) {
 	auth := creds.Username + ":" + creds.Password
 	basicAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
 	req.Header.Set("Authorization", basicAuth)
+}
+
+func commonGetLogic(ctx context.Context, url string, client *IboxClient, parameters map[string]string) (bodyBytes []byte, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
+	}
+
+	if len(parameters) > 0 {
+		values := req.URL.Query()
+		for key, value := range parameters {
+			values.Add(key, value)
+		}
+		req.URL.RawQuery = values.Encode()
+	}
+
+	SetAuthHeader(req, client.Creds)
+
+	resp, err := client.HTTPClient.Do(req)
+	if err != nil {
+		return nil, common.Errorf("do - error: %w url: %s", err, url)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("close", "error", err.Error())
+		}
+	}()
+	bodyBytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+	}
+	return bodyBytes, nil
+}
+
+func commonPostLogic(ctx context.Context, url string, client *IboxClient, parameters map[string]string, v any) (bodyBytes []byte, err error) {
+	jsonBytes, err := json.Marshal(v)
+	if err != nil {
+		return bodyBytes, common.Errorf("marshal - error: %w url: %s", err, url)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return bodyBytes, common.Errorf("newRequest - error: %w url: %s", err, url)
+	}
+
+	if len(parameters) > 0 {
+		values := request.URL.Query()
+		for key, value := range parameters {
+			values.Add(key, value)
+		}
+		request.URL.RawQuery = values.Encode()
+	}
+
+	SetAuthHeader(request, client.Creds)
+	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
+
+	response, err := client.HTTPClient.Do(request)
+	if err != nil {
+		return bodyBytes, common.Errorf("do - error: %w url: %s", err, url)
+	}
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			slog.Error("close", "error", err.Error())
+		}
+	}()
+
+	bodyBytes, _ = io.ReadAll(response.Body)
+	return bodyBytes, nil
 }

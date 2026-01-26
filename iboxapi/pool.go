@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"strconv"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -68,30 +66,14 @@ func (client *IboxClient) GetPoolByName(ctx context.Context, name string) (pool 
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/pools")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "name", name)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	values := req.URL.Query()
-	values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(common.IBOXDefaultQueryPageSize))
-	values.Add(PARAMETER_PAGE, strconv.Itoa(1))
-	values.Add("name", name)
-	req.URL.RawQuery = values.Encode()
+	parameters := make(map[string]string)
+	parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(common.IBOXDefaultQueryPageSize)
+	parameters[PARAMETER_PAGE] = strconv.Itoa(1)
+	parameters["name"] = name
 
-	SetAuthHeader(req, client.Creds)
-
-	resp, err := client.HTTPClient.Do(req)
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var response GetPoolByNameResponse
 	err = json.Unmarshal(bodyBytes, &response)
@@ -115,25 +97,11 @@ func (client *IboxClient) GetPoolByID(ctx context.Context, poolID int) (pool *Po
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/pools", poolID)
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "id", poolID)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
+	parameters := make(map[string]string)
 
-	SetAuthHeader(req, client.Creds)
-
-	resp, err := client.HTTPClient.Do(req)
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("error in Close()", "error", err.Error())
-		}
-	}()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var response GetPoolByIDResponse
 	err = json.Unmarshal(bodyBytes, &response)

@@ -141,31 +141,14 @@ func (client *IboxClient) GetLunsByVolume(ctx context.Context, volumeID int) (re
 	for page := 1; page <= totalPages; page++ {
 		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		parameters := make(map[string]string)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return results, common.Errorf("newRequest - error: %w url: %s", err, url)
+			return results, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 
-		values := req.URL.Query()
-		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
-		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
-		req.URL.RawQuery = values.Encode()
-
-		SetAuthHeader(req, client.Creds)
-
-		resp, err := client.HTTPClient.Do(req)
-		if err != nil {
-			return results, common.Errorf("do - error: %w url: %s", err, url)
-		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("close", "error", err.Error())
-			}
-		}()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return results, common.Errorf("readAll - error: %w url: %s", err, url)
-		}
 		var responseObject GetLunsByVolumeResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
@@ -185,28 +168,12 @@ func (client *IboxClient) CreateVolume(ctx context.Context, req CreateVolumeRequ
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "request", req)
 
-	jsonBytes, err := json.Marshal(req)
-	if err != nil {
-		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(request, client.Creds)
-	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
+	parameters := make(map[string]string)
 
-	response, err := client.HTTPClient.Do(request)
+	body, err := commonPostLogic(ctx, url, client, parameters, req)
 	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			slog.Error("close", "error", err.Error())
-		}
-	}()
-
-	body, _ := io.ReadAll(response.Body)
 
 	var responseObject CreateVolumeResponse
 	err = json.Unmarshal(body, &responseObject)
@@ -272,31 +239,14 @@ func (client *IboxClient) GetVolumeByName(ctx context.Context, volumeName string
 	for page := 1; page <= totalPages; page++ {
 		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-		}
+		parameters := make(map[string]string)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
+		parameters["name"] = volumeName
 
-		values := req.URL.Query()
-		values.Add("name", volumeName)
-		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
-		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
-		req.URL.RawQuery = values.Encode()
-
-		SetAuthHeader(req, client.Creds)
-
-		resp, err := client.HTTPClient.Do(req)
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return nil, common.Errorf("do - error: %w url: %s", err, url)
-		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("close", "error", err.Error())
-			}
-		}()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+			return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 		var response GetVolumeByNameResponse
 		err = json.Unmarshal(bodyBytes, &response)
@@ -324,24 +274,10 @@ func (client *IboxClient) GetVolume(ctx context.Context, volumeID int) (volume *
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes", volumeID)
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "volume ID", volumeID)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	parameters := make(map[string]string)
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-	SetAuthHeader(req, client.Creds)
-
-	resp, err := client.HTTPClient.Do(req)
-	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("close", "error", err.Error())
-		}
-	}()
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, common.Errorf("readAll - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 	}
 	var responseObject GetVolumeResponse
 	err = json.Unmarshal(bodyBytes, &responseObject)
@@ -409,35 +345,15 @@ func (client *IboxClient) CreateSnapshotVolume(ctx context.Context, req CreateSn
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/volumes")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "request", req)
 
-	jsonBytes, err := json.Marshal(req)
-	if err != nil {
-		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-
+	parameters := make(map[string]string)
 	if req.LockExpiresAt > 0 {
-		values := request.URL.Query()
-		values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
-		request.URL.RawQuery = values.Encode()
+		parameters[PARAMETER_APPROVED] = PARAMETER_VALUE_TRUE
 	}
 
-	SetAuthHeader(request, client.Creds)
-	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
-
-	response, err := client.HTTPClient.Do(request)
+	body, err := commonPostLogic(ctx, url, client, parameters, req)
 	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			slog.Error("close", "error", err.Error())
-		}
-	}()
-
-	body, _ := io.ReadAll(response.Body)
 
 	var responseObject CreateSnapshotVolumeResponse
 	err = json.Unmarshal(body, &responseObject)
@@ -460,31 +376,14 @@ func (client *IboxClient) GetVolumesByParentID(ctx context.Context, parentID int
 	for page := 1; page <= totalPages; page++ {
 		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return volumes, common.Errorf("newRequest - error: %w url: %s", err, url)
-		}
+		parameters := make(map[string]string)
+		parameters["parent_id"] = strconv.Itoa(parentID)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
 
-		values := req.URL.Query()
-		values.Add("parent_id", strconv.Itoa(parentID))
-		values.Add(PARAMETER_PAGE_SIZE, strconv.Itoa(pageSize))
-		values.Add(PARAMETER_PAGE, strconv.Itoa(page))
-		req.URL.RawQuery = values.Encode()
-
-		SetAuthHeader(req, client.Creds)
-
-		resp, err := client.HTTPClient.Do(req)
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return volumes, common.Errorf("do - error: %w url: %s", err, url)
-		}
-		defer func() {
-			if err := resp.Body.Close(); err != nil {
-				slog.Error("close", "error", err.Error())
-			}
-		}()
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return volumes, common.Errorf("readAll - error: %w url: %s", err, url)
+			return volumes, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 		var response GetVolumesByParentIDResponse
 		err = json.Unmarshal(bodyBytes, &response)
@@ -508,33 +407,13 @@ func (client *IboxClient) PromoteSnapshot(ctx context.Context, snapshotID int) (
 	url := fmt.Sprintf("%s%s/%d/%s", client.Creds.URL, "api/rest/volumes", snapshotID, "promote")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "snapshotID", snapshotID)
 
-	jsonBytes, err := json.Marshal("")
+	parameters := make(map[string]string)
+	parameters[PARAMETER_APPROVED] = PARAMETER_VALUE_TRUE
+
+	body, err := commonPostLogic(ctx, url, client, parameters, "")
 	if err != nil {
-		return nil, common.Errorf("marshal - error: %w url: %s", err, url)
+		return nil, common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonBytes))
-	if err != nil {
-		return nil, common.Errorf("newRequest - error: %w url: %s", err, url)
-	}
-
-	values := request.URL.Query()
-	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
-	request.URL.RawQuery = values.Encode()
-
-	SetAuthHeader(request, client.Creds)
-	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
-
-	response, err := client.HTTPClient.Do(request)
-	if err != nil {
-		return nil, common.Errorf("do - error: %w url: %s", err, url)
-	}
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			slog.Error("close", "error", err.Error())
-		}
-	}()
-
-	body, _ := io.ReadAll(response.Body)
 
 	var responseObject CreateVolumeResponse
 	err = json.Unmarshal(body, &responseObject)

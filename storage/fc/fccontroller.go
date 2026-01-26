@@ -28,7 +28,6 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type FCstorage struct {
@@ -331,27 +330,7 @@ func (fc *FCstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 }
 
 func (fc *FCstorage) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (resp *csi.ControllerUnpublishVolumeResponse, err error) {
-	slog.Debug("start", "volProto.VolumeID", fc.CS.VolProto.VolumeID, "nodeID", req.GetNodeId(), "volumeId", req.GetVolumeId())
-
-	host := fc.CS.VolProto.Host
-	if len(host.Luns) > 0 {
-		slog.Debug("unmap volume", "ID", fc.CS.VolProto.VolumeID, "from host", host.ID)
-		err = fc.CS.UnmapVolumeFromHost(ctx, host.ID, fc.CS.VolProto.VolumeID)
-		if err != nil {
-			e := fmt.Sprintf("error from UnmapVolumeFromHost - volumeID: %d hostID: %d error: %s", fc.CS.VolProto.VolumeID, host.ID, err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
-		}
-	}
-	if len(host.Luns) < 2 {
-		err = storagecommon.HostCleanup(ctx, fc.CS.IboxAPI, host.ID, host.Name)
-		if err != nil {
-			e := fmt.Sprintf("error from HostCleanup - hostID: %d error: %s", host.ID, err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
-		}
-	}
-	return &csi.ControllerUnpublishVolumeResponse{}, nil
+	return storagecommon.CommonUnpublishVolume(ctx, req, fc.CS, "")
 }
 
 func (fc *FCstorage) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (resp *csi.ValidateVolumeCapabilitiesResponse, err error) {
@@ -376,87 +355,7 @@ func (fc *FCstorage) ControllerGetCapabilities(ctx context.Context, req *csi.Con
 }
 
 func (fc *FCstorage) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (resp *csi.CreateSnapshotResponse, err error) {
-	var snapshotID string
-	snapshotName := req.GetName()
-	slog.Debug("start", "name", snapshotName, "source volume ID", req.GetSourceVolumeId(), "volproto", fc.CS.VolProto)
-
-	volumeSnapshot, err := fc.CS.IboxAPI.GetVolumeByName(ctx, snapshotName)
-	if err != nil {
-		if errors.Is(err, iboxapi.ErrNotFound) {
-			slog.Debug("snapshot with given name not found", "name", snapshotName)
-		} else {
-			e := fmt.Sprintf("error from GetVolumeByName - snapshotName: %s error: %s", snapshotName, err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
-		}
-	} else if volumeSnapshot.ParentID == fc.CS.VolProto.VolumeID {
-		snapshotID = strconv.Itoa(volumeSnapshot.ID) + "$$" + fc.CS.VolProto.StorageType
-		return &csi.CreateSnapshotResponse{
-			Snapshot: &csi.Snapshot{
-				SizeBytes:      volumeSnapshot.Size,
-				SnapshotId:     snapshotID,
-				SourceVolumeId: req.GetSourceVolumeId(),
-				CreationTime:   timestamppb.Now(),
-				ReadyToUse:     true,
-			},
-		}, nil
-	} else {
-		return nil, status.Error(codes.AlreadyExists, fmt.Sprintf("snapshot Name: %s with already existing name and different source volume ID", volumeSnapshot.Name))
-	}
-
-	// look up the parent volume so we can get the ssd_enabled value and use that for
-	// the snapshot being created next
-	parentVolume, err := fc.CS.IboxAPI.GetVolume(ctx, fc.CS.VolProto.VolumeID)
-	if err != nil {
-		e := fmt.Sprintf("error from GetVolume - getting parent volume when creating snapshot - volumeID: %d, error: %s", fc.CS.VolProto.VolumeID, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.NotFound, e)
-	}
-
-	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       fc.CS.VolProto.VolumeID,
-		SnapshotName:   snapshotName,
-		WriteProtected: true,
-		SSDEnabled:     parentVolume.SsdEnabled,
-	}
-
-	lockExpiresAtParameter := req.Parameters[common.LockExpiresAtParameter]
-	var lockExpiresAt int64
-	if lockExpiresAtParameter != "" {
-		ntpStatus, err := fc.CS.IboxAPI.GetNtpStatus(ctx)
-		if err != nil {
-			e := fmt.Sprintf("error from GetNtpStatus - error: %s", err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
-		}
-		lockExpiresAt, err = storagecommon.ValidateSnapshotLockingParameter(ntpStatus[0].LastProbeTimestamp, lockExpiresAtParameter)
-		if err != nil {
-			e := fmt.Sprintf("failed to create snapshotName: %s error: %s, invalid lock_expires_at parameter ", snapshotName, err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
-		}
-		slog.Info("snapshot", "name", snapshotName, "snapshot param has a lock_expires_at", lockExpiresAtParameter)
-	}
-
-	snapshotParam.LockExpiresAt = lockExpiresAt
-	snapshot, err := fc.CS.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
-	if err != nil {
-		e := fmt.Sprintf("error from CreateSnapshotVolume  snapshotName: %s error: %s", snapshotName, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
-	}
-
-	snapshotID = strconv.Itoa(snapshot.SnapShotID) + "$$" + fc.CS.VolProto.StorageType
-	csiSnapshot := &csi.Snapshot{
-		SnapshotId:     snapshotID,
-		SourceVolumeId: req.GetSourceVolumeId(),
-		ReadyToUse:     true,
-		CreationTime:   timestamppb.Now(),
-		SizeBytes:      snapshot.Size,
-	}
-	slog.Debug("completes", "response", csiSnapshot)
-	snapshotResp := &csi.CreateSnapshotResponse{Snapshot: csiSnapshot}
-	return snapshotResp, nil
+	return storagecommon.CommonCreateSnapshot(ctx, req, fc.CS)
 }
 
 func (fc *FCstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (resp *csi.DeleteSnapshotResponse, err error) {
