@@ -1,15 +1,9 @@
-## iboxreplica ASYNC examples
+## iboxpromote example
 
-edit and create these to test iboxreplica controller logic, these examples are for ASYNC replication type.  You
-can create a replica based on a VOLUME, CG, or FILESYSTEM using ASYNC replication type.
+edit and create these to test iboxpromote controller logic
 
-The 'local_entity-name' is the PV (volume) name that you want to replicate.
-
-The 'link_remote_system_name' has to be looked up using the Ibox API (get links) call.  This is the name
-given to the link, not always the same as the remote ibox host name.
-
-The 'remote_pool_id' has to be looked up on the remote ibox host using the Ibox API prior to creating
-the iboxreplica resource.  
-
-If you don't specify 'sync_interval' or 'rpo_value' it will be provided a default value.
-
+The iboxreplica fields are as follows:
+- description: this field can be a user defined description
+- entity_type: this field can be "SNAPSHOT" or "KUBE_SNAPSHOT"
+- entity_name: this field is the name of an ibox snapshot when 'entity_type' is set to SNAPSHOT, or a Kube VolumeSnapshot name when 'entity_type' is set to KUBE_SNAPSHOT
+- base_action: set to "NEW"
