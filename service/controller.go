@@ -48,6 +48,11 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	slog.Info("Start", "volume", req.GetName())
 
 	volName := req.GetName()
+	if volName == "" {
+		e := fmt.Errorf("volume name empty")
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
+	}
 
 	reqParameters := req.GetParameters()
 	if len(reqParameters) == 0 {
@@ -56,87 +61,19 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	kubernetesClient, err := clientgo.BuildClient()
+	storageProtocol, err := determineStorageProtocol(ctx, reqParameters)
 	if err != nil {
-		e := fmt.Errorf("BuildClient - error %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-
-	storageProtocol := reqParameters[common.StorageClassStorageProtocol]
-	networkSpace := reqParameters[common.StorageClassNetworkSpace]
-
-	// if the user doesn't supply a storage_protocol in the StorageClass, then use the protocol secret
-	if storageProtocol == "" {
-		protocolSecretMap, protocolSecretInUse, err := GetProtocolSecret(ctx)
-		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-
-		if protocolSecretInUse {
-			storageProtocol = protocolSecretMap[common.StorageClassStorageProtocol]
-			switch storageProtocol {
-			case common.ProtocolAuto:
-				calculatedProtocol, _, err := DetermineProtocol(ctx)
-				if err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
-				}
-				storageProtocol = calculatedProtocol
-			case "":
-				// assume FC during CreateVolume if protocol is not set
-				// this means node labels will be used when mounting this volume
-				storageProtocol = common.ProtocolFC
-			case common.ProtocolISCSI:
-				reqParameters[common.StorageClassUseCHAP] = protocolSecretMap[ProtocolSecretISCSIUseCHAP]
-				reqParameters[common.StorageClassNetworkSpace] = protocolSecretMap[ProtocolSecretISCSINetworkSpace]
-			case common.ProtocolNVME:
-				networkSpace = protocolSecretMap[ProtocolSecretNVMENetworkSpace]
-			case common.ProtocolNFS, common.ProtocolTreeq:
-				networkSpace = protocolSecretMap[ProtocolSecretNFSNetworkSpace]
-				reqParameters[common.StorageClassNFSExportPermissions] = protocolSecretMap[ProtocolSecretNFSExportPermissions]
-			default:
-			}
-
-			slog.Debug("protocol secrets", "map", protocolSecretMap)
-		}
-	}
-
-	reqCapabilities := req.GetVolumeCapabilities()
 
 	slog.Debug("info", "capacity-range", req.GetCapacityRange(), "params", reqParameters)
 	slog.Debug("info", "volume name", volName, "node id", s.Driver.nodeID, "protocol", storageProtocol)
 
 	// Basic CSI parameter checking across protocols
-	if storageProtocol == "" {
-		e := fmt.Errorf("storage protocol empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
-	if storageProtocol != common.ProtocolFC && len(networkSpace) == 0 {
-		e := fmt.Errorf("network space empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
-	if volName == "" {
-		e := fmt.Errorf("volume name empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
-	if len(reqCapabilities) == 0 {
-		e := fmt.Errorf("volume capabilities empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
-
 	var summary string
-	summary, err = validateCapabilities(reqCapabilities)
+	summary, err = validateCapabilities(req.GetVolumeCapabilities())
 	if err != nil {
 		e := fmt.Errorf("validateCapabilities - error %s summary %s", err.Error(), summary)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
-	if reqParameters[common.StorageClassPoolName] == "" {
-		e := fmt.Errorf("%s empty", common.StorageClassPoolName)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -147,50 +84,14 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		common.StorageClassNFSExportPermissions: reqParameters[common.StorageClassNFSExportPermissions],
 	}
 
-	pvcAnnotations := make(map[string]string)
-	extraMetadataPVCName := req.Parameters["csi.storage.k8s.io/pvc/name"]
-	extraMetadataPVCNamespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
-	if extraMetadataPVCName != "" && extraMetadataPVCNamespace != "" {
-		pvcAnnotations, err = kubernetesClient.GetPVCAnnotations(ctx, extraMetadataPVCName, extraMetadataPVCNamespace)
-		if err != nil {
-			e := fmt.Errorf("GetPVCAnnotations - name %s error %s", req.GetName(), err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.InvalidArgument, e.Error())
-		}
-	}
-	secretsToUse := req.GetSecrets()
-
-	pvcAnnoSecret := pvcAnnotations[common.PVCAnnotationIBOXSecret]
-	if pvcAnnoSecret != "" {
-		secretsToUse, err = kubernetesClient.GetSecret(ctx, pvcAnnoSecret, os.Getenv(common.EnvVarPodNamespace))
-		if err != nil {
-			e := fmt.Errorf("GetSecrets - %s error %s", pvcAnnoSecret, err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.InvalidArgument, e.Error())
-		}
+	secretsToUse, err := handlePVCAnnotations(ctx, req)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	capacity := req.GetCapacityRange().RequiredBytes
-
-	roundUp := true // default to always rounding up, users can set the StorageClass parameter to false if for some reason they want
-	roundUpParameter := req.Parameters[common.StorageClassRoundup]
-	if roundUpParameter != "" {
-		roundUp, err = strconv.ParseBool(roundUpParameter)
-		if err != nil {
-			e := fmt.Errorf("name %s param %s roundup %s parse error %s", volName, roundUpParameter, common.StorageClassRoundup, err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
-		}
-	}
-
-	if roundUp {
-		roundUpBytes := helper.RoundUp(capacity)
-		if capacity == roundUpBytes {
-			slog.Debug("requested bytes equals calculated rounded up bytes", "capacity", capacity, "rounded", roundUpBytes)
-		} else {
-			slog.Debug("requested bytes will be rounded up", "capacity", capacity, "rounded", roundUpBytes)
-			capacity = roundUpBytes
-		}
+	capacity, err := determineCapacity(req)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	err = validateSecret("", common.CSIProvisionerSecretName, common.CSIProvisionerSecretNamespace, req.GetSecrets())
@@ -219,19 +120,6 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	req.Parameters[common.PVCAnnotationNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace]
-	req.Parameters[common.PVCAnnotationPoolName] = pvcAnnotations[common.PVCAnnotationPoolName]
-
-	if pvcAnnotations[common.PVCAnnotationPoolName] != "" {
-		slog.Debug("pool name is specified in the PVC, this will be used instead of the pool_name in the StorageClass", "pool", pvcAnnotations[common.PVCAnnotationPoolName])
-		req.Parameters[common.StorageClassPoolName] = pvcAnnotations[common.PVCAnnotationPoolName] // overwrite what was in the storageclass if any
-	}
-
-	if pvcAnnotations[common.PVCAnnotationNetworkSpace] != "" {
-		slog.Debug("network_space is specified in the PVC, this will be used instead of the network_space in the StorageClass", "network space", pvcAnnotations[common.PVCAnnotationNetworkSpace])
-		reqParameters[common.StorageClassNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace] // overwrite what was in the storageclass if any
-	}
-
 	// perform protocol specific StorageClass validations
 	err = storageController.ValidateStorageClass(reqParameters)
 	if err != nil {
@@ -246,16 +134,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		slog.Error(e.Error())
 		// it's important to return the original error, because it matches K8s expectations
 		return nil, err
-	} else if createVolResp == nil {
-		e := fmt.Errorf("sc.CreateVolume resp nil - %s", volName)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	} else if createVolResp.Volume == nil {
-		e := fmt.Errorf("sc.CreateVolume Volume is nil - name %s resp %v", volName, createVolResp)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	} else if createVolResp.Volume.VolumeId == "" {
-		e := fmt.Errorf("sc.CreateVolume Volume ID is empty - name %s resp %v", volName, createVolResp)
+	}
+	if createVolResp == nil || createVolResp.Volume == nil || createVolResp.Volume.VolumeId == "" {
+		e := fmt.Errorf("sc.CreateVolume response is nil")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -556,6 +437,11 @@ func validateCapabilities(capabilities []*csi.VolumeCapability) (summary string,
 
 	if capabilities == nil {
 		return "", errors.New("no volume capabilities specified")
+	}
+	if len(capabilities) == 0 {
+		e := fmt.Errorf("volume capabilities empty")
+		slog.Error(e.Error())
+		return "", status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	var modes string
@@ -1329,4 +1215,125 @@ func getNodeProtocol(ctx context.Context, nodeID string) (string, error) {
 
 	// no node protocol label was set on this node
 	return "", nil
+}
+
+func determineStorageProtocol(ctx context.Context, reqParameters map[string]string) (storageProtocol string, err error) {
+	storageProtocol = reqParameters[common.StorageClassStorageProtocol]
+	networkSpace := reqParameters[common.StorageClassNetworkSpace]
+	// if the user doesn't supply a storage_protocol in the StorageClass, then use the protocol secret
+	if storageProtocol == "" {
+		protocolSecretMap, protocolSecretInUse, err := GetProtocolSecret(ctx)
+		if err != nil {
+			return "", status.Error(codes.InvalidArgument, err.Error())
+		}
+
+		if protocolSecretInUse {
+			storageProtocol = protocolSecretMap[common.StorageClassStorageProtocol]
+			switch storageProtocol {
+			case common.ProtocolAuto:
+				calculatedProtocol, _, err := DetermineProtocol(ctx)
+				if err != nil {
+					return "", status.Error(codes.Internal, err.Error())
+				}
+				storageProtocol = calculatedProtocol
+			case "":
+				// assume FC during CreateVolume if protocol is not set
+				// this means node labels will be used when mounting this volume
+				storageProtocol = common.ProtocolFC
+			case common.ProtocolISCSI:
+				reqParameters[common.StorageClassUseCHAP] = protocolSecretMap[ProtocolSecretISCSIUseCHAP]
+				reqParameters[common.StorageClassNetworkSpace] = protocolSecretMap[ProtocolSecretISCSINetworkSpace]
+			case common.ProtocolNVME:
+				networkSpace = protocolSecretMap[ProtocolSecretNVMENetworkSpace]
+			case common.ProtocolNFS, common.ProtocolTreeq:
+				networkSpace = protocolSecretMap[ProtocolSecretNFSNetworkSpace]
+				reqParameters[common.StorageClassNFSExportPermissions] = protocolSecretMap[ProtocolSecretNFSExportPermissions]
+			default:
+			}
+
+			slog.Debug("protocol secrets", "map", protocolSecretMap)
+		}
+	}
+	if storageProtocol == "" {
+		e := fmt.Errorf("storage protocol empty")
+		slog.Error(e.Error())
+		return storageProtocol, e
+	}
+	if storageProtocol != common.ProtocolFC && len(networkSpace) == 0 {
+		e := fmt.Errorf("network space empty")
+		slog.Error(e.Error())
+		return storageProtocol, e
+	}
+	return storageProtocol, nil
+}
+
+func determineCapacity(req *csi.CreateVolumeRequest) (capacity int64, err error) {
+	capacity = req.GetCapacityRange().RequiredBytes
+
+	roundUp := true // default to always rounding up, users can set the StorageClass parameter to false if for some reason they want
+	roundUpParameter := req.Parameters[common.StorageClassRoundup]
+	if roundUpParameter != "" {
+		roundUp, err = strconv.ParseBool(roundUpParameter)
+		if err != nil {
+			e := fmt.Errorf("parse error %s - error %s", roundUpParameter, err.Error())
+			slog.Error(e.Error())
+			return 0, e
+		}
+	}
+
+	if roundUp {
+		roundUpBytes := helper.RoundUp(capacity)
+		if capacity == roundUpBytes {
+			slog.Debug("requested bytes equals calculated rounded up bytes", "capacity", capacity, "rounded", roundUpBytes)
+		} else {
+			slog.Debug("requested bytes will be rounded up", "capacity", capacity, "rounded", roundUpBytes)
+			capacity = roundUpBytes
+		}
+	}
+	return capacity, nil
+}
+
+func handlePVCAnnotations(ctx context.Context, req *csi.CreateVolumeRequest) (secretsToUse map[string]string, err error) {
+	secretsToUse = req.GetSecrets()
+	kubernetesClient, err := clientgo.BuildClient()
+	if err != nil {
+		e := fmt.Errorf("BuildClient - error %s", err.Error())
+		slog.Error(e.Error())
+		return secretsToUse, status.Error(codes.Internal, e.Error())
+	}
+	pvcAnnotations := make(map[string]string)
+	extraMetadataPVCName := req.Parameters["csi.storage.k8s.io/pvc/name"]
+	extraMetadataPVCNamespace := req.Parameters["csi.storage.k8s.io/pvc/namespace"]
+	if extraMetadataPVCName != "" && extraMetadataPVCNamespace != "" {
+		pvcAnnotations, err = kubernetesClient.GetPVCAnnotations(ctx, extraMetadataPVCName, extraMetadataPVCNamespace)
+		if err != nil {
+			e := fmt.Errorf("GetPVCAnnotations - name %s error %s", req.GetName(), err.Error())
+			slog.Error(e.Error())
+			return secretsToUse, status.Error(codes.InvalidArgument, e.Error())
+		}
+	}
+
+	pvcAnnoSecret := pvcAnnotations[common.PVCAnnotationIBOXSecret]
+	if pvcAnnoSecret != "" {
+		//override the normal secrets with the ones from the annotation
+		secretsToUse, err = kubernetesClient.GetSecret(ctx, pvcAnnoSecret, os.Getenv(common.EnvVarPodNamespace))
+		if err != nil {
+			e := fmt.Errorf("GetSecrets - %s error %s", pvcAnnoSecret, err.Error())
+			slog.Error(e.Error())
+			return secretsToUse, status.Error(codes.InvalidArgument, e.Error())
+		}
+	}
+	req.Parameters[common.PVCAnnotationNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace]
+	req.Parameters[common.PVCAnnotationPoolName] = pvcAnnotations[common.PVCAnnotationPoolName]
+
+	if pvcAnnotations[common.PVCAnnotationPoolName] != "" {
+		slog.Debug("pool name is specified in the PVC, this will be used instead of the pool_name in the StorageClass", "pool", pvcAnnotations[common.PVCAnnotationPoolName])
+		req.Parameters[common.StorageClassPoolName] = pvcAnnotations[common.PVCAnnotationPoolName] // overwrite what was in the storageclass if any
+	}
+
+	if pvcAnnotations[common.PVCAnnotationNetworkSpace] != "" {
+		slog.Debug("network_space is specified in the PVC, this will be used instead of the network_space in the StorageClass", "network space", pvcAnnotations[common.PVCAnnotationNetworkSpace])
+		req.Parameters[common.StorageClassNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace] // overwrite what was in the storageclass if any
+	}
+	return secretsToUse, nil
 }

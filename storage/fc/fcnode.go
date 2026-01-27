@@ -537,11 +537,6 @@ func (fc *FCstorage) searchDisk(connector Connector) (string, error) {
 		slog.Error(e.Error())
 		return "", e
 	}
-	if wwid == "" {
-		e := fmt.Errorf("rescan error wwid not found")
-		slog.Error(e.Error())
-		return "", e
-	}
 	slog.Debug("rescan scsi host", "wwid", wwid)
 
 	const defaultTries = 10

@@ -230,6 +230,13 @@ func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 	}
 
 	slog.Debug("Rescan hosts complete", "diskid", diskid, "lun", lun)
+
+	if wwid == "" {
+		e := fmt.Errorf("searchDisk rescan error wwid not found")
+		slog.Error(e.Error())
+		return "", e
+	}
+
 	return wwid, nil
 }
 

@@ -209,130 +209,15 @@ func (r *IboxreplicaReconciler) createReplica(ctx context.Context, replica *csid
 	logger.Info("creating replica", "replica.Name", replica.Name)
 	var localEntityID int
 
-	switch replica.Spec.EntityType {
-	case common.ReplicaEntityCG:
-		// look up the CG ID
-		consistencyGroup, err := clientsvc.IboxAPI.GetConsistencyGroupByName(ctx, replica.Spec.LocalEntityName)
-		if err != nil {
-			logger.Error(err, "error getting CG", "localEntityName", replica.Spec.LocalEntityName)
-			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-				State: err.Error(),
-			}
-			if e := r.Status().Update(ctx, replica); e != nil {
-				logger.Error(e, "unable to update iboxreplica state")
-			}
-			return err
-		}
-		localEntityID = consistencyGroup.ID
-	case common.ReplicaEntityVolume:
-		// look up the volume ID
-		volume, err := clientsvc.IboxAPI.GetVolumeByName(ctx, replica.Spec.LocalEntityName)
-		if err != nil {
-			logger.Error(err, "error getting Volume", "localEntityName", replica.Spec.LocalEntityName)
-			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-				State: err.Error(),
-			}
-			if e := r.Status().Update(ctx, replica); e != nil {
-				logger.Error(e, "unable to update iboxreplica state")
-			}
-			return err
-		}
-		localEntityID = volume.ID
-	case common.ReplicaEntityFilesystem:
-		// look up the filesystem ID
-		fileSystem, err := clientsvc.IboxAPI.GetFileSystemByName(ctx, replica.Spec.LocalEntityName)
-		if err != nil {
-			logger.Error(err, "error getting file system", "localEntityName", replica.Spec.LocalEntityName)
-			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-				State: err.Error(),
-			}
-			if e := r.Status().Update(ctx, replica); e != nil {
-				logger.Error(e, "unable to update iboxreplica state")
-			}
-			return err
-		}
-		localEntityID = fileSystem.ID
-	default:
-		err = fmt.Errorf("error getting local entity type, unknown entity type in the CR %s", replica.Spec.EntityType)
-		logger.Error(err, "error invalid CR entity type")
-		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-			State: err.Error(),
-		}
-		if e := r.Status().Update(ctx, replica); e != nil {
-			logger.Error(e, "unable to update iboxreplica state")
-		}
+	localEntityID, err = getLocalEntityID(ctx, clientsvc, r, replica)
+	if err != nil {
 		return err
 	}
 
 	logger.Info("creating replica", "entity look up worked", localEntityID)
 
-	// look up the link ID
-	links, err := clientsvc.IboxAPI.GetLinks(ctx)
+	link, err := validateLink(ctx, clientsvc, r, replica)
 	if err != nil {
-		logger.Error(err, "error getting replication links")
-		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-			State: err.Error(),
-		}
-		if e := r.Status().Update(ctx, replica); e != nil {
-			logger.Error(e, "unable to update iboxreplica state")
-		}
-		return err
-	}
-
-	var link iboxapi.Link
-	var linkFound bool
-	for i := range links {
-		if links[i].RemoteSystemName == replica.Spec.LinkRemoteSystemName {
-			link = links[i]
-			linkFound = true
-		}
-	}
-	if !linkFound {
-		err := fmt.Errorf("could not find replication link %s", replica.Spec.LinkRemoteSystemName)
-		logger.Error(err, "error could not find replication link", "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
-		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-			State: err.Error(),
-		}
-		if e := r.Status().Update(ctx, replica); e != nil {
-			logger.Error(e, "unable to update iboxreplica state")
-		}
-		return err
-	}
-	if link.ID == 0 {
-		err := fmt.Errorf("link ID was 0 for replication link %s", replica.Spec.LinkRemoteSystemName)
-		logger.Error(err, "error link ID == 0", "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
-		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-			State: err.Error(),
-		}
-		if e := r.Status().Update(ctx, replica); e != nil {
-			logger.Error(e, "unable to update iboxreplica state")
-		}
-		return err
-	}
-
-	// validate the link state as being UP
-	if link.LinkState != IboxreplicaLinkStateUp {
-		err := fmt.Errorf("replication link state %s was invalid for replication link %s", link.LinkState, replica.Spec.LinkRemoteSystemName)
-		logger.Error(err, "error invalid replication link state", "state", link.LinkState, "linkRemoteSystemName", replica.Spec.LinkRemoteSystemName)
-		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-			State: err.Error(),
-		}
-		if e := r.Status().Update(ctx, replica); e != nil {
-			logger.Error(e, "unable to update iboxreplica state")
-		}
-		return err
-	}
-
-	// validate the link supports ACTIVE_ACTIVE
-	if link.ResiliencyMode != IboxreplicaLinkWitnessResiliencyMode {
-		err := fmt.Errorf("invalid replication link resiliency mode %s for replication link %s", link.ResiliencyMode, replica.Spec.LinkRemoteSystemName)
-		logger.Error(err, "error invalid replication link resiliency mode", "resiliency mode", link.ResiliencyMode, "required mode", IboxreplicaLinkWitnessResiliencyMode)
-		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
-			State: err.Error(),
-		}
-		if e := r.Status().Update(ctx, replica); e != nil {
-			logger.Error(e, "unable to update iboxreplica state")
-		}
 		return err
 	}
 
@@ -497,4 +382,135 @@ func getClientService(ctx context.Context, replica *csidriverinfinidatcomv1.Ibox
 	}
 
 	return clientsvc, nil
+}
+
+func getLocalEntityID(ctx context.Context, clientsvc *api.ClientService, r *IboxreplicaReconciler, replica *csidriverinfinidatcomv1.Iboxreplica) (localEntityID int, err error) {
+	switch replica.Spec.EntityType {
+	case common.ReplicaEntityCG:
+		// look up the CG ID
+		consistencyGroup, err := clientsvc.IboxAPI.GetConsistencyGroupByName(ctx, replica.Spec.LocalEntityName)
+		if err != nil {
+			logger.Error(err, "error getting CG", "localEntityName", replica.Spec.LocalEntityName)
+			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+				State: err.Error(),
+			}
+			if e := r.Status().Update(ctx, replica); e != nil {
+				logger.Error(e, "unable to update iboxreplica state")
+			}
+			return localEntityID, err
+		}
+		localEntityID = consistencyGroup.ID
+	case common.ReplicaEntityVolume:
+		// look up the volume ID
+		volume, err := clientsvc.IboxAPI.GetVolumeByName(ctx, replica.Spec.LocalEntityName)
+		if err != nil {
+			logger.Error(err, "error getting Volume", "localEntityName", replica.Spec.LocalEntityName)
+			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+				State: err.Error(),
+			}
+			if e := r.Status().Update(ctx, replica); e != nil {
+				logger.Error(e, "unable to update iboxreplica state")
+			}
+			return localEntityID, err
+		}
+		localEntityID = volume.ID
+	case common.ReplicaEntityFilesystem:
+		// look up the filesystem ID
+		fileSystem, err := clientsvc.IboxAPI.GetFileSystemByName(ctx, replica.Spec.LocalEntityName)
+		if err != nil {
+			logger.Error(err, "error getting file system", "localEntityName", replica.Spec.LocalEntityName)
+			replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+				State: err.Error(),
+			}
+			if e := r.Status().Update(ctx, replica); e != nil {
+				logger.Error(e, "unable to update iboxreplica state")
+			}
+			return localEntityID, err
+		}
+		localEntityID = fileSystem.ID
+	default:
+		err = fmt.Errorf("error getting local entity type, unknown entity type in the CR %s", replica.Spec.EntityType)
+		logger.Error(err, "error invalid CR entity type")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
+		return localEntityID, err
+	}
+	return localEntityID, nil
+}
+
+func validateLink(ctx context.Context, clientsvc *api.ClientService, r *IboxreplicaReconciler, replica *csidriverinfinidatcomv1.Iboxreplica) (link *iboxapi.Link, err error) {
+	// look up the link ID
+	links, err := clientsvc.IboxAPI.GetLinks(ctx)
+	if err != nil {
+		logger.Error(err, "error getting replication links")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
+		return nil, err
+	}
+
+	var linkFound bool
+	for i := range links {
+		if links[i].RemoteSystemName == replica.Spec.LinkRemoteSystemName {
+			link = &links[i]
+			linkFound = true
+		}
+	}
+	if !linkFound {
+		err := fmt.Errorf("could not find replication link %s", replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "", "")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
+		return nil, err
+	}
+	if link.ID == 0 {
+		err := fmt.Errorf("link ID was 0 for replication link %s", replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "", "")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
+		return nil, err
+	}
+
+	// validate the link state as being UP
+	if link.LinkState != IboxreplicaLinkStateUp {
+		err := fmt.Errorf("replication link state %s was invalid for replication link %s", link.LinkState, replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "", "")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
+		return nil, err
+	}
+
+	// validate the link supports ACTIVE_ACTIVE
+	if link.ResiliencyMode != IboxreplicaLinkWitnessResiliencyMode {
+		err := fmt.Errorf("invalid replication link resiliency mode %s for replication link %s", link.ResiliencyMode, replica.Spec.LinkRemoteSystemName)
+		logger.Error(err, "", "")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
+		return nil, err
+	}
+
+	return link, nil
 }

@@ -499,26 +499,12 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 
 func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath string, err error) {
 	var devicePath string
-	var iscsiTransport string
 
-	slog.Debug("attach disk", "fsType", diskMounter.fsType, "readOnly", diskMounter.readOnly, "mountOpts", diskMounter.mountOptions, "targetPath", diskMounter.targetPath, "stagePath", diskMounter.stagePath)
+	slog.Debug("attach disk", "provided interface", diskMounter.Iface, "fsType", diskMounter.fsType, "readOnly", diskMounter.readOnly, "mountOpts", diskMounter.mountOptions, "targetPath", diskMounter.targetPath, "stagePath", diskMounter.stagePath)
 
-	slog.Debug("check that provided interface is available", "interface", diskMounter.Iface)
-	isToLogOutput := false
-	commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", diskMounter.Iface), isToLogOutput)
+	_, err = iscsi.extractTransportName(diskMounter.Iface)
 	if err != nil {
-		e := fmt.Errorf("cannot read interface: %s output: %s error: %s", diskMounter.Iface, commandOutput, err.Error())
-		slog.Error(e.Error())
-		return "", e
-	}
-	slog.Debug("info", "provided interface", diskMounter.Iface)
-
-	iscsiTransport = iscsi.extractTransportName(commandOutput)
-	slog.Debug("info", "iscsiTransport", iscsiTransport)
-	if iscsiTransport == "" {
-		e := fmt.Errorf("could not find transport name in iface: %s", diskMounter.Iface)
-		slog.Error(e.Error())
-		return "", e
+		return "", err
 	}
 
 	// If not found, create new iface and copy parameters from pre-configured (default) iface to the created iface
@@ -530,9 +516,9 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 			newIface := target.Portals[0] // Do not append ':$volume_id'
 			slog.Debug("info", "initiatorName", diskMounter.InitiatorName, "required iface name", newIface)
 			isToLogOutput := false
-			_, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
+			commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
 			if err != nil {
-				slog.Debug("creating new iface (clone) and copying parameters from pre-configured iface to it")
+				slog.Debug("creating new iface (clone) and copying parameters from pre-configured iface to it", "commandOutput", commandOutput)
 				err = iscsi.cloneIface(diskMounter, newIface)
 				if err != nil {
 					e := fmt.Errorf("failed to clone iface: %s error: %s", diskMounter.Iface, err.Error())
@@ -548,97 +534,28 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 		slog.Debug("Using existing initiator name", "name", diskMounter.InitiatorName)
 	}
 
-	for _, target := range targets {
-		for portalIndex := range target.Portals {
-			slog.Debug("discover targets at portal", "portal", target.Portals[portalIndex])
-			// Discover all targets associated with a portal.
-			_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", target.Portals[portalIndex]))
-			if err != nil {
-				e := fmt.Errorf("failed to discover targets at portal: %s error: %s", commandOutput, err.Error())
-				slog.Error(e.Error())
-				return "", e
-			}
-		}
+	err = discoverISCITargets(targets)
+	if err != nil {
+		return "", err
 	}
 
-	if !diskMounter.CHAPSession {
-		slog.Debug("target iqn - Not using CHAP", "iqn", targets[0].Iqn)
-	} else {
-		// Loop over portals:
-		// - Set CHAP usage and update discoverydb with CHAP secret
-		for index := range targets {
-			for portalIndex := range targets[index].Portals {
-				slog.Debug("target iface- use CHAP at portal", "iface", diskMounter.Iface, "iqn", targets[index].Iqn, "portal", targets[index].Portals[portalIndex])
-				err = iscsi.updateISCSINode(diskMounter, targets[index].Iqn, targets[index].Portals[portalIndex])
-				if err != nil {
-					slog.Error(err.Error())
-					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
-					slog.Error("Failed to update iscsi node", "portal", targets[index].Portals[portalIndex], "error", err.Error())
-					continue
-				}
-			}
-		}
+	iscsi.updateForCHAP(diskMounter, targets)
+
+	err = loginToTargets(targets)
+	if err != nil {
+		return "", err
 	}
-
-	sessionDetails := getSessionDetails()
-	slog.Debug("list sessions before any logins", "details", sessionDetails)
-
-	for index := range targets {
-		// Check for at least one session. If none, login.
-		slog.Debug("list sessions to target iqn", "iqn", targets[index].Iqn)
-
-		iqnFound := false
-		for j := range sessionDetails {
-			if sessionDetails[j].iqn == targets[index].Iqn {
-				iqnFound = true
-			}
-		}
-		if !iqnFound {
-			for portal := range targets[index].Portals {
-				slog.Debug("login to iscsi target iqn at all portals using interface", "iqn", targets[index].Iqn, "portal", targets[index].Portals[portal])
-				_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[index].Iqn, targets[index].Portals[portal]))
-				if err != nil {
-					slog.Error(err.Error())
-					if status.Code(err) != codes.AlreadyExists {
-						e := fmt.Errorf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[index].Iqn, targets[index].Portals[portal], err.Error())
-						slog.Error(e.Error())
-						return "", e
-					} else {
-						slog.Debug("already logged in to target", "iqn", targets[index].Iqn, "portal", targets[index].Portals[portal])
-					}
-				}
-			}
-		} else {
-			if len(targets[index].Portals) > 0 {
-				slog.Debug("already logged into iscsi target iqn using interface", "iqn", targets[index].Iqn, "portal", targets[index].Portals[0])
-			} else {
-				slog.Debug("already logged into iscsi target iqn", "iqn", targets[index].Iqn)
-			}
-		}
-	}
-	sessionDetails = getSessionDetails()
-	slog.Debug("list sessions after any logins", "sessions", sessionDetails)
 
 	// Rescan for LUN b.lun
 	hosts, err := getHostIDs()
 	if err != nil {
-		e := fmt.Errorf("finding hosts failed: %s", err.Error())
-		slog.Error(e.Error())
-		return "", e
+		return "", err
 	}
-	slog.Debug("info", "hosts", hosts, "number of hosts", len(hosts))
 
 	// For each host, scan using lun
-
 	wwid, err := storagecommon.RescanDeviceMap(hosts, diskMounter.VolName, diskMounter.Lun)
 	if err != nil {
 		e := fmt.Errorf("from RescanDeviceMap volumeID: %s lun: %s error: %s", diskMounter.VolName, diskMounter.Lun, err.Error())
-		slog.Error(e.Error())
-		return "", e
-	}
-
-	if wwid == "" {
-		e := fmt.Errorf("searchDisk rescan error wwid not found")
 		slog.Error(e.Error())
 		return "", e
 	}
@@ -875,10 +792,18 @@ func (iscsi *ISCSIstorage) updateISCSINode(diskMounter iscsiDiskMounter, iqn str
 	return nil
 }
 
-func (iscsi *ISCSIstorage) extractTransportName(ifaceOutput string) (iscsiTransport string) {
-	rexOutput := ifaceTransportNameRe.FindStringSubmatch(ifaceOutput)
+func (iscsi *ISCSIstorage) extractTransportName(diskMounterIface string) (iscsiTransport string, err error) {
+	slog.Debug("check that provided interface is available", "interface", diskMounterIface)
+	isToLogOutput := false
+	commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", diskMounterIface), isToLogOutput)
+	if err != nil {
+		e := fmt.Errorf("cannot read interface: %s output: %s error: %s", diskMounterIface, commandOutput, err.Error())
+		slog.Error(e.Error())
+		return "", e
+	}
+	rexOutput := ifaceTransportNameRe.FindStringSubmatch(commandOutput)
 	if rexOutput == nil {
-		return ""
+		return "", nil
 	}
 	iscsiTransport = rexOutput[1]
 
@@ -886,7 +811,13 @@ func (iscsi *ISCSIstorage) extractTransportName(ifaceOutput string) (iscsiTransp
 	if iscsiTransport == "<empty>" {
 		iscsiTransport = ISCSITransportTCP
 	}
-	return iscsiTransport
+	if iscsiTransport == "" {
+		e := fmt.Errorf("could not find transport name in iface: %s", diskMounterIface)
+		slog.Error(e.Error())
+		return "", e
+	}
+	slog.Debug("info", "iscsiTransport", iscsiTransport)
+	return iscsiTransport, nil
 }
 
 func (iscsi *ISCSIstorage) parseIscsiadmShow(output string) (map[string]string, error) {
@@ -1095,6 +1026,7 @@ func getHostIDs() (hosts []string, err error) {
 			rawNumber := strings.Split(trim, " ")
 			if len(rawNumber) < 2 {
 				err = fmt.Errorf("error, could not parse host number [%s]", trim)
+				slog.Error(err.Error())
 				return hosts, err
 			}
 			replaced := strings.ReplaceAll(rawNumber[1], "[", "")
@@ -1103,6 +1035,7 @@ func getHostIDs() (hosts []string, err error) {
 		}
 	}
 
+	slog.Debug("info", "hosts", hosts, "number of hosts", len(hosts))
 	return hosts, nil
 }
 
@@ -1112,5 +1045,84 @@ func addChapSecurityForHost(ctx context.Context, cs storagecommon.Commonservice,
 		slog.Error("failed to add authentication for host", "hostID", hostID, "error", err)
 		return err
 	}
+	return nil
+}
+
+func (iscsi *ISCSIstorage) updateForCHAP(diskMounter iscsiDiskMounter, targets []iscsiTarget) {
+	if !diskMounter.CHAPSession {
+		slog.Debug("target iqn - Not using CHAP", "iqn", targets[0].Iqn)
+	} else {
+		// Loop over portals:
+		// - Set CHAP usage and update discoverydb with CHAP secret
+		for index := range targets {
+			for portalIndex := range targets[index].Portals {
+				slog.Debug("target iface- use CHAP at portal", "iface", diskMounter.Iface, "iqn", targets[index].Iqn, "portal", targets[index].Portals[portalIndex])
+				err := iscsi.updateISCSINode(diskMounter, targets[index].Iqn, targets[index].Portals[portalIndex])
+				if err != nil {
+					slog.Error(err.Error())
+					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
+					slog.Error("Failed to update iscsi node", "portal", targets[index].Portals[portalIndex], "error", err.Error())
+					continue
+				}
+			}
+		}
+	}
+}
+
+func discoverISCITargets(targets []iscsiTarget) (err error) {
+	for _, target := range targets {
+		for portalIndex := range target.Portals {
+			slog.Debug("discover targets at portal", "portal", target.Portals[portalIndex])
+			// Discover all targets associated with a portal.
+			commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", target.Portals[portalIndex]))
+			if err != nil {
+				e := fmt.Errorf("failed to discover targets at portal: %s error: %s", commandOutput, err.Error())
+				slog.Error(e.Error())
+				return e
+			}
+		}
+	}
+	return nil
+}
+
+func loginToTargets(targets []iscsiTarget) (err error) {
+	sessionDetails := getSessionDetails()
+	slog.Debug("list sessions before any logins", "details", sessionDetails)
+
+	for index := range targets {
+		// Check for at least one session. If none, login.
+		slog.Debug("list sessions to target iqn", "iqn", targets[index].Iqn)
+
+		iqnFound := false
+		for j := range sessionDetails {
+			if sessionDetails[j].iqn == targets[index].Iqn {
+				iqnFound = true
+			}
+		}
+		if !iqnFound {
+			for portal := range targets[index].Portals {
+				slog.Debug("login to iscsi target iqn at all portals using interface", "iqn", targets[index].Iqn, "portal", targets[index].Portals[portal])
+				_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --targetname %s --portal %s --login", targets[index].Iqn, targets[index].Portals[portal]))
+				if err != nil {
+					slog.Error(err.Error())
+					if status.Code(err) != codes.AlreadyExists {
+						e := fmt.Errorf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[index].Iqn, targets[index].Portals[portal], err.Error())
+						slog.Error(e.Error())
+						return e
+					} else {
+						slog.Debug("already logged in to target", "iqn", targets[index].Iqn, "portal", targets[index].Portals[portal])
+					}
+				}
+			}
+		} else {
+			if len(targets[index].Portals) > 0 {
+				slog.Debug("already logged into iscsi target iqn using interface", "iqn", targets[index].Iqn, "portal", targets[index].Portals[0])
+			} else {
+				slog.Debug("already logged into iscsi target iqn", "iqn", targets[index].Iqn)
+			}
+		}
+	}
+	sessionDetails = getSessionDetails()
+	slog.Debug("list sessions after any logins", "sessions", sessionDetails)
 	return nil
 }
