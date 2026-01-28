@@ -726,15 +726,14 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 				parentName = UNKNOWN
 			}
 
-			newSnapshot := &csi.Snapshot{
-				SnapshotId:     snapshot.Name,
-				SourceVolumeId: parentName,
-				SizeBytes:      snapshot.Size,
-				CreationTime:   timestampValue,
-				ReadyToUse:     true, // always true on the ibox according to Jason.
-			}
 			entry := csi.ListSnapshotsResponse_Entry{
-				Snapshot: newSnapshot,
+				Snapshot: &csi.Snapshot{
+					SnapshotId:     snapshot.Name,
+					SourceVolumeId: parentName,
+					SizeBytes:      snapshot.Size,
+					CreationTime:   timestampValue,
+					ReadyToUse:     true, // always true on the ibox according to Jason.
+				},
 			}
 
 			slog.Log(ctx, common.LevelTrace, "info", "source volume id", req.SourceVolumeId, "snapshot id", req.SnapshotId)

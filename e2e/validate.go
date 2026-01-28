@@ -13,8 +13,9 @@ import (
 
 func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	// validate ibox pool
-	poolToUse := os.Getenv(ENV_POOL)
-	if poolToUse == "" {
+
+	var poolToUse string
+	if poolToUse = os.Getenv(ENV_POOL); poolToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}
 
@@ -23,28 +24,26 @@ func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 		return fmt.Errorf("error getting pool by name %s %w", poolToUse, err)
 	}
 
-	tmp := os.Getenv(ENV_STRESS_ITERATIONS)
-	if tmp != "" {
+	if tmp := os.Getenv(ENV_STRESS_ITERATIONS); tmp != "" {
 		testConfig.StressIterations, err = strconv.Atoi(tmp)
 		if err != nil {
 			return fmt.Errorf("error parsing %s %s - error %s", ENV_STRESS_ITERATIONS, tmp, err.Error())
 		}
 	}
-	useNFSV4 := os.Getenv(ENV_USE_NFS_V4)
-	if useNFSV4 != "" {
+
+	if useNFSV4 := os.Getenv(ENV_USE_NFS_V4); useNFSV4 != "" {
 		testConfig.UseNFSV4, err = strconv.ParseBool(useNFSV4)
 		if err != nil {
 			return fmt.Errorf("%s env var is set but is not a valid boolean", ENV_USE_NFS_V4)
 		}
 	}
-	tmp = os.Getenv(ENV_STRESS_SLEEP_SECONDS)
-	if tmp != "" {
+
+	testConfig.StressSleepSeconds = 15
+	if tmp := os.Getenv(ENV_STRESS_SLEEP_SECONDS); tmp != "" {
 		testConfig.StressSleepSeconds, err = strconv.Atoi(tmp)
 		if err != nil {
 			return fmt.Errorf("error parsing %s %s - error %s", ENV_STRESS_SLEEP_SECONDS, tmp, err.Error())
 		}
-	} else {
-		testConfig.StressSleepSeconds = 15
 	}
 
 	// validate network space on the ibox
@@ -102,17 +101,20 @@ func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	}
 
 	// validate namespace on the kube
-	namespaceToUse := os.Getenv(ENV_NAMESPACE)
-	if namespaceToUse != "" {
+	var namespaceToUse string
+	if namespaceToUse = os.Getenv(ENV_NAMESPACE); namespaceToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Namespaces().Get(ctx, namespaceToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting namespace %s %w", namespaceToUse, err)
 		}
 	}
 
+	if namespaceToUse == "" {
+		return fmt.Errorf("error namespace to use is empty")
+	}
+
 	// validate ibox secret on the kube
-	iboxCredentialToUse := os.Getenv(ENV_IBOX_SECRET)
-	if iboxCredentialToUse != "" {
+	if iboxCredentialToUse := os.Getenv(ENV_IBOX_SECRET); iboxCredentialToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(ctx, iboxCredentialToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting secrets %s %w", namespaceToUse, err)
@@ -122,8 +124,7 @@ func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	}
 
 	// validate ibox secret2 on the kube if set
-	iboxCredential2ToUse := os.Getenv(ENV_IBOX_SECRET2)
-	if iboxCredential2ToUse != "" {
+	if iboxCredential2ToUse := os.Getenv(ENV_IBOX_SECRET2); iboxCredential2ToUse != "" {
 		_, err := testConfig.ClientSet.CoreV1().Secrets(namespaceToUse).Get(ctx, iboxCredential2ToUse, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("error getting secrets 2 %s %w", namespaceToUse, err)

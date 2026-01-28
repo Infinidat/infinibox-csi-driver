@@ -137,15 +137,12 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	hostSecurity := req.GetPublishContext()["securityMethod"]
-	useChap := req.GetVolumeContext()[common.StorageClassUseCHAP]
 	slog.Debug("publishing volume to host", "hostID", hostID)
 
-	initiatorName := getInitiatorName()
-	if initiatorName == "" {
-		e := fmt.Errorf("iscsi initiator name not found")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+	initiatorName, err := getInitiatorName()
+	if err != nil {
+		slog.Error(err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	if !strings.Contains(ports, initiatorName) {
 		slog.Debug("host port is not created, creating one")
@@ -156,7 +153,10 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 			return nil, status.Error(codes.Internal, e.Error())
 		}
 	}
+
+	useChap := req.GetVolumeContext()[common.StorageClassUseCHAP]
 	slog.Debug("setup chap", "auth", useChap)
+	hostSecurity := req.GetPublishContext()["securityMethod"]
 	if strings.ToLower(hostSecurity) != useChap || !strings.Contains(ports, initiatorName) {
 		secrets := req.GetSecrets()
 		chapCreds := make(map[string]string)
@@ -616,22 +616,28 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	return devicePath, nil
 }
 
-func getInitiatorName() string {
+func getInitiatorName() (string, error) {
 	cmd := "cat /etc/iscsi/initiatorname.iscsi | grep InitiatorName="
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
 		slog.Error("failed to get initiator name. Is iSCSI initiator installed", "error", err)
-		return ""
+		return "", err
 	}
 	initiatorName := string(out)
 	initiatorName = strings.TrimSuffix(initiatorName, "\n")
 	slog.Debug("info", "host initiator name", initiatorName)
 	arr := strings.Split(initiatorName, "=")
-	return arr[1]
+	if arr[1] == "" {
+		return "", errors.New("initiator name is empty")
+	}
+	return arr[1], nil
 }
 
 func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
-	initiatorName := getInitiatorName()
+	initiatorName, err := getInitiatorName()
+	if err != nil {
+		return nil, err
+	}
 
 	volName := strconv.Itoa(iscsi.CS.VolProto.VolumeID)
 	volContext := req.GetVolumeContext()
@@ -653,7 +659,6 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 		chapDiscovery = true
 	}
 	secret := req.GetSecrets()
-	var err error
 	if chapSession {
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
 		if err != nil {

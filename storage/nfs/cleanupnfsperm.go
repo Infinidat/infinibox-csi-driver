@@ -48,9 +48,6 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 		return
 	}
 
-	var exports []iboxapi.Export
-	var fileSystem *iboxapi.FileSystem
-
 	// get an ibox api connection using this secret
 	client := api.ClientService{
 		ConfigMap:  make(map[string]string),
@@ -63,14 +60,14 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 		return
 	}
 
-	fileSystem, err = clientService.IboxAPI.GetFileSystemByID(ctx, volumeID)
+	fileSystem, err := clientService.IboxAPI.GetFileSystemByID(ctx, volumeID)
 	if err != nil {
 		slog.Error("error GetFileSystemByID", "volumeid", volumeID, "error", err.Error())
 		return
 	}
 	slog.Debug("looked up fs name", "fsname", fileSystem.Name)
 
-	exports, err = clientService.IboxAPI.GetExportsByFileSystemID(ctx, volumeID)
+	exports, err := clientService.IboxAPI.GetExportsByFileSystemID(ctx, volumeID)
 	if err != nil {
 		slog.Error("error GetExportsByFileSystemID", "volumeid", volumeID, "error", err.Error())
 		return
@@ -133,7 +130,8 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 				}
 				slog.Debug("deleted export succeeded for fs", "export id", export.ID, "fs name", fileSystem.Name)
 			}
-		} else if len(export.Permissions) > 1 {
+		}
+		if numPermissions > 1 {
 			// in this case we seletively delete the ip address permission
 			// by updating the export with updated permissions list
 			if foundNodeIP {

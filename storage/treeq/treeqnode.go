@@ -57,8 +57,7 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	treeq.NFSstorage.SnapdirVisible = false
 	treeq.NFSstorage.UsePrivilegedPorts = false
 
-	snapDirVisible := req.GetVolumeContext()[common.StorageClassSnapDirVisible]
-	if snapDirVisible != "" {
+	if snapDirVisible := req.GetVolumeContext()[common.StorageClassSnapDirVisible]; snapDirVisible != "" {
 		treeq.NFSstorage.SnapdirVisible, err = strconv.ParseBool(snapDirVisible)
 		if err != nil {
 			e := fmt.Errorf("error parsing snapdir visible - error: %s", err.Error())
@@ -66,8 +65,8 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			return nil, e
 		}
 	}
-	privPorts := req.GetVolumeContext()[common.StorageClassPrivPorts]
-	if privPorts != "" {
+
+	if privPorts := req.GetVolumeContext()[common.StorageClassPrivPorts]; privPorts != "" {
 		treeq.NFSstorage.UsePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
 			e := fmt.Errorf("error parsing priv ports - error: %s", err.Error())
@@ -106,18 +105,18 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		slog.Debug("skipping updateExport because other exports exist")
 	}
 
-	_, err = os.Stat(hostTargetPath)
-	if os.IsNotExist(err) {
-		slog.Debug("targetPath does not exist, will create", "targetpath", targetPath)
-		if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-			e := fmt.Errorf("from mkdirAll - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, e
+	if _, err = os.Stat(hostTargetPath); err != nil {
+		if os.IsNotExist(err) {
+			slog.Debug("targetPath does not exist, will create", "targetpath", targetPath)
+			if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
+				e := fmt.Errorf("from mkdirAll - error: %s", err.Error())
+				slog.Error(e.Error())
+				return nil, e
+			}
+		} else {
+			slog.Error("os.Stat error on hostTargetPath", "hostTargetPath", hostTargetPath, "error", err.Error())
 		}
 	} else {
-		if err != nil {
-			slog.Error("host target path exists", "error", err.Error())
-		}
 		slog.Debug("targetPath already exists, will not do anything", "targetpath", targetPath)
 	}
 
