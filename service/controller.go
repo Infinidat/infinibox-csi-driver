@@ -140,7 +140,10 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
+	volumeIDString := createVolResp.Volume.VolumeId
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageProtocol
+
+	handlePVCAnnotationForMetadata(ctx, commonService, req.Parameters[common.PVCAnnotationVolumeMetadata], volumeIDString)
 
 	helper.EventAPIClient = commonService.API
 	helper.EventIboxAPIClient = commonService.IboxAPI
@@ -1334,5 +1337,33 @@ func handlePVCAnnotations(ctx context.Context, req *csi.CreateVolumeRequest) (se
 		slog.Debug("network_space is specified in the PVC, this will be used instead of the network_space in the StorageClass", "network space", pvcAnnotations[common.PVCAnnotationNetworkSpace])
 		req.Parameters[common.StorageClassNetworkSpace] = pvcAnnotations[common.PVCAnnotationNetworkSpace] // overwrite what was in the storageclass if any
 	}
+
+	volumeMetadataAnnotation := pvcAnnotations[common.PVCAnnotationVolumeMetadata]
+	if volumeMetadataAnnotation != "" {
+		slog.Debug("volume_metadata annotation is specified in the PVC", "volume_metadata", volumeMetadataAnnotation)
+		req.Parameters[common.PVCAnnotationVolumeMetadata] = volumeMetadataAnnotation
+	}
+
 	return secretsToUse, nil
+}
+
+func handlePVCAnnotationForMetadata(ctx context.Context, cs storagecommon.Commonservice, metadataValue string, volumeIDString string) {
+	if metadataValue == "" {
+		return
+	}
+	metadata := make(map[string]any)
+	metadata[common.PVCAnnotationVolumeMetadata] = metadataValue
+	volumeID, err := strconv.Atoi(volumeIDString)
+	if err != nil {
+		e := fmt.Errorf("create metadata for PVC annotation error converting volumeID to int %w", err)
+		slog.Error(e.Error())
+		return
+	}
+	_, err = cs.IboxAPI.PutMetadata(ctx, volumeID, metadata)
+	if err != nil {
+		e := fmt.Errorf("create metadata for PVC annotation response error %w", err)
+		slog.Error(e.Error())
+		return
+	}
+	slog.Debug("info", "created pvc annotation for metadata", metadataValue, "volume id", volumeIDString)
 }

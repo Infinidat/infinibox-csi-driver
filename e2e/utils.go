@@ -78,6 +78,7 @@ type PVCAnnotations struct {
 	IboxSecret       string
 	IboxNetworkSpace string
 	IboxPool         string
+	IboxMetadata     string
 }
 
 func GetKubeClient(testConfig *TestConfig, kubeConfigPath string) error {
@@ -324,6 +325,9 @@ func CreatePVC(ctx context.Context, config *TestConfig) (err error) {
 		}
 		if config.PVCAnnotations.IboxPool != "" {
 			pvc.Annotations[common.PVCAnnotationPoolName] = config.PVCAnnotations.IboxPool
+		}
+		if config.PVCAnnotations.IboxMetadata != "" {
+			pvc.Annotations[common.PVCAnnotationVolumeMetadata] = config.PVCAnnotations.IboxMetadata
 		}
 	}
 	if config.UseBlock {

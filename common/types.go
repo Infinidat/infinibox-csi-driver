@@ -77,9 +77,10 @@ const LockedState = "LOCKED"
 
 // PVC annotations
 const (
-	PVCAnnotationPoolName     = "infinidat.com/pool_name"
-	PVCAnnotationNetworkSpace = "infinidat.com/network_space"
-	PVCAnnotationIBOXSecret   = "infinidat.com/ibox_secret"
+	PVCAnnotationPoolName       = "infinidat.com/pool_name"
+	PVCAnnotationNetworkSpace   = "infinidat.com/network_space"
+	PVCAnnotationIBOXSecret     = "infinidat.com/ibox_secret"
+	PVCAnnotationVolumeMetadata = "infinidat.com/volume_metadata"
 )
 
 const BytesInOneGibibyte = 1073741824
