@@ -151,6 +151,14 @@ func (kc *KubeClient) GetAllStorageClasses(ctx context.Context) (*storagev1.Stor
 
 	return storageclasses, nil
 }
+func (kc *KubeClient) GetStorageClasse(ctx context.Context, scName string) (*storagev1.StorageClass, error) {
+	storageclass, err := kc.KubeClientInterface.StorageV1().StorageClasses().Get(ctx, scName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return storageclass, nil
+}
 
 func (kc *KubeClient) GetNodes(ctx context.Context) (nodes []v1.Node, err error) {
 	nodeList, err := kc.KubeClientInterface.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
@@ -279,4 +287,20 @@ func (kc *KubeClient) ExecCmdInPod(ctx context.Context, podName, nameSpace, comm
 		})
 
 	return stdOut.String(), stdErr.String(), err
+}
+
+func (kc *KubeClient) CreatePersistantVolume(ctx context.Context, newPV *v1.PersistentVolume) (*v1.PersistentVolume, error) {
+	pv, err := kc.KubeClientInterface.CoreV1().PersistentVolumes().Create(ctx, newPV, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return pv, nil
+}
+
+func (kc *KubeClient) CreatePersistantVolumeClaim(ctx context.Context, newPVC *v1.PersistentVolumeClaim) (*v1.PersistentVolumeClaim, error) {
+	pvc, err := kc.KubeClientInterface.CoreV1().PersistentVolumeClaims(newPVC.Namespace).Create(ctx, newPVC, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return pvc, nil
 }

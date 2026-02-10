@@ -1,0 +1,13 @@
+this is an example of an iboxreplica that will create a PVC for the remote replica using nvme protocol and ASYNC replication.
+
+To test this you would:
+
+ * make setup
+ * verify that the iboxreplica, pvc, pv was created on the kube cluster
+ * manually remove the iboxreplica, that should remove the replication
+ * make setup-pod
+ * verify that the pod starts and mounts the remote pvc that was created
+
+
+In this example, a storage class is created for the remote PVC that is going 
+to be created by the iboxreplica.

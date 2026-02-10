@@ -4,22 +4,20 @@ metadata:
   annotations:
     infinidat.com/secret_name: infinibox-creds
     infinidat.com/secret_namespace: infinidat-csi
-  name: iboxreplica-sync-volume
+  name: iboxreplica-remote-pvc-nvme
 spec:
-  description: "sync-volume-iboxreplica-test"  # user defined description
+  description: "async-nvme-volume-iboxreplica-test"  # user defined description
   entity_type: "VOLUME"                         # valid values are VOLUME, CONSISTENCY_GROUP, FILESYSTEM
   local_entity_name: $_E2E_IBOXREPLICA_VOLUME   # the volume name of the volume to be replicated
   remote_entity_name: $_E2E_IBOXREPLICA_VOLUME   # the remote (target) volume name of the volume to be replicated
-  replication_type: "SYNC"                     # valid values can be SYNC, ASYNC or ACTIVE_ACTIVE
+  replication_type: "ASYNC"                     # valid values can be SYNC, ASYNC or ACTIVE_ACTIVE
   base_action: "NEW"                            # value value is NEW
   link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME # the replication link name on the ibox
   remote_pool_id: $_E2E_IBOXREPLICA_REMOTE_POOL_ID # the pool ID on the remote ibox
-  remote_ibox_credential_name: box-ht21-infinibox-creds
-  remote_ibox_credential_namespace: infinidat-csi
+  remote_ibox_credential_name: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAME
+  remote_ibox_credential_namespace: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE
   remote_create_pvc: true
-  remote_pvc_name: some-remote-pvc
+  remote_pvc_name_suffix: "-box-ht23"
   remote_pvc_namespace: infinidat-csi
-  remote_pvc_storage_class_name: some-remote-storage-class
-
-
-
+  remote_pool_name: csitesting2
+  remote_network_space: NVME

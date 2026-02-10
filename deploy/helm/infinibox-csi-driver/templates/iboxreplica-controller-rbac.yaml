@@ -5,6 +5,18 @@ metadata:
   name: {{ .Release.Name }}-iboxreplica-controller
 rules:
 - apiGroups:
+  - ''
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - csidriver.infinidat.com
   resources:
   - iboxreplicas

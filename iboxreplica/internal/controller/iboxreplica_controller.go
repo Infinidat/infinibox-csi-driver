@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -100,6 +101,21 @@ func (r *IboxreplicaReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		err = r.createReplica(ctx, replica)
 		if err != nil {
 			return ctrl.Result{}, err
+		}
+		if replica.Spec.RemoteCreatePVC == nil {
+			logger.Info("remote_create_pvc was nil", "replica name", req.Name, "namespace", req.Namespace, "replica ID", replica.Status.ID)
+		}
+		if replica.Spec.RemoteCreatePVC != nil {
+			logger.Info("remote_create_pvc was not nil", "replica name", req.Name, "namespace", req.Namespace, "replica ID", replica.Status.ID, "remote_create_pvc", replica.Spec.RemoteCreatePVC)
+			if *replica.Spec.RemoteCreatePVC {
+				// TODO replace this sleep (giving replication time to start) with a proper check
+				time.Sleep(time.Second * 3)
+				logger.Info("remote_create_pvc was true", "replica name", req.Name, "namespace", req.Namespace, "replica ID", replica.Status.ID, "remote_create_pvc", replica.Spec.RemoteCreatePVC)
+				err = r.createPVC(ctx, replica)
+				if err != nil {
+					logger.Error(err, "failed to create PVC")
+				}
+			}
 		}
 		return ctrl.Result{}, nil
 	}

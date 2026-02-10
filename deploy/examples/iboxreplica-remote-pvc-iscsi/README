@@ -1,0 +1,10 @@
+this is an example of an iboxreplica that will create a PVC for the remote replica.
+
+To test this you would:
+
+ * make setup
+ * verify that the iboxreplica, pvc, pv was created on the kube cluster
+ * manually remove the iboxreplica, that should remove the replication
+ * the next step will NOT work if the replication is still enabled!
+ * make setup-pod
+ * verify that the pod starts and mounts the remote pvc that was created

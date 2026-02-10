@@ -1,0 +1,14 @@
+this is an example of an iboxreplica that will create a PVC for the remote replica using iscsi protocol and ASYNC replication and for a CG.  Each member of
+the CG will get a remote PVC created with a unique pvc name based
+on the iboxreplica remote_pvc_name appended with the CG member name. 
+
+To test this you would:
+
+ * make setup
+ * verify that the iboxreplica, pvc, pv was created on the kube cluster
+ * manually remove the iboxreplica, that should remove the replication
+ * manually look up a remote PVC that was created, get its name, it will
+   be something like "iscsi-pvc-anno-box-ht23"
+ * modify pod.yaml to create the pod using the remote PVC name from above
+ * make setup-pod
+ * verify that the pod starts and mounts the remote pvc that was created

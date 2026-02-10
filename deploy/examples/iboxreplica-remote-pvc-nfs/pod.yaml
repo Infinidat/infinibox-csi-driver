@@ -1,0 +1,19 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: iboxreplica-remote-pvc-nfs
+  namespace: $_E2E_NAMESPACE
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: nfs-pvc-box-ht23

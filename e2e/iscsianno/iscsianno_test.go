@@ -14,7 +14,7 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/e2e"
 )
 
-func XTestIscsiMultipleNetworkSpace(t *testing.T) {
+func TestIscsiMultipleNetworkSpace(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -67,7 +67,7 @@ func XTestIscsiMultipleNetworkSpace(t *testing.T) {
 
 }
 
-func XTestIscsiNetworkSpace(t *testing.T) {
+func TestIscsiNetworkSpace(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -109,7 +109,7 @@ func XTestIscsiNetworkSpace(t *testing.T) {
 	}
 
 }
-func XTestIscsiPool(t *testing.T) {
+func TestIscsiPool(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -146,7 +146,7 @@ func XTestIscsiPool(t *testing.T) {
 	}
 
 }
-func XTestIscsiSecret(t *testing.T) {
+func TestIscsiSecret(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
