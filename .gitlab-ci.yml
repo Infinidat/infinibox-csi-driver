@@ -83,6 +83,7 @@ go-build:
       - infinibox-csi-driver
       - iboxreplica/bin/iboxreplica-controller
       - iboxpromote/bin/iboxpromote-controller
+      - iboxcg/bin/iboxcg-controller
     expire_in: 1 day
 
 go-metrics-build:

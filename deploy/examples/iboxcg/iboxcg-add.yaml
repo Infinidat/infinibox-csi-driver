@@ -1,0 +1,12 @@
+apiVersion: csidriver.infinidat.com/v1
+kind: Iboxcg
+metadata:
+  annotations:
+    infinidat.com/secret_name: infinibox-creds
+    infinidat.com/secret_namespace: infinidat-csi
+  name: iboxcg-add-test
+spec:
+  description: "test add member to cg"  # user defined description
+  local_cg_name: "non-replica-cg"
+  local_volume_name: csi-test-77b8c1f81a
+  base_action: "ADD"                    # valid values: ADD, REMOVE

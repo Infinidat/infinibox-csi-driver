@@ -21,6 +21,8 @@ if [[ "$IBOXREPLICA_CONTROLLER" == "true" ]]; then
 	exec "/iboxreplica-controller"
 elif [[ "$IBOXPROMOTE_CONTROLLER" == "true" ]]; then
 	exec "/iboxpromote-controller"
+elif [[ "$IBOXCG_CONTROLLER" == "true" ]]; then
+	exec "/iboxcg-controller"
 else 
 	exec "/infinibox-csi-driver"
 fi

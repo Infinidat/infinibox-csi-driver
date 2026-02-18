@@ -126,6 +126,8 @@ type Client interface {
 	GetConsistencyGroupByName(ctx context.Context, name string) (*ConsistencyGroupInfo, error)
 	CreateSnapshotGroup(ctx context.Context, req CreateSnapshotGroupRequest) (*ConsistencyGroupInfo, error)
 	GetMembersByCGID(ctx context.Context, cgID int) ([]MemberInfo, error)
+	AddMemberToCG(ctx context.Context, volumeID, cgID int, volumeName string) error
+	RemoveMemberFromCG(ctx context.Context, cgID int, memberID int) error
 	AddMemberToSnapshotGroup(ctx context.Context, volumeID, cgID int) error
 	CreateConsistencyGroup(ctx context.Context, req CreateConsistencyGroupRequest) (*ConsistencyGroupInfo, error)
 
@@ -166,6 +168,7 @@ type Client interface {
 	GetReplicas(ctx context.Context) ([]Replica, error)
 	DeleteReplica(ctx context.Context, id int) error
 	GetReplica(ctx context.Context, id int) (*Replica, error)
+	GetReplicaForCG(ctx context.Context, cg string) (*Replica, error)
 
 	// system
 	GetSystem(ctx context.Context) (*SystemDetails, error)

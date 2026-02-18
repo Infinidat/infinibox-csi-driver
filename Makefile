@@ -66,6 +66,7 @@ build:  ## Build source.
 	$(_GOBUILD) -o $(_BINARY_NAME) -v
 	make -f iboxreplica/Makefile
 	make -f iboxpromote/Makefile
+	make -f iboxcg/Makefile
 	@echo -e $(_finish)
 
 .PHONY: build-e2e

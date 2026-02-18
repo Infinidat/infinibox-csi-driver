@@ -32,8 +32,9 @@ COPY setenv.sh /setenv.sh
 RUN chmod +x /setenv.sh
 COPY iboxreplica/bin/iboxreplica-controller /iboxreplica-controller
 COPY iboxpromote/bin/iboxpromote-controller /iboxpromote-controller
+COPY iboxcg/bin/iboxcg-controller /iboxcg-controller
 COPY infinibox-csi-driver /infinibox-csi-driver
-RUN chmod +x /infinibox-csi-driver /iboxreplica-controller /iboxpromote-controller
+RUN chmod +x /infinibox-csi-driver /iboxreplica-controller /iboxpromote-controller /iboxcg-controller
 
 RUN yum -y install file lsof hostname && \
 	yum -y update && \

@@ -359,6 +359,16 @@ func (m *MockAPIService) GetMembersByCGID(ctx context.Context, cgID int) ([]Memb
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+func (m *MockAPIService) AddMemberToCG(ctx context.Context, volumeID, cgID int, volumeName string) error {
+	args := m.Called(ctx, volumeID, cgID, volumeName)
+	err, _ := args.Get(0).(error)
+	return err
+}
+func (m *MockAPIService) RemoveMemberFromCG(ctx context.Context, cgID int, volumeID int) error {
+	args := m.Called(ctx, cgID, volumeID)
+	err, _ := args.Get(0).(error)
+	return err
+}
 func (m *MockAPIService) AddMemberToSnapshotGroup(ctx context.Context, volumeID, cgID int) error {
 	args := m.Called(ctx, volumeID, cgID)
 	err, _ := args.Get(0).(error)
@@ -391,6 +401,12 @@ func (m *MockAPIService) GetReplicas(ctx context.Context) ([]Replica, error) {
 	err, _ := args.Get(1).(error)
 	return resp, err
 }
+func (m *MockAPIService) GetReplicaForCG(ctx context.Context, cgName string) (*Replica, error) {
+	args := m.Called(ctx, cgName)
+	resp, _ := args.Get(0).(Replica)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
 
 func (m *MockAPIService) DeleteReplica(ctx context.Context, replicaID int) error {
 	args := m.Called(ctx, replicaID)
@@ -416,4 +432,15 @@ func (m *MockAPIService) CreateFileSystemSnapshot(ctx context.Context, params Fi
 	resp, _ := args.Get(0).(FileSystemSnapshotResponse)
 	err, _ := args.Get(1).(error)
 	return &resp, err
+}
+
+func (m *MockAPIService) SuspendReplica(ctx context.Context, replicaID int) error {
+	args := m.Called(ctx, replicaID)
+	err, _ := args.Get(0).(error)
+	return err
+}
+func (m *MockAPIService) ResumeReplica(ctx context.Context, replicaID int) error {
+	args := m.Called(ctx, replicaID)
+	err, _ := args.Get(0).(error)
+	return err
 }

@@ -24,6 +24,17 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/common"
 )
 
+type ResumeReplicaResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   Volume   `json:"result"`
+	Error    Error    `json:"error"`
+}
+type SuspendReplicaResponse struct {
+	Metadata Metadata `json:"metadata"`
+	Result   Volume   `json:"result"`
+	Error    Error    `json:"error"`
+}
+
 type Replica struct {
 	ID                             int    `json:"id"`
 	Version                        int    `json:"_version"`
@@ -371,4 +382,84 @@ func (client *IboxClient) GetReplica(ctx context.Context, replicaID int) (*Repli
 		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
 	}
 	return &response.Result, nil
+}
+
+func (client *IboxClient) ResumeReplica(ctx context.Context, replicaID int) error {
+	url := fmt.Sprintf("%s%s/%d/%s", client.Creds.URL, "api/rest/replicas", replicaID, "resume")
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "replicaID", replicaID)
+
+	parameters := make(map[string]string)
+	parameters[PARAMETER_APPROVED] = PARAMETER_VALUE_TRUE
+
+	body, err := commonPostLogic(ctx, url, client, parameters, "")
+	if err != nil {
+		return common.Errorf("commonPostLogic - error: %w url: %s", err, url)
+	}
+
+	var responseObject ResumeReplicaResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+	if responseObject.Error.Code != "" {
+		return common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
+	}
+	slog.Log(ctx, common.LevelTrace, "info", "Export ID", responseObject.Result.ID)
+	return nil
+}
+
+func (client *IboxClient) SuspendReplica(ctx context.Context, replicaID int) error {
+	url := fmt.Sprintf("%s%s/%d/%s", client.Creds.URL, "api/rest/replicas", replicaID, "suspend")
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "replicaID", replicaID)
+
+	parameters := make(map[string]string)
+	parameters[PARAMETER_APPROVED] = PARAMETER_VALUE_TRUE
+
+	body, err := commonPostLogic(ctx, url, client, parameters, "")
+	if err != nil {
+		return common.Errorf("commonPostLogic - error: %w url: %s", err, url)
+	}
+
+	var responseObject SuspendReplicaResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+	if responseObject.Error.Code != "" {
+		return common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
+	}
+	slog.Log(ctx, common.LevelTrace, "info", "Export ID", responseObject.Result.ID)
+	return nil
+}
+
+func (client *IboxClient) GetReplicaForCG(ctx context.Context, cgName string) (replica *Replica, err error) {
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/replicas")
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
+
+	parameters := make(map[string]string)
+	parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(common.IBOXDefaultQueryPageSize)
+	parameters[PARAMETER_PAGE] = strconv.Itoa(1)
+	parameters["local_cg_name"] = cgName
+
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
+	if err != nil {
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
+	}
+	var response GetReplicasResponse
+	err = json.Unmarshal(bodyBytes, &response)
+	if err != nil {
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+
+	if response.Error.Code != "" {
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+	}
+
+	if len(response.Result) == 0 {
+		return nil, ErrNotFound
+	}
+	replica = &response.Result[0]
+
+	return replica, nil
+
 }

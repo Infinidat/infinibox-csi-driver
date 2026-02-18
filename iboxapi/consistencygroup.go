@@ -133,6 +133,28 @@ type AddMemberToSnapshotGroupResponse struct {
 	Result   ConsistencyGroupInfo `json:"result"`
 	Error    Error                `json:"error"`
 }
+type RemoveMemberFromCGResponse struct {
+	Metadata Metadata             `json:"metadata"`
+	Result   ConsistencyGroupInfo `json:"result"`
+	Error    Error                `json:"error"`
+}
+
+type ActiveActiveInfo struct {
+	BaseAction       string `json:"base_action"`
+	RemoteEntityName string `json:"remote_entity_name"`
+}
+
+type AddMemberToCGRequest struct {
+	DatasetID            int              `json:"dataset_id"`
+	AAInfo               ActiveActiveInfo `json:"active_active_info"`
+	ReplicationPairInfo  string           `json:"replication_pair_info,omitempty"`
+	ReplicationPairsInfo string           `json:"replication_pairs_info,omitempty"`
+}
+type AddMemberToCGResponse struct {
+	Metadata Metadata             `json:"metadata"`
+	Result   ConsistencyGroupInfo `json:"result"`
+	Error    Error                `json:"error"`
+}
 
 type CreateConsistencyGroupRequest struct {
 	Name   string `json:"name"`
@@ -360,4 +382,80 @@ func (client *IboxClient) GetConsistencyGroup(ctx context.Context, cgID int) (cg
 		return nil, common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
 	}
 	return &responseObject.Result, nil
+}
+
+func (client *IboxClient) AddMemberToCG(ctx context.Context, volumeID, cgID int, volumeName string) error {
+	url := fmt.Sprintf("%s%s/%s/members", client.Creds.URL, "api/rest/cgs", strconv.Itoa(cgID))
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "volume ID", volumeID, "cg ID", cgID)
+
+	aa := ActiveActiveInfo{
+		BaseAction:       "NEW",
+		RemoteEntityName: volumeName,
+	}
+	req := AddMemberToCGRequest{
+		DatasetID: volumeID,
+		AAInfo:    aa,
+	}
+
+	parameters := make(map[string]string)
+	parameters[PARAMETER_APPROVED] = PARAMETER_VALUE_TRUE
+
+	body, err := commonPostLogic(ctx, url, client, parameters, req)
+	if err != nil {
+		return common.Errorf("commonPostLogic - error: %w url: %s", err, url)
+	}
+
+	var responseObject AddMemberToCGResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+	if responseObject.Error.Code != "" {
+		return common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
+	}
+	slog.Log(ctx, common.LevelTrace, "info", "response", responseObject.Result)
+	return nil
+}
+
+func (client *IboxClient) RemoveMemberFromCG(ctx context.Context, cgID, memberID int) (err error) {
+	url := fmt.Sprintf("%sapi/rest/cgs/%d/members/%d", client.Creds.URL, cgID, memberID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "cg ID", cgID, "member ID", memberID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return common.Errorf("newRequest - error: %w url: %s", err, url)
+	}
+
+	values := req.URL.Query()
+	values.Add(PARAMETER_APPROVED, PARAMETER_VALUE_TRUE)
+	req.URL.RawQuery = values.Encode()
+
+	SetAuthHeader(req, client.Creds)
+
+	resp, err := client.HTTPClient.Do(req)
+	if err != nil {
+		return common.Errorf("do - error: %w url: %s", err, url)
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("error in Close()", "error", err.Error())
+		}
+	}()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return common.Errorf("readAll -error: %w url: %s", err, url)
+	}
+	var response RemoveMemberFromCGResponse
+	err = json.Unmarshal(bodyBytes, &response)
+	if err != nil {
+		return common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+	if response.Error.Code != "" {
+		if response.Error.Code == "CG_DATASET_NOT_FOUND" {
+			return common.Errorf("errorCode: %s - error: %w url: %s", response.Error.Code, ErrNotFound, url)
+		}
+
+		return common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+	}
+	return nil
 }

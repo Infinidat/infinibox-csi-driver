@@ -1,0 +1,9 @@
+## iboxpromote example
+
+edit and create these to test iboxpromote controller logic
+
+The iboxreplica fields are as follows:
+- description: this field can be a user defined description
+- entity_type: this field can be "SNAPSHOT" or "KUBE_SNAPSHOT"
+- entity_name: this field is the name of an ibox snapshot when 'entity_type' is set to SNAPSHOT, or a Kube VolumeSnapshot name when 'entity_type' is set to KUBE_SNAPSHOT
+- base_action: set to "NEW"

@@ -115,6 +115,37 @@ spec:
           volumeMounts:
             - name: driver-path
               mountPath: /var/run/csi
+        - name: iboxcg
+          ports:
+            - containerPort: 8090
+              name: healthz7
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz7
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 2
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true  
+          image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
+          env:
+            - name: IBOXCG_CONTROLLER
+              value: "true"
+            - name: APP_LOG_LEVEL
+              value: {{ .Values.logLevel }}
+            - name: APP_LOG_FORMAT
+              value: {{ .Values.logFormat }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
         - name: iboxpromote
           ports:
             - containerPort: 8088
