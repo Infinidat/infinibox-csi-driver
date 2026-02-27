@@ -15,6 +15,7 @@ func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	// validate ibox pool
 
 	var poolToUse string
+	fmt.Printf("pool found is [%s]\n", os.Getenv(ENV_POOL))
 	if poolToUse = os.Getenv(ENV_POOL); poolToUse == "" {
 		return fmt.Errorf("%s env var is not set and is required", ENV_POOL)
 	}

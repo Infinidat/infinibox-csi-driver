@@ -1,0 +1,5 @@
+the remote pod tries to mount the remotely replicated filesystem, this will fail until you remove the replica (kubectl delete iboxreplica...)
+
+You will also have to 'enable' the nfs export on the remote ibox before it can be mounted.  
+
+Replicated filesystems can't be mounted until replication is removed and the esxport is enabled.

@@ -145,6 +145,14 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	handlePVCAnnotationForMetadata(ctx, commonService, req.Parameters[common.PVCAnnotationVolumeMetadata], volumeIDString)
 
+	err = handleSCReplica(ctx, commonService, volName, storageProtocol, req.Parameters)
+	if err != nil {
+		// default for now is to leave with an error if the replica logic fails
+		// this will leave the PVC in pending state
+		slog.Error(err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	helper.EventAPIClient = commonService.API
 	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventCreatedVolumes++

@@ -387,6 +387,7 @@ func (client *IboxClient) GetConsistencyGroup(ctx context.Context, cgID int) (cg
 func (client *IboxClient) AddMemberToCG(ctx context.Context, volumeID, cgID int, volumeName string) error {
 	url := fmt.Sprintf("%s%s/%s/members", client.Creds.URL, "api/rest/cgs", strconv.Itoa(cgID))
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "volume ID", volumeID, "cg ID", cgID)
+	slog.Debug("AddMemberToCG", "volumeName", volumeName)
 
 	aa := ActiveActiveInfo{
 		BaseAction:       "NEW",

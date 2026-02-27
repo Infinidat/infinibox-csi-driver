@@ -47,6 +47,22 @@ spec:
                 type: string
               local_volume_name:
                 type: string
+              remote_create_pvc:
+                type: boolean
+              remote_ibox_credential_name:
+                type: string
+              remote_ibox_credential_namespace:
+                type: string
+              remote_network_space:
+                type: string
+              remote_pool_name:
+                type: string
+              remote_pvc_name:
+                type: string
+              remote_pvc_name_suffix:
+                type: string
+              remote_pvc_namespace:
+                type: string
             type: object
           status:
             description: IboxcgStatus defines the observed state of Iboxcg

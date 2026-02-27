@@ -1,0 +1,54 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sc-replica-cg-remote-pvc
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+
+  # Infinibox configuration
+  network_space: $_E2E_ISCSI_NETWORK_SPACE
+  pool_name: $_E2E_POOL
+  storage_protocol: "iscsi"
+  useCHAP: "none" # none / chap / mutual_chap
+
+  # replica parameters
+  replication_type: "ACTIVE_ACTIVE"
+  link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME 
+  remote_pool_id: "$_E2E_IBOXREPLICA_REMOTE_POOL_ID"
+  cg_name: $_E2E_IBOXREPLICA_CG   # the cg name to add to
+  local_ibox_credential_name: $_E2E_IBOX_SECRET
+  local_ibox_credential_namespace: $_E2E_NAMESPACE   
+
+  # these params are for creating pvcs for replica volumes
+  remote_ibox_credential_name: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAME
+  remote_ibox_credential_namespace: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE
+  remote_create_pvc: "true"
+  remote_pvc_name_suffix: $_E2E_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX
+  remote_pvc_namespace: infinidat-csi
+  remote_network_space: default_iscsi_space
+  remote_pool_name: csitesting
+
+  # optional parameters
+  #round_up_requested_size: "true"
+  #max_vols_per_host: "100"
+  #provision_type: "THIN"
+  ssd_enabled: "true"
+  uid: "3000" # UID of volume
+  gid: "3000" # GID of volume
+  #unix_permissions: "777" # optional volume mount permissions

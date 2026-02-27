@@ -386,6 +386,23 @@ func (r *IboxcgReconciler) handleAddMember(ctx context.Context, cr *csidriverinf
 			logger.Error(err, "error resuming replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
 		}
 	}
+
+	if cr.Spec.RemoteCreatePVC == nil {
+		logger.Info("remote_create_pvc was nil, skipping", "iboxcg name", cr.Name, "namespace", cr.Namespace, "volume name", cr.Spec.LocalVolumeName)
+		return nil
+	}
+	if cr.Spec.RemoteCreatePVC != nil {
+		logger.Info("remote_create_pvc was not nil", "iboxcg name", cr.Name, "namespace", cr.Namespace, "volume name", cr.Spec.LocalVolumeName, "remote_create_pvc", *cr.Spec.RemoteCreatePVC)
+		if *cr.Spec.RemoteCreatePVC {
+			// TODO replace this sleep (giving replication time to start) with a proper check
+			time.Sleep(time.Second * 3)
+			logger.Info("remote_create_pvc was true", "iboxcg name", cr.Name, "namespace", cr.Namespace, "volume name", cr.Spec.LocalVolumeName)
+			err = r.createPVC(ctx, cr)
+			if err != nil {
+				logger.Error(err, "failed to create PVC")
+			}
+		}
+	}
 	return nil
 }
 
