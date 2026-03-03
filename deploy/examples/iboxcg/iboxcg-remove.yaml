@@ -8,5 +8,5 @@ metadata:
 spec:
   description: "test remove member to cg"  # user defined description
   local_cg_name: "non-replica-cg"
-  local_volume_name: csi-test-77b8c1f81a
+  local_volume_name: csi-test-03bd9a9b67
   base_action: "REMOVE"                    # valid values: ADD, REMOVE
