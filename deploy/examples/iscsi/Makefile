@@ -11,6 +11,11 @@ setup:  devEnv teardown
 	envsubst < ./pvc.yaml | $(_CLIN) create -f -
 	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
+.PHONY: setuppod
+setuppod:  devEnv
+	@echo -e $(_begin)
+	envsubst < ./pod.yaml | $(_CLIN) create -f -
+	@echo -e $(_finish)
 
 .PHONY: teardown
 teardown:  devEnv

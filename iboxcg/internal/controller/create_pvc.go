@@ -58,7 +58,7 @@ func (r *IboxcgReconciler) createPVC(ctx context.Context, iboxcg *csidriverinfin
 
 	logger.Info("creating PVC for iboxcg", "entity look up worked", localEntityID)
 
-	remoteEntity, err := getRemoteEntities(ctx, clientsvc, remoteClientsvc, iboxcg)
+	remoteEntity, err := getRemoteEntities(ctx, remoteClientsvc, iboxcg)
 	if err != nil {
 		logger.Error(err, "error getting remote entity IDs")
 		return err
@@ -276,7 +276,7 @@ func createRemotePVC(ctx context.Context, remotePV *v1.PersistentVolume, iboxcg 
 	return nil
 }
 
-func getRemoteEntities(ctx context.Context, localClientsvc, remoteClientsvc *api.ClientService, iboxcg *csidriverinfinidatcomv1.Iboxcg) (*EntityPair, error) {
+func getRemoteEntities(ctx context.Context, remoteClientsvc *api.ClientService, iboxcg *csidriverinfinidatcomv1.Iboxcg) (*EntityPair, error) {
 	localPV, err := getLocalPV(ctx, iboxcg.Spec.LocalVolumeName)
 	if err != nil {
 		logger.Error(err, "error getting local PV")

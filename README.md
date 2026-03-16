@@ -7,6 +7,7 @@
 ## Supported container environments
   - Kubernetes 1.26 - 1.34
   - Red Hat OpenShift 4.18 - 4.21
+  - Red Hat Linux 9.6 - 9.7
 
 ## Platform requirements
   - Latest Linux multipath software package for your operating system

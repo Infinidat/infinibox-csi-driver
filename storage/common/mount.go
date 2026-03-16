@@ -79,6 +79,11 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 			return status.Error(codes.Internal, e.Error())
 		}
 
+		if err := CreateConfigFile(config, stagePath); err != nil {
+			slog.Error(function, "failed to save config with error:", err)
+			return err
+		}
+
 		slog.Debug(function, "creating file:", chrootPath)
 		_, err = os.Create(chrootPath)
 		if err != nil {
@@ -92,10 +97,6 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 		if err := mounter.Mount(devicePath, targetPath, "", options); err != nil {
 			e := common.Errorf("%s: failed to mount fc volume %s to %s, error %v", function, devicePath, targetPath, err)
 			return e
-		}
-		if err := CreateConfigFile(config, stagePath); err != nil {
-			slog.Error(function, "failed to save config with error:", err)
-			return err
 		}
 		slog.Debug("volume mounted successfully")
 		return nil

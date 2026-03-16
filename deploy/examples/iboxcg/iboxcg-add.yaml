@@ -7,6 +7,6 @@ metadata:
   name: iboxcg-add-test
 spec:
   description: "test add member to cg"  # user defined description
-  local_cg_name: "non-replica-cg"
-  local_volume_name: csi-test-03bd9a9b67
+  local_cg_name: $_E2E_IBOXREPLICA_CG
+  local_volume_name: csidev-rhel97-598a91642d
   base_action: "ADD"                    # valid values: ADD, REMOVE
