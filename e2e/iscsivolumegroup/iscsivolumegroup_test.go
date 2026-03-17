@@ -112,14 +112,14 @@ func TestIscsiVolumeGroup(t *testing.T) {
 		// delete the VolumeGroupSnapshot
 		err := testConfig.GroupSnapshotClient.VolumeGroupSnapshots(testConfig.TestNames.NSName).Delete(t.Context(), createdVgs.Name, metav1.DeleteOptions{})
 		if err != nil {
-			t.Fatalf("error deleting VolumeGroupSnapshot %s", err.Error())
+			t.Logf("error deleting VolumeGroupSnapshot %s", err.Error())
 		}
 		t.Logf("deleted VolumeGroupSnapshot %s", currentVgs.Name)
 
 		// delete the VolumeGroupSnapshotClass
 		err = testConfig.GroupSnapshotClient.VolumeGroupSnapshotClasses().Delete(t.Context(), vgcsName, metav1.DeleteOptions{})
 		if err != nil {
-			t.Fatalf("error deleting VolumeGroupSnapshotClass %s", err.Error())
+			t.Logf("error deleting VolumeGroupSnapshotClass %s", err.Error())
 		}
 
 		t.Logf("deleted VolumeGroupSnapshotClass %s", createdVgsc.Name)

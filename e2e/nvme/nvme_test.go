@@ -270,6 +270,12 @@ func TestNvmeROX(t *testing.T) {
 		t.Fatalf("error deleting StorageClass %s\n", err.Error())
 	}
 
+	if *e2e.CleanUp {
+		e2e.TearDown(t.Context(), testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
+
 }
 
 func TestNvmeRO(t *testing.T) {

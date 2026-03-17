@@ -290,6 +290,11 @@ func TestIscsiROX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error deleting StorageClass %s\n", err.Error())
 	}
+	if *e2e.CleanUp {
+		e2e.TearDown(t.Context(), testConfig)
+	} else {
+		t.Log("not cleaning up namespace")
+	}
 	err = e2e.CleanISCI(t.Context(), *testConfig)
 	if err != nil {
 		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
