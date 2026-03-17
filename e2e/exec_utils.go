@@ -3,12 +3,17 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
+	"log/slog"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	sc "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -430,4 +435,149 @@ func CleanISCI(ctx context.Context, testConfig TestConfig) error {
 		}
 	}
 	return nil
+}
+
+func FindDevicesForMpath(ctx context.Context, testConfig *TestConfig, mpath string) (devices []string, err error) {
+	// find the csi driver node pod
+	namespace := os.Getenv("_E2E_NAMESPACE")
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
+	labelSelector := "app=infinidat-csi-driver-node"
+	listOptions := metav1.ListOptions{
+		FieldSelector: fieldSelector,
+		LabelSelector: labelSelector,
+	}
+
+	csiPods, err := testConfig.ClientSet.CoreV1().Pods(namespace).List(ctx, listOptions)
+	if err != nil {
+		return devices, fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
+	}
+	if len(csiPods.Items) != 1 {
+		return devices, fmt.Errorf("too many driver node pods found %d", len(csiPods.Items))
+	}
+
+	nodePod := csiPods.Items[0]
+
+	command := fmt.Sprintf("multipathd show multipath %s json", mpath)
+	fmt.Printf("executing command %s\n", command)
+
+	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
+	stdOut, stdErr, err := execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, nodePod.Name, namespace, command, "driver")
+	if err != nil {
+		fmt.Printf("error looking up devices for mpath on pod %s on node %s -  %s command stdErr %s stdOut %s\n", nodePod.Name, testConfig.NodeName, command, stdErr, stdOut)
+		return devices, err
+	}
+
+	var mpathOutput sc.ShowMultipathOutput
+	err = json.Unmarshal([]byte(stdOut), &mpathOutput)
+	if err != nil {
+		e := fmt.Errorf("error unmarshalling output: %s, error: %s", stdOut, err)
+		slog.Error(e.Error())
+		return devices, e
+	}
+
+	pathGroups := mpathOutput.Map.PathGroups
+	for i := range pathGroups {
+		paths := pathGroups[i]
+		for j := range paths.Paths {
+			devices = append(devices, "/dev/"+paths.Paths[j].Dev)
+		}
+	}
+
+	slog.Debug("list", "devices", devices, "for multipath", mpath)
+	return devices, nil
+}
+
+func FileExists(ctx context.Context, testConfig *TestConfig, path string) (fileExists bool, err error) {
+	// find the csi driver node pod
+	namespace := os.Getenv("_E2E_NAMESPACE")
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
+	labelSelector := "app=infinidat-csi-driver-node"
+	listOptions := metav1.ListOptions{
+		FieldSelector: fieldSelector,
+		LabelSelector: labelSelector,
+	}
+
+	csiPods, err := testConfig.ClientSet.CoreV1().Pods(namespace).List(ctx, listOptions)
+	if err != nil {
+		return fileExists, fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
+	}
+	if len(csiPods.Items) != 1 {
+		return fileExists, fmt.Errorf("too many driver node pods found %d", len(csiPods.Items))
+	}
+
+	nodePod := csiPods.Items[0]
+
+	command := fmt.Sprintf("ls %s", path)
+	fmt.Printf("executing command %s\n", command)
+
+	stdOut, stdErr, err := execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, nodePod.Name, namespace, command, "driver")
+	if err != nil {
+		fmt.Printf("error looking up devices for mpath on pod %s on node %s -  %s command stdErr %s stdOut %s\n", nodePod.Name, testConfig.NodeName, command, stdErr, stdOut)
+		return false, nil
+	}
+	fmt.Printf("command output %s\n", stdOut)
+	if strings.Contains(stdOut, "No such file") {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func GetMpathForBlockVolume(ctx context.Context, testConfig *TestConfig, pvcName string) (mpath string, err error) {
+	getOptions := metav1.GetOptions{}
+	pvc, err := testConfig.ClientSet.CoreV1().PersistentVolumeClaims(testConfig.TestNames.NSName).Get(ctx, pvcName, getOptions)
+	if err != nil {
+		return "", fmt.Errorf("error getting pvc %s error %s", pvcName, err.Error())
+	}
+	pv, err := testConfig.ClientSet.CoreV1().PersistentVolumes().Get(ctx, pvc.Spec.VolumeName, getOptions)
+	if err != nil {
+		return "", fmt.Errorf("error getting pv %s error %s", pvc.Spec.VolumeName, err.Error())
+	}
+
+	volumeHandle := pv.Spec.CSI.VolumeHandle
+	volumeIDParts := strings.Split(volumeHandle, "$$")
+	volumeID := volumeIDParts[0]
+	fmt.Printf("volume ID: %s\n", volumeID)
+
+	// find the csi driver node pod
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
+	labelSelector := "app=infinidat-csi-driver-node"
+	listOptions := metav1.ListOptions{
+		FieldSelector: fieldSelector,
+		LabelSelector: labelSelector,
+	}
+	namespace := os.Getenv("_E2E_NAMESPACE")
+	csiPods, err := testConfig.ClientSet.CoreV1().Pods(namespace).List(ctx, listOptions)
+	if err != nil {
+		return "", fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
+	}
+	if len(csiPods.Items) != 1 {
+		return "", fmt.Errorf("too many driver node pods found %d", len(csiPods.Items))
+	}
+
+	nodePod := csiPods.Items[0]
+
+	// look for a json config file in this location for that PV
+	pvName := pvc.Spec.VolumeName
+	volumeConfigPath := fmt.Sprintf("/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/staging/%s/%s.json", pvName, volumeID)
+
+	command := fmt.Sprintf("cat %s", volumeConfigPath)
+	fmt.Printf("executing command %s\n", command)
+
+	stdOut, stdErr, err := execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, nodePod.Name, namespace, command, "driver")
+	if err != nil {
+		fmt.Printf("error looking up devices for mpath on pod %s on node %s -  %s command stdErr %s stdOut %s\n", nodePod.Name, testConfig.NodeName, command, stdErr, stdOut)
+		return "", err
+	}
+	fmt.Printf("command output %s\n", stdOut)
+	// we expect something like this:
+	// {"rootdir":"/host","mpathdevice":"mpathc","isblock":false,"volumeid":1321676}
+
+	var configFile sc.DiskInfo
+	err = json.Unmarshal([]byte(stdOut), &configFile)
+	if err != nil {
+		log.Fatalf("Error parsing DiskInfo contents from JSON string: %v", err)
+	}
+
+	return configFile.MpathDevice, nil
 }

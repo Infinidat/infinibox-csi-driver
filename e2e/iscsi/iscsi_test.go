@@ -15,7 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func XTestIscsiSnapshotLocking(t *testing.T) {
+func TestIscsiSnapshotLocking(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -67,7 +67,7 @@ func XTestIscsiSnapshotLocking(t *testing.T) {
 
 }
 
-func XTestIscsiSnapshot(t *testing.T) {
+func TestIscsiSnapshot(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -104,7 +104,7 @@ func XTestIscsiSnapshot(t *testing.T) {
 
 }
 
-func XTestIscsi(t *testing.T) {
+func TestIscsi(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -125,7 +125,7 @@ func XTestIscsi(t *testing.T) {
 
 }
 
-func XTestIscsiFsGroup(t *testing.T) {
+func TestIscsiFsGroup(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -173,7 +173,7 @@ func XTestIscsiFsGroup(t *testing.T) {
 
 }
 
-func XTestIscsiBlock(t *testing.T) {
+func TestIscsiBlock(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -297,7 +297,7 @@ func TestIscsiROX(t *testing.T) {
 
 }
 
-func XTestIscsiRO(t *testing.T) {
+func TestIscsiRO(t *testing.T) {
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
@@ -359,7 +359,7 @@ func XTestIscsiRO(t *testing.T) {
 
 }
 
-func XTestIscsiBrokenLink(t *testing.T) {
+func TestIscsiBrokenLink(t *testing.T) {
 
 	// we use the fsgroup example as the basis for this test since its where
 	// recursive chown is executed which will test this use case (broken sym link)
@@ -437,7 +437,7 @@ func XTestIscsiBrokenLink(t *testing.T) {
 
 }
 
-func XTestIscsiClone(t *testing.T) {
+func TestIscsiClone(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -489,7 +489,7 @@ func XTestIscsiClone(t *testing.T) {
 
 }
 
-func XTestIscsiExpand(t *testing.T) {
+func TestIscsiExpand(t *testing.T) {
 
 	supportedFileSystems := []string{common.FSTypeExt3, common.FSTypeExt4, common.FSTypeXFS}
 	for _, fsType := range supportedFileSystems {
@@ -536,7 +536,7 @@ func XTestIscsiExpand(t *testing.T) {
 
 }
 
-func XTestIscsiBlockExpand(t *testing.T) {
+func TestIscsiBlockExpand(t *testing.T) {
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
