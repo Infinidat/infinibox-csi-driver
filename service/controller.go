@@ -990,51 +990,45 @@ func validateCommonStorageClassParameters(ctx context.Context, comnserv storagec
 	}
 
 	// validate optional uid and gid parameters
-	gidProvided := scParameters[common.StorageClassGID]
-	if gidProvided != "" {
-		gid_int, err := strconv.Atoi(gidProvided)
+	if scParameters[common.StorageClassGID] != "" {
+		gid_int, err := strconv.Atoi(scParameters[common.StorageClassGID])
 		if err != nil || gid_int < -1 {
-			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.StorageClassGID, gidProvided)
+			return invalidFormatError(common.StorageClassGID, scParameters[common.StorageClassGID])
 		}
 	}
 
-	uidProvided := scParameters[common.StorageClassUID]
-	if uidProvided != "" {
-		uid_int, err := strconv.Atoi(uidProvided)
+	if scParameters[common.StorageClassUID] != "" {
+		uid_int, err := strconv.Atoi(scParameters[common.StorageClassUID])
 		if err != nil || uid_int < -1 {
-			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.StorageClassUID, uidProvided)
+			return invalidFormatError(common.StorageClassUID, scParameters[common.StorageClassUID])
 		}
 	}
 
-	unixPermissionsProvided := scParameters[common.StorageClassUNIXPermissions]
-	if unixPermissionsProvided != "" {
-		_, err := strconv.ParseUint(unixPermissionsProvided, 8, 32)
+	if scParameters[common.StorageClassUNIXPermissions] != "" {
+		_, err := strconv.ParseUint(scParameters[common.StorageClassUNIXPermissions], 8, 32)
 		if err != nil {
-			return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", common.StorageClassUNIXPermissions, unixPermissionsProvided)
+			return invalidFormatError(common.StorageClassUNIXPermissions, scParameters[common.StorageClassUNIXPermissions])
 		}
 	}
 
-	maxVolsProvided := scParameters[common.StorageClassMaxVolsPerHost]
-	if maxVolsProvided != "" {
-		maxVols_int, err := strconv.Atoi(maxVolsProvided)
+	if scParameters[common.StorageClassMaxVolsPerHost] != "" {
+		maxVols_int, err := strconv.Atoi(scParameters[common.StorageClassMaxVolsPerHost])
 		if err != nil || maxVols_int < -1 {
-			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid integer, value entered was %s", common.StorageClassMaxVolsPerHost, maxVolsProvided)
+			return invalidFormatError(common.StorageClassMaxVolsPerHost, scParameters[common.StorageClassMaxVolsPerHost])
 		}
 	}
 
-	provTypeProvided := scParameters[common.StorageClassProvisionType]
-	if provTypeProvided != "" {
-		p := strings.ToUpper(provTypeProvided)
+	if scParameters[common.StorageClassProvisionType] != "" {
+		p := strings.ToUpper(scParameters[common.StorageClassProvisionType])
 		if p != common.StorageClassThickProvision && p != common.StorageClassThinProvision {
-			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid value, value entered was %s", common.StorageClassProvisionType, provTypeProvided)
+			return invalidFormatError(common.StorageClassProvisionType, scParameters[common.StorageClassProvisionType])
 		}
 	}
 
-	ssdEnabledProvided := scParameters[common.StorageClassSSDEnabled]
-	if ssdEnabledProvided != "" {
-		_, err := strconv.ParseBool(ssdEnabledProvided)
+	if scParameters[common.StorageClassSSDEnabled] != "" {
+		_, err := strconv.ParseBool(scParameters[common.StorageClassSSDEnabled])
 		if err != nil {
-			return fmt.Errorf("format error in StorageClass, [%s] appears to not be a valid boolean, value entered was %s", common.StorageClassSSDEnabled, ssdEnabledProvided)
+			return invalidFormatError(common.StorageClassSSDEnabled, scParameters[common.StorageClassSSDEnabled])
 		}
 	}
 
@@ -1374,4 +1368,8 @@ func handlePVCAnnotationForMetadata(ctx context.Context, cs storagecommon.Common
 		return
 	}
 	slog.Debug("info", "created pvc annotation for metadata", metadataValue, "volume id", volumeIDString)
+}
+
+func invalidFormatError(parameterName string, enteredValue string) error {
+	return fmt.Errorf("format error in StorageClass, storage class parameter [%s] appears to not be a valid integer, value entered was %s", parameterName, enteredValue)
 }

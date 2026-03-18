@@ -158,49 +158,10 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	slog.Debug("setup chap", "auth", useChap)
 	hostSecurity := req.GetPublishContext()["securityMethod"]
 	if strings.ToLower(hostSecurity) != useChap || !strings.Contains(ports, initiatorName) {
-		secrets := req.GetSecrets()
-		chapCreds := make(map[string]string)
-		if useChap != "none" {
-			if useChap == UseCHAP || useChap == UseMutualCHAP {
-				if secrets[CHAPUsername] != "" && secrets[CHAPPassword] != "" {
-					chapCreds[CHAPInboundUsername] = secrets[CHAPUsername]
-					chapCreds[CHAPInboundSecret] = secrets[CHAPPassword]
-					chapCreds[SecurityMethod] = SecurityMethodCHAP
-				} else {
-					e := fmt.Errorf("iscsi mutual chap credentials not provided")
-					slog.Error(e.Error())
-					return nil, status.Error(codes.Internal, e.Error())
-				}
-			}
-			if useChap == UseMutualCHAP {
-				if secrets[CHAPUsernameIn] != "" && secrets[CHAPPasswordIn] != "" && chapCreds[SecurityMethod] == SecurityMethodCHAP {
-					chapCreds[CHAPOutboundUsername] = secrets[CHAPUsernameIn]
-					chapCreds[CHAPOutboundSecret] = secrets[CHAPPasswordIn]
-					chapCreds[SecurityMethod] = SecurityMethodMutualCHAP
-				} else {
-					e := fmt.Errorf("iscsi mutual chap credentials not provided")
-					slog.Error(e.Error())
-					return nil, status.Error(codes.Internal, e.Error())
-				}
-			}
-			if len(chapCreds) > 1 {
-				slog.Debug("create chap authentication", "host", hostID)
-				err := addChapSecurityForHost(ctx, iscsi.CS, hostID, chapCreds)
-				if err != nil {
-					e := fmt.Errorf("from AddChapSecurityForHost - error: %s", err.Error())
-					slog.Error(e.Error())
-					return nil, status.Error(codes.Internal, e.Error())
-				}
-			}
-		} else if hostSecurity != SecurityMethodNONE {
-			slog.Debug("remove chap authentication", "host", hostID)
-			chapCreds[SecurityMethod] = SecurityMethodNONE
-			err := addChapSecurityForHost(ctx, iscsi.CS, hostID, chapCreds)
-			if err != nil {
-				e := fmt.Errorf("from AddChapSecurityForHost - error: %s", err.Error())
-				slog.Error(e.Error())
-				return nil, status.Error(codes.Internal, e.Error())
-			}
+		err := addCHAPSecurity(ctx, iscsi, useChap, hostID, req)
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
 
@@ -1129,5 +1090,37 @@ func loginToTargets(targets []iscsiTarget) (err error) {
 	}
 	sessionDetails = getSessionDetails()
 	slog.Debug("list sessions after any logins", "sessions", sessionDetails)
+	return nil
+}
+
+func addCHAPSecurity(ctx context.Context, iscsi *ISCSIstorage, useChap string, hostID int, req *csi.NodeStageVolumeRequest) (err error) {
+	secrets := req.GetSecrets()
+	chapCreds := make(map[string]string)
+
+	if useChap == UseCHAP || useChap == UseMutualCHAP {
+		if secrets[CHAPUsername] != "" && secrets[CHAPPassword] != "" {
+			chapCreds[CHAPInboundUsername] = secrets[CHAPUsername]
+			chapCreds[CHAPInboundSecret] = secrets[CHAPPassword]
+			chapCreds[SecurityMethod] = SecurityMethodCHAP
+		} else {
+			return fmt.Errorf("iscsi mutual chap credentials not provided")
+		}
+	}
+	if useChap == UseMutualCHAP {
+		if secrets[CHAPUsernameIn] != "" && secrets[CHAPPasswordIn] != "" && chapCreds[SecurityMethod] == SecurityMethodCHAP {
+			chapCreds[CHAPOutboundUsername] = secrets[CHAPUsernameIn]
+			chapCreds[CHAPOutboundSecret] = secrets[CHAPPasswordIn]
+			chapCreds[SecurityMethod] = SecurityMethodMutualCHAP
+		} else {
+			return fmt.Errorf("iscsi mutual chap credentials not provided")
+		}
+	}
+	if len(chapCreds) > 1 {
+		slog.Debug("create chap authentication", "host", hostID)
+		err := addChapSecurityForHost(ctx, iscsi.CS, hostID, chapCreds)
+		if err != nil {
+			return fmt.Errorf("from AddChapSecurityForHost - error: %s", err.Error())
+		}
+	}
 	return nil
 }

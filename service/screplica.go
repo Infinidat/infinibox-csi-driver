@@ -15,6 +15,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type RemoteFields struct {
+	RemoteIboxCredentialName      string
+	RemoteIboxCredentialNamespace string
+	RemoteCreatePVC               *bool  `json:"remote_create_pvc,omitempty"`
+	RemotePVCNameSuffix           string `json:"remote_pvc_name_suffix,omitempty"`
+	RemotePVCName                 string `json:"remote_pvc_name,omitempty"`
+	RemotePVCNamespace            string `json:"remote_pvc_namespace,omitempty"`
+	RemoteNetworkSpace            string `json:"remote_network_space,omitempty"`
+	RemotePoolName                string `json:"remote_pool_name,omitempty"`
+}
+
 func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volName string, storageProtocol string, params map[string]string) (err error) {
 	// 1 - verify user wants to create a replica, they have to specify a replica type
 	switch params[common.IboxReplicaTypeParameter] {
@@ -102,10 +113,19 @@ func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volNam
 			},
 		}
 
-		err = handleCreatePVC(&replica, params)
+		fields, err := handleCreatePVC(params)
 		if err != nil {
 			return err
 		}
+		replica.Spec.RemoteIboxCredentialName = fields.RemoteIboxCredentialName
+		replica.Spec.RemoteIboxCredentialNamespace = fields.RemoteIboxCredentialNamespace
+		replica.Spec.RemoteCreatePVC = fields.RemoteCreatePVC
+		replica.Spec.RemotePVCNameSuffix = fields.RemotePVCNameSuffix
+		replica.Spec.RemotePVCName = fields.RemotePVCName
+		replica.Spec.RemotePVCNamespace = fields.RemotePVCNamespace
+		replica.Spec.RemoteNetworkSpace = fields.RemoteNetworkSpace
+		replica.Spec.RemotePoolName = fields.RemotePoolName
+
 		err = kubernetesClient.CreateIboxreplica(ctx, replica)
 		if err != nil {
 			return err
@@ -139,10 +159,18 @@ func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volNam
 			},
 		}
 
-		err = handleCreatePVCForIboxcg(&iboxcg, params)
+		fields, err := handleCreatePVC(params)
 		if err != nil {
 			return err
 		}
+		iboxcg.Spec.RemoteIboxCredentialName = fields.RemoteIboxCredentialName
+		iboxcg.Spec.RemoteIboxCredentialNamespace = fields.RemoteIboxCredentialNamespace
+		iboxcg.Spec.RemoteCreatePVC = fields.RemoteCreatePVC
+		iboxcg.Spec.RemotePVCNameSuffix = fields.RemotePVCNameSuffix
+		iboxcg.Spec.RemotePVCName = fields.RemotePVCName
+		iboxcg.Spec.RemotePVCNamespace = fields.RemotePVCNamespace
+		iboxcg.Spec.RemoteNetworkSpace = fields.RemoteNetworkSpace
+		iboxcg.Spec.RemotePoolName = fields.RemotePoolName
 
 		err = kubernetesClient.CreateIboxcg(ctx, iboxcg)
 		if err != nil {
@@ -196,20 +224,20 @@ func verifyLinkExists(ctx context.Context, cs storagecommon.Commonservice, linkN
 	return nil
 }
 
-func handleCreatePVC(replica *v1.Iboxreplica, params map[string]string) error {
+func handleCreatePVC(params map[string]string) (*RemoteFields, error) {
 	tmp := params[common.IboxReplicaCreatePVC] // boolean
 	if tmp == "" {
 		slog.Debug("create pvc not specified, skipping")
-		return nil
+		return nil, nil
 	}
 	createPVC, err := strconv.ParseBool(params[common.IboxReplicaCreatePVC]) // boolean
 	if err != nil {
 		slog.Error(err.Error())
-		return err
+		return nil, err
 	}
 	if !createPVC {
 		slog.Debug("create pvc false, skipping")
-		return nil
+		return nil, nil
 	}
 
 	pvcSuffix := params[common.IboxReplicaCreatePVCSuffix]
@@ -219,99 +247,41 @@ func handleCreatePVC(replica *v1.Iboxreplica, params map[string]string) error {
 	if pvcNamespace == "" {
 		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaCreatePVCNamespace, common.IboxReplicaCreatePVC)
 		slog.Error(err.Error())
-		return err
+		return nil, err
 	}
 	pvcNetworkSpace := params[common.IboxReplicaCreatePVCNetworkSpace]
 	if pvcNetworkSpace == "" {
 		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaCreatePVCNetworkSpace, common.IboxReplicaCreatePVC)
 		slog.Error(err.Error())
-		return err
+		return nil, err
 	}
 	pvcPoolName := params[common.IboxReplicaCreatePVCPoolName]
 	if pvcPoolName == "" {
 		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaCreatePVCPoolName, common.IboxReplicaCreatePVC)
 		slog.Error(err.Error())
-		return err
+		return nil, err
 	}
 	remoteIboxCredName := params[common.IboxReplicaRemoteIboxCredNameParameter]
 	if remoteIboxCredName == "" {
 		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaRemoteIboxCredNameParameter, common.IboxReplicaCreatePVC)
 		slog.Error(err.Error())
-		return err
+		return nil, err
 	}
 	remoteIboxCredNamespace := params[common.IboxReplicaRemoteIboxCredNamespaceParameter]
 	if remoteIboxCredNamespace == "" {
 		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaRemoteIboxCredNamespaceParameter, common.IboxReplicaCreatePVC)
 		slog.Error(err.Error())
-		return err
+		return nil, err
 	}
 
-	replica.Spec.RemoteCreatePVC = &createPVC
-	replica.Spec.RemotePVCNamespace = pvcNamespace
-	replica.Spec.RemotePVCNameSuffix = pvcSuffix
-	replica.Spec.RemotePoolName = pvcPoolName
-	replica.Spec.RemoteIboxCredentialName = remoteIboxCredName
-	replica.Spec.RemoteIboxCredentialNamespace = remoteIboxCredNamespace
-
-	return nil
-}
-
-func handleCreatePVCForIboxcg(iboxcg *v1cg.Iboxcg, params map[string]string) error {
-	tmp := params[common.IboxReplicaCreatePVC] // boolean
-	if tmp == "" {
-		slog.Debug("create pvc not specified, skipping")
-		return nil
-	}
-	createPVC, err := strconv.ParseBool(params[common.IboxReplicaCreatePVC]) // boolean
-	if err != nil {
-		slog.Error(err.Error())
-		return err
-	}
-	if !createPVC {
-		slog.Debug("create pvc false, skipping")
-		return nil
+	fields := &RemoteFields{
+		RemoteCreatePVC:               &createPVC,
+		RemotePVCNamespace:            pvcNamespace,
+		RemotePVCNameSuffix:           pvcSuffix,
+		RemotePoolName:                pvcPoolName,
+		RemoteIboxCredentialName:      remoteIboxCredName,
+		RemoteIboxCredentialNamespace: remoteIboxCredNamespace,
 	}
 
-	pvcSuffix := params[common.IboxReplicaCreatePVCSuffix]
-	slog.Debug("handling create PVC - %s is %s", common.IboxReplicaCreatePVCSuffix, pvcSuffix)
-
-	pvcNamespace := params[common.IboxReplicaCreatePVCNamespace]
-	if pvcNamespace == "" {
-		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaCreatePVCNamespace, common.IboxReplicaCreatePVC)
-		slog.Error(err.Error())
-		return err
-	}
-	pvcNetworkSpace := params[common.IboxReplicaCreatePVCNetworkSpace]
-	if pvcNetworkSpace == "" {
-		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaCreatePVCNetworkSpace, common.IboxReplicaCreatePVC)
-		slog.Error(err.Error())
-		return err
-	}
-	pvcPoolName := params[common.IboxReplicaCreatePVCPoolName]
-	if pvcPoolName == "" {
-		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaCreatePVCPoolName, common.IboxReplicaCreatePVC)
-		slog.Error(err.Error())
-		return err
-	}
-	remoteIboxCredName := params[common.IboxReplicaRemoteIboxCredNameParameter]
-	if remoteIboxCredName == "" {
-		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaRemoteIboxCredNameParameter, common.IboxReplicaCreatePVC)
-		slog.Error(err.Error())
-		return err
-	}
-	remoteIboxCredNamespace := params[common.IboxReplicaRemoteIboxCredNamespaceParameter]
-	if remoteIboxCredNamespace == "" {
-		err := fmt.Errorf("%s parameter is required with %s set to true", common.IboxReplicaRemoteIboxCredNamespaceParameter, common.IboxReplicaCreatePVC)
-		slog.Error(err.Error())
-		return err
-	}
-
-	iboxcg.Spec.RemoteCreatePVC = &createPVC
-	iboxcg.Spec.RemotePVCNamespace = pvcNamespace
-	iboxcg.Spec.RemotePVCNameSuffix = pvcSuffix
-	iboxcg.Spec.RemotePoolName = pvcPoolName
-	iboxcg.Spec.RemoteIboxCredentialName = remoteIboxCredName
-	iboxcg.Spec.RemoteIboxCredentialNamespace = remoteIboxCredNamespace
-
-	return nil
+	return fields, nil
 }

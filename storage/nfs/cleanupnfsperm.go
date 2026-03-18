@@ -24,25 +24,7 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 	nodeIP := os.Getenv(common.EnvVarNodeIP)
 	slog.Debug("info", "volumeID", volumeID, "node name", nodeName, "node ip", nodeIP)
 
-	// get a connection to the kube api
-	kubeClient, err := clientgo.BuildClient()
-	if err != nil {
-		slog.Error("could not get kube client", "error", err.Error())
-		return
-	}
-
-	// find the PV for this volume (filesystem), the volumeHandle in the PV
-	// contains the volumeID which allows us to find the correct PV, we
-	// use the PV to obtain the ibox credentials used to create the volume
-	// this is necessary because the unmount stage of CSI doesn't pass the
-	// ibox credentials down as secrets as other CSI stages do
-	persistentVolume, err := kubeClient.GetPVByVolumeID(ctx, volumeID, common.ProtocolNFS)
-	if err != nil {
-		slog.Error("could not get pv by volumeID", "error", err.Error())
-		return
-	}
-	slog.Debug("pv by volumeID", "name", persistentVolume.Name)
-	secretMap, err := kubeClient.GetSecret(ctx, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Name, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Namespace)
+	secretMap, err := getPVSecret(ctx, volumeID)
 	if err != nil {
 		slog.Error("could not get kube secret", "error", err.Error())
 		return
@@ -78,21 +60,12 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 		slog.Debug("no exports found for volumeID, no need to cleanup export rule perms for this ip", "volumeid", volumeID)
 		return
 	}
-
 	slog.Error("found exports for volumeID", "len", exportCount, "volumeid", volumeID)
-	// call nfsstat on this node to get the mounted volumes
-	// get nfsstats mount information for this node,look for lines that
-	// have the 'kube' string and the file system name in them
-	nfsstatCommand := "nfsstat -m"
-	slog.Debug("info", "command", nfsstatCommand)
-	out, _, err := storagecommon.ExecCommand.Command(nfsstatCommand, "")
+
+	volumeMounted, err := isVolumeMounted(fileSystem.Name)
 	if err != nil {
-		slog.Error("error executing nfsstat", "error", err.Error())
 		return
 	}
-	slog.Debug("nfsstat", "output", strings.TrimSpace(out))
-
-	volumeMounted := isVolumeMounted(out, fileSystem.Name)
 	slog.Debug("info", "volumeMounted", volumeMounted)
 
 	// only perform this logic if there are no more mounts for this volume
@@ -130,8 +103,7 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 				}
 				slog.Debug("deleted export succeeded for fs", "export id", export.ID, "fs name", fileSystem.Name)
 			}
-		}
-		if numPermissions > 1 {
+		} else if numPermissions > 1 {
 			// in this case we seletively delete the ip address permission
 			// by updating the export with updated permissions list
 			if foundNodeIP {
@@ -149,22 +121,33 @@ func cleanupNFSPerms(ctx context.Context, volumeID int) {
 	}
 }
 
-func isVolumeMounted(nfsstatOutput string, fsName string) bool {
-	lines, err := storagecommon.StringToLines(nfsstatOutput)
+func isVolumeMounted(fsName string) (bool, error) {
+	// call nfsstat on this node to get the mounted volumes
+	// get nfsstats mount information for this node,look for lines that
+	// have the 'kube' string and the file system name in them
+	nfsstatCommand := "nfsstat -m"
+	slog.Debug("info", "command", nfsstatCommand)
+	out, _, err := storagecommon.ExecCommand.Command(nfsstatCommand, "")
 	if err != nil {
-		slog.Error("error splitting nfsstat output", "output", nfsstatOutput, "error", err.Error())
-		return false
+		slog.Error("error executing nfsstat", "error", err.Error())
+		return false, err
+	}
+	slog.Debug("nfsstat", "output", strings.TrimSpace(out))
+	lines, err := storagecommon.StringToLines(out)
+	if err != nil {
+		slog.Error("error splitting nfsstat output", "output", out, "error", err.Error())
+		return false, err
 	}
 	slog.Debug("isVolumeMounted", "nfsstat lines", lines)
 
 	for k, v := range lines {
 		if strings.Contains(v, fsName) {
 			slog.Debug("isVolumeMounted - found", "fsName", fsName, "index", k, "line", v)
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // determine if the installation has enabled the
@@ -180,4 +163,31 @@ func isCleanupNFSPermsSet() bool {
 		return false
 	}
 	return boolValue
+}
+
+func getPVSecret(ctx context.Context, volumeID int) (secretMap map[string]string, err error) {
+	// get a connection to the kube api
+	kubeClient, err := clientgo.BuildClient()
+	if err != nil {
+		slog.Error("could not get kube client", "error", err.Error())
+		return secretMap, err
+	}
+
+	// find the PV for this volume (filesystem), the volumeHandle in the PV
+	// contains the volumeID which allows us to find the correct PV, we
+	// use the PV to obtain the ibox credentials used to create the volume
+	// this is necessary because the unmount stage of CSI doesn't pass the
+	// ibox credentials down as secrets as other CSI stages do
+	persistentVolume, err := kubeClient.GetPVByVolumeID(ctx, volumeID, common.ProtocolNFS)
+	if err != nil {
+		slog.Error("could not get pv by volumeID", "error", err.Error())
+		return secretMap, err
+	}
+	slog.Debug("pv by volumeID", "name", persistentVolume.Name)
+	secretMap, err = kubeClient.GetSecret(ctx, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Name, persistentVolume.Spec.CSI.ControllerExpandSecretRef.Namespace)
+	if err != nil {
+		slog.Error("could not get kube secret", "error", err.Error())
+		return secretMap, err
+	}
+	return secretMap, nil
 }
