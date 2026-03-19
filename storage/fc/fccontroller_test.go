@@ -196,11 +196,16 @@ func (suite *FCControllerSuite) Test_DeleteVolume_AlreadyDelete() {
 func (suite *FCControllerSuite) Test_CreateVolume_content_success() {
 	suite.service.Capacity = common.BytesInOneGibibyte
 	parameterMap := getFCCreateVolumeParameter()
+	features := make([]iboxapi.FeatureResult, 1)
+	features[0].Enabled = true
+	features[0].Name = common.IboxFeaturePromoteSnapshot
+
 	createVolReq := testhelper.GetCreateVolumeRequest("volumeName", parameterMap, "1$$fc")
 	poolResult := &iboxapi.PoolResult{ID: 10}
 	suite.iboxapi.On("GetPoolByName", suite.Suite.T().Context(), mock.Anything).Return(poolResult, nil)
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetSystem(), nil)
 	suite.iboxapi.On("GetVolumeByName", suite.Suite.T().Context(), mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetFeatures", suite.Suite.T().Context()).Return(features, nil)
 	suite.iboxapi.On("PromoteSnapshot", suite.Suite.T().Context(), mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(storagecommon.GetNetworkspace(), nil)
 	suite.iboxapi.On("CreateSnapshotVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetSnapshotResp(), nil)

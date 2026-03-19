@@ -145,20 +145,33 @@ func CreateVolumeFromVolumeContent(ctx context.Context, cs Commonservice, req *c
 		return nil, status.Error(codes.Internal, e)
 	}
 
-	// promote the snapshot created just now to a MASTER volume
-	_, err = cs.IboxAPI.PromoteSnapshot(ctx, dstVol.ID)
+	// ibox 7.x doesn't support snapshot promote so we check for ibox feature support for it
+	enabled, err := featureEnabled(ctx, cs.IboxAPI, common.IboxFeaturePromoteSnapshot)
 	if err != nil {
-		e := fmt.Errorf("from PromoteSnapshot - error: %s", err.Error())
+		e := fmt.Errorf("from featureEnabled - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
-	slog.Debug("snapshot promoted to volume", "volume id", dstVol.ID)
+
+	slog.Debug("snapshot promote feature", "enabled", enabled)
+	if enabled {
+		// promote the snapshot created just now to a MASTER volume
+		_, err = cs.IboxAPI.PromoteSnapshot(ctx, dstVol.ID)
+		if err != nil {
+			e := fmt.Errorf("from PromoteSnapshot - error: %s", err.Error())
+			slog.Error(e.Error())
+			return nil, status.Error(codes.Internal, e.Error())
+		}
+		slog.Debug("snapshot promoted to volume", "volume id", dstVol.ID)
+	} else {
+		slog.Debug("snapshot promoted not enabled on this ibox, so not promoting volume", "volume id", dstVol.ID)
+	}
 
 	// Create a volume response and return it
 	csiVolume := cs.GetCSIResponse(ctx, dstVol, req)
 	CopyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
 
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"host.k8s.pvname": dstVol.Name,
 	}
 	_, err = cs.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
@@ -169,4 +182,18 @@ func CreateVolumeFromVolumeContent(ctx context.Context, cs Commonservice, req *c
 	}
 	slog.Debug("completes", "Volume (from snap)", csiVolume.VolumeContext["Name"], "volumeID", csiVolume.VolumeId, "storage pool", csiVolume.VolumeContext["StoragePoolName"])
 	return &csi.CreateVolumeResponse{Volume: csiVolume}, nil
+}
+
+func featureEnabled(ctx context.Context, cl iboxapi.Client, requestedFeature string) (bool, error) {
+	features, err := cl.GetFeatures(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, feature := range features {
+		if feature.Name == requestedFeature {
+			return feature.Enabled, nil
+		}
+	}
+	slog.Warn("feature not found in Ibox API results, assuming unsupported", "feature", requestedFeature)
+	return false, nil
 }

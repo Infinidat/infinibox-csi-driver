@@ -77,6 +77,10 @@ type Error struct {
 }
 
 type Client interface {
+
+	// ibox features
+	GetFeatures(ctx context.Context) ([]FeatureResult, error)
+
 	// pools
 	GetPoolByName(ctx context.Context, name string) (*PoolResult, error)
 	GetPoolByID(ctx context.Context, id int) (*PoolResult, error)

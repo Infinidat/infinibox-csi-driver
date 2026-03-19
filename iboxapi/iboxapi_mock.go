@@ -13,9 +13,6 @@ limitations under the License.
 package iboxapi
 
 import (
-
-	//	"infinibox-csi-driver/api/client"
-
 	"context"
 
 	"github.com/stretchr/testify/mock"
@@ -30,7 +27,13 @@ type MockAPIClient struct {
 	mock.Mock
 }
 
-// GetAllPools mock
+func (m *MockAPIService) GetFeatures(ctx context.Context) ([]FeatureResult, error) {
+	args := m.Called(ctx)
+	resp, _ := args.Get(0).([]FeatureResult)
+	err, _ := args.Get(1).(error)
+	return resp, err
+}
+
 func (m *MockAPIService) GetPoolByName(ctx context.Context, name string) (*PoolResult, error) {
 	args := m.Called(ctx, name)
 	resp, _ := args.Get(0).(*PoolResult)

@@ -147,6 +147,11 @@ const (
 	CredentialPassword = "password"
 )
 
+// IBOX features we check with the IBOX API
+const (
+	IboxFeaturePromoteSnapshot = "promote_snapshot"
+)
+
 const (
 	IboxreplicaReplicaTypeSYNC          = "SYNC"
 	IboxreplicaReplicaTypeASYNC         = "ASYNC"
