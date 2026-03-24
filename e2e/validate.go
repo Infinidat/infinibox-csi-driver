@@ -89,15 +89,17 @@ func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	}
 
 	// validate network space 2 on the ibox if set
-	testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_ISCSI_NETWORK_SPACE2)
-	if testConfig.NetworkSpaceToUse2 == "" {
-		// for backward compat only
-		testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_NETWORK_SPACE2)
-	}
-	if testConfig.NetworkSpaceToUse2 != "" {
-		_, err = testConfig.ClientService.IboxAPI.GetNetworkSpaceByName(ctx, testConfig.NetworkSpaceToUse2)
-		if err != nil {
-			return fmt.Errorf("error getting network space by name 2 %s %w", testConfig.NetworkSpaceToUse2, err)
+	if protocol != common.ProtocolFC {
+		testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_ISCSI_NETWORK_SPACE2)
+		if testConfig.NetworkSpaceToUse2 == "" {
+			// for backward compat only
+			testConfig.NetworkSpaceToUse2 = os.Getenv(ENV_NETWORK_SPACE2)
+		}
+		if testConfig.NetworkSpaceToUse2 != "" {
+			_, err = testConfig.ClientService.IboxAPI.GetNetworkSpaceByName(ctx, testConfig.NetworkSpaceToUse2)
+			if err != nil {
+				return fmt.Errorf("error getting network space by name 2 %s %w", testConfig.NetworkSpaceToUse2, err)
+			}
 		}
 	}
 

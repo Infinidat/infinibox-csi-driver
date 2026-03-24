@@ -36,13 +36,13 @@ parameters:
   local_ibox_credential_namespace: $_E2E_NAMESPACE   
 
   # these params are for creating pvcs for replica volumes
+  remote_create_pvc: "true"
   remote_ibox_credential_name: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAME
   remote_ibox_credential_namespace: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE
-  remote_create_pvc: "true"
   remote_pvc_name_suffix: $_E2E_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX
   remote_pvc_namespace: infinidat-csi
   remote_network_space: default_iscsi_space
-  remote_pool_name: csitesting
+  remote_pool_name: "$_E2E_IBOXREPLICA_REMOTE_POOL_NAME"
 
   # optional parameters
   #round_up_requested_size: "true"

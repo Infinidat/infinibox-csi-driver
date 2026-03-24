@@ -34,7 +34,6 @@ parameters:
     # replica parameters
     replication_type: "ASYNC"
     link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME
-    remote_pool_id: "$_E2E_IBOXREPLICA_REMOTE_POOL_ID"
     local_ibox_credential_name: $_E2E_IBOX_SECRET
     local_ibox_credential_namespace: $_E2E_NAMESPACE
 
@@ -45,7 +44,8 @@ parameters:
     remote_pvc_name_suffix: $_E2E_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX
     remote_pvc_namespace: infinidat-csi
     remote_network_space: default_nas_space
-    remote_pool_name: csitesting
+    remote_pool_name: "$_E2E_IBOXREPLICA_REMOTE_POOL_NAME"
+
 
 
     # optional parameters

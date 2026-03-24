@@ -168,9 +168,11 @@ const (
 	IboxReplicaRemoteIboxLinkNameParameter      = "link_remote_system_name"
 	IboxReplicaIgnoreReplicaErrorsParameter     = "ignore_replica_errors"
 	// these are required for creating PVCs for the replica volumes when configured
-	IboxReplicaCreatePVC             = "remote_create_pvc"
-	IboxReplicaCreatePVCSuffix       = "remote_pvc_name_suffix"
-	IboxReplicaCreatePVCNamespace    = "remote_pvc_namespace"
-	IboxReplicaCreatePVCNetworkSpace = "remote_network_space"
-	IboxReplicaCreatePVCPoolName     = "remote_pool_name"
+	IboxReplicaCreatePVC                          = "remote_create_pvc"
+	IboxReplicaCreatePVCSuffix                    = "remote_pvc_name_suffix"
+	IboxReplicaCreatePVCNamespace                 = "remote_pvc_namespace"
+	IboxReplicaCreatePVCNetworkSpace              = "remote_network_space"
+	IboxReplicaCreatePVCPoolName                  = "remote_pool_name"
+	IboxReplicaCreatePVCKubeconfigSecretName      = "remote_kubeconfig_secret_name"
+	IboxReplicaCreatePVCKubeconfigSecretNamespace = "remote_kubeconfig_secret_namespace"
 )

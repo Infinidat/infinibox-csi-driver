@@ -78,6 +78,56 @@ func BuildClient() (kubeClient *KubeClient, err error) {
 	return &clientAPI, err
 }
 
+func BuildClientFromSecret(secretName, secretNamespace string) (kubeClient *KubeClient, err error) {
+	if secretName == "" {
+		return nil, fmt.Errorf("secret name for building kubeclient is empty")
+	}
+	if secretNamespace == "" {
+		return nil, fmt.Errorf("secret namespace for building kubeclient is empty")
+	}
+	if clientAPI.KubeClientInterface == nil {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+		// creates the clientset
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			return nil, err
+		}
+		clientAPI = KubeClient{KubeClientInterface: clientset, KubeRestConfig: config}
+	}
+	alternateKubeconfigSecret, err := clientAPI.GetSecret(context.Background(), secretName, secretNamespace)
+	if err != nil {
+		fmt.Printf("error getting Secret - error: %s name: %s namespace: %s\n", secretName, secretNamespace, err.Error())
+		return nil, err
+	}
+	alternateBytes := []byte(alternateKubeconfigSecret["config"])
+	fmt.Printf("got alternate Kubeconfig Secret name: %s namespace: %s lenght: %d (bytes)\n", secretName, secretNamespace, len(alternateBytes))
+
+	alternateClientConfig, err := clientcmd.NewClientConfigFromBytes(alternateBytes)
+	if err != nil {
+		fmt.Printf("error creating alternate kubeclient %s\n", err.Error())
+		return nil, err
+	}
+	aRestConfig, err := alternateClientConfig.ClientConfig() // Get *rest.Config
+	if err != nil {
+		fmt.Printf("error getting alternate restConfig %s\n", err.Error())
+		return nil, err
+	}
+	aClientset, err := kubernetes.NewForConfig(aRestConfig)
+	if err != nil {
+		fmt.Printf("error creating alternet clientset %s\n", err.Error())
+		return nil, err
+	}
+
+	aClientAPI := KubeClient{
+		KubeClientInterface: aClientset,
+		KubeRestConfig:      aRestConfig,
+	}
+	return &aClientAPI, err
+}
+
 func (kc *KubeClient) GetSecret(ctx context.Context, secretName, namespace string) (map[string]string, error) {
 	secretMap := make(map[string]string)
 	secret, err := kc.KubeClientInterface.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
@@ -295,6 +345,13 @@ func (kc *KubeClient) CreatePersistantVolume(ctx context.Context, newPV *v1.Pers
 		return nil, err
 	}
 	return pv, nil
+}
+func (kc *KubeClient) CreateSecret(ctx context.Context, newSecret *v1.Secret) (*v1.Secret, error) {
+	secret, err := kc.KubeClientInterface.CoreV1().Secrets(newSecret.Namespace).Create(ctx, newSecret, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 func (kc *KubeClient) CreatePersistantVolumeClaim(ctx context.Context, newPVC *v1.PersistentVolumeClaim) (*v1.PersistentVolumeClaim, error) {

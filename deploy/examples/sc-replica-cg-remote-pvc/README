@@ -1,0 +1,8 @@
+for this example, when you specify to create PVCs, the CG needs to be replicatedprior to running this example.
+
+This is required because the target ibox volume's ID is required to build the 
+PV volumeHandle for it when you are creating target PVC/PVs like this
+example does.
+
+Also, you will need to suspend replication of the CG in order to 
+perform a cleanup of the volumes created by this example.

@@ -5,7 +5,7 @@ include ../../../Makefile-help
 
 ##@ iscsi sc replica example
 .PHONY: setup
-setup:  devEnv teardown 
+setup:  devEnv teardown teardown-remote
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc.yaml | $(_CLIN) create -f -
@@ -16,6 +16,7 @@ setup:  devEnv teardown
 setup-remote:  devEnv teardown-remote
 	@echo -e $(_begin)
 	envsubst < ./pod-remote.yaml | $(_CLIN) create -f -
+	@echo -e $(_finish)
 
 .PHONY: teardown-remote
 teardown-remote:  devEnv
@@ -23,13 +24,12 @@ teardown-remote:  devEnv
 	envsubst < ./pod-remote.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 
 .PHONY: teardown
-COMMAND_OUTPUT := $(shell kubectl get pvc sc-replica-cg-remote-pvc -o jsonpath='{.spec.volumeName}')
-teardown:  devEnv
+COMMAND_OUTPUT := $(shell kubectl get pvc sc-replica-remote-pvc -o jsonpath='{.spec.volumeName}')
+teardown:  devEnv teardown-remote
 	@echo -e $(_begin)
-	kubectl delete iboxcg iboxcg-$$COMMAND_OUTPUT --ignore-not-found=true
+	kubectl delete iboxreplica iboxreplica-$$COMMAND_OUTPUT --ignore-not-found=true
 	envsubst < ./pod.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ./pvc.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
-	envsubst < ./pvc-remote.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ./storageclass.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -
 	@echo -e $(_finish)
 

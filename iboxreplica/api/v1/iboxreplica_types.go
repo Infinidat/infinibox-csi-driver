@@ -28,25 +28,27 @@ type IboxreplicaSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	IsPreferred                   *bool  `json:"is_preferred,omitempty"`
-	SyncInterval                  int    `json:"sync_interval,omitempty"`
-	Description                   string `json:"description,omitempty"`
-	EntityType                    string `json:"entity_type,omitempty"`
-	LocalEntityName               string `json:"local_entity_name,omitempty"`
-	RemoteEntityName              string `json:"remote_entity_name,omitempty"`
-	ReplicationType               string `json:"replication_type,omitempty"`
-	BaseAction                    string `json:"base_action,omitempty"`
-	LinkRemoteSystemName          string `json:"link_remote_system_name,omitempty"`
-	RpoValue                      int    `json:"rpo_value,omitempty"`
-	RemotePoolID                  int    `json:"remote_pool_id,omitempty"`
-	RemoteIboxCredentialName      string `json:"remote_ibox_credential_name,omitempty"`
-	RemoteIboxCredentialNamespace string `json:"remote_ibox_credential_namespace,omitempty"`
-	RemoteCreatePVC               *bool  `json:"remote_create_pvc,omitempty"`
-	RemotePVCNameSuffix           string `json:"remote_pvc_name_suffix,omitempty"`
-	RemotePVCName                 string `json:"remote_pvc_name,omitempty"`
-	RemotePVCNamespace            string `json:"remote_pvc_namespace,omitempty"`
-	RemoteNetworkSpace            string `json:"remote_network_space,omitempty"`
-	RemotePoolName                string `json:"remote_pool_name,omitempty"`
+	IsPreferred                        *bool  `json:"is_preferred,omitempty"`
+	SyncInterval                       int    `json:"sync_interval,omitempty"`
+	Description                        string `json:"description,omitempty"`
+	EntityType                         string `json:"entity_type,omitempty"`
+	LocalEntityName                    string `json:"local_entity_name,omitempty"`
+	RemoteEntityName                   string `json:"remote_entity_name,omitempty"`
+	ReplicationType                    string `json:"replication_type,omitempty"`
+	BaseAction                         string `json:"base_action,omitempty"`
+	LinkRemoteSystemName               string `json:"link_remote_system_name,omitempty"`
+	RpoValue                           int    `json:"rpo_value,omitempty"`
+	RemotePoolID                       int    `json:"remote_pool_id,omitempty"`
+	RemoteIboxCredentialName           string `json:"remote_ibox_credential_name,omitempty"`
+	RemoteIboxCredentialNamespace      string `json:"remote_ibox_credential_namespace,omitempty"`
+	RemoteCreatePVC                    *bool  `json:"remote_create_pvc,omitempty"`
+	RemotePVCNameSuffix                string `json:"remote_pvc_name_suffix,omitempty"`
+	RemotePVCName                      string `json:"remote_pvc_name,omitempty"`
+	RemotePVCNamespace                 string `json:"remote_pvc_namespace,omitempty"`
+	RemoteNetworkSpace                 string `json:"remote_network_space,omitempty"`
+	RemotePoolName                     string `json:"remote_pool_name,omitempty"`
+	RemotePVCKubeconfigSecretName      string `json:"remote_pvc_kubeconfig_secret_name,omitempty"`
+	RemotePVCKubeconfigSecretNamespace string `json:"remote_pvc_kubeconfig_secret_namespace,omitempty"`
 }
 
 // IboxreplicaStatus defines the observed state of Iboxreplica

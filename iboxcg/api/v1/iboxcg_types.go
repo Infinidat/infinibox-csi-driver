@@ -28,18 +28,20 @@ type IboxcgSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Description                   string `json:"description,omitempty"`
-	LocalCGName                   string `json:"local_cg_name,omitempty"`
-	LocalVolumeName               string `json:"local_volume_name,omitempty"`
-	BaseAction                    string `json:"base_action,omitempty"`
-	RemoteIboxCredentialName      string `json:"remote_ibox_credential_name,omitempty"`
-	RemoteIboxCredentialNamespace string `json:"remote_ibox_credential_namespace,omitempty"`
-	RemoteCreatePVC               *bool  `json:"remote_create_pvc,omitempty"`
-	RemotePVCNameSuffix           string `json:"remote_pvc_name_suffix,omitempty"`
-	RemotePVCName                 string `json:"remote_pvc_name,omitempty"`
-	RemotePVCNamespace            string `json:"remote_pvc_namespace,omitempty"`
-	RemoteNetworkSpace            string `json:"remote_network_space,omitempty"`
-	RemotePoolName                string `json:"remote_pool_name,omitempty"`
+	Description                        string `json:"description,omitempty"`
+	LocalCGName                        string `json:"local_cg_name,omitempty"`
+	LocalVolumeName                    string `json:"local_volume_name,omitempty"`
+	BaseAction                         string `json:"base_action,omitempty"`
+	RemoteIboxCredentialName           string `json:"remote_ibox_credential_name,omitempty"`
+	RemoteIboxCredentialNamespace      string `json:"remote_ibox_credential_namespace,omitempty"`
+	RemoteCreatePVC                    *bool  `json:"remote_create_pvc,omitempty"`
+	RemotePVCNameSuffix                string `json:"remote_pvc_name_suffix,omitempty"`
+	RemotePVCName                      string `json:"remote_pvc_name,omitempty"`
+	RemotePVCNamespace                 string `json:"remote_pvc_namespace,omitempty"`
+	RemoteNetworkSpace                 string `json:"remote_network_space,omitempty"`
+	RemotePoolName                     string `json:"remote_pool_name,omitempty"`
+	RemotePVCKubeconfigSecretName      string `json:"remote_pvc_kubeconfig_secret_name,omitempty"`
+	RemotePVCKubeconfigSecretNamespace string `json:"remote_pvc_kubeconfig_secret_namespace,omitempty"`
 }
 
 // IboxcgStatus defines the observed state of Iboxcg

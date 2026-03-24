@@ -12,9 +12,11 @@ setup:  devEnv teardown
 	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
+COMMAND_OUTPUT := $(shell kubectl get pvc sc-replica-fs -o jsonpath='{.spec.volumeName}')
 .PHONY: teardown
 teardown:  devEnv
 	@echo -e $(_begin)
+	kubectl delete iboxreplica iboxreplica-$$COMMAND_OUTPUT --ignore-not-found=true
 	envsubst < ./pod.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ./pvc.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ./storageclass.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -

@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: sc-replica-cg
+  name: sc-replica-remote-pvc
 provisioner: infinibox-csi-driver
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
@@ -28,14 +28,23 @@ parameters:
   useCHAP: "none" # none / chap / mutual_chap
 
   # replica parameters
-  replication_type: "ACTIVE_ACTIVE"
+  replication_type: "ASYNC"
   link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME 
-  cg_name: $_E2E_IBOXREPLICA_CG   # the cg name to add to
+  remote_pool_id: "$_E2E_IBOXREPLICA_REMOTE_POOL_ID"
   local_ibox_credential_name: $_E2E_IBOX_SECRET
   local_ibox_credential_namespace: $_E2E_NAMESPACE   
-  remote_pool_name: "$_E2E_IBOXREPLICA_REMOTE_POOL_NAME"
+
+  # these params are for creating pvcs for replica volumes
   remote_ibox_credential_name: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAME
-  remote_ibox_credential_namespace: $_E2E_NAMESPACE
+  remote_ibox_credential_namespace: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE
+  remote_create_pvc: "true"
+    #remote_pvc_name_suffix: $_E2E_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX
+  remote_pvc_name_suffix: ""
+  remote_pvc_namespace: infinidat-csi
+  remote_network_space: default_iscsi_space
+  remote_pool_name: csitesting
+  remote_kubeconfig_secret_name: ocp421-cluster-kubeconfig
+  remote_kubeconfig_secret_namespace: infinidat-csi
 
   # optional parameters
   #round_up_requested_size: "true"

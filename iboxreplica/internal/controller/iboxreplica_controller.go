@@ -32,6 +32,7 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/api"
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
 	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/createpvc"
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	csidriverinfinidatcomv1 "github.com/infinidat/infinibox-csi-driver/iboxreplica/api/v1"
 )
@@ -235,6 +236,17 @@ func (r *IboxreplicaReconciler) createReplica(ctx context.Context, replica *csid
 	link, err := validateLink(ctx, clientsvc, r, replica)
 	if err != nil {
 		return err
+	}
+
+	replica.Spec.RemotePoolID, err = lookupTargetPoolID(ctx, replica)
+	if err != nil {
+		logger.Error(err, "error looking up target pool ID")
+		replica.Status = csidriverinfinidatcomv1.IboxreplicaStatus{
+			State: err.Error(),
+		}
+		if e := r.Status().Update(ctx, replica); e != nil {
+			logger.Error(e, "unable to update iboxreplica state")
+		}
 	}
 
 	// verify that a replica for this entity doesn't already exist
@@ -456,6 +468,45 @@ func getLocalEntityID(ctx context.Context, clientsvc *api.ClientService, r *Ibox
 		return localEntityID, err
 	}
 	return localEntityID, nil
+}
+
+func lookupTargetPoolID(ctx context.Context, replica *csidriverinfinidatcomv1.Iboxreplica) (poolID int, err error) {
+	if replica.Spec.RemotePoolName == "" {
+		return replica.Spec.RemotePoolID, nil
+	}
+
+	if replica.Spec.RemoteIboxCredentialName == "" {
+		return poolID, fmt.Errorf("RemotePoolName is specified, but RemoteIboxCredentialName is empty and is required")
+	}
+	if replica.Spec.RemoteIboxCredentialNamespace == "" {
+		return poolID, fmt.Errorf("RemotePoolName is specified, but RemoteIboxCredentialNamespace is empty and is required")
+	}
+
+	remoteIboxCredential, err := createpvc.GetIboxCredentials(ctx, logger, replica.Spec.RemoteIboxCredentialName, replica.Spec.RemoteIboxCredentialNamespace)
+	if err != nil {
+		return poolID, err
+	}
+	logger.Info("found remote ibox credential", "hostname", remoteIboxCredential[common.CredentialHostname])
+
+	x := api.ClientService{
+		ConfigMap:  make(map[string]string),
+		SecretsMap: remoteIboxCredential,
+	}
+
+	remoteClientsvc, err := x.NewClient()
+	if err != nil {
+		logger.Error(err, "error getting remote ClientService")
+		return poolID, err
+	}
+
+	remotePool, err := remoteClientsvc.IboxAPI.GetPoolByName(ctx, replica.Spec.RemotePoolName)
+	if err != nil {
+		logger.Error(err, "error getting remote pool with name %s", replica.Spec.RemotePoolName)
+		return poolID, err
+	}
+	logger.Info("found remote pool by name", "hostname", remoteIboxCredential[common.CredentialHostname], "pool name", replica.Spec.RemotePoolName, "pool ID", remotePool.ID)
+
+	return remotePool.ID, nil
 }
 
 func validateLink(ctx context.Context, clientsvc *api.ClientService, r *IboxreplicaReconciler, replica *csidriverinfinidatcomv1.Iboxreplica) (link *iboxapi.Link, err error) {

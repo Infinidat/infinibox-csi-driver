@@ -16,14 +16,16 @@ import (
 )
 
 type RemoteFields struct {
-	RemoteIboxCredentialName      string
-	RemoteIboxCredentialNamespace string
-	RemoteCreatePVC               *bool  `json:"remote_create_pvc,omitempty"`
-	RemotePVCNameSuffix           string `json:"remote_pvc_name_suffix,omitempty"`
-	RemotePVCName                 string `json:"remote_pvc_name,omitempty"`
-	RemotePVCNamespace            string `json:"remote_pvc_namespace,omitempty"`
-	RemoteNetworkSpace            string `json:"remote_network_space,omitempty"`
-	RemotePoolName                string `json:"remote_pool_name,omitempty"`
+	RemoteIboxCredentialName           string
+	RemoteIboxCredentialNamespace      string
+	RemoteCreatePVC                    *bool  `json:"remote_create_pvc,omitempty"`
+	RemotePVCNameSuffix                string `json:"remote_pvc_name_suffix,omitempty"`
+	RemotePVCName                      string `json:"remote_pvc_name,omitempty"`
+	RemotePVCKubeconfigSecretName      string `json:"remote_pvc_kubeconfig_secret_name,omitempty"`
+	RemotePVCKubeconfigSecretNamespace string `json:"remote_pvc_kubeconfig_secret_namespace,omitempty"`
+	RemotePVCNamespace                 string `json:"remote_pvc_namespace,omitempty"`
+	RemoteNetworkSpace                 string `json:"remote_network_space,omitempty"`
+	RemotePoolName                     string `json:"remote_pool_name,omitempty"`
 }
 
 func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volName string, storageProtocol string, params map[string]string) (err error) {
@@ -39,12 +41,12 @@ func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volNam
 	}
 
 	// validate other ibox replica required parameters
-	if params[common.IboxReplicaRemotePoolIDParameter] == "" {
-		return fmt.Errorf("sc replica parameter [%s] is not set but is required", common.IboxReplicaRemotePoolIDParameter)
-	}
-	poolID, err := strconv.Atoi(params[common.IboxReplicaRemotePoolIDParameter])
-	if err != nil {
-		return fmt.Errorf("sc replica parameter [%s] is set but is not an integer, error %s", common.IboxReplicaRemotePoolIDParameter, err.Error())
+	var poolID int
+	if params[common.IboxReplicaRemotePoolIDParameter] != "" {
+		poolID, err = strconv.Atoi(params[common.IboxReplicaRemotePoolIDParameter])
+		if err != nil {
+			return fmt.Errorf("sc replica parameter [%s] is set but is not an integer, error %s", common.IboxReplicaRemotePoolIDParameter, err.Error())
+		}
 	}
 
 	if params[common.IboxReplicaRemoteIboxLinkNameParameter] == "" {
@@ -89,6 +91,34 @@ func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volNam
 		return err
 	}
 
+	tmp := params[common.IboxReplicaCreatePVC] // boolean
+	var createPVC bool
+	if tmp == "" {
+		slog.Debug("create pvc not specified, skipping")
+	} else {
+		createPVC, err = strconv.ParseBool(params[common.IboxReplicaCreatePVC]) // boolean
+		if err != nil {
+			slog.Error(err.Error())
+			return err
+		}
+	}
+
+	var createPVCFields *RemoteFields
+	if createPVC {
+		createPVCFields, err = handleCreatePVC(params)
+		if err != nil {
+			return err
+		}
+		if createPVCFields.RemotePVCKubeconfigSecretName != "" {
+			_, err = kubernetesClient.GetSecret(ctx, createPVCFields.RemotePVCKubeconfigSecretName, createPVCFields.RemotePVCKubeconfigSecretNamespace)
+			if err != nil {
+				slog.Error(err.Error())
+				return err
+			}
+			slog.Debug("remote kube secret exists", "name", createPVCFields.RemotePVCKubeconfigSecretName, "namespace", createPVCFields.RemoteIboxCredentialNamespace)
+		}
+	}
+
 	if cgName == "" {
 		// 3 - create iboxreplica
 		replicaName := "iboxreplica-" + volName
@@ -103,28 +133,32 @@ func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volNam
 				},
 			},
 			Spec: v1.IboxreplicaSpec{
-				Description:          replicaName,
-				EntityType:           entityType,
-				LocalEntityName:      entityName,
-				RemoteEntityName:     entityName,
-				LinkRemoteSystemName: params[common.IboxReplicaRemoteIboxLinkNameParameter],
-				ReplicationType:      params[common.IboxReplicaTypeParameter],
-				RemotePoolID:         poolID,
+				BaseAction:                    "NEW",
+				Description:                   replicaName,
+				EntityType:                    entityType,
+				LocalEntityName:               entityName,
+				RemoteEntityName:              entityName,
+				LinkRemoteSystemName:          params[common.IboxReplicaRemoteIboxLinkNameParameter],
+				ReplicationType:               params[common.IboxReplicaTypeParameter],
+				RemotePoolID:                  poolID,
+				RemotePoolName:                params[common.IboxReplicaCreatePVCPoolName],
+				RemoteIboxCredentialName:      params[common.IboxReplicaRemoteIboxCredNameParameter],
+				RemoteIboxCredentialNamespace: params[common.IboxReplicaRemoteIboxCredNamespaceParameter],
 			},
 		}
 
-		fields, err := handleCreatePVC(params)
-		if err != nil {
-			return err
+		if createPVC {
+			replica.Spec.RemoteIboxCredentialName = createPVCFields.RemoteIboxCredentialName
+			replica.Spec.RemoteIboxCredentialNamespace = createPVCFields.RemoteIboxCredentialNamespace
+			replica.Spec.RemoteCreatePVC = createPVCFields.RemoteCreatePVC
+			replica.Spec.RemotePVCNameSuffix = createPVCFields.RemotePVCNameSuffix
+			replica.Spec.RemotePVCName = createPVCFields.RemotePVCName
+			replica.Spec.RemotePVCNamespace = createPVCFields.RemotePVCNamespace
+			replica.Spec.RemoteNetworkSpace = createPVCFields.RemoteNetworkSpace
+			replica.Spec.RemotePoolName = createPVCFields.RemotePoolName
+			replica.Spec.RemotePVCKubeconfigSecretName = createPVCFields.RemotePVCKubeconfigSecretName
+			replica.Spec.RemotePVCKubeconfigSecretNamespace = createPVCFields.RemotePVCKubeconfigSecretNamespace
 		}
-		replica.Spec.RemoteIboxCredentialName = fields.RemoteIboxCredentialName
-		replica.Spec.RemoteIboxCredentialNamespace = fields.RemoteIboxCredentialNamespace
-		replica.Spec.RemoteCreatePVC = fields.RemoteCreatePVC
-		replica.Spec.RemotePVCNameSuffix = fields.RemotePVCNameSuffix
-		replica.Spec.RemotePVCName = fields.RemotePVCName
-		replica.Spec.RemotePVCNamespace = fields.RemotePVCNamespace
-		replica.Spec.RemoteNetworkSpace = fields.RemoteNetworkSpace
-		replica.Spec.RemotePoolName = fields.RemotePoolName
 
 		err = kubernetesClient.CreateIboxreplica(ctx, replica)
 		if err != nil {
@@ -159,18 +193,18 @@ func handleSCReplica(ctx context.Context, cs storagecommon.Commonservice, volNam
 			},
 		}
 
-		fields, err := handleCreatePVC(params)
-		if err != nil {
-			return err
+		if createPVC {
+			iboxcg.Spec.RemoteIboxCredentialName = createPVCFields.RemoteIboxCredentialName
+			iboxcg.Spec.RemoteIboxCredentialNamespace = createPVCFields.RemoteIboxCredentialNamespace
+			iboxcg.Spec.RemoteCreatePVC = createPVCFields.RemoteCreatePVC
+			iboxcg.Spec.RemotePVCNameSuffix = createPVCFields.RemotePVCNameSuffix
+			iboxcg.Spec.RemotePVCName = createPVCFields.RemotePVCName
+			iboxcg.Spec.RemotePVCNamespace = createPVCFields.RemotePVCNamespace
+			iboxcg.Spec.RemotePVCKubeconfigSecretName = createPVCFields.RemotePVCKubeconfigSecretName
+			iboxcg.Spec.RemotePVCKubeconfigSecretNamespace = createPVCFields.RemotePVCKubeconfigSecretNamespace
+			iboxcg.Spec.RemoteNetworkSpace = createPVCFields.RemoteNetworkSpace
+			iboxcg.Spec.RemotePoolName = createPVCFields.RemotePoolName
 		}
-		iboxcg.Spec.RemoteIboxCredentialName = fields.RemoteIboxCredentialName
-		iboxcg.Spec.RemoteIboxCredentialNamespace = fields.RemoteIboxCredentialNamespace
-		iboxcg.Spec.RemoteCreatePVC = fields.RemoteCreatePVC
-		iboxcg.Spec.RemotePVCNameSuffix = fields.RemotePVCNameSuffix
-		iboxcg.Spec.RemotePVCName = fields.RemotePVCName
-		iboxcg.Spec.RemotePVCNamespace = fields.RemotePVCNamespace
-		iboxcg.Spec.RemoteNetworkSpace = fields.RemoteNetworkSpace
-		iboxcg.Spec.RemotePoolName = fields.RemotePoolName
 
 		err = kubernetesClient.CreateIboxcg(ctx, iboxcg)
 		if err != nil {
@@ -273,15 +307,23 @@ func handleCreatePVC(params map[string]string) (*RemoteFields, error) {
 		slog.Error(err.Error())
 		return nil, err
 	}
+	kubeconfigSecretName := params[common.IboxReplicaCreatePVCKubeconfigSecretName]
+	kubeconfigSecretNamespace := params[common.IboxReplicaCreatePVCKubeconfigSecretNamespace]
+	remoteNetworkSpace := params[common.IboxReplicaCreatePVCNetworkSpace]
+	slog.Debug("handling create PVC", common.IboxReplicaCreatePVCKubeconfigSecretNamespace, kubeconfigSecretNamespace, common.IboxReplicaCreatePVCKubeconfigSecretName, kubeconfigSecretName)
 
 	fields := &RemoteFields{
-		RemoteCreatePVC:               &createPVC,
-		RemotePVCNamespace:            pvcNamespace,
-		RemotePVCNameSuffix:           pvcSuffix,
-		RemotePoolName:                pvcPoolName,
-		RemoteIboxCredentialName:      remoteIboxCredName,
-		RemoteIboxCredentialNamespace: remoteIboxCredNamespace,
+		RemoteCreatePVC:                    &createPVC,
+		RemotePVCKubeconfigSecretName:      kubeconfigSecretName,
+		RemotePVCKubeconfigSecretNamespace: kubeconfigSecretNamespace,
+		RemotePVCNamespace:                 pvcNamespace,
+		RemoteNetworkSpace:                 remoteNetworkSpace,
+		RemotePVCNameSuffix:                pvcSuffix,
+		RemotePoolName:                     pvcPoolName,
+		RemoteIboxCredentialName:           remoteIboxCredName,
+		RemoteIboxCredentialNamespace:      remoteIboxCredNamespace,
 	}
+	slog.Debug("remote fields", "values", fields)
 
 	return fields, nil
 }
