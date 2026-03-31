@@ -10,6 +10,7 @@ spec:
   description: "async-volume-iboxreplica-test"  # user defined description
   entity_type: "VOLUME"                         # valid values are VOLUME, CONSISTENCY_GROUP, FILESYSTEM
   local_entity_name: $_E2E_IBOXREPLICA_VOLUME   # the volume name of the volume to be replicated
+  remote_entity_name: $_E2E_IBOXREPLICA_VOLUME   # the volume name on the target to be created
   replication_type: "ASYNC"                     # valid values can be ASYNC or ACTIVE_ACTIVE
   base_action: "NEW"                            # value value is NEW
   link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME # the replication link name on the ibox

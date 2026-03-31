@@ -13,5 +13,8 @@ spec:
   replication_type: "SYNC"                 # valid values can be ASYNC or ACTIVE_ACTIVE
   base_action: "NEW"                        # value value is NEW
   link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME # the replication link name on the ibox
-  remote_pool_id: $_E2E_IBOXREPLICA_REMOTE_POOL_ID # the pool ID on the remote ibox
+  remote_pool_name: $_E2E_IBOXREPLICA_REMOTE_POOL_NAME # the pool NAME on the remote ibox
+  remote_ibox_credential_name: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAME
+  remote_ibox_credential_namespace: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE
+
 

@@ -30,7 +30,7 @@ parameters:
   # replica parameters
   replication_type: "ASYNC"
   link_remote_system_name: $_E2E_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME 
-  remote_pool_id: "$_E2E_IBOXREPLICA_REMOTE_POOL_ID"
+  remote_pool_name: "$_E2E_IBOXREPLICA_REMOTE_POOL_NAME"
   local_ibox_credential_name: $_E2E_IBOX_SECRET
   local_ibox_credential_namespace: $_E2E_NAMESPACE   
 
@@ -39,12 +39,12 @@ parameters:
   remote_ibox_credential_namespace: $_E2E_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE
   remote_create_pvc: "true"
     #remote_pvc_name_suffix: $_E2E_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX
-  remote_pvc_name_suffix: ""
-  remote_pvc_namespace: infinidat-csi
-  remote_network_space: default_iscsi_space
-  remote_pool_name: csitesting
-  remote_kubeconfig_secret_name: ocp421-cluster-kubeconfig
-  remote_kubeconfig_secret_namespace: infinidat-csi
+  remote_pvc_name_suffix: $_E2E_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX
+  remote_pvc_namespace: $_E2E_IBOXREPLICA_REMOTE_PVC_NAMESPACE
+  remote_network_space: $_E2E_IBOXREPLICA_REMOTE_NETWORK_SPACE
+  remote_pool_name: $_E2E_IBOXREPLICA_REMOTE_POOL_NAME
+  remote_kubeconfig_secret_name: $_E2E_IBOXREPLICA_REMOTE_KUBE_SECRET_NAME
+  remote_kubeconfig_secret_namespace: $_E2E_IBOXREPLICA_REMOTE_KUBE_SECRET_NAMESPACE
 
   # optional parameters
   #round_up_requested_size: "true"

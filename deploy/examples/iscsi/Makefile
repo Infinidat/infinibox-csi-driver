@@ -9,7 +9,7 @@ setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc.yaml | $(_CLIN) create -f -
-	#envsubst < ./pod.yaml | $(_CLIN) create -f -
+	envsubst < ./pod.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 .PHONY: setuppod
 setuppod:  devEnv
