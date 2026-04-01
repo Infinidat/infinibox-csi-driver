@@ -145,25 +145,40 @@ type MapVolumeToHostResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetAllHosts(ctx context.Context) (host []Host, err error) {
+func (client *IboxClient) GetAllHosts(ctx context.Context) (hosts []Host, err error) {
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/hosts")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
-	parameters := make(map[string]string)
-	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
-	if err != nil {
-		return host, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
-	}
-	var response HostResponse
-	err = json.Unmarshal(bodyBytes, &response)
-	if err != nil {
-		return host, common.Errorf("unmarshal - error: %w url: %s", err, url)
-	}
-	if response.Error.Code != "" {
-		return host, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+	pageSize := common.IBOXDefaultQueryPageSize
+	totalPages := 1 // start with 1, update after first query.
+
+	for page := 1; page <= totalPages; page++ {
+		slog.Log(ctx, common.LevelTrace, "info", "page", page, "totalPages", totalPages)
+
+		parameters := make(map[string]string)
+		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
+		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
+
+		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
+		if err != nil {
+			return hosts, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
+		}
+		var response HostResponse
+		err = json.Unmarshal(bodyBytes, &response)
+		if err != nil {
+			return hosts, common.Errorf("unmarshal - error: %w url: %s", err, url)
+		}
+		if response.Error.Code != "" {
+			return hosts, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+		}
+		hosts = append(hosts, response.Result...)
+
+		if page == 1 {
+			totalPages = response.Metadata.PagesTotal
+		}
 	}
 
-	return response.Result, nil
+	return hosts, nil
 }
 
 func (client *IboxClient) GetHostByName(ctx context.Context, hostName string) (host *Host, err error) {
