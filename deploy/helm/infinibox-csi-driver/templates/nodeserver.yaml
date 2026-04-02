@@ -48,6 +48,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--health-port={{  .Values.healthPortDriverNode | default 9807 }}"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -56,14 +57,14 @@ spec:
               mountPath: /var/run/csi
         - name: driver
           ports:
-            - containerPort: 9808
-              name: healthz
+            - containerPort: {{  .Values.healthPortDriverNode | default 9807 }}
+              name: liveness-port
               protocol: TCP
           livenessProbe:
             failureThreshold: 5
             httpGet:
               path: /healthz
-              port: healthz
+              port: liveness-port
             initialDelaySeconds: 10
             timeoutSeconds: 3
             periodSeconds: 2

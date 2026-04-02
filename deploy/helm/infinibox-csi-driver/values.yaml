@@ -5,6 +5,13 @@
 # operator-sdk when generating CSI operator
 # bundle/manifests/infinibox-operator-certified.clusterserviceversion.yaml
 
+# various healthcheck ports for the driver containers
+healthPortIboxreplica: 8081
+healthPortIboxcg: 8090
+healthPortIboxpromote: 8088
+healthPortDriverController: 9808
+healthPortDriverNode: 9807
+
 replicaCount: 1
 
 instanceCount: 1

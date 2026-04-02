@@ -109,6 +109,7 @@ spec:
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
+            - "--health-port={{  .Values.healthPortDriverController | default 9808 }}"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -117,7 +118,7 @@ spec:
               mountPath: /var/run/csi
         - name: iboxcg
           ports:
-            - containerPort: 8090
+            - containerPort: {{  .Values.healthPortIboxcg | default 8090 }}
               name: healthz7
               protocol: TCP
           livenessProbe:
@@ -134,6 +135,8 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          args:
+            - "--health-probe-bind-address={{ .Values.healthPortIboxcg | default 8090 }}"
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: IBOXCG_CONTROLLER
@@ -148,7 +151,7 @@ spec:
                   fieldPath: metadata.namespace
         - name: iboxpromote
           ports:
-            - containerPort: 8088
+            - containerPort: {{  .Values.healthPortIboxpromote | default 8088 }}
               name: healthz2
               protocol: TCP
           livenessProbe:
@@ -165,6 +168,8 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          args:
+            - "--health-probe-bind-address={{ .Values.healthPortIboxpromote | default 8088 }}"
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: IBOXPROMOTE_CONTROLLER
@@ -179,7 +184,7 @@ spec:
                   fieldPath: metadata.namespace
         - name: iboxreplica
           ports:
-            - containerPort: 8081
+            - containerPort: {{  .Values.healthPortIboxreplica | default 8081 }}
               name: healthz1
               protocol: TCP
           livenessProbe:
@@ -196,6 +201,8 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
+          args:
+            - "--health-probe-bind-address={{ .Values.healthPortIboxreplica | default 8081 }}"
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: IBOXREPLICA_CONTROLLER
@@ -216,7 +223,7 @@ spec:
                   fieldPath: metadata.namespace
         - name: driver
           ports:
-            - containerPort: 9808
+            - containerPort: {{  .Values.healthPortDriverController | default 9808 }}
               name: healthz
               protocol: TCP
           livenessProbe:

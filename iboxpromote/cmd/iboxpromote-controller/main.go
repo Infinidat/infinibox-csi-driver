@@ -74,6 +74,12 @@ func main() {
 
 	ctrl.SetLogger(logr.FromSlogHandler(ThisLogger.Handler()))
 
+	slog.Info("metrics-bind-address", "value", metricsAddr)
+	slog.Info("health-probe-bind-address", "value", probeAddr)
+	slog.Info("leader-elect", "value", enableLeaderElection)
+	slog.Info("metrics-secure", "value", secureMetrics)
+	slog.Info("enable-http2", "value", enableHTTP2)
+
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
 	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and

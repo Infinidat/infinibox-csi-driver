@@ -18,13 +18,13 @@ fi
 
 # Start infinibox-csi-driver or the iboxreplica-controller
 if [[ "$IBOXREPLICA_CONTROLLER" == "true" ]]; then
-	exec "/iboxreplica-controller"
+	exec "/iboxreplica-controller" $*
 elif [[ "$IBOXPROMOTE_CONTROLLER" == "true" ]]; then
-	exec "/iboxpromote-controller"
+	exec "/iboxpromote-controller" $*
 elif [[ "$IBOXCG_CONTROLLER" == "true" ]]; then
-	exec "/iboxcg-controller"
+	exec "/iboxcg-controller" $*
 else 
-	exec "/infinibox-csi-driver"
+	exec "/infinibox-csi-driver" $*
 fi
 
 # exec /infinibox-csi-driver $*
