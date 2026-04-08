@@ -19,7 +19,6 @@ parameters:
   csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
   csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
   csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
-  csi.storage.k8s.io/fstype: ext4
 
   # infinibox configuration
   network_space: $_E2E_ISCSI_NETWORK_SPACE
