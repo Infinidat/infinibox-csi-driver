@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: mongo
-          image: mongo:5
+          image: docker.io/mongo
           command:
             - mongod
             - "--replSet"
@@ -32,7 +32,7 @@ spec:
   - metadata:
       name: mongo-persistent-storage
     spec:
-      storageClassName: ibox-iscsi
+      storageClassName: ibox-fc-statefulset
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
