@@ -136,7 +136,7 @@ spec:
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           args:
-            - "--health-probe-bind-address={{ .Values.healthPortIboxcg | default 8090 }}"
+            - "--health-probe-bind-address=:{{ .Values.healthPortIboxcg | default 8090 }}"
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: IBOXCG_CONTROLLER
@@ -169,7 +169,7 @@ spec:
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           args:
-            - "--health-probe-bind-address={{ .Values.healthPortIboxpromote | default 8088 }}"
+            - "--health-probe-bind-address=:{{ .Values.healthPortIboxpromote | default 8088 }}"
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: IBOXPROMOTE_CONTROLLER
@@ -202,7 +202,7 @@ spec:
             allowPrivilegeEscalation: true  
           image: {{ required "Provide the Infinibox csi driver container image." .Values.images.csidriver }}
           args:
-            - "--health-probe-bind-address={{ .Values.healthPortIboxreplica | default 8081 }}"
+            - "--health-probe-bind-address=:{{ .Values.healthPortIboxreplica | default 8081 }}"
           imagePullPolicy: {{ .Values.images.csidriver_pull_policy | default "Always" | quote }}
           env:
             - name: IBOXREPLICA_CONTROLLER
