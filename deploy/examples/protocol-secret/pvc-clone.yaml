@@ -6,10 +6,10 @@ metadata:
 spec:
   accessModes:
   - ReadWriteOnce
-  storageClassName: ibox-ps
+  storageClassName: $TEST_NAME
   resources:
     requests:
       storage: 1Gi
   dataSource:
     kind: PersistentVolumeClaim
-    name: ps-pvc
+    name: $TEST_NAME

@@ -4,9 +4,9 @@ metadata:
   name: nfs-pvc-restore-from-snapshot-dnsname
   namespace: $_E2E_NAMESPACE
 spec:
-  storageClassName: ibox-dnsname-nfs
+  storageClassName: $TEST_NAME
   dataSource:
-    name: nfs-dnsname-snapshot
+    name: $TEST_NAME
     kind: VolumeSnapshot
     apiGroup: "snapshot.storage.k8s.io"
   accessModes:

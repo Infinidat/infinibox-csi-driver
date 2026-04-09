@@ -4,6 +4,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=fc-statefulset
+
 ##@ fc examples
 .PHONY: setup
 setup:  devEnv teardown

@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=iscsi-block-rwx
+
 ##@ iscsi block rwx example
 .PHONY: setup
 setup:  devEnv teardown 

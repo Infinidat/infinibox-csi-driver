@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=treeq-admin
+
 ##@ This example shows how treeq can be pre-provisioned by an ibox admin, then used by kube admins.
 .PHONY: setup
 setup:  devEnv teardown

@@ -9,5 +9,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-iscsi-ro
+  storageClassName: $TEST_NAME
   volumeName: ro-pv-from-existing

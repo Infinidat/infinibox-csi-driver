@@ -26,4 +26,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: nfs-pvc-rwx
+        claimName: $TEST_NAME

@@ -4,9 +4,9 @@ metadata:
   name: iscsi-pvc-restore-from-snapshot-anno
   namespace: $_E2E_NAMESPACE
 spec:
-  storageClassName: ibox-iscsi-anno
+  storageClassName: $TEST_NAME
   dataSource:
-    name: iscsi-snapshot-anno
+    name: $TEST_NAME
     kind: VolumeSnapshot
     apiGroup: "snapshot.storage.k8s.io"
   accessModes:

@@ -32,4 +32,4 @@ spec:
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: fc-block-pvc-rwx
+        claimName: $TEST_NAME

@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=fc-block
+
 ##@ fc block example
 .PHONY: setup
 setup:  devEnv teardown 
@@ -23,7 +25,7 @@ teardown: devEnv
 .PHONY: setup-block-clone
 setup-block-clone:  devEnv teardown-block-clone
 	@echo -e $(_begin)
-	envsubst < ./storageclasse.yaml | $(_CLI) create -f -
+	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc-block-clone.yaml | $(_CLIN) create -f -
 	envsubst < ./pod-block-clone.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)

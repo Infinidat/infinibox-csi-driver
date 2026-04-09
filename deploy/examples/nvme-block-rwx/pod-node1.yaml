@@ -19,4 +19,4 @@ spec:
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: nvme-block-pvc-rwx
+        claimName: $TEST_NAME

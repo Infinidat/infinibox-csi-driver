@@ -37,7 +37,7 @@ spec:
       volPathd: /csi-1c1324de94
     volumeHandle: 7394$$nfs
   persistentVolumeReclaimPolicy: Delete
-  storageClassName: ibox-nfs-storageclass-demo
+  storageClassName: $TEST_NAME
   volumeMode: Filesystem
   mountOptions:
     - vers=4.1

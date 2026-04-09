@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nfs-rox-test
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:
@@ -19,4 +19,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: nfs-rox-pvc
+        claimName: $TEST_NAME

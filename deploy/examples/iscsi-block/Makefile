@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=iscsi-block-test
+
 ##@ iscsi block example
 .PHONY: setup
 setup:  devEnv teardown

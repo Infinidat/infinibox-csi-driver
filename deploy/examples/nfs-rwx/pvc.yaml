@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nfs-pvc-rwx
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
 spec:
   accessModes:
@@ -9,5 +9,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-nfs-rwx
+  storageClassName: $TEST_NAME
   # volumeName: <<pv name>> #need to uncomment if want to use an existing pv

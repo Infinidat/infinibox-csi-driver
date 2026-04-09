@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: nfs-test
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
   labels:
     security: s1
@@ -18,4 +18,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: nfs-pvc-rwx
+        claimName: $TEST_NAME

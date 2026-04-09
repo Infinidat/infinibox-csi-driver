@@ -9,5 +9,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-treeq-admin
+  storageClassName: $TEST_NAME
   volumeName: user1-pv

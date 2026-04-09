@@ -15,4 +15,4 @@ spec:
       storage: 1Gi
   dataSource:
     kind: PersistentVolumeClaim
-    name: nfs-pvc-anno-secret
+    name: $TEST_NAME

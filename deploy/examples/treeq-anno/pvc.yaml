@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: treeq-pvc-anno
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
   annotations:
     infinidat.com/pool_name: $_E2E_POOL
@@ -12,4 +12,4 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-treeq-anno
+  storageClassName: $TEST_NAME

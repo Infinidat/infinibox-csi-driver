@@ -9,5 +9,5 @@ spec:
   resources:
     requests:
       storage: 1Gi
-  storageClassName: ibox-nfs-fsg-v4
+  storageClassName: $TEST_NAME
   # volumeName: <<pv name>> #need to uncomment if want to use an existing pv

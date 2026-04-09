@@ -32,7 +32,7 @@ spec:
   - metadata:
       name: mongo-persistent-storage
     spec:
-      storageClassName: ibox-fc-statefulset
+      storageClassName: $TEST_NAME
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:

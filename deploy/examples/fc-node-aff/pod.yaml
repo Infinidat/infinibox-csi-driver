@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: fc-test-node-aff
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:
@@ -26,4 +26,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: fc-pvc-node-aff
+        claimName: $TEST_NAME

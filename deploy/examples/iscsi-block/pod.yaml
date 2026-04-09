@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: iscsi-block
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:
@@ -9,12 +9,12 @@ spec:
   containers:
     - name: csitest
       image: $_E2E_TEST_BLOCK_IMAGE
-      volumeMounts:
       command: [ "csitestimageblock" ]
+      volumeMounts:
       volumeDevices:
         - name: data
           devicePath: /dev/xvda
   volumes:
     - name: data
       persistentVolumeClaim:
-        claimName: iscsi-block-pvc
+        claimName: $TEST_NAME

@@ -4,9 +4,9 @@ metadata:
   name: ps-pvc-restore-from-snapshot
   namespace: $_E2E_NAMESPACE
 spec:
-  storageClassName: ibox-ps
+  storageClassName: $TEST_NAME
   dataSource:
-    name: ps-snapshot
+    name: $TEST_NAME
     kind: VolumeSnapshot
     apiGroup: "snapshot.storage.k8s.io"
   accessModes:

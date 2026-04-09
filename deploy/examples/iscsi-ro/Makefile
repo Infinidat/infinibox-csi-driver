@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=iscsi-ro
+
 ##@ a readonly iscsi example
 .PHONY: setup
 setup:  devEnv teardown

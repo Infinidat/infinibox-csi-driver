@@ -6,10 +6,10 @@ metadata:
 spec:
   accessModes:
   - ReadWriteOnce
-  storageClassName: ibox-nfs-v4
+  storageClassName: $TEST_NAME
   resources:
     requests:
       storage: 1Gi
   dataSource:
     kind: PersistentVolumeClaim
-    name: nfs-pvc-v4
+    name: $TEST_NAME

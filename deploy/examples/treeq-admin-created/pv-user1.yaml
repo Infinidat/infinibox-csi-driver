@@ -33,7 +33,7 @@ spec:
       nfs_export_permissions : "[{'access':'RW','client':'*','no_root_squash':true}]"
     volumeHandle: 934#20002$$nfs_treeq
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: ibox-treeq-admin
+  storageClassName: $TEST_NAME
   volumeMode: Filesystem
   mountOptions:
     - hard

@@ -4,9 +4,9 @@ metadata:
   name: fc-pvc-restore-from-snapshot-node-aff
   namespace: $_E2E_NAMESPACE
 spec:
-  storageClassName: ibox-fc-node-aff
+  storageClassName: $TEST_NAME
   dataSource:
-    name: fc-snapshot-node-aff
+    name: $TEST_NAME
     kind: VolumeSnapshot
     apiGroup: "snapshot.storage.k8s.io"
   accessModes:

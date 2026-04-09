@@ -30,5 +30,5 @@ spec:
       storage_protocol: fc
     volumeHandle: 2922271$$fc
   persistentVolumeReclaimPolicy: Delete
-  storageClassName: ibox-ps
+  storageClassName: $TEST_NAME
   volumeMode: Filesystem

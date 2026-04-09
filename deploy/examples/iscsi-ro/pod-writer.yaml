@@ -17,4 +17,4 @@ spec:
   volumes:
     - name: ibox-csi-volume
       persistentVolumeClaim:
-        claimName: iscsi-ro-pvc
+        claimName: $TEST_NAME

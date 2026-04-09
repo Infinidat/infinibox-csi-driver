@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=nfs-rwx
+
 ##@ an example of 2 pods using the same RWX volume claim
 .PHONY: setup
 setup:  devEnv teardown 

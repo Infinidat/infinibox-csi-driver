@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: ibox-iscsi-rox
+  name: $TEST_NAME
 provisioner: infinibox-csi-driver
 reclaimPolicy: Retain
 volumeBindingMode: Immediate

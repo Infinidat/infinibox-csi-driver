@@ -3,6 +3,8 @@ export
 
 include ../../../Makefile-help
 
+TEST_NAME=nfs-rox
+
 ##@ a readonlymany example using nfs
 .PHONY: setup
 setup:  devEnv teardown 

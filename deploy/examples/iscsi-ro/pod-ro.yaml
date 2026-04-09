@@ -1,7 +1,7 @@
 kind: Pod
 apiVersion: v1
 metadata:
-  name: iscsi-ro-test
+  name: $TEST_NAME
   namespace: $_E2E_NAMESPACE
 spec:
   imagePullSecrets:

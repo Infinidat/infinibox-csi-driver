@@ -7,10 +7,10 @@ spec:
   accessModes:
   - ReadWriteOnce
   volumeMode: Block
-  storageClassName: ibox-iscsi
+  storageClassName: $TEST_NAME
   resources:
     requests:
       storage: 1Gi
   dataSource:
     kind: PersistentVolumeClaim
-    name: iscsi-block-pvc
+    name: $TEST_NAME

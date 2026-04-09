@@ -4,9 +4,9 @@ metadata:
   name: nvme-pvc-restore-from-snapshot-node-aff
   namespace: $_E2E_NAMESPACE
 spec:
-  storageClassName: ibox-nvme-node-aff
+  storageClassName: $TEST_NAME
   dataSource:
-    name: nvme-snapshot-node-aff
+    name: $TEST_NAME
     kind: VolumeSnapshot
     apiGroup: "snapshot.storage.k8s.io"
   accessModes:
