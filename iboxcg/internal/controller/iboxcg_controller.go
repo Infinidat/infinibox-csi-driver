@@ -353,22 +353,24 @@ func (r *IboxcgReconciler) handleAddMember(ctx context.Context, cr *csidriverinf
 		}
 	}
 	if replicaFound {
-		logger.Info("replica found for cg", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
-		err := clientsvc.IboxAPI.SuspendReplica(ctx, replica.ID)
-		if err != nil {
-			logger.Error(err, "error suspending replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
-			return err
-		}
-		for range 20 {
-			time.Sleep(1 * time.Second)
-			replica, err := clientsvc.IboxAPI.GetReplicaForCG(ctx, localCG.Name)
+		logger.Info("replica found for cg", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name, "cg members count", len(cgMembers))
+		if len(cgMembers) > 0 {
+			err := clientsvc.IboxAPI.SuspendReplica(ctx, replica.ID)
 			if err != nil {
-				logger.Error(err, "error getting replica in status check loop", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
-			} else {
-				logger.Info("replica state", "state", replica.State)
-				if replica.State == "SUSPENDED" {
-					logger.Info("replica state is now SUSPENDED", "state", replica.State)
-					break
+				logger.Error(err, "error suspending replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
+				return err
+			}
+			for range 20 {
+				time.Sleep(1 * time.Second)
+				replica, err := clientsvc.IboxAPI.GetReplicaForCG(ctx, localCG.Name)
+				if err != nil {
+					logger.Error(err, "error getting replica in status check loop", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
+				} else {
+					logger.Info("replica state", "state", replica.State)
+					if replica.State == "SUSPENDED" {
+						logger.Info("replica state is now SUSPENDED", "state", replica.State)
+						break
+					}
 				}
 			}
 		}
@@ -381,9 +383,11 @@ func (r *IboxcgReconciler) handleAddMember(ctx context.Context, cr *csidriverinf
 	}
 
 	if replicaFound {
-		err = clientsvc.IboxAPI.ResumeReplica(ctx, replica.ID)
-		if err != nil {
-			logger.Error(err, "error resuming replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
+		if len(cgMembers) > 0 {
+			err = clientsvc.IboxAPI.ResumeReplica(ctx, replica.ID)
+			if err != nil {
+				logger.Error(err, "error resuming replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
+			}
 		}
 	}
 
@@ -434,22 +438,24 @@ func (r *IboxcgReconciler) handleRemoveMember(ctx context.Context, cr *csidriver
 	}
 
 	if replicaFound {
-		logger.Info("replica found for cg", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
-		err := clientsvc.IboxAPI.SuspendReplica(ctx, replica.ID)
-		if err != nil {
-			logger.Error(err, "error suspending replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
-			return err
-		}
-		for range 20 {
-			time.Sleep(1 * time.Second)
-			replica, err := clientsvc.IboxAPI.GetReplicaForCG(ctx, localCG.Name)
+		logger.Info("replica found for cg", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name, "cg member count", len(cgMembers))
+		if len(cgMembers) > 0 {
+			err := clientsvc.IboxAPI.SuspendReplica(ctx, replica.ID)
 			if err != nil {
-				logger.Error(err, "error getting replica in status check loop", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
-			} else {
-				logger.Info("replica state", "state", replica.State)
-				if replica.State == "SUSPENDED" {
-					logger.Info("replica state is now suspended", "state", replica.State)
-					break
+				logger.Error(err, "error suspending replica", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
+				return err
+			}
+			for range 20 {
+				time.Sleep(1 * time.Second)
+				replica, err := clientsvc.IboxAPI.GetReplicaForCG(ctx, localCG.Name)
+				if err != nil {
+					logger.Error(err, "error getting replica in status check loop", "replica", replica.ID, "cr", cr.Name, "cg", localCG.Name)
+				} else {
+					logger.Info("replica state", "state", replica.State)
+					if replica.State == "SUSPENDED" {
+						logger.Info("replica state is now suspended", "state", replica.State)
+						break
+					}
 				}
 			}
 		}
