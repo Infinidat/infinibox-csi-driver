@@ -17,10 +17,10 @@ replicaCount: 1
 instanceCount: 1
 
 # prefix for pv name
-volumeNamePrefix: csi-test
+volumeNamePrefix: ibox
 
 # log level of driver
-logLevel: "debug"
+logLevel: "info"
 
 # log format, defaults is 'json', but 'text' is also valid
 logFormat: "json"
@@ -116,7 +116,7 @@ images:
 
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-csi-driver:v2.28.0"
+  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.28.0"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
@@ -161,13 +161,21 @@ images:
 
   livenesssidecar_pull_policy: "IfNotPresent"
 
-  imagePullSecret: "private-docker-reg-secret"
+  #imagePullSecret: "private-docker-reg-secret"
 
 Infinibox_Cred:
   - SecretName: "infinibox-creds"
-    username: "csi"
-    password: "doof"
-    hostname: "ibox2382.lab.gdc.il.infinidat.com"
+    username: "someiboxusername"
+    password: "someiboxpassword"
+    hostname: "ibox0000"
+    inbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout"
+    inbound_secret: "0.0000000000000"
+    outbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin"
+    outbound_secret: "0.0000000000001"
+  - SecretName: "infinibox-creds2"
+    username: "someiboxusername"
+    password: "someiboxpassword"
+    hostname: "ibox0000"
     inbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonout"
     inbound_secret: "0.0000000000000"
     outbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin"

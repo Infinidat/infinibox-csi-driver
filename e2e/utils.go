@@ -266,8 +266,6 @@ func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string
 		storageClass.ReclaimPolicy = &rp
 	}
 
-	createOptions := metav1.CreateOptions{}
-
 	allowExpand := true
 	storageClass.AllowVolumeExpansion = &allowExpand
 
@@ -283,7 +281,7 @@ func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string
 		}
 	}
 
-	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(ctx, storageClass, createOptions)
+	_, err = testConfig.ClientSet.StorageV1().StorageClasses().Create(ctx, storageClass, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -477,7 +475,6 @@ func CreatePod(ctx context.Context, testConfig *TestConfig, namespace string, po
 	if testConfig.TestNames.PVCName != "" {
 		pvcName = testConfig.TestNames.PVCName
 	}
-	createOptions := metav1.CreateOptions{}
 	podFSGroup := int64(POD_FS_GROUP)
 
 	var objectMeta metav1.ObjectMeta
@@ -574,8 +571,6 @@ func CreatePod(ctx context.Context, testConfig *TestConfig, namespace string, po
 		},
 	}
 
-	var pod corev1.Pod
-
 	podAntiAffinity := corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -590,73 +585,38 @@ func CreatePod(ctx context.Context, testConfig *TestConfig, namespace string, po
 			},
 		},
 	}
+
+	pod := corev1.Pod{
+		ObjectMeta: objectMeta,
+		Spec: corev1.PodSpec{
+			ImagePullSecrets: []corev1.LocalObjectReference{
+				{
+					Name: IMAGE_PULL_SECRET,
+				},
+			},
+			Containers: []corev1.Container{container},
+			Volumes:    []corev1.Volume{volume},
+		},
+	}
+
 	// determine which affinity for pod here, so correct one is assigned below.
 	if testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
-		pod = corev1.Pod{
-			ObjectMeta: objectMeta,
-			Spec: corev1.PodSpec{
-				ImagePullSecrets: []corev1.LocalObjectReference{
-					{
-						Name: IMAGE_PULL_SECRET,
-					},
-				},
-				Containers: []corev1.Container{container},
-				Volumes:    []corev1.Volume{volume},
-				SecurityContext: &corev1.PodSecurityContext{
-					FSGroup:    &podFSGroup,
-					RunAsUser:  &podFSGroup,
-					RunAsGroup: &podFSGroup,
-				},
-			},
+		pod.Spec.SecurityContext = &corev1.PodSecurityContext{
+			FSGroup:    &podFSGroup,
+			RunAsUser:  &podFSGroup,
+			RunAsGroup: &podFSGroup,
 		}
 	} else if testConfig.UseFsGroup && testConfig.UseAntiAffinity {
-		pod = corev1.Pod{
-			ObjectMeta: objectMeta,
-			Spec: corev1.PodSpec{
-				Affinity: &podAntiAffinity,
-				ImagePullSecrets: []corev1.LocalObjectReference{
-					{
-						Name: IMAGE_PULL_SECRET,
-					},
-				},
-				Containers: []corev1.Container{container},
-				Volumes:    []corev1.Volume{volume},
-				SecurityContext: &corev1.PodSecurityContext{
-					FSGroup:    &podFSGroup,
-					RunAsUser:  &podFSGroup,
-					RunAsGroup: &podFSGroup,
-				},
-			},
-		}
-	} else if !testConfig.UseFsGroup && !testConfig.UseAntiAffinity {
-		pod = corev1.Pod{
-			ObjectMeta: objectMeta,
-			Spec: corev1.PodSpec{
-				ImagePullSecrets: []corev1.LocalObjectReference{
-					{
-						Name: IMAGE_PULL_SECRET,
-					},
-				},
-				Containers: []corev1.Container{container},
-				Volumes:    []corev1.Volume{volume},
-			},
+		pod.Spec.Affinity = &podAntiAffinity
+		pod.Spec.SecurityContext = &corev1.PodSecurityContext{
+			FSGroup:    &podFSGroup,
+			RunAsUser:  &podFSGroup,
+			RunAsGroup: &podFSGroup,
 		}
 	} else if !testConfig.UseFsGroup && testConfig.UseAntiAffinity {
-		pod = corev1.Pod{
-			ObjectMeta: objectMeta,
-			Spec: corev1.PodSpec{
-				Affinity: &podAntiAffinity,
-				ImagePullSecrets: []corev1.LocalObjectReference{
-					{
-						Name: IMAGE_PULL_SECRET,
-					},
-				},
-				Containers: []corev1.Container{container},
-				Volumes:    []corev1.Volume{volume},
-			},
-		}
+		pod.Spec.Affinity = &podAntiAffinity
 	}
-	_, err = testConfig.ClientSet.CoreV1().Pods(namespace).Create(ctx, &pod, createOptions)
+	_, err = testConfig.ClientSet.CoreV1().Pods(namespace).Create(ctx, &pod, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}

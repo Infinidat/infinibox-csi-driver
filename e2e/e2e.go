@@ -86,16 +86,19 @@ type TestConfig struct {
 func GetTestConfig(t *testing.T, protocol string) (testConfig *TestConfig, err error) {
 	GetFlags(t)
 
+	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
+	scName := fmt.Sprintf(SC_NAME, protocol)
+
 	testConfig = &TestConfig{}
 
-	testConfig.TestNames = &TestResourceNames{}
-	testConfig.TestNames.UniqueSuffix = RandSeq(3)
-	e2eNamespace := fmt.Sprintf(E2E_NAMESPACE, protocol)
-	testConfig.TestNames.NSName = e2eNamespace + testConfig.TestNames.UniqueSuffix
-	scName := fmt.Sprintf(SC_NAME, protocol)
-	testConfig.TestNames.SCName = scName + testConfig.TestNames.UniqueSuffix
-	testConfig.TestNames.VSCName = scName + testConfig.TestNames.UniqueSuffix
-	testConfig.TestNames.PVCName = fmt.Sprintf(PVC_NAME, protocol)
+	uniqueSuffix := RandSeq(3)
+	testConfig.TestNames = &TestResourceNames{
+		UniqueSuffix: uniqueSuffix,
+		NSName:       e2eNamespace + uniqueSuffix,
+		SCName:       scName + uniqueSuffix,
+		PVCName:      fmt.Sprintf(PVC_NAME, protocol),
+		VSCName:      scName + uniqueSuffix,
+	}
 
 	// connect to kube
 	err = GetKubeClient(testConfig, *KubeConfigPath)

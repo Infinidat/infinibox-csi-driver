@@ -14,11 +14,7 @@ import (
 func main() {
 	go catchSignal()
 
-	fmt.Printf("current user id %d\n", os.Getuid())
-	fmt.Printf("current group id %d\n", os.Getgid())
-
-	fmt.Println("starting csitest block...")
-
+	fmt.Printf("starting csitest block ... current user id %d group id %d\n", os.Getuid(), os.Getgid())
 	disk := "/dev/xvda"
 	valueToWrite := "foo"
 
@@ -57,21 +53,6 @@ func main() {
 			fmt.Printf("error writing %s\n", err.Error())
 			os.Exit(1)
 		}
-
-		/**
-		time.Sleep(4 * time.Second)
-
-		n, valueRead, err := readFromBlockDevice(valueToWrite, disk)
-		if err != nil {
-			fmt.Printf("error reading %s\n", err.Error())
-			os.Exit(1)
-		}
-		fmt.Printf("read %d bytes [%s] from block device %s\n", n, valueRead, disk)
-		if valueRead != valueToWrite {
-			fmt.Printf("value of [%s] len %d did not match the expected value of [%s] len %d", valueRead, len(valueRead), valueToWrite, len(valueToWrite))
-			os.Exit(2)
-		}
-		*/
 	}
 
 	for {

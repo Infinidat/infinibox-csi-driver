@@ -211,64 +211,26 @@ func CreateEvent(iboxAPI iboxapi.Client, desc string, eventData []iboxapi.EventR
 
 	data = append(data, eventData...)
 
-	versionData := iboxapi.EventRequestData{
-		Name:  "csi_driver_version",
-		Type:  "String",
-		Value: version,
-	}
-	data = append(data, versionData)
+	data = append(data, iboxapi.EventRequestData{Name: "csi_driver_version", Type: "String", Value: version})
 
-	osVersionData := iboxapi.EventRequestData{
-		Name:  "os_version",
-		Type:  "String",
-		Value: osVersion,
-	}
-	data = append(data, osVersionData)
+	data = append(data, iboxapi.EventRequestData{Name: "os_version", Type: "String", Value: osVersion})
 
-	kubeVersionData := iboxapi.EventRequestData{
-		Name:  "kube_version",
-		Type:  "String",
-		Value: kubeVersion,
-	}
-	data = append(data, kubeVersionData)
+	data = append(data, iboxapi.EventRequestData{Name: "kube_version", Type: "String", Value: kubeVersion})
 
-	kubeNodeNameData := iboxapi.EventRequestData{
-		Name:  "kube_node_name",
-		Type:  "String",
-		Value: os.Getenv("KUBE_NODE_NAME"),
-	}
-	data = append(data, kubeNodeNameData)
+	data = append(data, iboxapi.EventRequestData{Name: "kube_node_name", Type: "String", Value: os.Getenv("KUBE_NODE_NAME")})
 
-	kubeNodeCountData := iboxapi.EventRequestData{
-		Name:  "kube_node_count",
-		Type:  "String",
-		Value: kubeNodeCount,
-	}
-	data = append(data, kubeNodeCountData)
+	data = append(data, iboxapi.EventRequestData{Name: "kube_node_count", Type: "String", Value: kubeNodeCount})
 
-	descData := iboxapi.EventRequestData{
-		Name:  "event_desc",
-		Type:  "String",
-		Value: desc,
-	}
-	data = append(data, descData)
+	data = append(data, iboxapi.EventRequestData{Name: "event_desc", Type: "String", Value: desc})
 
 	systemDetails, err := iboxAPI.GetSystem(context.Background())
 	if err != nil {
 		slog.Error(err.Error())
 	} else {
-		serialNumberData := iboxapi.EventRequestData{
-			Name:  "serial_number",
-			Type:  "String",
-			Value: strconv.Itoa(systemDetails.SerialNumber),
-		}
-		data = append(data, serialNumberData)
+		data = append(data, iboxapi.EventRequestData{Name: "serial_number", Type: "String", Value: strconv.Itoa(systemDetails.SerialNumber)})
 	}
 
-	r := iboxapi.EventRequest{
-		Code: "ECOSYSTEM_TOOLS_HEARTBEAT",
-		Data: data,
-	}
+	r := iboxapi.EventRequest{Code: "ECOSYSTEM_TOOLS_HEARTBEAT", Data: data}
 
 	err = iboxAPI.CreateEvent(context.Background(), r)
 	return err

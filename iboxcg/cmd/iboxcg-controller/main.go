@@ -75,11 +75,7 @@ func main() {
 
 	ctrl.SetLogger(logr.FromSlogHandler(ThisLogger.Handler()))
 
-	slog.Info("metrics-bind-address", "value", metricsAddr)
-	slog.Info("health-probe-bind-address", "value", probeAddr)
-	slog.Info("leader-elect", "value", enableLeaderElection)
-	slog.Info("metrics-secure", "value", secureMetrics)
-	slog.Info("enable-http2", "value", enableHTTP2)
+	slog.Info("command line values", "metrics-bind-address", metricsAddr, "health-probe-bind-address", probeAddr, "leader-elect", enableLeaderElection, "metrics-secure", secureMetrics, "enable-http2", enableHTTP2)
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
