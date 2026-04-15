@@ -38,18 +38,18 @@ type Treeqstorage struct {
 	NFSstorage   nfs.NFSstorage
 }
 
-func NewTreeqstorage(capacity int64, comnserv storagecommon.Commonservice) (treeq *Treeqstorage) {
+func NewTreeqstorage(capacity int64, commonService storagecommon.Commonservice) (treeq *Treeqstorage) {
 	nfs := nfs.NFSstorage{
 		Capacity:               capacity,
 		StorageClassParameters: make(map[string]string),
-		CS:                     comnserv,
+		CS:                     commonService,
 		StorageHelper:          storagecommon.StorageService{},
 		OSHelper:               helper.Service{},
 		Mounter:                mount.NewWithoutSystemd(""),
 	}
 	service := &Service{
 		NFSstorage: nfs,
-		CS:         comnserv,
+		CS:         commonService,
 	}
 	treeq = &Treeqstorage{
 		NFSstorage:   nfs,

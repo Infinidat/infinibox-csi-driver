@@ -99,14 +99,10 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	commonService, err := storagecommon.BuildCommonService(configparams, secretsToUse, nil)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - name %s error %s", volName, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+	volumeInfo := api.VolumeProtocolConfig{
+		StorageType: storageProtocol,
 	}
-
-	storageController, err := storage.NewStorageController(commonService, capacity, storageProtocol)
+	storageController, commonService, err := storage.NewStorageController(configparams, secretsToUse, &volumeInfo, capacity)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("NewStorageController - name %s error %s", volName, err.Error())
 		slog.Error(e.Error())
@@ -207,14 +203,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 		"nodeid": s.Driver.nodeID,
 	}
 
-	commonService, err := storagecommon.BuildCommonService(config, secretsToUse, &volumeInfo)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - volume ID: %s error: %s", volumeID, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	storageController, err := storage.NewStorageController(commonService, 0, volumeInfo.StorageType)
+	storageController, _, err := storage.NewStorageController(config, secretsToUse, &volumeInfo, 0)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", volumeID, err.Error())
 		slog.Error(e.Error())
@@ -330,19 +319,13 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	commonService, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
-	storageController, err := storage.NewStorageController(commonService, 0, volumeInfo.StorageType)
+	storageController, _, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil || storageController == nil {
 		e := fmt.Errorf("NewStorageController - volume ID: %s type %v error: %s", req.GetVolumeId(), volumeInfo, err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
+
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
 		e := fmt.Errorf("ControllerPublishVolume - failed proto: %v volume ID: %s node ID: %s error: %v", volumeInfo, req.GetVolumeId(), req.GetNodeId(), err)
@@ -394,13 +377,6 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 		volumeInfo.StorageType = nodeProtocol
 	}
 
-	commonService, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
 		e := fmt.Errorf("DetermineHostName - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
@@ -409,6 +385,13 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	}
 
 	volumeInfo.NodeID = req.GetNodeId()
+
+	storageController, commonService, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
+	if err != nil {
+		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
+	}
 
 	if volumeInfo.StorageType != common.ProtocolNFS && volumeInfo.StorageType != common.ProtocolTreeq {
 		if volumeInfo.StorageType == common.ProtocolNVME {
@@ -423,13 +406,6 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
-	}
-
-	storageController, err := storage.NewStorageController(commonService, 0, volumeInfo.StorageType)
-	if err != nil {
-		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	unpublishVolResp, err = storageController.ControllerUnpublishVolume(ctx, req)
@@ -801,18 +777,13 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		"nodeid": s.Driver.nodeID,
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - snapshot name: %s source volume ID: %s failed to get ibox api error: %v", req.GetName(), req.GetSourceVolumeId(), err)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
-	}
-	storageController, err := storage.NewStorageController(comnserv, 0, volumeInfo.StorageType)
+	storageController, commonService, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil {
 		e := fmt.Errorf("NewStorageController - snapshot name: %s source volume ID: %s error: %s", req.GetName(), req.GetSourceVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
+
 	createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
 	if err != nil {
 		e := fmt.Errorf("sc.CreateSnapshot - snapshot name: %s source volume ID: %s error: %s", req.GetName(), req.GetSourceVolumeId(), err)
@@ -820,8 +791,8 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	helper.EventAPIClient = comnserv.API
-	helper.EventIboxAPIClient = comnserv.IboxAPI
+	helper.EventAPIClient = commonService.API
+	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventCreatedSnapshots++
 
 	return createSnapshotResp, nil
@@ -845,13 +816,8 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	config := map[string]string{
 		"nodeid": s.Driver.nodeID,
 	}
-	comnserv, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - snapshot ID: %s error: %v", req.GetSnapshotId(), err)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-	storageController, err := storage.NewStorageController(comnserv, 0, volumeInfo.StorageType)
+
+	storageController, _, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil {
 		e := fmt.Errorf("NewStorageController - snapshot ID: %s error %s", req.GetSnapshotId(), err.Error())
 		slog.Error(e.Error())
@@ -910,18 +876,13 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	comnserv, err := storagecommon.BuildCommonService(configparams, req.GetSecrets(), &volumeInfo)
-	if err != nil {
-		e := fmt.Errorf("BuildCommonService - volume ID: %s error: %v", req.GetVolumeId(), err)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
-	}
-	storageController, err := storage.NewStorageController(comnserv, capacity, volumeInfo.StorageType)
+	storageController, _, err := storage.NewStorageController(configparams, req.GetSecrets(), &volumeInfo, capacity)
 	if err != nil {
 		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
+
 	if storageController != nil {
 		req.VolumeId = strconv.Itoa(volumeInfo.VolumeID)
 		expandVolResp, err = storageController.ControllerExpandVolume(ctx, req)
@@ -963,9 +924,9 @@ func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 	return nil
 }
 
-func validateCommonStorageClassParameters(ctx context.Context, comnserv storagecommon.Commonservice, scParameters map[string]string, protocol string) error {
+func validateCommonStorageClassParameters(ctx context.Context, commonService storagecommon.Commonservice, scParameters map[string]string, protocol string) error {
 	poolName := scParameters[common.StorageClassPoolName]
-	_, err := comnserv.IboxAPI.GetPoolByName(ctx, poolName)
+	_, err := commonService.IboxAPI.GetPoolByName(ctx, poolName)
 	if err != nil {
 		return err
 	}
@@ -976,14 +937,14 @@ func validateCommonStorageClassParameters(ctx context.Context, comnserv storagec
 		arrayofNetworkSpaces := strings.Split(networkspace, ",")
 
 		for _, name := range arrayofNetworkSpaces {
-			_, err := comnserv.IboxAPI.GetNetworkSpaceByName(ctx, name)
+			_, err := commonService.IboxAPI.GetNetworkSpaceByName(ctx, name)
 			if err != nil {
 				slog.Error("network space: is not found on the ibox", "name", name)
 				return err
 			}
 		}
 		// validate network protocol / networkspace compatibility
-		if err := storagecommon.ValidateProtocolToNetworkSpace(ctx, protocol, arrayofNetworkSpaces, comnserv.IboxAPI); err != nil {
+		if err := storagecommon.ValidateProtocolToNetworkSpace(ctx, protocol, arrayofNetworkSpaces, commonService.IboxAPI); err != nil {
 			slog.Error(err.Error())
 			return err
 		}

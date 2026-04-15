@@ -403,15 +403,14 @@ func GetPortInfo() (ports []PortInfo) {
 	leadPart := "/sys/class/fc_host/host"
 	goFiles, err := filepath.Glob("/sys/class/fc_host/host*")
 	if err != nil {
-		fmt.Printf("failed. error: %s", err.Error())
+		slog.Error(err.Error())
 		return ports
 	}
 	for _, file := range goFiles {
-		fmt.Println(file)
+		slog.Info("file", "content", file)
 		data, err := os.ReadFile(file + "/port_name")
 		if err != nil {
-			fmt.Printf("unable to read port_name file. error: %s", err.Error())
-
+			slog.Error(err.Error())
 			continue
 		}
 
@@ -421,8 +420,7 @@ func GetPortInfo() (ports []PortInfo) {
 
 		data, err = os.ReadFile(file + "/port_state")
 		if err != nil {
-			fmt.Printf("getPortName unable to read port_state file. error: %s", err.Error())
-
+			slog.Error(err.Error())
 			continue
 		}
 		portState := strings.TrimSpace(string(data))

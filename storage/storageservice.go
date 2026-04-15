@@ -15,6 +15,7 @@ package storage
 import (
 	"errors"
 
+	"github.com/infinidat/infinibox-csi-driver/api"
 	"github.com/infinidat/infinibox-csi-driver/common"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 	"github.com/infinidat/infinibox-csi-driver/storage/fc"
@@ -22,8 +23,6 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/storage/nfs"
 	"github.com/infinidat/infinibox-csi-driver/storage/nvme"
 	"github.com/infinidat/infinibox-csi-driver/storage/treeq"
-
-	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )
@@ -38,9 +37,23 @@ type StorageOperations interface {
 	ValidateStorageClass(params map[string]string) error
 }
 
-// NewStorageController : To return specific implementation of storage
-func NewStorageController(commonService storagecommon.Commonservice, capacity int64, storageProtocol string) (StorageOperations, error) {
-	storageProtocol = strings.ToLower(strings.TrimSpace(storageProtocol))
+func NewStorageController(config map[string]string, secrets map[string]string, volumePrototype *api.VolumeProtocolConfig, capacity int64) (operations StorageOperations, commonService storagecommon.Commonservice, err error) {
+
+	commonService, err = storagecommon.BuildCommonService(config, secrets, volumePrototype)
+	if err != nil {
+		return
+	}
+
+	operations, err = NewStorageNode(commonService, capacity)
+	if err != nil {
+		return
+	}
+	return operations, commonService, nil
+}
+
+// NewStorageNode : To return specific implementation of storage
+func NewStorageNode(commonService storagecommon.Commonservice, capacity int64) (StorageOperations, error) {
+	storageProtocol := commonService.VolProto.StorageType
 
 	switch storageProtocol {
 	case common.ProtocolFC:
@@ -53,27 +66,18 @@ func NewStorageController(commonService storagecommon.Commonservice, capacity in
 		return nfs.NewNFSstorage(capacity, commonService), nil
 	case common.ProtocolTreeq:
 		return treeq.NewTreeqstorage(capacity, commonService), nil
-	}
-	return nil, errors.New("Error: Invalid storage protocol - " + storageProtocol)
-}
-
-// NewStorageNode : To return specific implementation of storage
-func NewStorageNode(commonService storagecommon.Commonservice) (StorageOperations, error) {
-	volProto := commonService.VolProto
-
-	storageProtocol := volProto.StorageType
-	switch storageProtocol {
-	case common.ProtocolFC:
-		return fc.NewFCstorage(0, commonService), nil
-	case common.ProtocolISCSI:
-		return iscsi.NewISCSIstorage(0, commonService), nil
-	case common.ProtocolNVME:
-		return nvme.NewNVMEstorage(0, commonService), nil
-	case common.ProtocolNFS:
-		return nfs.NewNFSstorage(0, commonService), nil
-	case common.ProtocolTreeq:
-		return treeq.NewTreeqstorage(0, commonService), nil
 	default:
 		return nil, errors.New("Error: Invalid storage protocol -" + storageProtocol)
 	}
+}
+
+func NewStorageNodeAndCommonService(capacity int64, config map[string]string, secrets map[string]string, volumePrototype *api.VolumeProtocolConfig) (operations StorageOperations, commonService storagecommon.Commonservice, err error) {
+	commonService, err = storagecommon.BuildCommonService(config, secrets, volumePrototype)
+	if err != nil {
+		return
+	}
+
+	operations, err = NewStorageNode(commonService, capacity)
+	return operations, commonService, err
+
 }
