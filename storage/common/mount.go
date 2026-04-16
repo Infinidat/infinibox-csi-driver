@@ -13,13 +13,27 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
+
+type Mounter struct {
+	ReadOnly     bool
+	FsType       string
+	MountOptions []string
+	Mounter      *mount.SafeFormatAndMount
+	Exec         utilexec.Interface
+	DeviceUtil   util.DeviceUtil
+	TargetPath   string
+	StagePath    string
+	IsBlock      bool
+}
 
 type DiskInfo struct {
 	RootDir     string `json:"rootdir"`
@@ -385,4 +399,60 @@ func IsDirectory(path string) (bool, error) {
 	}
 
 	return fileInfo.IsDir(), err
+}
+
+func GetDiskMounter(req *csi.NodePublishVolumeRequest) (*Mounter, error) {
+	reqVolCapability := req.GetVolumeCapability()
+
+	// check accessMode - where we will eventually police R/W etc (CSIC-343)
+	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
+
+	// handle file (mount) and block parameters
+	mountVolCapability := reqVolCapability.GetMount()
+	var fstype string
+	mountOptions := []string{}
+	blockVolCapability := reqVolCapability.GetBlock()
+
+	readOnly := false
+	isBlock := false
+
+	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+		readOnly = true
+		slog.Debug("MULTI_NODE_READER_ONLY AccessMode requested")
+	}
+
+	// protocol-specific paths below
+	if mountVolCapability != nil && blockVolCapability == nil {
+		// option A. user wants file access to their FC device
+		isBlock = false
+
+		fstype = mountVolCapability.GetFsType()
+
+		// mountOptions - could be nil
+		mountOptions = mountVolCapability.GetMountFlags()
+
+	} else if mountVolCapability == nil && blockVolCapability != nil {
+		// option B. user wants block access to their FC device
+		isBlock = true
+
+		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
+			slog.Warn("accessmode MULTI_NODE_MULTI_WRITER requested for raw block volume, could be dangerous")
+		}
+	} else {
+		errMsg := "bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
+		slog.Error(errMsg)
+		return nil, status.Error(codes.InvalidArgument, errMsg)
+	}
+
+	return &Mounter{
+		IsBlock:      isBlock,
+		ReadOnly:     readOnly,
+		FsType:       fstype,
+		MountOptions: mountOptions,
+		Mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
+		Exec:         utilexec.New(),
+		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
+		TargetPath:   req.GetTargetPath(),
+		StagePath:    req.GetStagingTargetPath(),
+	}, nil
 }

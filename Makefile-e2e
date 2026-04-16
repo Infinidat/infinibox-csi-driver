@@ -96,6 +96,11 @@ e2e-redhat-sanity:  ## run the redhat e2e tests
 		&& ./e2e/redhat-e2e/run-container.sh
 	@echo -e $(_finish)
 
+.PHONY: e2eallprotocols
+e2eallprotocols:  e2enfstests e2eiscsitests e2efctests e2envmetests
+	@echo -e $(_begin)
+	@echo -e $(_finish)
+
 .PHONY: e2emetrics
 e2emetrics:  ## test the metrics deployment on openshift
 	@echo -e $(_begin)
@@ -123,6 +128,11 @@ e2enfsstressout:  ## create a bunch of nfs filesystems
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
 	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/nfsstress -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: e2enfstests
+e2enfstests:  e2enfs e2enfsanno 
+	@echo -e $(_begin)
 	@echo -e $(_finish)
 
 .PHONY: e2enfs
@@ -207,6 +217,11 @@ e2eiscsicleanup:  ## this tests if iscsi performs a device cleanup
 	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsicleanup -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2efctests
+e2efctests:  e2efc e2efcanno e2efccleanup
+	@echo -e $(_begin)
+	@echo -e $(_finish)
+
 .PHONY: e2efc
 e2efc:  ## run the infinidat developed e2e fc tests
 	@echo -e $(_begin)
@@ -270,6 +285,11 @@ csitestimageblock-push:
 	@echo -e $(_begin)
 	docker tag git.infinidat.com:4567/$(_GITLAB_USER)/infinidat-csi-driver/csitestimageblock:latest git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimageblock:latest
 	docker push git.infinidat.com:4567/host-opensource/infinidat-csi-driver/csitestimageblock:latest 
+	@echo -e $(_finish)
+
+.PHONY: e2envmetests
+e2envmetests:  e2envme e2envmecleanup
+	@echo -e $(_begin)
 	@echo -e $(_finish)
 
 .PHONY: e2envme

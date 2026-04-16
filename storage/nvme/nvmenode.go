@@ -30,34 +30,18 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/volume/util"
-	"k8s.io/mount-utils"
-	utilexec "k8s.io/utils/exec"
 )
-
-type nvmeDiskMounter struct {
-	nvmeDiskInfo *nvmeDisk
-	readOnly     bool
-	fsType       string
-	mountOptions []string
-	mounter      *mount.SafeFormatAndMount
-	exec         utilexec.Interface
-	deviceUtil   util.DeviceUtil
-	targetPath   string
-	stagePath    string
-}
 
 type nvmeTarget struct {
 	Portals []string
 	Iqn     string
 }
 
-type nvmeDisk struct {
+type nvmeDevice struct {
 	lun         string
 	secret      map[string]string
 	HostNQN     string
 	VolumeID    int
-	isBlock     bool
 	MpathDevice string
 	Targets     []nvmeTarget
 }
@@ -104,18 +88,18 @@ func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 	nvmeDisk.Targets = targets
 	slog.Debug("nvmeDisk", "volume id", nvmeDisk.VolumeID, "lun", nvmeDisk.lun)
 
-	diskMounter, err := nvme.getNVMEDiskMounter(nvmeDisk, req)
+	diskMounter, err := storagecommon.GetDiskMounter(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, common.Errorf("from getNVMEDiskMounter - error: %w", err).Error())
 	}
 
-	_, err = nvme.AttachDisk(*diskMounter, targets)
+	_, err = nvme.AttachDisk(*diskMounter, targets, *nvmeDisk)
 	if err != nil {
 		return nil, status.Error(codes.Internal, common.Errorf("from AttachDisk - error: %w", err).Error())
 	}
 	slog.Debug("nvme attachDisk succeeded")
 
-	if diskMounter.readOnly {
+	if diskMounter.ReadOnly {
 		slog.Debug("skipping chown-chmod since this is readOnly volume")
 	} else {
 		err = nvme.StorageHelper.SetVolumePermissions(req)
@@ -236,7 +220,7 @@ func (nvme *NVMEstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	return response, nil
 }
 
-func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeTarget) (nvmeDevicePath string, err error) {
+func (nvme *NVMEstorage) AttachDisk(diskMounter storagecommon.Mounter, targets []nvmeTarget, disk nvmeDevice) (nvmeDevicePath string, err error) {
 	//slog.Debug("AttachDisk (nvme) - volName: %d mpathDevice: %s lun: %s fsType: %s readOnly: %v mountOpts: %v targetPath: %s stagePath: %s", diskMounter.nvmeDiskInfo.VolumeID, diskMounter.nvmeDiskInfo.MpathDevice,
 	//diskMounter.nvmeDiskInfo.lun, diskMounter.fsType, diskMounter.readOnly, diskMounter.mountOptions, diskMounter.targetPath, diskMounter.stagePath)
 	slog.Debug("start", "diskMounter", diskMounter)
@@ -270,30 +254,30 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 	// find the device path based on the lun/nsid
 
 	for _, device := range devices {
-		lunInt, err := strconv.Atoi(diskMounter.nvmeDiskInfo.lun)
+		lunInt, err := strconv.Atoi(disk.lun)
 		if err != nil {
-			return "", common.Errorf("could not convert lun: %s to integer - error: %w", diskMounter.nvmeDiskInfo.lun, err)
+			return "", common.Errorf("could not convert lun: %s to integer - error: %w", disk.lun, err)
 		}
 		if device.Namespace == lunInt {
 			nvmeDevicePath = device.Node
-			slog.Debug("found nvme device path using lun", "node", device.Node, "lun", diskMounter.nvmeDiskInfo.lun)
+			slog.Debug("found nvme device path using lun", "node", device.Node, "lun", disk.lun)
 			break
 		}
 	}
 	if nvmeDevicePath == "" {
-		return "", common.Errorf("could not find nvme device path using lun: %s", diskMounter.nvmeDiskInfo.lun)
+		return "", common.Errorf("could not find nvme device path using lun: %s", disk.lun)
 	}
 
 	diskinf := storagecommon.DiskInfo{
 		MpathDevice: nvmeDevicePath,
-		VolumeID:    diskMounter.nvmeDiskInfo.VolumeID,
-		IsBlock:     diskMounter.nvmeDiskInfo.isBlock,
+		VolumeID:    disk.VolumeID,
+		IsBlock:     diskMounter.IsBlock,
 		RootDir:     common.NodeRootDir,
 	}
 
 	slog.Debug("info", "diskinf", diskinf)
 
-	err = storagecommon.MountLogic(diskinf, diskMounter.targetPath, nvmeDevicePath, diskMounter.stagePath, diskMounter.fsType, diskMounter.mountOptions, diskMounter.nvmeDiskInfo.isBlock, diskMounter.readOnly)
+	err = storagecommon.MountLogic(diskinf, diskMounter.TargetPath, nvmeDevicePath, diskMounter.StagePath, diskMounter.FsType, diskMounter.MountOptions, diskMounter.IsBlock, diskMounter.ReadOnly)
 	if err != nil {
 		return "", common.Errorf("from MountLogic error: %w", err)
 	}
@@ -302,7 +286,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter nvmeDiskMounter, targets []nvmeT
 	return nvmeDevicePath, nil
 }
 
-func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDisk, error) {
+func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDevice, error) {
 	hostNQN, err := getHostNQN()
 	if err != nil {
 		return nil, err
@@ -321,61 +305,12 @@ func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDi
 
 	secret := req.GetSecrets()
 
-	return &nvmeDisk{
+	return &nvmeDevice{
 		VolumeID: volProto.VolumeID,
 		lun:      lun,
 		secret:   secret,
 		HostNQN:  hostNQN,
 	}, nil
-}
-
-func (nvme *NVMEstorage) getNVMEDiskMounter(nvmeDisk *nvmeDisk, req *csi.NodePublishVolumeRequest) (*nvmeDiskMounter, error) {
-	diskMounter := &nvmeDiskMounter{
-		targetPath:   req.GetTargetPath(),
-		stagePath:    req.GetStagingTargetPath(),
-		mountOptions: []string{},
-		mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
-		exec:         utilexec.New(),
-		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
-	}
-
-	// handle volumeCapabilities, the standard place to define block/file etc
-	reqVolCapability := req.GetVolumeCapability()
-
-	// check accessMode - where we will eventually police R/W etc (CSIC-343)
-	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
-
-	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		diskMounter.readOnly = true
-	}
-	// handle file (mount) and block parameters
-	mountVolCapability := reqVolCapability.GetMount()
-	blockVolCapability := reqVolCapability.GetBlock()
-
-	// protocol-specific paths below
-	if mountVolCapability != nil && blockVolCapability == nil {
-		// option A. user wants file access to their nvme device
-		nvmeDisk.isBlock = false
-
-		diskMounter.fsType = mountVolCapability.GetFsType()
-
-		// mountOptions - could be nothing
-		diskMounter.mountOptions = mountVolCapability.GetMountFlags()
-
-	} else if mountVolCapability == nil && blockVolCapability != nil {
-		// option B. user wants block access to their nvme device
-		nvmeDisk.isBlock = true
-
-		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
-			slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
-		}
-	} else {
-		return nil, status.Error(codes.InvalidArgument, common.Errorf("getNVMEDiskMounter (nvme) - Bad VolumeCapability parameters: both block and mount modes, for volume: ", req.GetVolumeId()).Error())
-	}
-
-	diskMounter.nvmeDiskInfo = nvmeDisk
-
-	return diskMounter, nil
 }
 
 func (nvme *NVMEstorage) getNVMETargets(ctx context.Context, req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {

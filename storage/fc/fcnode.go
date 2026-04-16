@@ -32,26 +32,13 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/volume/util"
-	"k8s.io/mount-utils"
-	utilexec "k8s.io/utils/exec"
 )
 
 type fcDevice struct {
-	connector *Connector
-	isBlock   bool
-}
-
-type Mounter struct {
-	ReadOnly     bool
-	FsType       string
-	MountOptions []string
-	Mounter      *mount.SafeFormatAndMount
-	Exec         utilexec.Interface
-	DeviceUtil   util.DeviceUtil
-	TargetPath   string
-	StagePath    string
-	fcDisk       fcDevice
+	VolumeID   int
+	TargetWWNs []string
+	Lun        string
+	WWIDs      []string
 }
 
 const FCPortOnline = "Online"
@@ -140,7 +127,7 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	devicePath, err := fc.searchDisk(*fcDetails.connector)
+	devicePath, err := fc.searchDisk(*fcDetails)
 	if err != nil {
 		e := fmt.Errorf("error from searchDisk -  volumeID: %s error: Unable to find disk given WWNN or WWIDs: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
@@ -151,14 +138,15 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	devicePath = strings.Replace(devicePath, "/host", "", 1)
 	slog.Debug("fc device path found", "path", devicePath)
 
-	diskMounter, err := fc.getFCDiskMounter(req, *fcDetails)
+	//diskMounter, err := storagecommon.GetDiskMounter(req, *fcDetails)
+	diskMounter, err := storagecommon.GetDiskMounter(req)
 	if err != nil {
 		e := fmt.Errorf("error from getFCDiskMounter - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	err = fc.MountFCDisk(*diskMounter, devicePath)
+	err = fc.MountFCDisk(*diskMounter, devicePath, fcDetails.VolumeID)
 	if err != nil {
 		e := fmt.Errorf("error from MountFCDisk - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
 		slog.Error(e.Error())
@@ -372,17 +360,17 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	return &response, nil
 }
 
-func (fc *FCstorage) MountFCDisk(mounter Mounter, devicePath string) error {
+func (fc *FCstorage) MountFCDisk(mounter storagecommon.Mounter, devicePath string, volumeID int) error {
 	defer helper.TimeTrack(time.Now())
 	slog.Debug("info", "mounter", mounter, "devicePath", devicePath)
 
 	diskInfo := storagecommon.DiskInfo{
 		MpathDevice: devicePath,
-		IsBlock:     mounter.fcDisk.isBlock,
-		VolumeID:    mounter.fcDisk.connector.VolumeID,
+		IsBlock:     mounter.IsBlock,
+		VolumeID:    volumeID,
 		RootDir:     common.NodeRootDir,
 	}
-	err := storagecommon.MountLogic(diskInfo, mounter.TargetPath, devicePath, mounter.StagePath, mounter.FsType, mounter.MountOptions, mounter.fcDisk.isBlock, mounter.ReadOnly)
+	err := storagecommon.MountLogic(diskInfo, mounter.TargetPath, devicePath, mounter.StagePath, mounter.FsType, mounter.MountOptions, mounter.IsBlock, mounter.ReadOnly)
 	if err != nil {
 		e := fmt.Errorf("error from mountLogic error: %s", err.Error())
 		slog.Error(e.Error())
@@ -393,8 +381,8 @@ func (fc *FCstorage) MountFCDisk(mounter Mounter, devicePath string) error {
 		dskinfo := storagecommon.DiskInfo{
 			RootDir:     common.NodeRootDir,
 			MpathDevice: devicePath,
-			IsBlock:     mounter.fcDisk.isBlock,
-			VolumeID:    mounter.fcDisk.connector.VolumeID,
+			IsBlock:     mounter.IsBlock,
+			VolumeID:    volumeID,
 		}
 		slog.Debug("attempting to create FC config file", "dskinfo", dskinfo, "stagePath", mounter.StagePath, "targetPath", mounter.TargetPath)
 		if err := storagecommon.CreateConfigFile(dskinfo, mounter.StagePath); err != nil {
@@ -435,81 +423,16 @@ func (fc *FCstorage) getFCDiskDetails(ctx context.Context, req *csi.NodePublishV
 		slog.Error(e.Error())
 		return nil, e
 	}
-	fcConnector := &Connector{
+
+	return &fcDevice{
 		VolumeID:   fc.CS.VolProto.VolumeID,
 		TargetWWNs: targetList,
 		WWIDs:      wwidList,
 		Lun:        lun,
-	}
-
-	return &fcDevice{
-		connector: fcConnector,
 	}, nil
 }
 
-func (fc *FCstorage) getFCDiskMounter(req *csi.NodePublishVolumeRequest, fcDetails fcDevice) (*Mounter, error) {
-	reqVolCapability := req.GetVolumeCapability()
-
-	// check accessMode - where we will eventually police R/W etc (CSIC-343)
-	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
-
-	// handle file (mount) and block parameters
-	mountVolCapability := reqVolCapability.GetMount()
-	var fstype string
-	mountOptions := []string{}
-	blockVolCapability := reqVolCapability.GetBlock()
-
-	readOnly := false
-	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		readOnly = true
-		slog.Debug("MULTI_NODE_READER_ONLY AccessMode requested")
-	}
-
-	// protocol-specific paths below
-	if mountVolCapability != nil && blockVolCapability == nil {
-		// option A. user wants file access to their FC device
-		fcDetails.isBlock = false
-
-		fstype = mountVolCapability.GetFsType()
-
-		// mountOptions - could be nil
-		mountOptions = mountVolCapability.GetMountFlags()
-
-	} else if mountVolCapability == nil && blockVolCapability != nil {
-		// option B. user wants block access to their FC device
-		fcDetails.isBlock = true
-
-		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
-			slog.Warn("accessmode MULTI_NODE_MULTI_WRITER requested for raw block volume, could be dangerous")
-		}
-	} else {
-		errMsg := "bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
-		slog.Error(errMsg)
-		return nil, status.Error(codes.InvalidArgument, errMsg)
-	}
-
-	return &Mounter{
-		fcDisk:       fcDetails,
-		ReadOnly:     readOnly,
-		FsType:       fstype,
-		MountOptions: mountOptions,
-		Mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
-		Exec:         utilexec.New(),
-		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
-		TargetPath:   req.GetTargetPath(),
-		StagePath:    req.GetStagingTargetPath(),
-	}, nil
-}
-
-// Connector provides a struct to hold all of the needed parameters to make our Fibre Channel connection
-type Connector struct {
-	VolumeID   int
-	TargetWWNs []string
-	Lun        string
-	WWIDs      []string
-}
-
-func (fc *FCstorage) searchDisk(connector Connector) (string, error) {
+func (fc *FCstorage) searchDisk(connector fcDevice) (string, error) {
 	defer helper.TimeTrack(time.Now())
 	slog.Debug("info", "targetWWNs", connector.TargetWWNs, "wwids", connector.WWIDs)
 	var diskIDs []string // target wwns

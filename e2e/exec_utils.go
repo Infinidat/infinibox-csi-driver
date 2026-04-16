@@ -507,7 +507,7 @@ func FileExists(ctx context.Context, testConfig *TestConfig, path string) (fileE
 
 	nodePod := csiPods.Items[0]
 
-	command := fmt.Sprintf("ls %s", path)
+	command := fmt.Sprintf("ls /host%s", path)
 	fmt.Printf("executing command %s\n", command)
 
 	stdOut, stdErr, err := execCmdInPod(ctx, testConfig.ClientSet, testConfig.RestConfig, nodePod.Name, namespace, command, "driver")

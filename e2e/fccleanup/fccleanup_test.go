@@ -86,6 +86,9 @@ func TestFcCleanup(t *testing.T) {
 		}
 	}
 
+	t.Log("sleeping for 10 seconds")
+	time.Sleep(10 * time.Second)
+
 	for _, dev := range devices {
 		fileExists, err := e2e.FileExists(t.Context(), testConfig, dev)
 		if err != nil {
@@ -169,6 +172,9 @@ func TestFcBlockCleanup(t *testing.T) {
 			t.Fatalf("error mpath %s still exists and is considered an orphan device\n", mpathName)
 		}
 	}
+
+	t.Log("sleeping for 10 seconds")
+	time.Sleep(10 * time.Second)
 
 	for _, dev := range devices {
 		fileExists, err := e2e.FileExists(t.Context(), testConfig, dev)

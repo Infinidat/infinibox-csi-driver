@@ -35,7 +35,6 @@ import (
 	"github.com/containerd/containerd/snapshots/devmapper/dmsetup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/volume/util"
 	"k8s.io/mount-utils"
 	utilexec "k8s.io/utils/exec"
 )
@@ -53,21 +52,9 @@ const (
 )
 
 type iscsiDiskUnmounter struct {
-	iscsiDiskInfo *iscsiDisk
+	iscsiDiskInfo *iscsiDevice
 	mounter       mount.Interface
 	exec          utilexec.Interface // mount.Exec
-}
-
-type iscsiDiskMounter struct {
-	*iscsiDisk
-	readOnly     bool
-	fsType       string
-	mountOptions []string
-	mounter      *mount.SafeFormatAndMount
-	exec         utilexec.Interface
-	deviceUtil   util.DeviceUtil
-	targetPath   string
-	stagePath    string
 }
 
 type iscsiTarget struct {
@@ -75,7 +62,7 @@ type iscsiTarget struct {
 	Iqn     string
 }
 
-type iscsiDisk struct {
+type iscsiDevice struct {
 	Lun           string            `json:"lun"`
 	Iface         string            `json:"iface"`
 	CHAPDiscovery bool              `json:"chapdiscovery"`
@@ -189,14 +176,15 @@ func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	iscsiDisk.Targets = targets
 	slog.Debug("iscsiDisk", "volume name", iscsiDisk.VolName, "lun", iscsiDisk.Lun)
 
-	diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
+	//diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
+	diskMounter, err := storagecommon.GetDiskMounter(req)
 	if err != nil {
 		e := fmt.Errorf("from getISCSIDiskMounter - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	_, err = iscsi.AttachDisk(*diskMounter)
+	_, err = iscsi.AttachDisk(*diskMounter, iscsiDisk)
 	if err != nil {
 		e := fmt.Errorf("from AttachDisk - error: %s", err.Error())
 		slog.Error(e.Error())
@@ -204,7 +192,7 @@ func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	}
 	slog.Debug("iscsi attachDisk succeeded")
 
-	if diskMounter.readOnly {
+	if diskMounter.ReadOnly {
 		slog.Debug("skipping chown-chmod since this is readOnly volume")
 	} else {
 		// Chown
@@ -458,31 +446,31 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	return &response, nil
 }
 
-func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath string, err error) {
+func (iscsi *ISCSIstorage) AttachDisk(diskMounter storagecommon.Mounter, iscsiDisk *iscsiDevice) (mountPath string, err error) {
 	var devicePath string
 
-	slog.Debug("attach disk", "provided interface", diskMounter.Iface, "fsType", diskMounter.fsType, "readOnly", diskMounter.readOnly, "mountOpts", diskMounter.mountOptions, "targetPath", diskMounter.targetPath, "stagePath", diskMounter.stagePath)
+	slog.Debug("attach disk", "provided interface", iscsiDisk.Iface, "fsType", diskMounter.FsType, "readOnly", diskMounter.ReadOnly, "mountOpts", diskMounter.MountOptions, "targetPath", diskMounter.TargetPath, "stagePath", diskMounter.StagePath)
 
-	_, err = iscsi.extractTransportName(diskMounter.Iface)
+	_, err = iscsi.extractTransportName(iscsiDisk.Iface)
 	if err != nil {
 		return "", err
 	}
 
 	// If not found, create new iface and copy parameters from pre-configured (default) iface to the created iface
 	// Use one interface per iSCSI network-space, i.e. usually one per IBox.
-	targets := diskMounter.Targets
-	if diskMounter.InitiatorName == "" {
+	targets := iscsiDisk.Targets
+	if iscsiDisk.InitiatorName == "" {
 		for _, target := range targets {
 			// Look for existing interface named newIface. Clone default iface, if not found.
 			newIface := target.Portals[0] // Do not append ':$volume_id'
-			slog.Debug("info", "initiatorName", diskMounter.InitiatorName, "required iface name", newIface)
+			slog.Debug("info", "initiatorName", iscsiDisk.InitiatorName, "required iface name", newIface)
 			isToLogOutput := false
 			commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", newIface), isToLogOutput)
 			if err != nil {
 				slog.Debug("creating new iface (clone) and copying parameters from pre-configured iface to it", "commandOutput", commandOutput)
-				err = iscsi.cloneIface(diskMounter, newIface)
+				err = iscsi.cloneIface(*iscsiDisk, newIface)
 				if err != nil {
-					return "", fmt.Errorf("failed to clone iface: %s error: %s", diskMounter.Iface, err.Error())
+					return "", fmt.Errorf("failed to clone iface: %s error: %s", iscsiDisk.Iface, err.Error())
 				}
 				slog.Debug("new iface created", "interface", newIface)
 			} else {
@@ -490,7 +478,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 			}
 		}
 	} else {
-		slog.Debug("Using existing initiator name", "name", diskMounter.InitiatorName)
+		slog.Debug("Using existing initiator name", "name", iscsiDisk.InitiatorName)
 	}
 
 	err = discoverISCITargets(targets)
@@ -498,7 +486,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 		return "", err
 	}
 
-	iscsi.updateForCHAP(diskMounter, targets)
+	iscsi.updateForCHAP(*iscsiDisk, targets)
 
 	err = loginToTargets(targets)
 	if err != nil {
@@ -512,9 +500,9 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	}
 
 	// For each host, scan using lun
-	wwid, err := storagecommon.RescanDeviceMap(hosts, diskMounter.VolName, diskMounter.Lun)
+	wwid, err := storagecommon.RescanDeviceMap(hosts, iscsiDisk.VolName, iscsiDisk.Lun)
 	if err != nil {
-		return "", fmt.Errorf("from RescanDeviceMap volumeID: %s lun: %s error: %s", diskMounter.VolName, diskMounter.Lun, err.Error())
+		return "", fmt.Errorf("from RescanDeviceMap volumeID: %s lun: %s error: %s", iscsiDisk.VolName, iscsiDisk.Lun, err.Error())
 	}
 
 	slog.Debug("searchDisk sleeping 3 seconds to allow devmapper time to work", "wwid", wwid)
@@ -555,14 +543,14 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	var options []string
 
 	config := storagecommon.DiskInfo{
-		VolumeID:    diskMounter.VolumeID,
+		VolumeID:    iscsiDisk.VolumeID,
 		MpathDevice: thisMpath,
 		RootDir:     common.NodeRootDir,
 	}
 
 	devicePath = devMapperDir + thisMpath
 
-	err = storagecommon.MountLogic(config, diskMounter.targetPath, devicePath, diskMounter.stagePath, diskMounter.fsType, options, diskMounter.IsBlock, diskMounter.readOnly)
+	err = storagecommon.MountLogic(config, diskMounter.TargetPath, devicePath, diskMounter.StagePath, diskMounter.FsType, options, diskMounter.IsBlock, diskMounter.ReadOnly)
 	if err != nil {
 		return "", fmt.Errorf("from MountLogic failed, error: %s", err.Error())
 	}
@@ -588,7 +576,7 @@ func getInitiatorName() (string, error) {
 	return arr[1], nil
 }
 
-func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDisk, error) {
+func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDevice, error) {
 	initiatorName, err := getInitiatorName()
 	if err != nil {
 		return nil, err
@@ -623,7 +611,7 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 		}
 	}
 
-	return &iscsiDisk{
+	return &iscsiDevice{
 		VolumeID:      iscsi.CS.VolProto.VolumeID,
 		VolName:       volName,
 		Lun:           lun,
@@ -635,60 +623,9 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	}, nil
 }
 
-func (iscsi *ISCSIstorage) getISCSIDiskMounter(iscsiDisk *iscsiDisk, req *csi.NodePublishVolumeRequest) (*iscsiDiskMounter, error) {
-	diskMounter := &iscsiDiskMounter{
-		targetPath:   req.GetTargetPath(),
-		stagePath:    req.GetStagingTargetPath(),
-		mountOptions: []string{},
-		mounter:      &mount.SafeFormatAndMount{Interface: mount.NewWithoutSystemd(""), Exec: utilexec.New()},
-		exec:         utilexec.New(),
-		deviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
-	}
-
-	// handle volumeCapabilities, the standard place to define block/file etc
-	reqVolCapability := req.GetVolumeCapability()
-
-	// check accessMode - where we will eventually police R/W etc (CSIC-343)
-	accessMode := reqVolCapability.GetAccessMode().GetMode() // GetAccessMode() guaranteed not nil from controller.go
-
-	if req.Readonly || accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		diskMounter.readOnly = true
-	}
-	// handle file (mount) and block parameters
-	mountVolCapability := reqVolCapability.GetMount()
-	blockVolCapability := reqVolCapability.GetBlock()
-
-	// protocol-specific paths below
-	if mountVolCapability != nil && blockVolCapability == nil {
-		// option A. user wants file access to their iSCSI device
-		iscsiDisk.IsBlock = false
-
-		diskMounter.fsType = mountVolCapability.GetFsType()
-
-		// mountOptions - could be nothing
-		diskMounter.mountOptions = mountVolCapability.GetMountFlags()
-
-	} else if mountVolCapability == nil && blockVolCapability != nil {
-		// option B. user wants block access to their iSCSI device
-		iscsiDisk.IsBlock = true
-
-		if accessMode == csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER {
-			slog.Warn("MULTI_NODE_MULTI_WRITER AccessMode requested for raw block volume, could be dangerous")
-		}
-	} else {
-		errMsg := "getISCSIDiskMounter (iscsi) Bad VolumeCapability parameters: both block and mount modes, for volume: " + req.GetVolumeId()
-		slog.Error(errMsg)
-		return nil, status.Error(codes.InvalidArgument, errMsg)
-	}
-
-	diskMounter.iscsiDisk = iscsiDisk
-
-	return diskMounter, nil
-}
-
 func (iscsi *ISCSIstorage) getISCSIDiskUnmounter() *iscsiDiskUnmounter {
 	return &iscsiDiskUnmounter{
-		iscsiDiskInfo: &iscsiDisk{
+		iscsiDiskInfo: &iscsiDevice{
 			VolName:  strconv.Itoa(iscsi.CS.VolProto.VolumeID),
 			VolumeID: iscsi.CS.VolProto.VolumeID,
 		},
@@ -724,8 +661,8 @@ func (iscsi *ISCSIstorage) parseSessionSecret(useChap string, secretParams map[s
 	return secret, nil
 }
 
-func (iscsi *ISCSIstorage) updateISCSINode(diskMounter iscsiDiskMounter, iqn string, portal string) error {
-	if !diskMounter.CHAPSession {
+func (iscsi *ISCSIstorage) updateISCSINode(iscsiDisk iscsiDevice, iqn string, portal string) error {
+	if !iscsiDisk.CHAPSession {
 		return nil
 	}
 
@@ -738,7 +675,7 @@ func (iscsi *ISCSIstorage) updateISCSINode(diskMounter iscsiDiskMounter, iqn str
 	}
 
 	for _, credential := range CHAPSessionCredentials {
-		v := diskMounter.Secret[credential]
+		v := iscsiDisk.Secret[credential]
 		if len(v) > 0 {
 			slog.Debug("update node session key/value")
 			out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, credential, v))
@@ -802,10 +739,10 @@ func (iscsi *ISCSIstorage) parseIscsiadmShow(output string) (map[string]string, 
 	return params, nil
 }
 
-func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface string) error {
+func (iscsi *ISCSIstorage) cloneIface(disk iscsiDevice, newIface string) error {
 	var lastErr error
 	slog.Debug("find pre-configured iface records")
-	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", diskMounter.Iface))
+	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", disk.Iface))
 	if err != nil {
 		slog.Error(err.Error())
 		lastErr = fmt.Errorf("failed to show iface records: %s error: %s", out, err.Error())
@@ -821,7 +758,7 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 		return lastErr
 	}
 	// update initiatorname
-	params["iface.initiatorname"] = diskMounter.InitiatorName
+	params["iface.initiatorname"] = disk.InitiatorName
 
 	slog.Debug("create new interface")
 	out, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op new", newIface))
@@ -842,7 +779,7 @@ func (iscsi *ISCSIstorage) cloneIface(diskMounter iscsiDiskMounter, newIface str
 				return lastErr
 			}
 
-			lastErr = fmt.Errorf("failed to update iface records: %s error: %s iface: %s will be used", out, err, diskMounter.Iface)
+			lastErr = fmt.Errorf("failed to update iface records: %s error: %s iface: %s will be used", out, err, disk.Iface)
 			break
 		}
 	}
@@ -1008,16 +945,16 @@ func addChapSecurityForHost(ctx context.Context, cs storagecommon.Commonservice,
 	return nil
 }
 
-func (iscsi *ISCSIstorage) updateForCHAP(diskMounter iscsiDiskMounter, targets []iscsiTarget) {
-	if !diskMounter.CHAPSession {
+func (iscsi *ISCSIstorage) updateForCHAP(iscsiDisk iscsiDevice, targets []iscsiTarget) {
+	if !iscsiDisk.CHAPSession {
 		slog.Debug("target iqn - Not using CHAP", "iqn", targets[0].Iqn)
 	} else {
 		// Loop over portals:
 		// - Set CHAP usage and update discoverydb with CHAP secret
 		for index := range targets {
 			for portalIndex := range targets[index].Portals {
-				slog.Debug("target iface- use CHAP at portal", "iface", diskMounter.Iface, "iqn", targets[index].Iqn, "portal", targets[index].Portals[portalIndex])
-				err := iscsi.updateISCSINode(diskMounter, targets[index].Iqn, targets[index].Portals[portalIndex])
+				slog.Debug("target iface- use CHAP at portal", "iface", iscsiDisk.Iface, "iqn", targets[index].Iqn, "portal", targets[index].Portals[portalIndex])
+				err := iscsi.updateISCSINode(iscsiDisk, targets[index].Iqn, targets[index].Portals[portalIndex])
 				if err != nil {
 					slog.Error(err.Error())
 					// failure to update node db is rare. But deleting record will likely impact those who already start using it.
