@@ -482,9 +482,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 				slog.Debug("creating new iface (clone) and copying parameters from pre-configured iface to it", "commandOutput", commandOutput)
 				err = iscsi.cloneIface(diskMounter, newIface)
 				if err != nil {
-					e := fmt.Errorf("failed to clone iface: %s error: %s", diskMounter.Iface, err.Error())
-					slog.Error(e.Error())
-					return "", e
+					return "", fmt.Errorf("failed to clone iface: %s error: %s", diskMounter.Iface, err.Error())
 				}
 				slog.Debug("new iface created", "interface", newIface)
 			} else {
@@ -516,9 +514,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	// For each host, scan using lun
 	wwid, err := storagecommon.RescanDeviceMap(hosts, diskMounter.VolName, diskMounter.Lun)
 	if err != nil {
-		e := fmt.Errorf("from RescanDeviceMap volumeID: %s lun: %s error: %s", diskMounter.VolName, diskMounter.Lun, err.Error())
-		slog.Error(e.Error())
-		return "", e
+		return "", fmt.Errorf("from RescanDeviceMap volumeID: %s lun: %s error: %s", diskMounter.VolName, diskMounter.Lun, err.Error())
 	}
 
 	slog.Debug("searchDisk sleeping 3 seconds to allow devmapper time to work", "wwid", wwid)
@@ -547,7 +543,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 	var thisMpath string
 	thisMpath, err = storagecommon.FindMpathFromDevice(trimmedDeviceName)
 	if err != nil {
-		slog.Error("findMpathFromDevice error ", "device", trimmedDeviceName, "error", err.Error())
+		return "", fmt.Errorf("findMpathFromDevice error - device %s - error %s", trimmedDeviceName, err.Error())
 	}
 	// here trimmedDeviceName is /dev/dm-3 and thisMpath is mpathtf
 	slog.Debug("info", "device", trimmedDeviceName, "mpath", thisMpath)
@@ -568,9 +564,7 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter iscsiDiskMounter) (mountPath s
 
 	err = storagecommon.MountLogic(config, diskMounter.targetPath, devicePath, diskMounter.stagePath, diskMounter.fsType, options, diskMounter.IsBlock, diskMounter.readOnly)
 	if err != nil {
-		e := fmt.Errorf("from MountLogic failed, error: %s", err.Error())
-		slog.Error(e.Error())
-		return "", e
+		return "", fmt.Errorf("from MountLogic failed, error: %s", err.Error())
 	}
 
 	slog.Debug("mounted volume with device path successfully", "devicepath", devicePath, "mountpath", mountPath)
