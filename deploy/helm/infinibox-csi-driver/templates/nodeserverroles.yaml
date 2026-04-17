@@ -5,7 +5,7 @@
 apiVersion: v1
 kind: ServiceAccount
 imagePullSecrets:
-- name: {{ .Values.images.imagePullSecret }}
+  - name: {{ .Values.images.imagePullSecret }}
 metadata:
   name: {{ .Release.Name }}-node
   namespace: {{ .Release.Namespace }}
