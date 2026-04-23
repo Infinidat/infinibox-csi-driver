@@ -5,7 +5,7 @@ import (
 	"runtime"
 )
 
-func Errorf(format string, a ...interface{}) error {
+func Errorf(format string, a ...any) error {
 	_, file, line, ok := runtime.Caller(1) // '1' skips the current function
 	if !ok {
 		file = "???"

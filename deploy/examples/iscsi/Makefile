@@ -77,3 +77,18 @@ teardown-snapshot:  devEnv
 	envsubst < ../snapshot.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ../volumesnapshotclass.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -
 	@echo -e $(_finish)
+
+.PHONY: setup-snapshot-locking
+setup-snapshot-locking:  devEnv teardown-snapshot-locking
+	@echo -e $(_begin)
+	envsubst < ../volumesnapshotclass-locking.yaml | $(_CLI) create -f -
+	sleep 5
+	envsubst < ./snapshot-locking.yaml | $(_CLIN) create -f -
+	@echo -e $(_finish)
+
+.PHONY: teardown-snapshot-locking
+teardown-snapshot-locking:  devEnv
+	@echo -e $(_begin)
+	envsubst < ./snapshot-locking.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
+	envsubst < ../volumesnapshotclass-locking.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -
+	@echo -e $(_finish)

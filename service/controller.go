@@ -49,21 +49,23 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	volName := req.GetName()
 	if volName == "" {
-		e := fmt.Errorf("volume name empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := "volume name empty"
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	reqParameters := req.GetParameters()
 	if len(reqParameters) == 0 {
-		e := fmt.Errorf("GetParameters empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := "GetParameters empty"
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	storageProtocol, err := determineStorageProtocol(ctx, reqParameters)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("determineStorageProtocol error %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	slog.Debug("info", "capacity-range", req.GetCapacityRange(), "params", reqParameters)
@@ -73,7 +75,7 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	var summary string
 	summary, err = validateCapabilities(req.GetVolumeCapabilities())
 	if err != nil {
-		e := fmt.Errorf("validateCapabilities - error %s summary %s", err.Error(), summary)
+		e := common.Errorf("validateCapabilities - error %w summary %s", err, summary)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -86,17 +88,23 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	secretsToUse, err := handlePVCAnnotations(ctx, req)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("handlePVCAnnotation error %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	capacity, err := determineCapacity(req)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		e := common.Errorf("%w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	err = validateSecret("", common.CSIProvisionerSecretName, common.CSIProvisionerSecretNamespace, req.GetSecrets())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("%w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	volumeInfo := api.VolumeProtocolConfig{
@@ -104,14 +112,14 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	storageController, commonService, err := storage.NewStorageController(configparams, secretsToUse, &volumeInfo, capacity)
 	if err != nil || storageController == nil {
-		e := fmt.Errorf("NewStorageController - name %s error %s", volName, err.Error())
+		e := common.Errorf("NewStorageController - name %s error %w", volName, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	err = validateCommonStorageClassParameters(ctx, commonService, reqParameters, storageProtocol)
 	if err != nil {
-		e := fmt.Errorf("validateCommonStorageClassParameters - name %s error %s", volName, err.Error())
+		e := common.Errorf("validateCommonStorageClassParameters - name %s error %w", volName, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -119,20 +127,20 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	// perform protocol specific StorageClass validations
 	err = storageController.ValidateStorageClass(reqParameters)
 	if err != nil {
-		e := fmt.Errorf("ValidateStorageClass - name %s error %s", volName, err.Error())
+		e := common.Errorf("ValidateStorageClass - name %s error %w", volName, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	createVolResp, err = storageController.CreateVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sc.CreateVolume - error %s", err.Error())
+		e := common.Errorf("sc.CreateVolume - error %w", err)
 		slog.Error(e.Error())
 		// it's important to return the original error, because it matches K8s expectations
 		return nil, err
 	}
 	if createVolResp == nil || createVolResp.Volume == nil || createVolResp.Volume.VolumeId == "" {
-		e := fmt.Errorf("sc.CreateVolume response is nil")
+		e := common.Errorf("sc.CreateVolume response is nil")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -145,8 +153,9 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	if err != nil {
 		// default for now is to leave with an error if the replica logic fails
 		// this will leave the PVC in pending state
-		slog.Error(err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		e := common.Errorf("%w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	helper.EventAPIClient = commonService.API
@@ -164,7 +173,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(volumeID)
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID - volume ID: %s error: %s", volumeID, err.Error())
+		e := common.Errorf("ValidateVolumeID - volume ID: %s error: %w", volumeID, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -174,13 +183,13 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	// see if the pvc annotation was specified in the original PVC
 	kubernetesClient, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("BuildClient - error %s", err.Error())
+		e := common.Errorf("BuildClient - error %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	pvList, err := kubernetesClient.GetAllPersistentVolumes(ctx)
 	if err != nil {
-		e := fmt.Errorf("GetAllPersistentVolumes - error %s", err.Error())
+		e := common.Errorf("GetAllPersistentVolumes - error %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -190,7 +199,7 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 			annoPVCSecretName := persistentVolume.Spec.CSI.ControllerPublishSecretRef.Name
 			annoPVCSecret, err := kubernetesClient.GetSecret(ctx, annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
 			if err != nil {
-				e := fmt.Errorf("GetSecret - volume ID: %s anno %s error %s", volumeID, annoPVCSecretName, err.Error())
+				e := common.Errorf("GetSecret - volume ID: %s anno %s error %w", volumeID, annoPVCSecretName, err)
 				slog.Error(e.Error())
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
@@ -205,14 +214,14 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 
 	storageController, _, err := storage.NewStorageController(config, secretsToUse, &volumeInfo, 0)
 	if err != nil || storageController == nil {
-		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", volumeID, err.Error())
+		e := common.Errorf("NewStorageController - volume ID: %s error: %w", volumeID, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	deleteVolResp, err = storageController.DeleteVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sc.DeleteVolume volume ID: %s error: %s", volumeID, err.Error())
+		e := common.Errorf("sc.DeleteVolume volume ID: %s error: %w", volumeID, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -231,9 +240,9 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 	slog.Info("info", "volume ID", req.GetVolumeId(), "node id", req.GetNodeId())
 
 	if req.VolumeCapability == nil {
-		e := fmt.Errorf("request VolumeCapability was nil")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := "request VolumeCapability was nil"
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	caps := []*csi.VolumeCapability{
@@ -242,28 +251,27 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	_, err = validateCapabilities(caps)
 	if err != nil {
-		e := fmt.Errorf("validateCapabilities - error %s, node ID %s, volume cap %v", err.Error(), req.GetNodeId(), req.VolumeCapability)
+		e := common.Errorf("validateCapabilities - error %w, node ID %s, volume cap %v", err, req.GetNodeId(), req.VolumeCapability)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.FailedPrecondition, e.Error())
 	}
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("request volumeId was empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := "request volumeId was empty"
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	nodeProtocol, err := getNodeProtocol(ctx, req.GetNodeId())
 	if err != nil {
-		slog.Error(err.Error())
-		e := fmt.Errorf("ValidateVolumeID - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -273,41 +281,45 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		volumeInfo.StorageType = nodeProtocol
 		protocolSecret, protocolSecretInUse, err := GetProtocolSecret(ctx)
 		if err != nil {
-			e := fmt.Errorf("error: could not get protocol secret %s", err.Error())
+			e := common.Errorf("error: could not get protocol secret %w", err)
+			slog.Error(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
 		if !protocolSecretInUse {
-			e := fmt.Errorf("error: protocol secret not in use, but is required when nodeProtocol label is set on node")
-			return nil, status.Error(codes.InvalidArgument, e.Error())
+			msg := "error: protocol secret not in use, but is required when nodeProtocol label is set on node"
+			slog.Error(msg)
+			return nil, status.Error(codes.InvalidArgument, msg)
 		}
 
 		switch nodeProtocol {
 		case common.ProtocolISCSI:
 			networkSpace := protocolSecret[ProtocolSecretISCSINetworkSpace]
 			if networkSpace == "" {
-				e := fmt.Errorf("error: protocol secret specified ISCSI but network_space is empty")
-				return nil, status.Error(codes.InvalidArgument, e.Error())
+				msg := "error: protocol secret specified ISCSI but network_space is empty"
+				slog.Error(msg)
+				return nil, status.Error(codes.InvalidArgument, msg)
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
 		case common.ProtocolNVME:
 			networkSpace := protocolSecret[ProtocolSecretNVMENetworkSpace]
 			if networkSpace == "" {
-				e := fmt.Errorf("error: protocol secret specified NVMe but network_space is empty")
-				return nil, status.Error(codes.InvalidArgument, e.Error())
+				msg := "error: protocol secret specified NVMe but network_space is empty"
+				slog.Error(msg)
+				return nil, status.Error(codes.InvalidArgument, msg)
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
 		}
 	}
 
 	if req.GetNodeId() == "" {
-		e := fmt.Errorf("volume ID: %s request nodeId was empty", req.VolumeId)
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := fmt.Sprintf("volume ID: %s request nodeId was empty", req.VolumeId)
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	err = validateNodeID(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("validateNodeID - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("validateNodeID - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -316,19 +328,21 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 
 	err = validateSecret(req.GetVolumeId(), common.CSIControllerPublishSecretName, common.CSIControllerPublishSecretNamespace, req.GetSecrets())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("%w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	storageController, _, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil || storageController == nil {
-		e := fmt.Errorf("NewStorageController - volume ID: %s type %v error: %s", req.GetVolumeId(), volumeInfo, err.Error())
+		e := common.Errorf("NewStorageController - volume ID: %s type %v error: %w", req.GetVolumeId(), volumeInfo, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("ControllerPublishVolume - failed proto: %v volume ID: %s node ID: %s error: %v", volumeInfo, req.GetVolumeId(), req.GetNodeId(), err)
+		e := common.Errorf("ControllerPublishVolume - failed proto: %v volume ID: %s node ID: %s error: %w", volumeInfo, req.GetVolumeId(), req.GetNodeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -341,13 +355,13 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	slog.Info("Start", "volume ID", req.GetVolumeId(), "node id", req.GetNodeId())
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("request volumeId parameter was empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := "request volumeId parameter was empty"
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID -  volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID -  volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -356,7 +370,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 	if nodeID != "" { // NodeId is optional, when empty we should unpublish the volume from any nodes it is published to
 		err = validateNodeID(nodeID)
 		if err != nil {
-			e := fmt.Errorf("validateNodeID - node ID: %s error: %s", nodeID, err.Error())
+			e := common.Errorf("validateNodeID - node ID: %s error: %w", nodeID, err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -366,8 +380,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	nodeProtocol, err := getNodeProtocol(ctx, req.GetNodeId())
 	if err != nil {
-		slog.Error(err.Error())
-		e := fmt.Errorf("volume ID: %s node ID: %s error: %s", req.GetVolumeId(), req.GetNodeId(), err.Error())
+		e := common.Errorf("volume ID: %s node ID: %s error: %w", req.GetVolumeId(), req.GetNodeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -379,7 +392,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		e := fmt.Errorf("DetermineHostName - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("DetermineHostName - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -388,7 +401,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	storageController, commonService, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil {
-		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("NewStorageController - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -402,7 +415,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 			if errors.Is(err, iboxapi.ErrNotFound) {
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
-			e := fmt.Errorf("GetHostByName - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+			e := common.Errorf("GetHostByName - volume ID: %s error: %w", req.GetVolumeId(), err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -410,7 +423,7 @@ func (s *ControllerServer) ControllerUnpublishVolume(ctx context.Context, req *c
 
 	unpublishVolResp, err = storageController.ControllerUnpublishVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sc.ControllerUnpublishVolume - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("sc.ControllerUnpublishVolume - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -485,24 +498,24 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	slog.Info("Started", "volume ID", req.GetVolumeId())
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("error volumeId parameter was empty")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := "error volumeId parameter was empty"
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 	if req.VolumeCapabilities == nil {
-		e := fmt.Errorf("volume ID: %s error volumeCapabilities parameter was nil", req.GetVolumeId())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := fmt.Sprintf("volume ID: %s error volumeCapabilities parameter was nil", req.GetVolumeId())
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 	if len(req.VolumeCapabilities) == 0 {
-		e := fmt.Errorf("volume ID: %s error volumeCapabilities parameter was empty", req.GetVolumeId())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.InvalidArgument, e.Error())
+		msg := fmt.Sprintf("volume ID: %s error volumeCapabilities parameter was empty", req.GetVolumeId())
+		slog.Error(msg)
+		return nil, status.Error(codes.InvalidArgument, msg)
 	}
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -510,7 +523,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	config := make(map[string]string)
 	commonService, err := storagecommon.BuildCommonService(config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
-		e := fmt.Errorf("BuildCommonService - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("BuildCommonService - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -521,7 +534,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 	//	if protocol != common.PROTOCOL_NFS && protocol != common.PROTOCOL_TREEQ {
 	protocolSecretMap, protocolSecretInUse, err := GetProtocolSecret(ctx)
 	if err != nil {
-		e := fmt.Errorf("BuildCommonService - error getting protocol secret: %s", err.Error())
+		e := common.Errorf("BuildCommonService - error getting protocol secret: %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -534,7 +547,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		var fileSystem *iboxapi.FileSystem
 		fileSystem, err = commonService.IboxAPI.GetFileSystemByID(ctx, volumeInfo.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("GetFileSystemByID volume ID: %d error: %s", volumeInfo.VolumeID, err.Error())
+			e := common.Errorf("GetFileSystemByID volume ID: %d error: %w", volumeInfo.VolumeID, err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.NotFound, e.Error())
 		}
@@ -543,7 +556,7 @@ func (s *ControllerServer) ValidateVolumeCapabilities(ctx context.Context, req *
 		var volume *iboxapi.Volume
 		volume, err = commonService.IboxAPI.GetVolume(ctx, volumeInfo.VolumeID)
 		if err != nil {
-			e := fmt.Errorf("GetVolume - failed to find volume ID: %d Error: %v", volumeInfo.VolumeID, err)
+			e := common.Errorf("GetVolume - failed to find volume ID: %d Error: %w", volumeInfo.VolumeID, err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.NotFound, e.Error())
 		}
@@ -575,7 +588,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 	// Get a k8s go client for in-cluster use
 	client, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("BuildClient - error: %s", err.Error())
+		e := common.Errorf("BuildClient - error: %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
@@ -583,7 +596,7 @@ func (s *ControllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumes
 	// Find PVs managed by this CSI driver
 	pvList, err := client.GetAllPersistentVolumes(ctx)
 	if err != nil {
-		e := fmt.Errorf("GetAllPersistentVolumes - error: %s", err.Error())
+		e := common.Errorf("GetAllPersistentVolumes - error: %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
@@ -630,7 +643,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	// Get a k8s go client for in-cluster use
 	client, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("BuildClient - error: %s", err.Error())
+		e := common.Errorf("BuildClient - error: %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
@@ -638,14 +651,14 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 	namespace := os.Getenv("POD_NAMESPACE")
 	slog.Debug("info", "POD_NAMESPACE", namespace)
 	if namespace == "" {
-		e := fmt.Errorf("env var POD_NAMESPACE was not set, this is a required env var")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Unavailable, e.Error())
+		msg := "env var POD_NAMESPACE was not set, this is a required env var"
+		slog.Error(msg)
+		return nil, status.Error(codes.Unavailable, msg)
 	}
 
 	secrets, err := client.GetSecrets(ctx, namespace)
 	if err != nil {
-		e := fmt.Errorf("GetSecrets - error: %s", err.Error())
+		e := common.Errorf("GetSecrets - error: %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Unavailable, e.Error())
 	}
@@ -658,14 +671,14 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 
 		clientService, err := client.NewClient()
 		if err != nil {
-			e := fmt.Errorf("NewClient - error: %s", err.Error())
+			e := common.Errorf("NewClient - error: %w", err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Unavailable, e.Error())
 		}
 
 		snapshots, err := clientService.IboxAPI.GetAllSnapshots(ctx)
 		if err != nil {
-			e := fmt.Errorf("GetAllSnapshots - error: %s", err.Error())
+			e := common.Errorf("GetAllSnapshots - error: %w", err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Unavailable, e.Error())
 		}
@@ -677,7 +690,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 		if req.SnapshotId != "" {
 			volumeInfo, err = storagecommon.ValidateVolumeID(req.SnapshotId)
 			if err != nil {
-				e := fmt.Errorf("ValidateVolumeID - error: %s", err.Error())
+				e := common.Errorf("ValidateVolumeID - error: %w", err)
 				slog.Error(e.Error())
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
@@ -695,7 +708,8 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			case "VOLUME":
 				_, err := clientService.IboxAPI.GetVolume(ctx, snapshot.ParentID)
 				if err != nil {
-					slog.Error("GetVolume - snapshot error ", "name", snapshot.Name, "parentid", snapshot.ParentID, "error", err.Error())
+					e := common.Errorf("GetVolume - snapshot error name %s parentID %d error %w", snapshot.Name, snapshot.ParentID, err)
+					slog.Error(e.Error())
 					parentName = UNKNOWN
 				} else {
 					parentName = strconv.Itoa(snapshot.ParentID)
@@ -703,7 +717,8 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			case "FILESYSTEM":
 				_, err := clientService.IboxAPI.GetFileSystemByID(ctx, snapshot.ParentID)
 				if err != nil {
-					slog.Error("GetFileSystemByID - snapshot error", "name", snapshot.Name, "parentid", snapshot.ParentID, "error", err.Error())
+					e := common.Errorf("GetFileSystemByID - snapshot error name %s parentid %d error %w", snapshot.Name, snapshot.ParentID, err)
+					slog.Error(e.Error())
 					parentName = UNKNOWN
 				} else {
 					parentName = strconv.Itoa(snapshot.ParentID)
@@ -728,7 +743,7 @@ func (s *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnaps
 			if req.SourceVolumeId != "" {
 				volumeInfo, err := storagecommon.ValidateVolumeID(req.SourceVolumeId)
 				if err != nil {
-					e := fmt.Errorf("ValidateVolumeID - error validating sourceVolumeId %s %s", req.SourceVolumeId, err.Error())
+					e := common.Errorf("ValidateVolumeID - error validating sourceVolumeId %s %w", req.SourceVolumeId, err)
 					slog.Error(e.Error())
 					return nil, status.Error(codes.InvalidArgument, e.Error())
 				}
@@ -769,7 +784,7 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetSourceVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID - snapshot Name: %s source volume ID: %s failed to validate storage type %v", req.GetName(), req.GetSourceVolumeId(), err)
+		e := common.Errorf("ValidateVolumeID - snapshot Name: %s source volume ID: %s failed to validate storage type error %w", req.GetName(), req.GetSourceVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -779,14 +794,14 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 
 	storageController, commonService, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil {
-		e := fmt.Errorf("NewStorageController - snapshot name: %s source volume ID: %s error: %s", req.GetName(), req.GetSourceVolumeId(), err.Error())
+		e := common.Errorf("NewStorageController - snapshot name: %s source volume ID: %s error: %w", req.GetName(), req.GetSourceVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	createSnapshotResp, err = storageController.CreateSnapshot(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sc.CreateSnapshot - snapshot name: %s source volume ID: %s error: %s", req.GetName(), req.GetSourceVolumeId(), err)
+		e := common.Errorf("sc.CreateSnapshot - snapshot name: %s source volume ID: %s error: %w", req.GetName(), req.GetSourceVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -808,7 +823,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 	slog.Info("Start", "snapshot ID", snapshotID)
 	volumeInfo, err := storagecommon.ValidateVolumeID(snapshotID)
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID - snapshot ID: %s invalid, error: %v", snapshotID, err)
+		e := common.Errorf("ValidateVolumeID - snapshot ID: %s invalid, error: %w", snapshotID, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -819,7 +834,7 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 	storageController, _, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil {
-		e := fmt.Errorf("NewStorageController - snapshot ID: %s error %s", req.GetSnapshotId(), err.Error())
+		e := common.Errorf("NewStorageController - snapshot ID: %s error %w", req.GetSnapshotId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -828,9 +843,14 @@ func (s *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSn
 
 	deleteSnapshotResp, err = storageController.DeleteSnapshot(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sc.DeleteSnapshot - snapshot ID: %s error: %s", req.GetSnapshotId(), err.Error())
+		c := codes.Internal
+		re, ok := err.(storagecommon.ImplementationError)
+		if ok {
+			c = codes.Code(re.Code)
+		}
+		e := common.Errorf("sc.DeleteSnapshot - snapshot ID: %s error: %w", req.GetSnapshotId(), err)
 		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		return nil, status.Error(c, e.Error())
 	}
 	return deleteSnapshotResp, err
 }
@@ -840,7 +860,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	err = validateExpandVolumeRequest(req)
 	if err != nil {
-		e := fmt.Errorf("validate - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("validate - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -850,7 +870,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 	}
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -873,12 +893,14 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 
 	err = validateSecret(req.GetVolumeId(), common.CSIControllerExpandSecretName, common.CSIControllerExpandSecretNamespace, req.GetSecrets())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("%w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	storageController, _, err := storage.NewStorageController(configparams, req.GetSecrets(), &volumeInfo, capacity)
 	if err != nil {
-		e := fmt.Errorf("NewStorageController - volume ID: %s error: %s", req.GetVolumeId(), err)
+		e := common.Errorf("NewStorageController - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -887,7 +909,7 @@ func (s *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.
 		req.VolumeId = strconv.Itoa(volumeInfo.VolumeID)
 		expandVolResp, err = storageController.ControllerExpandVolume(ctx, req)
 		if err != nil {
-			e := fmt.Errorf("sc.ControllerExpandVolume - volume ID: %s error: %s", req.GetVolumeId(), err)
+			e := common.Errorf("sc.ControllerExpandVolume - volume ID: %s error: %w", req.GetVolumeId(), err)
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
@@ -907,7 +929,9 @@ func validateNodeID(nodeID string) error {
 	}
 	nodeSplit := strings.Split(nodeID, "$$")
 	if len(nodeSplit) != 2 {
-		return status.Error(codes.NotFound, fmt.Sprintf("node ID: %s does not follow '<fqdn>$$<id>' pattern", nodeID))
+		e := common.Errorf("node ID: %s does not follow '<fqdn>$$<id>' pattern", nodeID)
+		slog.Error(e.Error())
+		return status.Error(codes.NotFound, e.Error())
 	}
 	return nil
 }
@@ -915,11 +939,15 @@ func validateNodeID(nodeID string) error {
 // Controller expand volume request validation
 func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 	if req.GetVolumeId() == "" {
-		return status.Error(codes.InvalidArgument, "volume ID cannot be empty")
+		e := common.Errorf("volume ID cannot be empty")
+		slog.Error(e.Error())
+		return status.Error(codes.InvalidArgument, e.Error())
 	}
 	capRange := req.GetCapacityRange()
 	if capRange == nil {
-		return status.Error(codes.InvalidArgument, "capacityRange cannot be empty")
+		e := common.Errorf("capacityRange cannot be empty")
+		slog.Error(e.Error())
+		return status.Error(codes.InvalidArgument, e.Error())
 	}
 	return nil
 }
@@ -928,7 +956,7 @@ func validateCommonStorageClassParameters(ctx context.Context, commonService sto
 	poolName := scParameters[common.StorageClassPoolName]
 	_, err := commonService.IboxAPI.GetPoolByName(ctx, poolName)
 	if err != nil {
-		return err
+		return fmt.Errorf("pool %s - %w", poolName, err)
 	}
 
 	// skip validation of network space when FC
@@ -939,13 +967,11 @@ func validateCommonStorageClassParameters(ctx context.Context, commonService sto
 		for _, name := range arrayofNetworkSpaces {
 			_, err := commonService.IboxAPI.GetNetworkSpaceByName(ctx, name)
 			if err != nil {
-				slog.Error("network space: is not found on the ibox", "name", name)
-				return err
+				return fmt.Errorf("network space %s - %w", name, err)
 			}
 		}
 		// validate network protocol / networkspace compatibility
 		if err := storagecommon.ValidateProtocolToNetworkSpace(ctx, protocol, arrayofNetworkSpaces, commonService.IboxAPI); err != nil {
-			slog.Error(err.Error())
 			return err
 		}
 	}
@@ -1033,7 +1059,7 @@ func DetermineProtocol(ctx context.Context) (protocol string, protocolSecret map
 
 	client, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("BuildClient - error: %s", err.Error())
+		e := common.Errorf("BuildClient - error: %w", err)
 		slog.Error(e.Error())
 		return "", protocolSecret, e
 	}
@@ -1041,14 +1067,14 @@ func DetermineProtocol(ctx context.Context) (protocol string, protocolSecret map
 	namespace := os.Getenv("POD_NAMESPACE")
 	slog.Debug("env var", "POD_NAMESPACE", namespace)
 	if namespace == "" {
-		e := fmt.Errorf("env var POD_NAMESPACE was not set, this is a required env var")
+		e := common.Errorf("env var POD_NAMESPACE was not set, this is a required env var")
 		slog.Error(e.Error())
 		return "", protocolSecret, e
 	}
 
 	pods, err := client.GetRunningDriverNodePods(ctx, namespace)
 	if err != nil {
-		e := fmt.Errorf("GetRunningDriverNodePods - error: %s", err.Error())
+		e := common.Errorf("GetRunningDriverNodePods - error: %w", err)
 		slog.Error(e.Error())
 		return "", protocolSecret, e
 	}
@@ -1262,7 +1288,7 @@ func handlePVCAnnotations(ctx context.Context, req *csi.CreateVolumeRequest) (se
 	secretsToUse = req.GetSecrets()
 	kubernetesClient, err := clientgo.BuildClient()
 	if err != nil {
-		e := fmt.Errorf("BuildClient - error %s", err.Error())
+		e := common.Errorf("BuildClient - error %w", err)
 		slog.Error(e.Error())
 		return secretsToUse, status.Error(codes.Internal, e.Error())
 	}
@@ -1272,7 +1298,7 @@ func handlePVCAnnotations(ctx context.Context, req *csi.CreateVolumeRequest) (se
 	if extraMetadataPVCName != "" && extraMetadataPVCNamespace != "" {
 		pvcAnnotations, err = kubernetesClient.GetPVCAnnotations(ctx, extraMetadataPVCName, extraMetadataPVCNamespace)
 		if err != nil {
-			e := fmt.Errorf("GetPVCAnnotations - name %s error %s", req.GetName(), err.Error())
+			e := common.Errorf("GetPVCAnnotations - name %s error %w", req.GetName(), err)
 			slog.Error(e.Error())
 			return secretsToUse, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -1283,7 +1309,7 @@ func handlePVCAnnotations(ctx context.Context, req *csi.CreateVolumeRequest) (se
 		//override the normal secrets with the ones from the annotation
 		secretsToUse, err = kubernetesClient.GetSecret(ctx, pvcAnnoSecret, os.Getenv(common.EnvVarPodNamespace))
 		if err != nil {
-			e := fmt.Errorf("GetSecrets - %s error %s", pvcAnnoSecret, err.Error())
+			e := common.Errorf("GetSecrets - %s error %w", pvcAnnoSecret, err)
 			slog.Error(e.Error())
 			return secretsToUse, status.Error(codes.InvalidArgument, e.Error())
 		}
@@ -1318,13 +1344,13 @@ func handlePVCAnnotationForMetadata(ctx context.Context, cs storagecommon.Common
 	metadata[common.PVCAnnotationVolumeMetadata] = metadataValue
 	volumeID, err := strconv.Atoi(volumeIDString)
 	if err != nil {
-		e := fmt.Errorf("create metadata for PVC annotation error converting volumeID to int %w", err)
+		e := common.Errorf("create metadata for PVC annotation error converting volumeID to int %w", err)
 		slog.Error(e.Error())
 		return
 	}
 	_, err = cs.IboxAPI.PutMetadata(ctx, volumeID, metadata)
 	if err != nil {
-		e := fmt.Errorf("create metadata for PVC annotation response error %w", err)
+		e := common.Errorf("create metadata for PVC annotation response error %w", err)
 		slog.Error(e.Error())
 		return
 	}

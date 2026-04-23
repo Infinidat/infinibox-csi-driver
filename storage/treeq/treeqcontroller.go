@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"strings"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -73,16 +74,22 @@ func (treeq *Treeqstorage) ValidateStorageClass(params map[string]string) error 
 
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredParams, optionalParams, params)
 	if err != nil {
-		e := fmt.Errorf("error: %s", err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.InvalidArgument, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.InvalidArgument),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return e
 	}
 
 	err = nfs.ValidateNFSExportPermissions(params)
 	if err != nil {
-		e := fmt.Errorf("error: %s", err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.InvalidArgument, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.InvalidArgument),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return e
 	}
 
 	return nil
@@ -96,9 +103,12 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	for _, cap := range req.GetVolumeCapabilities() {
 		if block := cap.GetBlock(); block != nil {
-			e := fmt.Errorf("from GetBlock - block access requested for %s PV: %s", params[common.StorageClassStorageProtocol], req.GetName())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.InvalidArgument, e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.InvalidArgument),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("treeq GetBlock - block access requested for %s PV: %s", params[common.StorageClassStorageProtocol], req.GetName())),
+			}
+			return nil, e
 		}
 	}
 
@@ -109,15 +119,21 @@ func (treeq *Treeqstorage) CreateVolume(ctx context.Context, req *csi.CreateVolu
 	}
 	treeqVolumeContext, err := treeq.TreeqService.IsTreeqAlreadyExist(ctx, params[common.StorageClassPoolName], strings.Trim(params[common.StorageClassNetworkSpace], ""), req.GetName(), fsPrefix)
 	if err != nil {
-		e := fmt.Errorf("from IsTreeqAlreadyExist - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	if len(treeqVolumeContext) == 0 {
 		treeqVolumeContext, err = treeq.TreeqService.CreateTreeqVolume(ctx, params, treeq.NFSstorage.Capacity, req.GetName())
 		if err != nil {
-			e := fmt.Errorf("from CreateTreeqVolume - error: %s", err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 	}
@@ -166,9 +182,12 @@ func (treeq *Treeqstorage) ControllerUnpublishVolume(ctx context.Context, req *c
 	slog.Debug("start", "volproto", volproto)
 	err := treeq.NFSstorage.CS.API.DeleteExportRule(ctx, volproto.VolumeID, volproto.NodeID)
 	if err != nil {
-		e := fmt.Errorf("from DeleteExportRule - failed to delete Export Rule fileystemID: %d error: %s", volproto.VolumeID, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
@@ -200,8 +219,11 @@ func (treeq *Treeqstorage) ControllerExpandVolume(ctx context.Context, req *csi.
 	slog.Debug("info", "filesystemID", filesystemID, "treeqID", treeqID, "capacity", capacity, "max filesystem size", maxFileSystemSize)
 	err = treeq.TreeqService.UpdateTreeqVolume(ctx, filesystemID, treeqID, capacity, maxFileSystemSize)
 	if err != nil {
-		e := fmt.Errorf("from UpdateTreeqVolume - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	return &csi.ControllerExpandVolumeResponse{

@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 
 	"log/slog"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const DefaultHostMountPoint = "/host/"
@@ -45,8 +45,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("from ValidateVolumeID - error parsing volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	fileSystemID := volumeInfo.VolumeID
@@ -60,8 +63,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	if snapDirVisible := req.GetVolumeContext()[common.StorageClassSnapDirVisible]; snapDirVisible != "" {
 		treeq.NFSstorage.SnapdirVisible, err = strconv.ParseBool(snapDirVisible)
 		if err != nil {
-			e := fmt.Errorf("error parsing snapdir visible - error: %s", err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 	}
@@ -69,8 +75,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	if privPorts := req.GetVolumeContext()[common.StorageClassPrivPorts]; privPorts != "" {
 		treeq.NFSstorage.UsePrivilegedPorts, err = strconv.ParseBool(privPorts)
 		if err != nil {
-			e := fmt.Errorf("error parsing priv ports - error: %s", err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 	}
@@ -78,8 +87,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	// only update the export if this is the only treeq since treeq's share a single export
 	exports, err := treeq.NFSstorage.CS.IboxAPI.GetExportsByFileSystemID(ctx, fileSystemID)
 	if err != nil {
-		e := fmt.Errorf("from GetExportByFileSystem - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	slog.Debug("info", "exports", len(exports), "file system id", fileSystemID)
@@ -97,8 +109,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		}
 		err = treeq.NFSstorage.UpdateExport(ctx, fileSystemID, exportPerms)
 		if err != nil {
-			e := fmt.Errorf("from updateExport - error: %s", err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 	} else {
@@ -109,8 +124,11 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		if os.IsNotExist(err) {
 			slog.Debug("targetPath does not exist, will create", "targetpath", targetPath)
 			if err := os.MkdirAll(hostTargetPath, 0750); err != nil {
-				e := fmt.Errorf("from mkdirAll - error: %s", err.Error())
-				slog.Error(e.Error())
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
 				return nil, e
 			}
 		} else {
@@ -122,9 +140,12 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	mountOptions, err := treeq.NFSstorage.StorageHelper.GetNFSMountOptions(req)
 	if err != nil {
-		e := fmt.Errorf("from GetNFSMountOptions - targetPath: %s error: %s", hostTargetPath, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	sourceIP := req.GetVolumeContext()["ipAddress"]
@@ -141,24 +162,33 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	port, err := strconv.Atoi(nfsPort)
 	if err != nil {
-		e := fmt.Errorf("port parsing error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	err = treeq.NFSstorage.StorageHelper.ValidateIPAddress(sourceIP, port)
 	if err != nil {
-		e := fmt.Errorf("ValidateIPAddress error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	slog.Debug("mount", "sourcePath", source, "targetpath", targetPath)
 	err = treeq.NFSstorage.Mounter.Mount(source, targetPath, "nfs", mountOptions)
 	if err != nil {
-		e := fmt.Errorf("from mount - failed to mount targetPath: %s sourcePath: %s error: %s", targetPath, source, err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	slog.Debug("mounted treeq volume", "sourceIP", source, "volume id", req.GetVolumeId(), "targetPath", targetPath, "mountoptions", mountOptions)
 
@@ -169,9 +199,12 @@ func (treeq *Treeqstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	err = treeq.NFSstorage.StorageHelper.SetVolumePermissions(req)
 	if err != nil {
-		e := fmt.Errorf("from SetVolumePermissions - failed to set volume permissions error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -182,8 +215,11 @@ func (treeq *Treeqstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 	targetPath := req.GetTargetPath()
 	err := storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
-		e := fmt.Errorf("from UnmountAndCleanup - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil

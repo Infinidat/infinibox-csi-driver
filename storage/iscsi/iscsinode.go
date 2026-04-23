@@ -14,9 +14,9 @@ package iscsi
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"strconv"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -119,25 +119,35 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
-		e := fmt.Errorf("from ValidatePublishContext - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	slog.Debug("publishing volume to host", "hostID", hostID)
 
 	initiatorName, err := getInitiatorName()
 	if err != nil {
-		slog.Error(err.Error())
-		return nil, status.Error(codes.Internal, err.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	if !strings.Contains(ports, initiatorName) {
 		slog.Debug("host port is not created, creating one")
 		err = iscsi.CS.AddPortForHost(ctx, hostID, "ISCSI", initiatorName)
 		if err != nil {
-			e := fmt.Errorf("from AddPortForHost - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -147,8 +157,12 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 	if strings.ToLower(hostSecurity) != useChap || !strings.Contains(ports, initiatorName) {
 		err := addCHAPSecurity(ctx, iscsi, useChap, hostID, req)
 		if err != nil {
-			slog.Error(err.Error())
-			return nil, status.Error(codes.Internal, err.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -161,17 +175,23 @@ func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 
 	targets, err := iscsi.getISCSITargets(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("from getISCSITargets - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	slog.Debug("iscsi targets", "count", len(targets), "targets", targets)
 
 	iscsiDisk, err := iscsi.getISCSIDisk(req)
 	if err != nil {
-		e := fmt.Errorf("from getISCSIDisk - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	iscsiDisk.Targets = targets
 	slog.Debug("iscsiDisk", "volume name", iscsiDisk.VolName, "lun", iscsiDisk.Lun)
@@ -179,16 +199,22 @@ func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 	//diskMounter, err := iscsi.getISCSIDiskMounter(iscsiDisk, req)
 	diskMounter, err := storagecommon.GetDiskMounter(req)
 	if err != nil {
-		e := fmt.Errorf("from getISCSIDiskMounter - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	_, err = iscsi.AttachDisk(*diskMounter, iscsiDisk)
 	if err != nil {
-		e := fmt.Errorf("from AttachDisk - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	slog.Debug("iscsi attachDisk succeeded")
 
@@ -198,9 +224,12 @@ func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 		// Chown
 		err = iscsi.StorageHelper.SetVolumePermissions(req)
 		if err != nil {
-			e := fmt.Errorf("from SetVolumePermissions - error: %s", err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -213,9 +242,12 @@ func (iscsi *ISCSIstorage) NodeUnpublishVolume(ctx context.Context, req *csi.Nod
 
 	err := storagecommon.UnmountAndCleanUp(req.GetTargetPath())
 	if err != nil {
-		e := fmt.Errorf("from UnmountAndCleanup - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -277,8 +309,11 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Check if removePath is a directory or a file
 	isADir, isADirError := storagecommon.IsDirectory(removePath)
 	if isADirError != nil {
-		e := fmt.Errorf("from IsDirectory - check if removePath: %s is a directory: %v", removePath, isADirError)
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, isADirError.Error()),
+		}
 		return nil, e
 	}
 
@@ -293,8 +328,11 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 		jsonPath := fmt.Sprintf("%s/%d.json", removePath, iscsi.CS.VolProto.VolumeID)
 		slog.Debug("removing json file", "file", jsonPath)
 		if err := os.Remove(jsonPath); err != nil {
-			e := fmt.Errorf("from Remove jsonPath: %s error: %s", jsonPath, err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 	} else {
@@ -304,8 +342,11 @@ func (iscsi *ISCSIstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeU
 	// Remove directory or file
 	slog.Debug("removing removePath", "path", removePath)
 	if err := os.Remove(removePath); err != nil {
-		e := fmt.Errorf("from Remove - failed to remove path: %s error: %s", removePath, err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 
@@ -357,8 +398,11 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	if req.GetVolumeCapability().GetBlock() != nil {
 		err := storagecommon.BlockExpandVolume(req.GetVolumePath())
 		if err != nil {
-			e := fmt.Errorf("from BlockExpandVolume block path: %s  error: %s", req.GetVolumePath(), err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 		return &response, nil
@@ -367,8 +411,11 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	// 1 - run mount | grep <volume_path> to find the multipath device name (e.g. /dev/mapper/mpathwi)
 	multipathDevice, err := storagecommon.FindMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		e := fmt.Errorf("from FindMultipathDevice - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 
@@ -380,14 +427,20 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 
 	out, _, err := execCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("from Command: %s error: %s", command, err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 
 	if out == "" {
-		e := fmt.Errorf("error getting multipath devices from output %s command output was empty", multipathDevice)
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("error getting multipath devices from output %s command output was empty", multipathDevice)),
+		}
 		return nil, e
 	}
 
@@ -410,8 +463,11 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
 			out, _, err := execCommand.Command(command, "")
 			if err != nil {
-				e := fmt.Errorf("from Command:: %s - error writing rescan on multipath devices error: %s", command, err.Error())
-				slog.Error(e.Error())
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
 				return nil, e
 			}
 			slog.Debug("rescan output", "output", strings.TrimSpace(out))
@@ -422,14 +478,22 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	// we need to strip off the /dev/mapper/ path prefix
 	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
 	if len(mpathPart) < 2 {
-		return nil, fmt.Errorf("error getting mpathPart from %+v", mpathPart)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	slog.Debug("executing", "command", command)
 	out, _, err = execCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("error multipathd resize map multipath devices error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	slog.Debug("multipathd resize map", "output", strings.TrimSpace(out))
@@ -438,8 +502,11 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 	fsType := req.GetVolumeCapability().GetMount().FsType
 	err = storagecommon.ExpandFileSystem(multipathDevice, fsType)
 	if err != nil {
-		e := fmt.Errorf("from ExpandFileSystem error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 
@@ -453,7 +520,12 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter storagecommon.Mounter, iscsiDi
 
 	_, err = iscsi.extractTransportName(iscsiDisk.Iface)
 	if err != nil {
-		return "", err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 
 	// If not found, create new iface and copy parameters from pre-configured (default) iface to the created iface
@@ -470,7 +542,12 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter storagecommon.Mounter, iscsiDi
 				slog.Debug("creating new iface (clone) and copying parameters from pre-configured iface to it", "commandOutput", commandOutput)
 				err = iscsi.cloneIface(*iscsiDisk, newIface)
 				if err != nil {
-					return "", fmt.Errorf("failed to clone iface: %s error: %s", iscsiDisk.Iface, err.Error())
+					_, file, line, _ := runtime.Caller(0)
+					e := storagecommon.ImplementationError{
+						Code: int(codes.Internal),
+						Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+					}
+					return "", e
 				}
 				slog.Debug("new iface created", "interface", newIface)
 			} else {
@@ -483,26 +560,46 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter storagecommon.Mounter, iscsiDi
 
 	err = discoverISCITargets(targets)
 	if err != nil {
-		return "", err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 
 	iscsi.updateForCHAP(*iscsiDisk, targets)
 
 	err = loginToTargets(targets)
 	if err != nil {
-		return "", err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 
 	// Rescan for LUN b.lun
 	hosts, err := getHostIDs()
 	if err != nil {
-		return "", err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 
 	// For each host, scan using lun
 	wwid, err := storagecommon.RescanDeviceMap(hosts, iscsiDisk.VolName, iscsiDisk.Lun)
 	if err != nil {
-		return "", fmt.Errorf("from RescanDeviceMap volumeID: %s lun: %s error: %s", iscsiDisk.VolName, iscsiDisk.Lun, err.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 
 	slog.Debug("searchDisk sleeping 3 seconds to allow devmapper time to work", "wwid", wwid)
@@ -525,13 +622,23 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter storagecommon.Mounter, iscsiDi
 	slog.Debug("found dm", "dm", dmDevice)
 
 	if dmDevice == "" {
-		return "", fmt.Errorf("error, could not find a dm device for wwid: %s", wwid)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("error, could not find a dm device for wwid: %s", wwid)),
+		}
+		return "", e
 	}
 	trimmedDeviceName := strings.Replace(dmDevice, "/host", "", 1)
 	var thisMpath string
 	thisMpath, err = storagecommon.FindMpathFromDevice(trimmedDeviceName)
 	if err != nil {
-		return "", fmt.Errorf("findMpathFromDevice error - device %s - error %s", trimmedDeviceName, err.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 	// here trimmedDeviceName is /dev/dm-3 and thisMpath is mpathtf
 	slog.Debug("info", "device", trimmedDeviceName, "mpath", thisMpath)
@@ -552,7 +659,12 @@ func (iscsi *ISCSIstorage) AttachDisk(diskMounter storagecommon.Mounter, iscsiDi
 
 	err = storagecommon.MountLogic(config, diskMounter.TargetPath, devicePath, diskMounter.StagePath, diskMounter.FsType, options, diskMounter.IsBlock, diskMounter.ReadOnly)
 	if err != nil {
-		return "", fmt.Errorf("from MountLogic failed, error: %s", err.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 
 	slog.Debug("mounted volume with device path successfully", "devicepath", devicePath, "mountpath", mountPath)
@@ -564,14 +676,24 @@ func getInitiatorName() (string, error) {
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
 		slog.Error("failed to get initiator name. Is iSCSI initiator installed", "error", err)
-		return "", err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return "", e
 	}
 	initiatorName := string(out)
 	initiatorName = strings.TrimSuffix(initiatorName, "\n")
 	slog.Debug("info", "host initiator name", initiatorName)
 	arr := strings.Split(initiatorName, "=")
 	if arr[1] == "" {
-		return "", errors.New("initiator name is empty")
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, "initiator name is empty"),
+		}
+		return "", e
 	}
 	return arr[1], nil
 }
@@ -579,7 +701,12 @@ func getInitiatorName() (string, error) {
 func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*iscsiDevice, error) {
 	initiatorName, err := getInitiatorName()
 	if err != nil {
-		return nil, err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	volName := strconv.Itoa(iscsi.CS.VolProto.VolumeID)
@@ -589,7 +716,12 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 
 	lun := publishContext["lun"]
 	if lun == "" {
-		return nil, fmt.Errorf("LUN is missing")
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, "LUN is missing"),
+		}
+		return nil, e
 	}
 
 	useChap := volContext[common.StorageClassUseCHAP]
@@ -605,8 +737,11 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	if chapSession {
 		secret, err = iscsi.parseSessionSecret(useChap, secret)
 		if err != nil {
-			e := fmt.Errorf("from parseSessionSecret error: %s", err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 	}
@@ -640,20 +775,45 @@ func (iscsi *ISCSIstorage) parseSessionSecret(useChap string, secretParams map[s
 
 	if useChap == UseCHAP || useChap == UseMutualCHAP {
 		if len(secretParams) == 0 {
-			return secret, errors.New("parseSessionSecret (iscsi): required chap secrets not provided")
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, "parseSessionSecret (iscsi): required chap secrets not provided"),
+			}
+			return secret, e
 		}
 		if secret[CHAPUsername], valid = secretParams[CHAPUsername]; !valid {
-			return secret, fmt.Errorf("%s not found in secret", CHAPUsername)
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("%s not found in secret", CHAPUsername)),
+			}
+			return secret, e
 		}
 		if secret[CHAPPassword], valid = secretParams[CHAPPassword]; !valid {
-			return secret, fmt.Errorf("%s not found in secret", CHAPPassword)
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("%s not found in secret", CHAPPassword)),
+			}
+			return secret, e
 		}
 		if useChap == UseMutualCHAP {
 			if secret[CHAPUsernameIn], valid = secretParams[CHAPUsernameIn]; !valid {
-				return secret, fmt.Errorf("%s not found in secret", CHAPUsernameIn)
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("%s not found in secret", CHAPUsernameIn)),
+				}
+				return secret, e
 			}
 			if secret[CHAPPasswordIn], valid = secretParams[CHAPPasswordIn]; !valid {
-				return secret, fmt.Errorf("%s not found in secret", CHAPPasswordIn)
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("%s not found in secret", CHAPPasswordIn)),
+				}
+				return secret, e
 			}
 		}
 		secret["SecretsType"] = UseCHAP
@@ -669,8 +829,11 @@ func (iscsi *ISCSIstorage) updateISCSINode(iscsiDisk iscsiDevice, iqn string, po
 	slog.Debug("update node with CHAP")
 	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name node.session.auth.authmethod --value CHAP", portal, iqn))
 	if err != nil {
-		e := fmt.Errorf("failed to update node with CHAP, output: %v", out)
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()+out),
+		}
 		return e
 	}
 
@@ -680,8 +843,11 @@ func (iscsi *ISCSIstorage) updateISCSINode(iscsiDisk iscsiDevice, iqn string, po
 			slog.Debug("update node session key/value")
 			out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode node --portal %s --targetname %s --op update --name %q --value %q", portal, iqn, credential, v))
 			if err != nil {
-				e := fmt.Errorf("failed to update node session key: %q with value: %q out: %v error: %s", credential, v, out, err.Error())
-				slog.Error(e.Error())
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()+out),
+				}
 				return e
 			}
 		}
@@ -694,9 +860,7 @@ func (iscsi *ISCSIstorage) extractTransportName(diskMounterIface string) (iscsiT
 	isToLogOutput := false
 	commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", diskMounterIface), isToLogOutput)
 	if err != nil {
-		e := fmt.Errorf("cannot read interface: %s output: %s error: %s", diskMounterIface, commandOutput, err.Error())
-		slog.Error(e.Error())
-		return "", e
+		return "", common.Errorf("%w", err)
 	}
 	rexOutput := ifaceTransportNameRe.FindStringSubmatch(commandOutput)
 	if rexOutput == nil {
@@ -709,9 +873,7 @@ func (iscsi *ISCSIstorage) extractTransportName(diskMounterIface string) (iscsiT
 		iscsiTransport = ISCSITransportTCP
 	}
 	if iscsiTransport == "" {
-		e := fmt.Errorf("could not find transport name in iface: %s", diskMounterIface)
-		slog.Error(e.Error())
-		return "", e
+		return "", common.Errorf("could not find transport name in iface: %s", diskMounterIface)
 	}
 	slog.Debug("info", "iscsiTransport", iscsiTransport)
 	return iscsiTransport, nil
@@ -726,9 +888,7 @@ func (iscsi *ISCSIstorage) parseIscsiadmShow(output string) (map[string]string, 
 		}
 		iface := strings.Fields(line)
 		if len(iface) != 3 || iface[1] != "=" {
-			e := fmt.Errorf("invalid iface setting %v", iface)
-			slog.Error(e.Error())
-			return nil, e
+			return nil, common.Errorf("invalid iface setting %v", iface)
 		}
 		// iscsi_ifacename is immutable once the iface is created
 		if iface[0] == "iface.iscsi_ifacename" {
@@ -744,18 +904,14 @@ func (iscsi *ISCSIstorage) cloneIface(disk iscsiDevice, newIface string) error {
 	slog.Debug("find pre-configured iface records")
 	out, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op show", disk.Iface))
 	if err != nil {
-		slog.Error(err.Error())
-		lastErr = fmt.Errorf("failed to show iface records: %s error: %s", out, err.Error())
-		return lastErr
+		return common.Errorf("%w", err)
 	}
 	slog.Debug("pre-configured iface records found", "output", out)
 
 	// parse obtained records
 	params, err := iscsi.parseIscsiadmShow(out)
 	if err != nil {
-		slog.Error("parse", "error", err.Error())
-		lastErr = fmt.Errorf("failed to parse iface records: %s error: %s", out, err.Error())
-		return lastErr
+		return common.Errorf("%w", err)
 	}
 	// update initiatorname
 	params["iface.initiatorname"] = disk.InitiatorName
@@ -763,23 +919,22 @@ func (iscsi *ISCSIstorage) cloneIface(disk iscsiDevice, newIface string) error {
 	slog.Debug("create new interface")
 	out, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op new", newIface))
 	if err != nil {
-		lastErr = fmt.Errorf("failed to create new iface: %s error: %s", out, err.Error())
-		return lastErr
+		return common.Errorf("%w", err)
 	}
 
 	// update new iface records
+	// TODO evaluate this block of code for correctness
 	for key, val := range params {
-		slog.Debug("update records", "interface", newIface)
+		slog.Debug("update records", "interface", newIface, "key", key, "value", val)
 		_, _, err = execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op update --name %q --value %q", newIface, key, val))
 		if err != nil {
 			slog.Error(err.Error())
 			_, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode iface --interface %s --op delete", newIface))
 			if err != nil {
-				lastErr = fmt.Errorf("failed to delete iface: %s error: %s ", newIface, err.Error())
-				return lastErr
+				return common.Errorf("%w", err)
 			}
 
-			lastErr = fmt.Errorf("failed to update iface records: %s error: %s iface: %s will be used", out, err, disk.Iface)
+			lastErr = common.Errorf("failed to update iface records: %s error: %s iface: %s will be used", out, err, disk.Iface)
 			break
 		}
 	}
@@ -789,11 +944,11 @@ func (iscsi *ISCSIstorage) cloneIface(disk iscsiDevice, newIface string) error {
 func (iscsi *ISCSIstorage) getISCSITargets(ctx context.Context, req *csi.NodePublishVolumeRequest) (targets []iscsiTarget, err error) {
 	networkSpaces := strings.Split(req.GetVolumeContext()[common.StorageClassNetworkSpace], ",")
 	if len(networkSpaces) == 0 {
-		return targets, fmt.Errorf("no network spaces found")
+		return targets, common.Errorf("no network spaces found")
 	}
 	slog.Debug("info", "networkSpaces", networkSpaces)
 	if iscsi.CS.API == nil {
-		return targets, fmt.Errorf("no api found")
+		return targets, common.Errorf("no api found")
 	}
 
 	var portalsExist bool
@@ -803,9 +958,7 @@ func (iscsi *ISCSIstorage) getISCSITargets(ctx context.Context, req *csi.NodePub
 		slog.Debug("getting nspace by name", "networkspace", networkSpace)
 		thisNetworkSpace, err := iscsi.CS.IboxAPI.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
-			e := fmt.Errorf("error getting network space: %s error: %s", networkSpace, err.Error())
-			slog.Error(e.Error())
-			return targets, status.Error(codes.InvalidArgument, e.Error())
+			return targets, common.Errorf("%w", err)
 		}
 		slog.Debug("got nspace by name", "networkspace", thisNetworkSpace.Name)
 
@@ -832,7 +985,7 @@ func (iscsi *ISCSIstorage) getISCSITargets(ctx context.Context, req *csi.NodePub
 	}
 
 	if !portalsExist {
-		return targets, fmt.Errorf("there are zero network space ip addresses available")
+		return targets, common.Errorf("no network space IP addresses available")
 	}
 	return targets, nil
 }
@@ -845,7 +998,7 @@ func getSessionDetails() (results []SessionDetails) {
 	}
 	lines, err := storagecommon.StringToLines(rawOutput)
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("error getting StringToLines", "error", err)
 		return results
 	}
 	results = make([]SessionDetails, 0)
@@ -874,8 +1027,7 @@ func getMultipathDeviceCount() (deviceCount int, err error) {
 	var out []byte
 	out, err = exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 	if err != nil {
-		e := fmt.Errorf("multipath command error: %s", err.Error())
-		return deviceCount, e
+		return deviceCount, common.Errorf("%w", err)
 	}
 	devices := strings.Fields(string(out))
 	slog.Debug("info", "multipath output", string(out))
@@ -889,7 +1041,7 @@ func logoutAllSessions() (err error) {
 	var out []byte
 	out, err = exec.Command("bash", "-c", pipefailCmd).CombinedOutput()
 	if err != nil {
-		return err
+		return common.Errorf("%w", err)
 	}
 	slog.Debug("isciadm logoutall", "output", string(out))
 	return nil
@@ -898,9 +1050,7 @@ func logoutAllSessions() (err error) {
 func getHostIDs() (hosts []string, err error) {
 	rawOutput, _, err := execCommand.Command("iscsiadm", "-m host -P0")
 	if err != nil {
-		e := fmt.Errorf("finding hosts failed: %s", err.Error())
-		slog.Error(e.Error())
-		return hosts, e
+		return hosts, common.Errorf("%w", err)
 	}
 
 	// this raw output should look like this
@@ -922,9 +1072,7 @@ func getHostIDs() (hosts []string, err error) {
 			trim := strings.TrimLeft(parts[index], " ")
 			rawNumber := strings.Split(trim, " ")
 			if len(rawNumber) < 2 {
-				err = fmt.Errorf("error, could not parse host number [%s]", trim)
-				slog.Error(err.Error())
-				return hosts, err
+				return hosts, common.Errorf("error could not parse host number %s", trim)
 			}
 			replaced := strings.ReplaceAll(rawNumber[1], "[", "")
 			hostID := strings.ReplaceAll(replaced, "]", "")
@@ -939,8 +1087,7 @@ func getHostIDs() (hosts []string, err error) {
 func addChapSecurityForHost(ctx context.Context, cs storagecommon.Commonservice, hostID int, credentials map[string]string) error {
 	_, err := cs.IboxAPI.AddHostSecurity(ctx, credentials, hostID)
 	if err != nil {
-		slog.Error("failed to add authentication for host", "hostID", hostID, "error", err)
-		return err
+		return common.Errorf("%w", err)
 	}
 	return nil
 }
@@ -973,9 +1120,7 @@ func discoverISCITargets(targets []iscsiTarget) (err error) {
 			// Discover all targets associated with a portal.
 			commandOutput, _, err := execCommand.Command("iscsiadm", fmt.Sprintf("--mode discoverydb --type sendtargets --portal %s --discover --op new --op delete", target.Portals[portalIndex]))
 			if err != nil {
-				e := fmt.Errorf("failed to discover targets at portal: %s error: %s", commandOutput, err.Error())
-				slog.Error(e.Error())
-				return e
+				return common.Errorf("command output %s %w", commandOutput, err)
 			}
 		}
 	}
@@ -1003,9 +1148,7 @@ func loginToTargets(targets []iscsiTarget) (err error) {
 				if err != nil {
 					slog.Error(err.Error())
 					if status.Code(err) != codes.AlreadyExists {
-						e := fmt.Errorf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[index].Iqn, targets[index].Portals[portal], err.Error())
-						slog.Error(e.Error())
-						return e
+						return common.Errorf("iscsi login failed to target iqn: %s, portal %s err: %s", targets[index].Iqn, targets[index].Portals[portal], err.Error())
 					} else {
 						slog.Debug("already logged in to target", "iqn", targets[index].Iqn, "portal", targets[index].Portals[portal])
 					}
@@ -1034,7 +1177,7 @@ func addCHAPSecurity(ctx context.Context, iscsi *ISCSIstorage, useChap string, h
 			chapCreds[CHAPInboundSecret] = secrets[CHAPPassword]
 			chapCreds[SecurityMethod] = SecurityMethodCHAP
 		} else {
-			return fmt.Errorf("iscsi mutual chap credentials not provided")
+			return common.Errorf("iscsi mutual chap credentials not provided")
 		}
 	}
 	if useChap == UseMutualCHAP {
@@ -1043,14 +1186,14 @@ func addCHAPSecurity(ctx context.Context, iscsi *ISCSIstorage, useChap string, h
 			chapCreds[CHAPOutboundSecret] = secrets[CHAPPasswordIn]
 			chapCreds[SecurityMethod] = SecurityMethodMutualCHAP
 		} else {
-			return fmt.Errorf("iscsi mutual chap credentials not provided")
+			return common.Errorf("iscsi mutual chap credentials not provided")
 		}
 	}
 	if len(chapCreds) > 1 {
 		slog.Debug("create chap authentication", "host", hostID)
 		err := addChapSecurityForHost(ctx, iscsi.CS, hostID, chapCreds)
 		if err != nil {
-			return fmt.Errorf("from AddChapSecurityForHost - error: %s", err.Error())
+			return common.Errorf("%w", err)
 		}
 	}
 	return nil

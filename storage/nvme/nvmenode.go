@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
@@ -52,19 +53,34 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from ValidatePublishContext - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	hostNQN, err := getHostNQN()
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from getHostNQN - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	if !strings.Contains(ports, hostNQN) {
 		slog.Debug("host nqn is not created, creating one")
 		err = nvme.CS.AddPortForHost(ctx, hostID, "NVME", hostNQN)
 		if err != nil {
-			return nil, status.Error(codes.Internal, common.Errorf("from AddPortForHost - error: %w", err).Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -77,25 +93,45 @@ func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 
 	targets, err := nvme.getNVMETargets(ctx, req)
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from getNVMETargets - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	slog.Debug("info", "nvme targets", len(targets), "targets", targets)
 
 	nvmeDisk, err := nvme.getNVMEDisk(req)
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from getNVMEDisk - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	nvmeDisk.Targets = targets
 	slog.Debug("nvmeDisk", "volume id", nvmeDisk.VolumeID, "lun", nvmeDisk.lun)
 
 	diskMounter, err := storagecommon.GetDiskMounter(req)
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from getNVMEDiskMounter - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	_, err = nvme.AttachDisk(*diskMounter, targets, *nvmeDisk)
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from AttachDisk - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	slog.Debug("nvme attachDisk succeeded")
 
@@ -104,7 +140,12 @@ func (nvme *NVMEstorage) NodePublishVolume(ctx context.Context, req *csi.NodePub
 	} else {
 		err = nvme.StorageHelper.SetVolumePermissions(req)
 		if err != nil {
-			return nil, status.Error(codes.Internal, common.Errorf("from SetVolumePermissions - error: %w", err).Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -120,7 +161,12 @@ func (nvme *NVMEstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeU
 
 	err := storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
-		return nil, status.Error(codes.Internal, common.Errorf("from UnmountAndCleanup - error: %w", err).Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -144,7 +190,12 @@ func (nvme *NVMEstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 		if pathExists {
 			slog.Debug("removing json config file", "jsonPath", jsonPath)
 			if err := os.Remove(jsonPath); err != nil {
-				return nil, common.Errorf("from Remove - failed to remove json file: %s error: %w", jsonPath, err)
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
+				return nil, e
 			}
 		}
 	}
@@ -157,7 +208,12 @@ func (nvme *NVMEstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 		if pathExists {
 			slog.Debug("removing removePath", "removePath", removePath)
 			if err := os.Remove(removePath); err != nil {
-				return nil, common.Errorf("from Remove - failed to remove path: %s error: %w", removePath, err)
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
+				return nil, e
 			}
 		}
 	}
@@ -207,14 +263,24 @@ func (nvme *NVMEstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpa
 	// run find the multipath device name (e.g. /dev/nvme0n2) in the list of mounts
 	multipathDevice, err := storagecommon.FindMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		return nil, common.Errorf("from FindMultipathDevice - error: %w", err)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	// run resize2fs or xfs_growfs on /dev/nvme0n2
 	fsType := req.GetVolumeCapability().GetMount().FsType
 	err = storagecommon.ExpandFileSystem(multipathDevice, fsType)
 	if err != nil {
-		return nil, common.Errorf("from ExpandFileSystem error: %w", err)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	return response, nil
@@ -226,29 +292,28 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter storagecommon.Mounter, targets [
 	slog.Debug("start", "diskMounter", diskMounter)
 
 	if len(targets) == 0 {
-		return "", fmt.Errorf("error no targets")
+		return "", common.Errorf("no nvme targets")
 	}
 	for _, target := range targets {
 		if len(target.Portals) == 0 {
-			return "", fmt.Errorf("error target has no portals target: %v", target)
+			return "", common.Errorf("error target has no portals target: %v", target)
 		}
 
 		ipAddressOnly := strings.Split(target.Portals[0], ":")
 		err = nvmeDiscover(ipAddressOnly[0])
 		if err != nil {
-			return "", common.Errorf("error nvme discover error: %w", err)
+			return "", common.Errorf("%w", err)
 		}
 
 		err = nvmeConnectAll(ipAddressOnly[0])
 		if err != nil {
-			return "", err
+			return "", common.Errorf("%w", err)
 		}
 	}
 
 	devices, err := getNVMENamespacesByNormalOutput()
 	if err != nil {
-		slog.Error("error getting NVME device list", "error", err.Error())
-		return "", err
+		return "", common.Errorf("%w", err)
 	}
 
 	// find the device path based on the lun/nsid
@@ -256,7 +321,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter storagecommon.Mounter, targets [
 	for _, device := range devices {
 		lunInt, err := strconv.Atoi(disk.lun)
 		if err != nil {
-			return "", common.Errorf("could not convert lun: %s to integer - error: %w", disk.lun, err)
+			return "", common.Errorf("%w", err)
 		}
 		if device.Namespace == lunInt {
 			nvmeDevicePath = device.Node
@@ -279,7 +344,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter storagecommon.Mounter, targets [
 
 	err = storagecommon.MountLogic(diskinf, diskMounter.TargetPath, nvmeDevicePath, diskMounter.StagePath, diskMounter.FsType, diskMounter.MountOptions, diskMounter.IsBlock, diskMounter.ReadOnly)
 	if err != nil {
-		return "", common.Errorf("from MountLogic error: %w", err)
+		return "", common.Errorf("%w", err)
 	}
 
 	slog.Debug("mounted volume", "device path", nvmeDevicePath)
@@ -289,7 +354,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter storagecommon.Mounter, targets [
 func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDevice, error) {
 	hostNQN, err := getHostNQN()
 	if err != nil {
-		return nil, err
+		return nil, common.Errorf("%w", err)
 	}
 
 	volProto := nvme.CS.VolProto
@@ -300,7 +365,7 @@ func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDe
 
 	lun := publishContext[storagecommon.LunPublishContext]
 	if lun == "" {
-		return nil, fmt.Errorf("lun is missing")
+		return nil, common.Errorf("%s", "lun is missing")
 	}
 
 	secret := req.GetSecrets()
@@ -316,11 +381,11 @@ func (nvme *NVMEstorage) getNVMEDisk(req *csi.NodePublishVolumeRequest) (*nvmeDe
 func (nvme *NVMEstorage) getNVMETargets(ctx context.Context, req *csi.NodePublishVolumeRequest) (targets []nvmeTarget, err error) {
 	networkSpaces := strings.Split(req.GetVolumeContext()[common.StorageClassNetworkSpace], ",")
 	if len(networkSpaces) == 0 {
-		return targets, fmt.Errorf("no network spaces found")
+		return targets, common.Errorf("no network spaces found")
 	}
 	slog.Debug("info", "networkSpaces", networkSpaces)
 	if nvme.CS.API == nil {
-		return targets, fmt.Errorf("no api found")
+		return targets, common.Errorf("nvme API not found")
 	}
 
 	var portalsExist bool
@@ -330,7 +395,7 @@ func (nvme *NVMEstorage) getNVMETargets(ctx context.Context, req *csi.NodePublis
 		slog.Debug("getting nspace by name", "networkSpace", networkSpace)
 		nspace, err := nvme.CS.IboxAPI.GetNetworkSpaceByName(ctx, networkSpace)
 		if err != nil {
-			return targets, status.Error(codes.InvalidArgument, common.Errorf("error getting network space: %s error: %w", networkSpace, err).Error())
+			return targets, common.Errorf("%w", err)
 		}
 		slog.Debug("got nspace by name", "name", nspace.Name)
 
@@ -356,7 +421,7 @@ func (nvme *NVMEstorage) getNVMETargets(ctx context.Context, req *csi.NodePublis
 	}
 
 	if !portalsExist {
-		return targets, fmt.Errorf("there are zero network space ip addresses available")
+		return targets, common.Errorf("there are zero network space ip addresses available")
 	}
 	return targets, nil
 }

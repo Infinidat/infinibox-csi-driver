@@ -5,13 +5,6 @@
 # operator-sdk when generating CSI operator
 # bundle/manifests/infinibox-operator-certified.clusterserviceversion.yaml
 
-# various healthcheck ports for the driver containers
-healthPortIboxreplica: 8081
-healthPortIboxcg: 8090
-healthPortIboxpromote: 8088
-healthPortDriverController: 9808
-healthPortDriverNode: 9807
-
 replicaCount: 1
 
 instanceCount: 1
@@ -28,7 +21,7 @@ logFormat: "json"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "2.28.0"
+csiDriverVersion: "2.26.0"
 
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
@@ -116,7 +109,7 @@ images:
 
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.28.0"
+  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.26.0"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html

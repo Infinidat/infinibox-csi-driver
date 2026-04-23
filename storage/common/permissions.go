@@ -18,8 +18,6 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const DEFAULT_FS_GROUP_CHANGE_POLICY = "Always" // we currently only support "Always", not "OnRootMisMatch"
@@ -86,7 +84,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	if tmp != "" {
 		UID, err = strconv.Atoi(tmp)
 		if err != nil || UID < -1 {
-			return common.Errorf("storage class specifies an invalid volume UID with value [%d]: %s", UID, err)
+			return common.Errorf("storage class specifies an invalid volume UID with value [%d]: %w", UID, err)
 		}
 	}
 
@@ -94,7 +92,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 	if tmp != "" {
 		GID, err = strconv.Atoi(tmp)
 		if err != nil || GID < -1 {
-			return common.Errorf("storage class specifies an invalid volume GID with value [%d]: %s", GID, err)
+			return common.Errorf("storage class specifies an invalid volume GID with value [%d]: %w", GID, err)
 		}
 	}
 
@@ -106,7 +104,7 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		slog.Debug("user specified uid or gid in StorageClass parameters", "command", fmt.Sprintf("chown mount %s uid=%d gid=%d", hostTargetPath, UID, GID))
 		err = os.Chown(hostTargetPath, UID, GID)
 		if err != nil {
-			return status.Error(codes.Internal, common.Errorf("failed to chown path '%s': %v", hostTargetPath, err).Error())
+			return common.Errorf("failed to chown path '%s': %w", hostTargetPath, err)
 		}
 	}
 
@@ -116,12 +114,12 @@ func (sh StorageService) SetVolumePermissions(req *csi.NodePublishVolumeRequest)
 		slog.Debug("user specified unix_permissions in StorageClass parameters, chmod mount ", "hostTargetPath", hostTargetPath, "perms", unixPermissions)
 		tempVal, err := strconv.ParseUint(unixPermissions, 8, 32)
 		if err != nil {
-			return status.Error(codes.Internal, common.Errorf("failed to convert unix_permissions '%s' error: %s", unixPermissions, err.Error()).Error())
+			return common.Errorf("failed to convert unix_permissions '%s' error: %w", unixPermissions, err)
 		}
 		mode := uint(tempVal)
 		err = os.Chmod(hostTargetPath, os.FileMode(mode))
 		if err != nil {
-			return status.Error(codes.Internal, common.Errorf("failed to chmod path '%s' with perms %s: error: %v", hostTargetPath, unixPermissions, err).Error())
+			return common.Errorf("failed to chmod path '%s' with perms %s: error: %w", hostTargetPath, unixPermissions, err)
 		}
 	}
 
@@ -143,8 +141,7 @@ func ChownR(path string, uid int, gid int, fsGroupIsSet bool, fsGroupChangePolic
 		// note: if fsGroupIsSet, gid will have the fsGroup value.
 		fsInfo, err := os.Stat(path)
 		if err != nil {
-			slog.Error("performing recursive ownership change because reading permissions of root volume failed", "path", path, "error", err)
-			return nil
+			return common.Errorf("performing recursive ownership change because reading permissions of root volume failed path %s error %w", path, err)
 		}
 		stat, ok := fsInfo.Sys().(*syscall.Stat_t)
 		if !ok || stat == nil {

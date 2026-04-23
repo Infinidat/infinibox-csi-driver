@@ -57,13 +57,16 @@ func (vl *VolumeLocks) Release(volumeID string) {
 	vl.locks.Delete(volumeID)
 }
 
-func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func LogGRPC(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	slog.Log(ctx, common.LevelTrace, "GRPC call", "method", info.FullMethod)
 	slog.Log(ctx, common.LevelTrace, "GRPC request", "value", protosanitizer.StripSecrets(req))
 
 	resp, err := handler(ctx, req)
 	if err != nil {
-		slog.Error("GRPC error", "error", err)
+		//slog.Error("GRPC error", "error", err)
+		// errors should be reported by the application instead of at the GRPC call level
+		// I left these at Trace Level for extreme or weird cases
+		slog.Log(ctx, common.LevelTrace, "GRPC error", "error", err.Error())
 	} else {
 		slog.Log(ctx, common.LevelTrace, "GRPC response", "value", protosanitizer.StripSecrets(resp))
 	}

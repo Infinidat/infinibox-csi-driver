@@ -36,9 +36,9 @@ type StorageHelper interface {
 
 type StorageService struct{}
 
-func getPermissionMaps(permission string) ([]map[string]interface{}, error) {
+func getPermissionMaps(permission string) ([]map[string]any, error) {
 	permissionFixed := strings.ReplaceAll(permission, "'", "\"")
-	var permissionsMapArray []map[string]interface{}
+	var permissionsMapArray []map[string]any
 	err := json.Unmarshal([]byte(permissionFixed), &permissionsMapArray)
 	if err != nil {
 		return permissionsMapArray, common.Errorf("unmarshal error permission: %s permissionFixed: %s perms: %s error: %w", permission, permissionFixed, common.StorageClassNFSExportPermissions, err)

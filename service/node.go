@@ -46,19 +46,19 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	slog.Info("Started", "volume ID", req.GetVolumeId())
 
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("error volumeId parameter was empty")
+		e := common.Errorf("error volumeId parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	if req.GetStagingTargetPath() == "" {
-		e := fmt.Errorf("error stagingTargetPath parameter was empty")
+		e := common.Errorf("error stagingTargetPath parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	if req.VolumeCapability == nil {
-		e := fmt.Errorf("error volumeCapability parameter was nil")
+		e := common.Errorf("error volumeCapability parameter was nil")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -69,7 +69,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	_, err := validateCapabilities(caps)
 	if err != nil {
-		e := fmt.Errorf("validateCapabilities - error %s, volume cap %v", err.Error(), req.VolumeCapability)
+		e := common.Errorf("validateCapabilities - error %w, volume cap %v", err, req.VolumeCapability)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.FailedPrecondition, e.Error())
 	}
@@ -91,14 +91,14 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
 	if err != nil {
-		e := fmt.Errorf("getNodeProtocol volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("getNodeProtocol volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -107,25 +107,25 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		volumeInfo.StorageType = nodeProtocol
 		protocolSecret, protocolSecretInUse, err := GetProtocolSecret(ctx)
 		if err != nil {
-			e := fmt.Errorf("error: could not get protocol secret %s", err.Error())
+			e := common.Errorf("error: could not get protocol secret %w", err)
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
 		if !protocolSecretInUse {
-			e := fmt.Errorf("error: protocol secret not in use, but is required when nodeProtocol label is set on node")
+			e := common.Errorf("error: protocol secret not in use, but is required when nodeProtocol label is set on node")
 			return nil, status.Error(codes.InvalidArgument, e.Error())
 		}
 		switch nodeProtocol {
 		case common.ProtocolISCSI:
 			networkSpace := protocolSecret[ProtocolSecretISCSINetworkSpace]
 			if networkSpace == "" {
-				e := fmt.Errorf("error: protocol secret in use, but ISCSI network space is empty")
+				e := common.Errorf("error: protocol secret in use, but ISCSI network space is empty")
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
 		case common.ProtocolNVME:
 			networkSpace := protocolSecret[ProtocolSecretNVMENetworkSpace]
 			if networkSpace == "" {
-				e := fmt.Errorf("error: protocol secret in use, but NVMEe network space is empty")
+				e := common.Errorf("error: protocol secret in use, but NVMEe network space is empty")
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
@@ -136,12 +136,14 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	// the secret values (hostname, password, username) to be passed down to the NodePublishVolume function
 	err = validateSecret(req.GetVolumeId(), common.CSINodePublishSecretName, common.CSINodePublishSecretNamespace, req.GetSecrets())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("validateSecret %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	storageNode, commonService, err := storage.NewStorageNodeAndCommonService(0, config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
-		e := fmt.Errorf("NewStorageNode - volume ID: %s error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("NewStorageNode - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -150,7 +152,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	req.VolumeContext["nodeID"] = s.Driver.nodeID
 	response, err := storageNode.NodePublishVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sn.NodePublishVolume - volume ID: %s error: %s", req.GetVolumeId(), err)
+		e := common.Errorf("sn.NodePublishVolume - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -173,12 +175,12 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	slog.Info("Started", "volume id", req.GetVolumeId())
 
 	if req.GetTargetPath() == "" {
-		e := fmt.Errorf("error targetPath parameter was empty")
+		e := common.Errorf("error targetPath parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.GetVolumeId() == "" {
-		e := fmt.Errorf("error volumeId parameter was empty")
+		e := common.Errorf("error volumeId parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -195,14 +197,14 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 	slog.Log(ctx, common.LevelTrace, "called", "req", req)
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
 	if err != nil {
-		e := fmt.Errorf("getNodeProtocol volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("getNodeProtocol volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -213,15 +215,16 @@ func (s *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volumeInfo}, 0)
 	if err != nil {
-		e := fmt.Errorf("NewStorageNode volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("NewStorageNode volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	resp, err := protocolOperation.NodeUnpublishVolume(ctx, req)
 	if err != nil {
-		slog.Error("NodeUnpublishVolume", "volume ID", req.GetVolumeId(), "error", err.Error())
-		return nil, err
+		e := common.Errorf("NodeUnpublishVolume error %w", err)
+		slog.Error("NodeUnpublishVolume", "volume ID", req.GetVolumeId(), "error", e.Error())
+		return nil, e
 	}
 
 	slog.Info("Finished", "volume id", req.GetVolumeId())
@@ -258,12 +261,12 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 	slog.Info("Started", "volume id", volumeId)
 
 	if volumeId == "" {
-		e := fmt.Errorf(" error volumeId parameter was empty")
+		e := common.Errorf("error volumeId parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.VolumeCapability == nil {
-		e := fmt.Errorf("error volumeCapability parameter was nil")
+		e := common.Errorf("error volumeCapability parameter was nil")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -274,13 +277,13 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	_, err := validateCapabilities(caps)
 	if err != nil {
-		e := fmt.Errorf("validateCapabilities - error %s", err.Error())
+		e := common.Errorf("validateCapabilities - error %w", err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.FailedPrecondition, e.Error())
 	}
 
 	if req.StagingTargetPath == "" {
-		e := fmt.Errorf("error stagingTargetPath parameter was empty")
+		e := common.Errorf("error stagingTargetPath parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -302,7 +305,7 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID -  volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("ValidateVolumeID -  volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -311,12 +314,14 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	err = validateSecret(req.GetVolumeId(), common.CSINodeStageSecretName, common.CSINodeStageSecretNamespace, req.GetSecrets())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("validateSecret error %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
 	if err != nil {
-		e := fmt.Errorf("getNodeProtocol volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("getNodeProtocol volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -327,14 +332,14 @@ func (s NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolum
 
 	storageNode, _, err := storage.NewStorageNodeAndCommonService(0, config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
-		e := fmt.Errorf("NewStorageNode volume ID %s - error: %s", volumeId, err)
+		e := common.Errorf("NewStorageNode volume ID %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	resp, err := storageNode.NodeStageVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sn.NodeStageVolume volume ID %s - error: %s", volumeId, err.Error())
+		e := common.Errorf("sn.NodeStageVolume volume ID %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -349,12 +354,12 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	slog.Info("Started", "volumeid", volumeId)
 
 	if volumeId == "" {
-		e := fmt.Errorf("error volumeId parameter was empty")
+		e := common.Errorf("error volumeId parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 	if req.StagingTargetPath == "" {
-		e := fmt.Errorf("error stagingTargetPath parameter was empty")
+		e := common.Errorf("error stagingTargetPath parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -369,14 +374,14 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(volumeId)
 	if err != nil {
-		e := fmt.Errorf("ValidateVolumeID volume ID: %s - error: %s", volumeId, err.Error())
+		e := common.Errorf("ValidateVolumeID volume ID: %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
 	if err != nil {
-		e := fmt.Errorf("getNodeProtocol volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("getNodeProtocol volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -387,13 +392,13 @@ func (s *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	protocolOperation, err := storage.NewStorageNode(storagecommon.Commonservice{VolProto: &volumeInfo}, 0)
 	if err != nil {
-		e := fmt.Errorf("NewStorageNode volume ID: %s - error: %s", volumeId, err.Error())
+		e := common.Errorf("NewStorageNode volume ID: %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 	resp, err := protocolOperation.NodeUnstageVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("po.NodeUnstageVolume volume ID: %s - error: %s", volumeId, err.Error())
+		e := common.Errorf("po.NodeUnstageVolume volume ID: %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -415,40 +420,58 @@ func (s *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVol
 
 	if _, err := os.Lstat(volumePath); err != nil {
 		if os.IsNotExist(err) {
-			return nil, status.Errorf(codes.NotFound, "path %s does not exist", volumePath)
+			e := common.Errorf("path does not exist %s %w", volumePath, err)
+			slog.Error(e.Error())
+			return nil, status.Error(codes.NotFound, e.Error())
 		}
-		return nil, status.Errorf(codes.Internal, "failed to stat file %s: %v", volumePath, err)
+		e := common.Errorf("failed to stat file %s %w", volumePath, err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	volumeMetrics, err := volume.NewMetricsStatFS(volumePath).GetMetrics()
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to get metrics: %v", err)
+		e := common.Errorf("failed to get metrics %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	available, parseOK := volumeMetrics.Available.AsInt64()
 	if !parseOK {
-		return nil, status.Errorf(codes.Internal, "failed to transform volume available size(%v)", volumeMetrics.Available)
+		e := fmt.Errorf("failed to transform volume available size %v", volumeMetrics.Available)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	capacity, parseOK := volumeMetrics.Capacity.AsInt64()
 	if !parseOK {
-		return nil, status.Errorf(codes.Internal, "failed to transform volume capacity size(%v)", volumeMetrics.Capacity)
+		e := fmt.Errorf("failed to transform volume capacity size %v", volumeMetrics.Capacity)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	used, parseOK := volumeMetrics.Used.AsInt64()
 	if !parseOK {
-		return nil, status.Errorf(codes.Internal, "failed to transform volume used size(%v)", volumeMetrics.Used)
+		e := fmt.Errorf("failed to transform volume used size %v", volumeMetrics.Used)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	inodesFree, parseOK := volumeMetrics.InodesFree.AsInt64()
 	if !parseOK {
-		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes free(%v)", volumeMetrics.InodesFree)
+		e := fmt.Errorf("failed to transform disk inodes free(%v)", volumeMetrics.InodesFree)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	inodes, parseOK := volumeMetrics.Inodes.AsInt64()
 	if !parseOK {
-		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes(%v)", volumeMetrics.Inodes)
+		e := fmt.Errorf("failed to transform disk inodes(%v)", volumeMetrics.Inodes)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 	inodesUsed, parseOK := volumeMetrics.InodesUsed.AsInt64()
 	if !parseOK {
-		return nil, status.Errorf(codes.Internal, "failed to transform disk inodes used(%v)", volumeMetrics.InodesUsed)
+		e := fmt.Errorf("failed to transform disk inodes used(%v)", volumeMetrics.InodesUsed)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	resp := &csi.NodeGetVolumeStatsResponse{
@@ -475,7 +498,7 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	slog.Info("Started", "volumeid", volumeId)
 
 	if volumeId == "" {
-		e := fmt.Errorf("error volumeId parameter was empty")
+		e := common.Errorf("error volumeId parameter was empty")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
@@ -494,13 +517,14 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	volumeInfo, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		slog.Error("ValidateVolumeID", "volume ID", req.GetVolumeId(), "error", err.Error())
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := fmt.Errorf("ValidateVolumeID volume ID %s error %w", req.GetVolumeId(), err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	nodeProtocol, err := getNodeProtocol(ctx, os.Getenv(common.EnvVarKubeNodeName))
 	if err != nil {
-		e := fmt.Errorf("getNodeProtocol volume ID %s - error: %s", req.GetVolumeId(), err.Error())
+		e := common.Errorf("getNodeProtocol volume ID %s - error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
@@ -513,19 +537,21 @@ func (s *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// the secret values (hostname, password, username) to be passed down to the NodeExpandVolume function
 	err = validateSecret(req.GetVolumeId(), common.CSINodeExpandSecretName, common.CSINodeExpandSecretNamespace, req.GetSecrets())
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		e := common.Errorf("validateSecret error %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	storageNode, _, err := storage.NewStorageNodeAndCommonService(0, config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
-		e := fmt.Errorf("NewStorageNode volume ID: %s - error: %s", volumeId, err.Error())
+		e := common.Errorf("NewStorageNode volume ID: %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
 	resp, err := storageNode.NodeExpandVolume(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("sn.NodeExpandVolume volume ID: %s - error: %s", volumeId, err.Error())
+		e := common.Errorf("sn.NodeExpandVolume volume ID: %s - error: %w", volumeId, err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}

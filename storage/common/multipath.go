@@ -125,15 +125,14 @@ func FindMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 	pathParts := strings.Split(volumePath, "/")
 	lenPathParts := len(pathParts)
 	if lenPathParts < 5 {
-		return "", fmt.Errorf("error parsing volumepath %s, len %d", volumePath, lenPathParts)
+		return "", common.Errorf("error parsing volumepath %s, len %d", volumePath, lenPathParts)
 	}
 	volumeName := pathParts[lenPathParts-2]
 	slog.Log(ctx, common.LevelTrace, "parsed", "volumeName", volumeName, "volumePath", volumePath)
 
 	readFile, err := os.Open("/proc/mounts")
 	if err != nil {
-		slog.Error("error reading /proc/mounts", "error", err.Error())
-		return "", err
+		return "", common.Errorf("error reading /proc/mounts error %w", err)
 	}
 	fileScanner := bufio.NewScanner(readFile)
 
@@ -156,7 +155,7 @@ func FindMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 	}
 
 	if device == "" {
-		return "", fmt.Errorf("error finding device from volume in list of mounts - volume %s", volumeName)
+		return "", common.Errorf("error finding device from volume in list of mounts - volume %s", volumeName)
 	}
 
 	return device, nil
@@ -192,29 +191,27 @@ func GetDMDevicePath(wwid string) (dmDevice string) {
 	return ""
 }
 
-func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) {
+func RescanDeviceMap(hosts []string, diskID string, lun string) (string, error) {
 	defer helper.TimeTrack(time.Now())
 	// deviceMu.Lock()
-	slog.Debug("Rescan hosts", "diskid", diskid, "lun", lun)
+	slog.Debug("Rescan hosts", "diskid", diskID, "lun", lun)
 
 	// For each host, scan using lun
 	for _, host := range hosts {
 		scsiHostPath := fmt.Sprintf("/sys/class/scsi_host/host%s/scan", host)
-		slog.Debug("Rescanning", "host path", scsiHostPath, "disk ID", diskid, "lun", lun)
+		slog.Debug("Rescanning", "host path", scsiHostPath, "disk ID", diskID, "lun", lun)
 		_, _, err := ExecCommand.Command("echo", fmt.Sprintf("'- - %s' > %s", lun, scsiHostPath))
 		if err != nil {
-			slog.Error("Rescan of host failed", "scsiHostPath", scsiHostPath, "volume ID", diskid, "lun", lun, "error", err)
-			return "", err
+			return "", common.Errorf("rescan of host failed scsiHostPath %s volume ID %s lun %s error %w", scsiHostPath, diskID, lun, err)
 		}
 	}
 
 	var wwid string
 	var err error
 	for _, host := range hosts {
-		wwid, err = WaitForDeviceState(host, lun, "running", diskid)
+		wwid, err = WaitForDeviceState(host, lun, "running", diskID)
 		if err != nil {
-			slog.Error("waitForDeviceState failed", "host", host, "diskid", diskid, "lun", lun, "error", err.Error())
-			return "", err
+			return "", common.Errorf("waitForDeviceState failed host %s diskID %s lun %s error %w", host, diskID, lun, err)
 		}
 		// wwid that is not empty string means we found a wwid and dont need to look at other devices
 		if wwid != "" {
@@ -224,24 +221,21 @@ func RescanDeviceMap(hosts []string, diskid string, lun string) (string, error) 
 
 	for _, host := range hosts {
 		if err := WaitForMultipath(host, lun); err != nil {
-			slog.Error("Rescan failed", "host", host, "diskid", diskid, "lun", lun, "error", err.Error())
-			return "", err
+			return "", common.Errorf("rescan failed host %s diskID %s lun %s error %w", host, diskID, lun, err)
 		}
 	}
 
-	slog.Debug("Rescan hosts complete", "diskid", diskid, "lun", lun)
+	slog.Debug("rescan hosts complete", "diskid", diskID, "lun", lun)
 
 	if wwid == "" {
-		e := fmt.Errorf("searchDisk rescan error wwid not found")
-		slog.Error(e.Error())
-		return "", e
+		return "", common.Errorf("searchDisk rescan error wwid not found hosts %v lun %s diskID %s", hosts, lun, diskID)
 	}
 
 	return wwid, nil
 }
 
-func WaitForDeviceState(hostID string, lun string, state string, diskid string) (wwid string, err error) {
-	slog.Debug("info", "hostid", hostID, "lun", lun, "state", state, "diskid", diskid)
+func WaitForDeviceState(hostID string, lun string, state string, diskID string) (wwid string, err error) {
+	slog.Debug("info", "hostid", hostID, "lun", lun, "state", state, "diskid", diskID)
 	targetsPath := fmt.Sprintf("/sys/class/scsi_disk/%s:*:*:%s", hostID, lun)
 	targets, err := filepath.Glob(targetsPath)
 	if err != nil || len(targets) == 0 {
@@ -264,7 +258,7 @@ func WaitForDeviceState(hostID string, lun string, state string, diskid string) 
 	}
 
 	if len(allWWIDs) == 0 {
-		return "", fmt.Errorf("no wwid found")
+		return "", common.Errorf("no wwid found hostID %s lun %s state %s diskID %s", hostID, lun, state, diskID)
 	}
 
 	// this logic uses the disk id to find the correct wwid when there
@@ -275,13 +269,13 @@ func WaitForDeviceState(hostID string, lun string, state string, diskid string) 
 	// and the wwids look like naa.6742b0f000000bbd00000000002b3e13
 	// we parse out enough unique FC port characters (the key) from the diskid to perform a fuzzy search with
 	// on the wwid, in this example 'bdd' is the key we use to search for the correct wwid
-	slog.Debug("picking the wwid from multiple wwid", "diskid", diskid, "allWWIDs are", allWWIDs)
+	slog.Debug("picking the wwid from multiple wwid", "diskid", diskID, "allWWIDs are", allWWIDs)
 	n := 5
-	lastChars := diskid[len(diskid)-n:]
+	lastChars := diskID[len(diskID)-n:]
 	key := lastChars[:3]
 	for _, wwid := range allWWIDs {
 		if strings.Contains(wwid, key) {
-			slog.Debug(" matched wwid ", "diskid", diskid, "key", key, "wwid", wwid)
+			slog.Debug(" matched wwid ", "diskid", diskID, "key", key, "wwid", wwid)
 			return wwid, nil
 		}
 	}
@@ -377,24 +371,20 @@ func FindSlaveDevicesOnMultipath(dmDevice string) ([]string, error) {
 	// Split path /dev/dm-1 into "", "dev", "dm-1"
 	parts := strings.Split(dmDevice, "/")
 	if len(parts) != 3 || !strings.HasPrefix(parts[1], "dev") {
-		err := fmt.Errorf("for dm '%s' failed", dmDevice)
-		slog.Error(err.Error())
-		return nil, err
+		return nil, common.Errorf("for dm '%s' failed", dmDevice)
 	}
 	disk := parts[2]
 	slavesPath := path.Join("/sys/block/", disk, "/slaves/")
 
 	files, err := os.ReadDir(slavesPath)
 	if err != nil {
-		return nil, err
+		return nil, common.Errorf("%w", err)
 	}
 	for _, f := range files {
 		devices = append(devices, path.Join("/dev/", f.Name()))
 	}
 	if len(devices) == 0 {
-		err := fmt.Errorf("for dm %s found no devices", dmDevice)
-		slog.Error(err.Error())
-		return nil, err
+		return nil, common.Errorf("for dm %s found no devices", dmDevice)
 	}
 	return devices, nil
 }
@@ -443,8 +433,7 @@ func removeMultipathDevices(device string) error {
 	// we only care about the stdout, you can get stderr output from multipath.conf (invalid and deprecated lines)
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
-		slog.Error("command failed ", "command", command, "error", err.Error())
-		return err
+		return common.Errorf("command failed %s error %w", command, err)
 	}
 	slog.Debug("command succeeded", "command", command, "output", out)
 	return nil
@@ -460,8 +449,7 @@ func removeWWIDEntry(mpath string) error {
 	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
-		slog.Error("command failed", "command", command, "error", err.Error())
-		return err
+		return common.Errorf("command failed command %s error %w", command, err)
 	}
 	slog.Debug("command succeeded", "command", command, "out", out)
 	return nil
@@ -475,16 +463,12 @@ func findDevicesForMpath(mpath string) (devices []string, err error) {
 	// we only care about the stdout, you can get stderro output from multipath.conf being misconfigured
 	out, err := exec.Command("bash", "-c", pipefailCmd).Output()
 	if err != nil {
-		e := fmt.Errorf("mpath: %s, error: %s", mpath, err)
-		slog.Error(e.Error())
-		return devices, e
+		return devices, common.Errorf("command failed %s mpath: %s, error: %w", pipefailCmd, mpath, err)
 	}
 	var mpathOutput ShowMultipathOutput
 	err = json.Unmarshal(out, &mpathOutput)
 	if err != nil {
-		e := fmt.Errorf("error unmarshalling output: %s, error: %s", string(out), err)
-		slog.Error(e.Error())
-		return devices, e
+		return devices, common.Errorf("error unmarshalling output: %s, error: %w", string(out), err)
 	}
 
 	pathGroups := mpathOutput.Map.PathGroups
@@ -506,17 +490,13 @@ func FindMpathFromDevice(device string) (mpath string, err error) {
 	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
 	out, _, err := ExecCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("command: %s error: %s", command, err.Error())
-		slog.Error(e.Error())
-		return "", e
+		return "", common.Errorf("command failed command: %s error: %w", command, err)
 	}
 	slog.Debug("executing", "command", command)
 
 	outParts := strings.Split(out, "_")
 	if len(outParts) < 1 {
-		e := fmt.Errorf(" cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
-		slog.Error(e.Error())
-		return mpath, e
+		return mpath, common.Errorf("cannot correctly parse findMpathFromDevice: %s, out: %s", device, outParts)
 	}
 	if len(outParts) > 0 {
 		mpath = outParts[0]
@@ -546,20 +526,17 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 		// older versions of the driver < 2.21.0 would pass a dm- device here instead of an mpath name
 		devices, err = FindSlaveDevicesOnMultipath(dstPath)
 		if err != nil {
-			slog.Error("error looking for slave devices for ", "multipath", dstPath)
-			return err
+			return common.Errorf("error looking for slave devices for multipath %s error %w", dstPath, err)
 		}
 		mpath, err = FindMpathFromDevice(mpathDevice)
 		if err != nil {
-			slog.Error("for", "mpathDevice", mpathDevice, "failed, error", err)
-			return err
+			return common.Errorf("%w", err)
 		}
 	} else {
 		mpath = mpathDevice
 		devices, err = findDevicesForMpath(mpath)
 		if err != nil {
-			slog.Error("error looking for devices for", "multipath", mpath)
-			return err
+			return common.Errorf("%w", mpath, err)
 		}
 	}
 
@@ -658,8 +635,7 @@ func removeOneFromScsiSubsystemByHostLun(host string, channel string, target str
 	// Echo 1 to delete device
 	output, _, err = ExecCommand.Command("echo", fmt.Sprintf("1 > %s", deletePath))
 	if err != nil {
-		slog.Error(" error failed to delete", "device", deletePath, "output", output, "error", err.Error())
-		return
+		return common.Errorf("error failed to delete device %s output %s error %w", deletePath, output, err)
 	}
 
 	// Stat device
@@ -680,7 +656,7 @@ func detachDiskByDeviceName(deviceName string) error {
 	slog.Debug("called", "deviceName", deviceName)
 	deviceNameParts := strings.Split(deviceName, "/")
 	if len(deviceNameParts) != 3 {
-		return fmt.Errorf("device name %s did not parse to 3 parts as normal", deviceName)
+		return common.Errorf("device name %s did not parse to 3 parts as normal", deviceName)
 	}
 	ctx := context.Background()
 	slog.Log(ctx, common.LevelTrace, "device", "length", len(deviceNameParts), "parts", deviceNameParts, "one", deviceNameParts[2])
@@ -689,7 +665,7 @@ func detachDiskByDeviceName(deviceName string) error {
 	slog.Debug("called", "blockpath", blockPath)
 	hctlPath, err := filepath.EvalSymlinks(blockPath)
 	if err != nil {
-		return err
+		return common.Errorf("%w", err)
 	}
 
 	// here we are expecting hctlPath to be similar to:
@@ -710,7 +686,7 @@ func detachDiskByDeviceName(deviceName string) error {
 	slog.Debug("details", "hctl path", hctlPath, "host", host, "channel", channel, "target", target, "lun", lun)
 	err = removeOneFromScsiSubsystemByHostLun(host, channel, target, lun)
 	if err != nil {
-		return err
+		return common.Errorf("%w", err)
 	}
 
 	return nil

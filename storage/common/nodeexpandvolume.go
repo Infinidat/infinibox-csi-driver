@@ -73,7 +73,7 @@ func BlockExpandVolume(volumePath string) error {
 
 	out, _, err := ExecCommand.Command(findmntCommand, "")
 	if err != nil {
-		return common.Errorf("error running findmnt command name %s - %s", findmntCommand, err.Error())
+		return common.Errorf("error running findmnt command name %s - %w", findmntCommand, err)
 	}
 
 	if out == "" {
@@ -99,7 +99,7 @@ func BlockExpandVolume(volumePath string) error {
 	slog.Debug("executing", "command", multipathCommand)
 	out, _, err = ExecCommand.Command(multipathCommand, "")
 	if err != nil {
-		return common.Errorf("error running multipath command name %s - %s", multipathCommand, err.Error())
+		return common.Errorf("error running multipath command name %s - %w", multipathCommand, err)
 	}
 
 	if out == "" {
@@ -117,12 +117,12 @@ func BlockExpandVolume(volumePath string) error {
 	multipathdCommand := fmt.Sprintf("multipathd show paths format %s 2> /dev/null | grep %s", format, "\""+userFriendlyName+"\"")
 	out, _, err = ExecCommand.Command(multipathdCommand, "")
 	if err != nil {
-		return common.Errorf("error running multipathd command name %s - %s", multipathdCommand, err.Error())
+		return common.Errorf("error running multipathd command name %s - %w", multipathdCommand, err)
 	}
 	slog.Debug("command", "multipathd show paths", multipathdCommand)
 
 	if out == "" {
-		return errors.New("error getting multipathd command output")
+		return common.Errorf("error getting multipathd command output")
 	}
 	slog.Debug("multipathd output", "output", out)
 	devices := make([]string, 0)
@@ -142,14 +142,14 @@ func BlockExpandVolume(volumePath string) error {
 		slog.Debug("command", "value", echoCommand)
 		out, _, err := ExecCommand.Command(echoCommand, "")
 		if err != nil {
-			return common.Errorf("error writing rescan on multipath devices %s", err.Error())
+			return common.Errorf("error writing rescan on multipath devices %w", err)
 		}
 		slog.Debug("rescan", "output", strings.TrimSpace(out))
 	}
 	resizeCommand := fmt.Sprintf("multipathd resize map %s 2> /dev/null", userFriendlyName)
 	out, _, err = ExecCommand.Command(resizeCommand, "")
 	if err != nil {
-		return common.Errorf("error running multipathd resize map command %s - %s", resizeCommand, err.Error())
+		return common.Errorf("error running multipathd resize map command %s - %w", resizeCommand, err)
 	}
 	slog.Debug("resize", "output", strings.TrimSpace(out))
 
@@ -179,9 +179,7 @@ func ExpandFileSystem(multipathDevice string, fsType string) error {
 	out, _, err := ExecCommand.Command(command, "")
 	slog.Debug("command", "value", command)
 	if err != nil {
-		e := common.Errorf("command %s - error: %s", command, err.Error())
-		slog.Error(e.Error())
-		return e
+		return common.Errorf("command %s - error: %w", command, err)
 	}
 	slog.Debug("command", "output", strings.TrimSpace(out))
 	return nil

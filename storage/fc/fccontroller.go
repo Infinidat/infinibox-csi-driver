@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -49,7 +50,6 @@ func NewFCstorage(capacity int64, cs storagecommon.Commonservice) (fc *FCstorage
 }
 
 func (fc *FCstorage) ValidateStorageClass(params map[string]string) error {
-
 	requiredFCParams := map[string]string{
 		common.StorageClassPoolName: `[a-zA-Z]+`, // match all strings except empty string or blank string
 	}
@@ -62,9 +62,12 @@ func (fc *FCstorage) ValidateStorageClass(params map[string]string) error {
 	// validate required parameters
 	err := storagecommon.ValidateRequiredOptionalSCParameters(requiredFCParams, optionalFCParams, params)
 	if err != nil {
-		e := fmt.Errorf("error: %s", err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.InvalidArgument, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.InvalidArgument),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return e
 	}
 	return nil
 }
@@ -85,9 +88,12 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("volume with name not found, proceeding to create", "name", name)
 		} else {
-			e := fmt.Errorf("error from GetVolumeByName name: %s - error: %s", name, err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -100,9 +106,12 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 				Volume: existingVolumeInfo,
 			}, nil
 		}
-		err = status.Errorf(codes.AlreadyExists, "volume: %s already exists with a different size, %v", name, err)
-		slog.Error(err.Error())
-		return nil, err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.AlreadyExists),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("volume: %s already exists with a different size", name)),
+		}
+		return nil, e
 	}
 
 	// Volume content source support volume and snapshots
@@ -122,18 +131,24 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		ProvisionType: volType,
 	}
 
-	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(ctx, params[common.StorageClassSSDEnabled], poolName, fc.CS.IboxAPI)
-	if err != nil {
-		e := fmt.Sprintf("error from DetermineSSDValue volumeName: %s storagePool: %s, error: %s", name, poolName, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
-	}
-
 	pool, err := fc.CS.IboxAPI.GetPoolByName(ctx, poolName)
 	if err != nil {
-		e := fmt.Sprintf("error from GetPoolByName volumeName: %s poolName: %s error: %s", name, poolName, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
+	}
+
+	volumeParam.SSDEnabled, err = storagecommon.DetermineSSDValue(ctx, params[common.StorageClassSSDEnabled], *pool)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	createVolumeRequest := iboxapi.CreateVolumeRequest{
@@ -146,9 +161,12 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 
 	volumeResp, err := fc.CS.IboxAPI.CreateVolume(ctx, createVolumeRequest)
 	if err != nil {
-		e := fmt.Sprintf("error from CreateVolume volumeName: %s storagepool: %s, error: %s", name, poolName, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	attributes := map[string]string{
@@ -170,7 +188,7 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	var vol *iboxapi.Volume
 	vol, err = fc.CS.IboxAPI.GetVolume(ctx, volumeResp.ID)
 	if err != nil {
-		slog.Error("error from GetVolume", "error", err.Error())
+		slog.Error("fc GetVolume", "error", err.Error())
 	}
 
 	// a single test just in case there is a race condition on createVolume (doubtful)
@@ -178,9 +196,12 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 		time.Sleep(3 * time.Second)
 		_, err = fc.CS.IboxAPI.GetVolume(ctx, volumeResp.ID)
 		if err != nil {
-			e := fmt.Sprintf("error from GetVolume - volumeName: %s volumeID: %d, error: %s", name, volumeResp.ID, err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -191,14 +212,17 @@ func (fc *FCstorage) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequ
 	}
 
 	// attach metadata to volume object
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"host.k8s.pvname": volumeResp.Name,
 	}
 	_, err = fc.CS.IboxAPI.PutMetadata(ctx, volumeResp.ID, metadata)
 	if err != nil {
-		e := fmt.Sprintf("error from PutMetadata - volumeName: %s error: %s", name, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	slog.Debug("created volume", "name", name, "id", volumeResp.ID)
@@ -209,7 +233,12 @@ func (fc *FCstorage) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequ
 	slog.Debug("start", "id", req.GetVolumeId())
 	csiResp, err = storagecommon.DeleteVolume(ctx, fc.CS, fc.CS.VolProto.VolumeID)
 	if err != nil {
-		return nil, err
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	slog.Debug("deleted volume", "volume id", req.GetVolumeId())
 	return csiResp, nil
@@ -223,44 +252,62 @@ func (fc *FCstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	slog.Debug("start", "nodeID", req.GetNodeId(), "volumeId", req.GetVolumeId(), "iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
 	volproto, err := storagecommon.ValidateVolumeID(req.GetVolumeId())
 	if err != nil {
-		e := fmt.Sprintf("error from ValidateVolumeID - error: %s", err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	hostName, err := storagecommon.DetermineHostName(req.GetNodeId())
 	if err != nil {
-		e := fmt.Sprintf("error from DetermineHostName - error: %s", err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	host, err := fc.CS.ValidateHost(ctx, hostName)
 	if err != nil {
-		e := fmt.Sprintf("error from ValidateHost hostName: %s  error: %s", hostName, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	volume, err := fc.CS.IboxAPI.GetVolume(ctx, volproto.VolumeID)
 	if err != nil {
-		e := fmt.Sprintf("error from GetVolume volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	_, err = fc.CS.AccessModesHelper.IsValidAccessMode(volume, req)
 	if err != nil {
-		e := fmt.Sprintf("error from IsValidAccessMode - error: %s", err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	lunList, err := fc.CS.IboxAPI.GetAllLunByHost(ctx, host.ID)
 	if err != nil {
-		e := fmt.Sprintf("error from GetAllLunByHost volumeName: %s hostID: %d  error: %s", volume.Name, host.ID, err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	var ports string
 	if len(host.Ports) > 0 {
@@ -293,30 +340,42 @@ func (fc *FCstorage) ControllerPublishVolume(ctx context.Context, req *csi.Contr
 	if maxAllowedVolString != "" {
 		maxAllowedVol, err := strconv.Atoi(maxAllowedVolString)
 		if err != nil {
-			e := fmt.Sprintf("invalid parameter: %s error: %s", common.StorageClassMaxVolsPerHost, err.Error())
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 		if maxAllowedVol < 1 {
-			e := fmt.Sprintf("invalid parameter: %s error: required to be greater than 0", common.StorageClassMaxVolsPerHost)
-			slog.Error(e)
-			return nil, status.Error(codes.Internal, e)
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("invalid parameter: %s error: required to be greater than 0", common.StorageClassMaxVolsPerHost)),
+			}
+			return nil, e
 		}
 		slog.Debug("host can have maximum volume mapped", "value", maxAllowedVol)
 		slog.Debug("volume mapped", "host", host.Name, "mapped", len(lunList))
 		if len(lunList) >= maxAllowedVol {
-			e := fmt.Sprintf("unable to publish volume on hostName: %s, maximum allowed volume per host: %d, limit reached", host.Name, maxAllowedVol)
-			slog.Error(e)
-			return nil, status.Error(codes.ResourceExhausted, e)
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.ResourceExhausted),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("unable to publish volume on hostName: %s, maximum allowed volume per host: %d, limit reached", host.Name, maxAllowedVol)),
+			}
+			return nil, e
 		}
 	}
 	// map volume to host
 	slog.Debug("mapping volume", "Name", volume.Name, "volume ID", volproto.VolumeID, "to host", host.Name)
 	luninfo, err := fc.CS.MapVolumeTohost(ctx, volproto.VolumeID, host.ID)
 	if err != nil {
-		e := fmt.Sprintf("error from MapVolumeToHost - error: %s", err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	volCtx := map[string]string{
@@ -363,9 +422,12 @@ func (fc *FCstorage) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshot
 
 	_, err = storagecommon.DeleteVolume(ctx, fc.CS, snapshotID)
 	if err != nil {
-		e := fmt.Sprintf("error from DeleteVolume - snapshotID: %s error: %s", req.GetSnapshotId(), err.Error())
-		slog.Error(e)
-		return nil, status.Error(codes.Internal, e)
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 	return &csi.DeleteSnapshotResponse{}, nil
 }
@@ -382,8 +444,11 @@ func (fc *FCstorage) ControllerExpandVolume(ctx context.Context, req *csi.Contro
 	}
 	_, err = fc.CS.IboxAPI.UpdateVolume(ctx, volumeID, volume)
 	if err != nil {
-		e := fmt.Errorf("error from UpdateVolume - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	slog.Debug("volume size updated successfully", "volume ID", volumeID)

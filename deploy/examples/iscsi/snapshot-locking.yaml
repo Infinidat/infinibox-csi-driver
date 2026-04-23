@@ -6,4 +6,4 @@ metadata:
 spec:
   volumeSnapshotClassName: ibox-snapshotclass-locking
   source:
-    persistentVolumeClaimName: iscsi-pvc
+    persistentVolumeClaimName: $TEST_NAME

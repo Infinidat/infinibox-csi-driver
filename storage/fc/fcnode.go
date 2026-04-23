@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"strconv"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -50,9 +51,12 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 
 	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
-		e := fmt.Errorf("error from ValidatePublishContext - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	portInfo := storagecommon.GetPortInfo()
@@ -62,9 +66,12 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	if len(fcPorts) == 0 {
-		e := fmt.Errorf("port name not found on worker")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, "port name not found on worker"),
+		}
+		return nil, e
 	}
 	slog.Debug("getPortName", "output", fcPorts)
 
@@ -76,9 +83,12 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	}
 
 	if !fcOnline {
-		e := fmt.Errorf("error - all FC ports on worker are offline")
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, "all FC ports on worker are offline"),
+		}
+		return nil, e
 	}
 
 	slog.Debug("publishing volume to host ", "host ID", hostID, "port state", fcOnline)
@@ -89,15 +99,21 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 			slog.Debug("host port is not created, creating it", "host port", fcp)
 			err = fc.CS.AddPortForHost(ctx, hostID, "FC", fcp)
 			if err != nil {
-				e := fmt.Errorf("error from AddPortForHost - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-				slog.Error(e.Error())
-				return nil, status.Error(codes.Internal, e.Error())
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
+				return nil, e
 			}
 			_, err := fc.CS.IboxAPI.GetHostPort(ctx, hostID, fcp)
 			if err != nil {
-				e := fmt.Errorf("error from GetHostPort host port: %s volumeID: %s error: %s", fcp, req.GetVolumeId(), err.Error())
-				slog.Error(e.Error())
-				return nil, status.Error(codes.Internal, e.Error())
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
+				return nil, e
 			}
 		}
 	}
@@ -122,16 +138,22 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 
 	fcDetails, err := fc.getFCDiskDetails(ctx, req)
 	if err != nil {
-		e := fmt.Errorf("error from getFCDiskDetails - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	devicePath, err := fc.searchDisk(*fcDetails)
 	if err != nil {
-		e := fmt.Errorf("error from searchDisk -  volumeID: %s error: Unable to find disk given WWNN or WWIDs: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	// remove the leading "/host" to reveal the path on the actual node host
@@ -141,16 +163,22 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	//diskMounter, err := storagecommon.GetDiskMounter(req, *fcDetails)
 	diskMounter, err := storagecommon.GetDiskMounter(req)
 	if err != nil {
-		e := fmt.Errorf("error from getFCDiskMounter - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
-	err = fc.MountFCDisk(*diskMounter, devicePath, fcDetails.VolumeID)
+	err = fc.mountFCDisk(*diskMounter, devicePath, fcDetails.VolumeID)
 	if err != nil {
-		e := fmt.Errorf("error from MountFCDisk - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-		slog.Error(e.Error())
-		return nil, status.Error(codes.Internal, e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	// set volume permissions based on uid/uid/unix_permissions
@@ -163,9 +191,12 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	} else {
 		err = fc.StorageHelper.SetVolumePermissions(req)
 		if err != nil {
-			e := fmt.Errorf("error from SetVolumePermissions - volumeID: %s error: %s", req.GetVolumeId(), err.Error())
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Internal, e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
 		}
 	}
 
@@ -181,8 +212,11 @@ func (fc *FCstorage) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpub
 
 	err = storagecommon.UnmountAndCleanUp(targetPath)
 	if err != nil {
-		e := fmt.Errorf("error from unmountAndCleanup volumeID: %s targetPath: %s error: %s", req.GetVolumeId(), targetPath, err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
@@ -221,8 +255,11 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 			if !pathExist {
 				slog.Debug("config file not found", "path", confFile)
 				if err := os.RemoveAll(stagePath); err != nil {
-					e := fmt.Errorf("error from RemoveAll - Failed to remove mount path error: %s", err.Error())
-					slog.Error(e.Error())
+					_, file, line, _ := runtime.Caller(0)
+					e := storagecommon.ImplementationError{
+						Code: int(codes.Internal),
+						Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+					}
 					return nil, e
 				}
 				slog.Debug("removed stage path", "path", stagePath)
@@ -235,13 +272,15 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 	// remove multipath device
 	err := storagecommon.DetachMpathDevice(mpathDevice, common.ProtocolFC)
 	if err != nil {
-		slog.Error("detachMpathDevice ", "error", err.Error())
 		slog.Warn("cannot detach volume", "volumeID", req.GetVolumeId(), "error", err)
 	}
 
 	if err := os.RemoveAll("/host" + stagePath); err != nil {
-		e := fmt.Errorf("error from RemoveAll - failed to remove mount path error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	return &csi.NodeUnstageVolumeResponse{}, nil
@@ -268,8 +307,11 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	if req.GetVolumeCapability().GetBlock() != nil {
 		err := storagecommon.BlockExpandVolume(req.GetVolumePath())
 		if err != nil {
-			e := fmt.Errorf("error from blockExpandVolume - volumePath: %s error: %s", req.GetVolumePath(), err.Error())
-			slog.Error(e.Error())
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
 			return nil, e
 		}
 		return &response, nil
@@ -278,8 +320,11 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// 1 - find the multipath device name (e.g. /dev/mapper/mpathwi) from the list of mounts
 	multipathDevice, err := storagecommon.FindMultipathDeviceFromVolumePath(req.GetVolumePath())
 	if err != nil {
-		e := fmt.Errorf("error from findMultipathDeviceFromVolumePath - error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	slog.Debug("info", "multipathDevice", multipathDevice)
@@ -291,15 +336,16 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	slog.Debug("executing", "command", command)
 	out, _, err := storagecommon.ExecCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("command: %s error: %s", command, err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 
 	if out == "" {
-		e := fmt.Errorf("error getting multipathDevice: %s, command output was empty", multipathDevice)
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("error getting multipathDevice: %s, command output was empty", multipathDevice)
 	}
 
 	output := strings.TrimSpace(out)
@@ -321,8 +367,11 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 			command = fmt.Sprintf("echo 1 > %s", rescanPath)
 			out, _, err := storagecommon.ExecCommand.Command(command, "")
 			if err != nil {
-				e := fmt.Errorf("error writing rescan on multipath devices - command: %s error: %s", command, err.Error())
-				slog.Error(e.Error())
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
 				return nil, e
 			}
 			if out != "" {
@@ -335,15 +384,21 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	// we need to strip off the /dev/mapper/ path prefix
 	mpathPart := strings.SplitAfter(multipathDevice, "/dev/mapper/")
 	if len(mpathPart) < 2 {
-		e := fmt.Errorf("error getting mpathPart: %+v", mpathPart)
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, fmt.Sprintf("error getting mpathPart: %+v", mpathPart)),
+		}
 		return nil, e
 	}
 	command = fmt.Sprintf("multipathd resize map %s", mpathPart[1])
 	out, _, err = storagecommon.ExecCommand.Command(command, "")
 	if err != nil {
-		e := fmt.Errorf("error command: %s error: %s", command, err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 	slog.Debug("multipathd resize map", "output", strings.TrimSpace(out))
@@ -352,15 +407,18 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	fsType := req.GetVolumeCapability().GetMount().FsType
 	err = storagecommon.ExpandFileSystem(multipathDevice, fsType)
 	if err != nil {
-		e := fmt.Errorf("error: %s", err.Error())
-		slog.Error(e.Error())
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
 		return nil, e
 	}
 
 	return &response, nil
 }
 
-func (fc *FCstorage) MountFCDisk(mounter storagecommon.Mounter, devicePath string, volumeID int) error {
+func (fc *FCstorage) mountFCDisk(mounter storagecommon.Mounter, devicePath string, volumeID int) error {
 	defer helper.TimeTrack(time.Now())
 	slog.Debug("info", "mounter", mounter, "devicePath", devicePath)
 
@@ -372,9 +430,7 @@ func (fc *FCstorage) MountFCDisk(mounter storagecommon.Mounter, devicePath strin
 	}
 	err := storagecommon.MountLogic(diskInfo, mounter.TargetPath, devicePath, mounter.StagePath, mounter.FsType, mounter.MountOptions, mounter.IsBlock, mounter.ReadOnly)
 	if err != nil {
-		e := fmt.Errorf("error from mountLogic error: %s", err.Error())
-		slog.Error(e.Error())
-		return status.Error(codes.Internal, e.Error())
+		return common.Errorf("%w", err)
 	}
 
 	if strings.HasPrefix(devicePath, "/dev/dm-") && !mounter.ReadOnly {
@@ -386,9 +442,7 @@ func (fc *FCstorage) MountFCDisk(mounter storagecommon.Mounter, devicePath strin
 		}
 		slog.Debug("attempting to create FC config file", "dskinfo", dskinfo, "stagePath", mounter.StagePath, "targetPath", mounter.TargetPath)
 		if err := storagecommon.CreateConfigFile(dskinfo, mounter.StagePath); err != nil {
-			e := fmt.Errorf("error from CreateConfigFile error: %v", err)
-			slog.Error(e.Error())
-			return e
+			return common.Errorf("%w", err)
 		}
 		slog.Debug("created FC config file", "path", mounter.StagePath)
 	}
@@ -403,12 +457,10 @@ func (fc *FCstorage) getFCDiskDetails(ctx context.Context, req *csi.NodePublishV
 	targetList := []string{}
 	fcNodes, err := fc.CS.IboxAPI.GetFCPorts(ctx)
 	if err != nil {
-		e := fmt.Errorf("error from GetFCPorts - error: %s", err.Error())
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("%w", err)
 	}
 	if len(fcNodes) == 0 {
-		return nil, fmt.Errorf("error getting fiber channel details, zero fc ports found")
+		return nil, common.Errorf("error getting FC details, zero FC ports found")
 	}
 	for _, fcnode := range fcNodes {
 		for _, fcport := range fcnode.Ports {
@@ -419,9 +471,7 @@ func (fc *FCstorage) getFCDiskDetails(ctx context.Context, req *csi.NodePublishV
 	}
 	slog.Debug("info", "lun", lun, "targetList", targetList, "wwidList", wwidList)
 	if lun == "" || (len(targetList) == 0 && len(wwidList) == 0) {
-		e := fmt.Errorf("fc target information is missing")
-		slog.Error(e.Error())
-		return nil, e
+		return nil, common.Errorf("FC target information is missing")
 	}
 
 	return &fcDevice{
@@ -456,9 +506,7 @@ func (fc *FCstorage) searchDisk(connector fcDevice) (string, error) {
 	slog.Debug("rescan hosts", "fcHosts", fcHosts)
 	wwid, err := storagecommon.RescanDeviceMap(fcHosts, diskIDs[0], connector.Lun)
 	if err != nil {
-		e := fmt.Errorf("rescan error: %s", err.Error())
-		slog.Error(e.Error())
-		return "", e
+		return "", common.Errorf("%w", err)
 	}
 	slog.Debug("rescan scsi host", "wwid", wwid)
 
@@ -501,7 +549,7 @@ func (fc *FCstorage) searchDisk(connector fcDevice) (string, error) {
 
 	// if no disk matches input wwn and lun, exit
 	if disk == "" && dmDevice == "" {
-		return "", fmt.Errorf("no fc disk found")
+		return "", common.Errorf("no FC disk found")
 	}
 
 	// if multipath devicemapper device is found, use it; otherwise use raw disk

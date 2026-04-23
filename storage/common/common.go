@@ -27,6 +27,19 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type ImplementationError struct {
+	Msg  string
+	Code int
+	Err  error //wrapped error
+}
+
+func (e ImplementationError) Error() string {
+	return fmt.Sprintf("code %d: %s", e.Code, e.Msg)
+}
+func (e ImplementationError) Unwrap() error {
+	return e.Err
+}
+
 // Global resource contains a sync.Mutex. Used to serialize iSCSI resource accesses.
 var ExecCommand helper.Exec
 
@@ -61,7 +74,6 @@ func BuildCommonService(config map[string]string, secrets map[string]string, vol
 			return commonService, errors.New("secrets are missing or not valid")
 		}
 		hostnameURL, err := url.Parse(secrets[common.CredentialHostname])
-
 		if err != nil {
 			slog.Error("Error parsing IBox hostname", "error", err.Error())
 			return commonService, errors.New("secret hostname is missing or not valid")
@@ -298,7 +310,7 @@ func CopyRequestParameters(parameters, out map[string]string) {
 	}
 }
 
-func DetermineSSDValue(ctx context.Context, ssdStorageClassParameter string, poolName string, client iboxapi.Client) (ssdValue bool, err error) {
+func DetermineSSDValue(ctx context.Context, ssdStorageClassParameter string, pool iboxapi.PoolResult) (ssdValue bool, err error) {
 	var valueProvidedInStorageClass bool
 	if ssdStorageClassParameter != "" {
 		valueProvidedInStorageClass = true
@@ -307,18 +319,12 @@ func DetermineSSDValue(ctx context.Context, ssdStorageClassParameter string, poo
 	if valueProvidedInStorageClass {
 		ssdValue, err = strconv.ParseBool(ssdStorageClassParameter)
 		if err != nil {
-			return ssdValue, err
+			return ssdValue, common.Errorf("error parsing %s %w", ssdStorageClassParameter, err)
 		}
 		slog.Debug("setting ssd value from storage class parameter", "value", ssdValue)
 		return ssdValue, nil
 	}
 
-	// get the ssd value from the pool
-	pool, err := client.GetPoolByName(ctx, poolName)
-	if err != nil {
-		slog.Error("determineSSDValue error", "error", err.Error())
-		return ssdValue, err
-	}
 	slog.Debug("setting ssd value from pool", "value", pool.SsdEnabled)
 	return pool.SsdEnabled, nil
 }
@@ -337,8 +343,7 @@ func (sh StorageService) ValidateIPAddress(ip string, port int) (err error) {
 	elapsed := time.Since(start)
 
 	if err != nil {
-		slog.Error("error dialing IP address", "address", ipAndPort, "error", err.Error(), "elapsed", elapsed)
-		return err
+		return common.Errorf("error dialing IP address %s elapsed %v error %w", ipAndPort, elapsed, err)
 	}
 	slog.Debug("IP address is reachable", "address", ipAndPort, "elapsed", elapsed)
 	return nil
@@ -385,13 +390,11 @@ func ValidatePublishContext(publishContext map[string]string) (hostID int, ports
 	hostIDString := publishContext[HostIDPublishContext]
 	hostID, err = strconv.Atoi(hostIDString)
 	if err != nil {
-		err := common.Errorf("hostID string '%s' is not valid host ID: %v", hostIDString, err)
-		return 0, "", status.Error(codes.Internal, err.Error())
+		return 0, "", common.Errorf("hostID string %s is not valid host ID: %w", hostIDString, err)
 	}
 
 	if hostID < 1 {
-		e := common.Errorf("hostID %d is not valid host ID", hostID)
-		return 0, "", status.Error(codes.Internal, e.Error())
+		return 0, "", common.Errorf("hostID %d is not valid host ID", hostID)
 	}
 
 	ports = publishContext[HostPortsPublishContext]
@@ -402,8 +405,7 @@ func ValidatePublishContext(publishContext map[string]string) (hostID int, ports
 func HostCleanup(ctx context.Context, iboxClient iboxapi.Client, hostID int, hostName string) error {
 	meta, err := iboxClient.GetMetadata(ctx, hostID)
 	if err != nil {
-		e := common.Errorf("hostCleanup: failed to get metadata for host ID %d. Error: %v", hostID, err)
-		return status.Error(codes.Internal, e.Error())
+		return common.Errorf("hostCleanup: failed to get metadata for host ID %d. Error: %w", hostID, err)
 	}
 	var createdByCSI bool
 	for i := range meta {
@@ -417,8 +419,7 @@ func HostCleanup(ctx context.Context, iboxClient iboxapi.Client, hostID int, hos
 		if errors.Is(err, iboxapi.ErrNotFound) {
 			slog.Debug("hostCleanup: will not delete, host not found", "hostid", hostID, "response", response)
 		} else if err != nil {
-			slog.Error("hostCleanup: failed to delete host with error", "error", err)
-			return status.Error(codes.Internal, err.Error())
+			return common.Errorf("hostCleanup: failed to delete host with error %w", err)
 		}
 		slog.Debug("hostCleanup: deleted host on ibox because it was created by CSI host", "hostid", hostID, "hostname", hostName)
 		return nil
@@ -430,11 +431,11 @@ func HostCleanup(ctx context.Context, iboxClient iboxapi.Client, hostID int, hos
 
 func DetermineHostName(nodeID string) (hostName string, err error) {
 	if nodeID == "" {
-		return "", status.Error(codes.InvalidArgument, "node ID empty")
+		return "", common.Errorf("%s", "node ID empty")
 	}
 	nodeNameIP := strings.Split(nodeID, "$$")
 	if len(nodeNameIP) != 2 {
-		return "", status.Error(codes.NotFound, fmt.Sprintf("node ID: %s not found", nodeID))
+		return "", common.Errorf("node ID: %s not found", nodeID)
 	}
 	hostName = nodeNameIP[0]
 
@@ -482,7 +483,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 
 		volprotoconf.TreeqID, err = strconv.Atoi(tmp[1])
 		if err != nil {
-			return volprotoconf, common.Errorf("volume treeq id parse error %s on %s", err.Error(), tmp[1])
+			return volprotoconf, common.Errorf("volume treeq id parse error %w on %s", err, tmp[1])
 		}
 		return volprotoconf, nil
 	}
@@ -490,7 +491,7 @@ func ValidateVolumeID(volumeIDString string) (volprotoconf api.VolumeProtocolCon
 	// for any other protocol than treeq
 	volprotoconf.VolumeID, err = strconv.Atoi(volproto[0])
 	if err != nil {
-		return volprotoconf, common.Errorf("volume id in volproto is not an integer, [%s], error: %s", volproto[0], err.Error())
+		return volprotoconf, common.Errorf("volume id in volproto is not an integer, [%s], error: %w", volproto[0], err)
 	}
 
 	return volprotoconf, nil
@@ -512,9 +513,9 @@ func (cs *Commonservice) getStoragePoolNameFromID(ctx context.Context, poolID in
 		pool, err := cs.IboxAPI.GetPoolByID(ctx, poolID)
 		if err != nil {
 			if errors.Is(err, iboxapi.ErrNotFound) {
-				slog.Error("Could not find StoragePool", "pool id", poolID)
+				slog.Error("getStoragePoolNameFromID could not find StoragePool", "pool id", poolID)
 			}
-			slog.Error("from GetPoolByID", "pool id", poolID, "error", err)
+			slog.Error("getStoragePoolNameFromID", "pool id", poolID, "error", err)
 			return ""
 		}
 		storagePoolName = pool.Name
@@ -526,8 +527,7 @@ func (cs *Commonservice) verifyAPIClient() error {
 	slog.Log(context.Background(), common.LevelTrace, "verifying api client")
 	c, err := cs.API.NewClient()
 	if err != nil {
-		slog.Error("api client is not working.")
-		return errors.New("failed to create rest client")
+		return common.Errorf("failed to create rest client %w", err)
 	}
 	cs.API = c
 	slog.Log(context.Background(), common.LevelTrace, "api client is verified.")

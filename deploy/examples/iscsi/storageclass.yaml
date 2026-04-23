@@ -31,7 +31,7 @@ parameters:
   #round_up_requested_size: "true"
   #max_vols_per_host: "100"
   #provision_type: "THIN"
-  ssd_enabled: "true"
+  #ssd_enabled: "true"
   uid: "3000" # UID of volume
   gid: "3000" # GID of volume
   #unix_permissions: "777" # optional volume mount permissions

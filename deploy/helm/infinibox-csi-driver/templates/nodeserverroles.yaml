@@ -1,14 +1,11 @@
-# Notes:
-# - Changes to ServiceAccount, ClusterRole or ClusterRoleBinding should be mirrored in the OLM clusterserviceversion.yaml
-# - This template file is omitted from the OLM bundle docker image using its .dockerignore file.
 ---
 apiVersion: v1
 kind: ServiceAccount
-imagePullSecrets:
-  - name: {{ .Values.images.imagePullSecret }}
 metadata:
   name: {{ .Release.Name }}-node
   namespace: {{ .Release.Namespace }}
+imagePullSecrets:
+  - name: {{ .Values.images.imagePullSecret }}
 
 ---
 kind: ClusterRole

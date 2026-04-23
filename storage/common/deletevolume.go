@@ -22,13 +22,11 @@ func DeleteVolume(ctx context.Context, cs Commonservice, volumeID int) (response
 			slog.Debug("volume already deleted", "volume ID", volumeID)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, common.Errorf("%w", err)
 	}
 
 	if vol.LockState == common.LockedState {
-		e := fmt.Sprintf("volume ID: %d was locked, can not delete till expire date %s is reached", volumeID, time.UnixMilli(vol.LockExpiresAt))
-		slog.Error(e)
-		return nil, status.Error(codes.Aborted, e)
+		return nil, status.Error(codes.Aborted, fmt.Sprintf("volume ID: %d was locked, can not delete till expire date %s is reached", volumeID, time.UnixMilli(vol.LockExpiresAt)))
 	}
 
 	childVolumes, err := cs.IboxAPI.GetVolumesByParentID(ctx, vol.ID)
@@ -41,34 +39,31 @@ func DeleteVolume(ctx context.Context, cs Commonservice, volumeID int) (response
 		}
 		_, err = cs.IboxAPI.PutMetadata(ctx, vol.ID, metadata)
 		if err != nil {
-			e := fmt.Sprintf("failed to update host.k8s.to_be_deleted for volume %s error: %v", vol.Name, err)
-			slog.Error(e)
-			err = errors.New(e)
-			return nil, err
+			return nil, common.Errorf("failed to update host.k8s.to_be_deleted for volume %s error: %w", vol.Name, err)
 		}
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 	slog.Debug("deleting volume", "name", vol.Name, "ID", vol.ID)
 	_, err = cs.IboxAPI.DeleteMetadata(ctx, vol.ID)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, common.Errorf("%w", err)
 	}
 	_, err = cs.IboxAPI.DeleteVolume(ctx, vol.ID)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, common.Errorf("%w", err)
 	}
 	if vol.ParentID != 0 {
 		slog.Debug("checking if parent volume can be", "name", vol.Name, "ID", vol.ID)
 		var metadata []iboxapi.GetMetadataResult
 		metadata, err = cs.IboxAPI.GetMetadata(ctx, vol.ParentID)
 		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, common.Errorf("%w", err)
 		}
 		for _, m := range metadata {
 			if m.Key == api.TOBEDELETED {
 				_, err = DeleteVolume(ctx, cs, vol.ParentID)
 				if err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
+					return nil, common.Errorf("%w", err)
 				}
 				return &csi.DeleteVolumeResponse{}, nil
 			}
