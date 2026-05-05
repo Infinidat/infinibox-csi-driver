@@ -259,6 +259,21 @@ func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string
 		delete(storageClass.Parameters, common.StorageClassUNIXPermissions)
 	}
 
+	if testConfig.UseReplicaParameters {
+		storageClass.Parameters[common.IboxReplicaTypeParameter] = os.Getenv(ENV_IBOXREPLICA_REPLICATION_TYPE)
+		storageClass.Parameters[common.IboxReplicaRemoteIboxLinkNameParameter] = os.Getenv(ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME)
+		storageClass.Parameters[common.IboxReplicaLocalIboxCredNameParameter] = os.Getenv(ENV_IBOXREPLICA_LOCAL_IBOX_SECRET_NAME)
+		storageClass.Parameters[common.IboxReplicaLocalIboxCredNamespaceParameter] = os.Getenv(ENV_IBOXREPLICA_LOCAL_IBOX_SECRET_NAMESPACE)
+		storageClass.Parameters[common.IboxReplicaRemoteIboxCredNameParameter] = os.Getenv(ENV_IBOXREPLICA_REMOTE_IBOX_SECRET_NAME)
+		storageClass.Parameters[common.IboxReplicaRemoteIboxCredNamespaceParameter] = os.Getenv(ENV_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE)
+		storageClass.Parameters[common.IboxReplicaCreatePVC] = os.Getenv(ENV_IBOXREPLICA_REMOTE_CREATE_PVC)
+		// we append on the unique suffix so we can uniqly identify PVCs/iboxreplicas for tests
+		storageClass.Parameters[common.IboxReplicaCreatePVCSuffix] = os.Getenv(ENV_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX) + testConfig.TestNames.UniqueSuffix
+		storageClass.Parameters[common.IboxReplicaCreatePVCNamespace] = os.Getenv(ENV_IBOXREPLICA_REMOTE_PVC_NAMESPACE)
+		storageClass.Parameters[common.IboxReplicaCreatePVCNetworkSpace] = os.Getenv(ENV_IBOXREPLICA_REMOTE_NETWORK_SPACE)
+		storageClass.Parameters[common.IboxReplicaCreatePVCPoolName] = os.Getenv(ENV_IBOXREPLICA_REMOTE_POOL_NAME)
+	}
+
 	storageClass.Parameters[common.StorageClassSnapDirVisible] = strconv.FormatBool(testConfig.UseSnapdirVisible)
 
 	if testConfig.UseRetainStorageClass {
