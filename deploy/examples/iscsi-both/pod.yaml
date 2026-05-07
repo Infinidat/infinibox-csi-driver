@@ -1,0 +1,30 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: $TEST_NAME
+  namespace: $_E2E_NAMESPACE
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  nodeSelector:
+    hostname: csi-test1
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE_BOTH
+      env:
+      - name: READ_ONLY
+        value: "true"
+      volumeDevices:
+      - name: data
+        devicePath: /dev/xvda
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      command: [ "csitestimageboth" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: $TEST_NAME
+    - name: data
+      persistentVolumeClaim:
+        claimName: $TEST_NAME-block
