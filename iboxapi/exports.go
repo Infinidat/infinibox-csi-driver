@@ -160,6 +160,11 @@ func (client *IboxClient) GetExportsByFileSystemID(ctx context.Context, fsID int
 		if err != nil {
 			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
+
+		if responseObject.Error.Code != "" {
+			return results, common.Errorf("response - error: %v url: %s", responseObject.Error, url)
+		}
+
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {

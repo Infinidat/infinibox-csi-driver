@@ -304,8 +304,13 @@ func (client *IboxClient) GetReplicas(ctx context.Context) (results []Replica, e
 		var responseObject GetReplicasResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
-			return results, common.Errorf("unmarshal - error: %w url; %s", err, url)
+			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
+
+		if responseObject.Error.Code != "" {
+			return results, common.Errorf("response - error: %v url: %s", responseObject.Error, url)
+		}
+
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {

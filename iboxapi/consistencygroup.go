@@ -257,6 +257,11 @@ func (client *IboxClient) GetMembersByCGID(ctx context.Context, cgID int) (membe
 		if err != nil {
 			return memberInfo, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
+
+		if responseObject.Error.Code != "" {
+			return memberInfo, common.Errorf("response - error: %v url: %s", responseObject.Error, url)
+		}
+
 		memberInfo = append(memberInfo, responseObject.Result...)
 
 		if page == 1 {

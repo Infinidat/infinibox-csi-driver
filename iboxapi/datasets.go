@@ -51,6 +51,11 @@ func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume
 		if err != nil {
 			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
+
+		if responseObject.Error.Code != "" {
+			return results, common.Errorf("response - error: %v url: %s", responseObject, url)
+		}
+
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {

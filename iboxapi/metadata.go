@@ -36,7 +36,7 @@ type PutMetadataResponse struct {
 type GetMetadataResponse struct {
 	Metadata Metadata            `json:"metadata"`
 	Result   []GetMetadataResult `json:"result"`
-	Error    any                 `json:"error"`
+	Error    Error               `json:"error"`
 }
 type GetMetadataResult struct {
 	Key        string `json:"key"`
@@ -112,6 +112,9 @@ func (client *IboxClient) GetMetadata(ctx context.Context, objectID int) (result
 			return results, common.Errorf("unmarshal - error: %w url: %s", err, url)
 		}
 		slog.Log(ctx, common.LevelTrace, "info", "resp", responseObject)
+		if responseObject.Error.Code != "" {
+			return results, common.Errorf("response - error: %v url: %s", responseObject.Error, url)
+		}
 		results = append(results, responseObject.Result...)
 
 		if page == 1 {
