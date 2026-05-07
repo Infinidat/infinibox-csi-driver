@@ -159,11 +159,7 @@ func (cs *Commonservice) UnmapVolumeFromHost(ctx context.Context, hostID, volume
 
 func (cs *Commonservice) AddPortForHost(ctx context.Context, hostID int, portType, portName string) error {
 	_, err := cs.IboxAPI.AddHostPort(ctx, portType, portName, hostID)
-	if err != nil && !strings.Contains(err.Error(), "PORT_ALREADY_BELONGS_TO_HOST") {
-		slog.Error("failed to add host port with error", "error", err)
-		return err
-	}
-	return nil
+	return err
 }
 
 /**

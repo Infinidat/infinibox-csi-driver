@@ -481,7 +481,7 @@ func (iscsi *ISCSIstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeEx
 		_, file, line, _ := runtime.Caller(0)
 		e := storagecommon.ImplementationError{
 			Code: int(codes.Internal),
-			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			Msg:  fmt.Sprintf("%s:%d: %s %s", file, line, mpathPart, "mpath did not have 2 parts"),
 		}
 		return nil, e
 	}

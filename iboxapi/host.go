@@ -344,12 +344,15 @@ func (client *IboxClient) AddHostPort(ctx context.Context, portType, portAddress
 		return nil, common.Errorf("commonPostLogic - error: %w url: %s", err, url)
 	}
 
-	var responseObject AddPortResponse
-	err = json.Unmarshal(body, &responseObject)
+	var response AddPortResponse
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		return nil, common.Errorf("unmarshal -error: %w url: %s", err, url)
 	}
-	return &responseObject, nil
+	if response.Error.Code != "" {
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+	}
+	return &response, nil
 }
 
 func (client *IboxClient) GetHostPort(ctx context.Context, hostID int, portAddress string) (hostPort *HostPort, err error) {
@@ -430,12 +433,16 @@ func (client *IboxClient) GetAllLunByHost(ctx context.Context, hostID int) (luns
 
 		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
-			return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
+			return luns, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
 		}
 		var responseObject GetAllLunsResponse
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
 			return luns, common.Errorf("unmarshal - error: %w url: %s", err, url)
+		}
+
+		if responseObject.Error.Code != "" {
+			return luns, common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
 		}
 
 		luns = append(luns, responseObject.Result...)
@@ -471,6 +478,10 @@ func (client *IboxClient) GetLunByHostVolume(ctx context.Context, hostID, volume
 		err = json.Unmarshal(bodyBytes, &responseObject)
 		if err != nil {
 			return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
+		}
+
+		if responseObject.Error.Code != "" {
+			return nil, common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
 		}
 
 		if page == 1 {
