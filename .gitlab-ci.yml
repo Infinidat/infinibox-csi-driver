@@ -132,7 +132,7 @@ build-image:
    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - > 
-      docker buildx build --pull 
+      sleep 15 && docker buildx build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
       --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
@@ -160,7 +160,7 @@ build-metrics-image:
    - echo -n $CI_REGISTRY_PASSWORD | docker login -u $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
   script:
     - > 
-      docker buildx build --pull 
+      sleep 15 && docker buildx build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
       --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
@@ -192,7 +192,7 @@ test-merge-image-build:
   script:
     - docker pull $DEV_IMAGE || true
     - > 
-      docker buildx build --pull 
+      sleep 15 && docker buildx build --pull 
       --build-arg VCS_REF=$CI_COMMIT_SHORT_SHA
       --build-arg BLAME_USER=$CI_REGISTRY_USER
       --build-arg IMAGE_TAG=$CI_COMMIT_REF_SLUG
