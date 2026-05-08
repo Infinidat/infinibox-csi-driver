@@ -35,8 +35,8 @@ import (
 )
 
 var (
-	KubeConfigPath = flag.String(
-		"kubeconfig", "", "path to the kubeconfig file")
+	KubeConfigPath string
+	//"kubeconfig", "", "path to the kubeconfig file")
 	OperatorNamespace = flag.String(
 		"operatornamespace", "infinidat-csi", "namespace the operator runs within")
 	CleanUp = flag.Bool(
@@ -438,12 +438,9 @@ func WaitForSnapshot(t *testing.T, snapshotName string, namespace string, client
 func GetFlags(t *testing.T) {
 	flag.Parse()
 
-	if *KubeConfigPath == "" {
-		t.Log("looking for KUBECONFIG path from env var..")
-		*KubeConfigPath = os.Getenv("KUBECONFIG")
-	}
-	if *KubeConfigPath == "" {
-		t.Fatalf("kubeconfigpath flag not set and is required")
+	KubeConfigPath = os.Getenv(("KUBECONFIG"))
+	if KubeConfigPath == "" {
+		t.Fatalf("KUBECONFIG env var not set and is required")
 	}
 	workingDir, err := os.Getwd()
 	if err != nil {

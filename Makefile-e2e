@@ -183,11 +183,10 @@ e2eiscsiscreplicapvc:  ## test for iscsi using a storageclass that specifies to 
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsireplica
-
 e2eiscsireplica:  ## run the infinidat developed e2e iscsi replica tests
 	@echo -e $(_begin)
 	@echo -e kubeconfig here is ${KUBECONFIG}
-	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/iscsireplica -tags e2e
+	_E2E_PROTOCOL=iscsi && go test -timeout=45m -count=1 -v ./e2e/iscsireplica -tags e2e
 	@echo -e $(_finish)
 
 .PHONY: e2eiscsivolumegroup

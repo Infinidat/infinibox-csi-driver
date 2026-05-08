@@ -119,7 +119,7 @@ func TestIscsiPromote(t *testing.T) {
 	}
 	t.Logf("creating iboxpromote %s", promoteCR.Name)
 
-	kclient, err := clientgo.BuildOffClusterClient(*e2e.KubeConfigPath)
+	kclient, err := clientgo.BuildOffClusterClient(e2e.KubeConfigPath)
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}

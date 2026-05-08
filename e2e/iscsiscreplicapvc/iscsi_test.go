@@ -102,7 +102,7 @@ func TestIscsiSCReplicaPVC(t *testing.T) {
 	// query the iboxreplicas and see if an iboxreplica was created
 	// for this run
 	// replica's 'remote_pvc_name_suffix' should match the pvc suffix name + unique test suffix
-	kclient, err := clientgo.BuildOffClusterClient(*e2e.KubeConfigPath)
+	kclient, err := clientgo.BuildOffClusterClient(e2e.KubeConfigPath)
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}

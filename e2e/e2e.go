@@ -119,7 +119,7 @@ func GetTestConfig(t *testing.T, protocol string) (testConfig *TestConfig, err e
 	}
 
 	// connect to kube
-	err = GetKubeClient(testConfig, *KubeConfigPath)
+	err = GetKubeClient(testConfig, KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func GetTestConfig(t *testing.T, protocol string) (testConfig *TestConfig, err e
 		return nil, fmt.Errorf("error getting ClientSet")
 	}
 
-	testConfig.RestConfig = GetRestConfig(*KubeConfigPath)
+	testConfig.RestConfig = GetRestConfig(KubeConfigPath)
 
 	if testConfig.RestConfig == nil {
 		return nil, fmt.Errorf("error getting RESTConfig")

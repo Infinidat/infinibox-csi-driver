@@ -21,7 +21,7 @@ import (
 )
 
 func TestIscsiReplica(t *testing.T) {
-	setupSlog()
+	//setupSlog()
 
 	testConfig, err := e2e.GetTestConfig(t, common.ProtocolISCSI)
 	if err != nil {
@@ -84,7 +84,7 @@ func TestIscsiReplica(t *testing.T) {
 	}
 	t.Logf("creating iboxreplica %s", replica.Name)
 
-	kclient, err := clientgo.BuildOffClusterClient(*e2e.KubeConfigPath)
+	kclient, err := clientgo.BuildOffClusterClient(e2e.KubeConfigPath)
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}
@@ -193,7 +193,7 @@ func TestIscsiActiveActiveReplica(t *testing.T) {
 	}
 	t.Logf("creating iboxreplica %s", replica.Name)
 
-	kclient, err := clientgo.BuildOffClusterClient(*e2e.KubeConfigPath)
+	kclient, err := clientgo.BuildOffClusterClient(e2e.KubeConfigPath)
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}
@@ -300,7 +300,7 @@ func TestIscsiSyncReplica(t *testing.T) {
 	}
 	t.Logf("creating iboxreplica %s", replica.Name)
 
-	kclient, err := clientgo.BuildOffClusterClient(*e2e.KubeConfigPath)
+	kclient, err := clientgo.BuildOffClusterClient(e2e.KubeConfigPath)
 	if err != nil {
 		t.Fatalf("error getting cluster client %s", err.Error())
 	}
