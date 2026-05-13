@@ -1,0 +1,21 @@
+There are 3 tests in the upstream kube storage tests for OnRootMismatch
+as follows:
+
+"name": "External Storage [Driver: infinidat.com] [Testpattern: Dynamic PV (default fs)] fsgroupchangepolicy (OnRootMismatch)[LinuxOnly], pod created with an initial fsgroup, new pod fsgroup applied to volume contents",
+"source": "k8s.io/kubernetes@v1.34.1/test/e2e/storage/testsuites/fsgroupchangepolicy.go:222"
+
+"name": "External Storage [Driver: infinidat.com] [Testpattern: Dynamic PV (default fs)] fsgroupchangepolicy (OnRootMismatch)[LinuxOnly], pod created with an initial fsgroup, volume contents ownership changed via chgrp in first pod, new pod with same fsgroup skips ownership changes to the volume contents",
+"source": "k8s.io/kubernetes@v1.34.1/test/e2e/storage/testsuites/fsgroupchangepolicy.go:222"
+
+"name": "External Storage [Driver: infinidat.com] [Testpattern: Dynamic PV (default fs)] fsgroupchangepolicy (OnRootMismatch)[LinuxOnly], pod created with an initial fsgroup, volume contents ownership changed via chgrp in first pod, new pod with different fsgroup applied to the volume contents",
+"source": "k8s.io/kubernetes@v1.34.1/test/e2e/storage/testsuites/fsgroupchangepolicy.go:222"
+    
+
+You can run these tests in isolation to fully test OnRootMismatch
+support.  In the CSI driver, to allow these tests to pass, you 
+will comment out in the StorageClass the 'uid', 'gid', and 'unix_permissions' parameters.  When you comment these out, the driver will not attempt
+to change the uid/gid/unix_permissions when it mounts the volume.  This
+allows Kubernetes itself to perform the OnRootMismatch logic by itself.
+Setting the 'uid', 'gid' or 'unix_permissions' will cause the upstream
+tests to fail because you are essentially going around kubernetes wrt
+permissions on the volume, and the upstream tests do not account for that.
