@@ -189,6 +189,13 @@ e2eiscsireplica:  ## run the infinidat developed e2e iscsi replica tests
 	_E2E_PROTOCOL=iscsi && go test -timeout=45m -count=1 -v ./e2e/iscsireplica -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2eiscsicg
+e2eiscsicg:  ## run the infinidat developed e2e iscsi iboxcg tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=iscsi && go test -timeout=45m -count=1 -v ./e2e/iscsicg -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2eiscsivolumegroup
 e2eiscsivolumegroup:  ## VolumeGroupSnapshot test using iscsi volume
 	@echo -e $(_begin)
