@@ -401,7 +401,7 @@ func (r *IboxcgReconciler) handleAddMember(ctx context.Context, cr *csidriverinf
 			// TODO replace this sleep (giving replication time to start) with a proper check
 			time.Sleep(time.Second * 3)
 			logger.Info("remote_create_pvc was true", "iboxcg name", cr.Name, "namespace", cr.Namespace, "volume name", cr.Spec.LocalVolumeName)
-			err = r.createPVC(ctx, cr)
+			err = r.createPVC(ctx, cr, replicaFound)
 			if err != nil {
 				logger.Error(err, "failed to create PVC")
 			}

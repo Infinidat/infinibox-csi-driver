@@ -16,7 +16,7 @@ type EntityPair struct {
 	RemoteIPAddress string
 }
 
-func (r *IboxcgReconciler) createPVC(ctx context.Context, iboxcg *csidriverinfinidatcomv1.Iboxcg) error {
+func (r *IboxcgReconciler) createPVC(ctx context.Context, iboxcg *csidriverinfinidatcomv1.Iboxcg, replicaFound bool) error {
 	clientsvc, err := getClientService(ctx, iboxcg)
 	if err != nil {
 		logger.Error(err, "error getting clientService")
@@ -56,7 +56,7 @@ func (r *IboxcgReconciler) createPVC(ctx context.Context, iboxcg *csidriverinfin
 
 	logger.Info("creating PVC for iboxcg", "entity look up worked", localEntityID)
 
-	remoteEntity, err := getRemoteEntities(ctx, remoteClientsvc, iboxcg)
+	remoteEntity, err := getRemoteEntities(ctx, clientsvc, remoteClientsvc, iboxcg, replicaFound)
 	if err != nil {
 		logger.Error(err, "error getting remote entity IDs")
 		return err
@@ -101,14 +101,33 @@ func (r *IboxcgReconciler) createPVC(ctx context.Context, iboxcg *csidriverinfin
 	return nil
 }
 
-func getRemoteEntities(ctx context.Context, remoteClientsvc *api.ClientService, iboxcg *csidriverinfinidatcomv1.Iboxcg) (*EntityPair, error) {
+func getRemoteEntities(ctx context.Context, localClientsvc *api.ClientService, remoteClientsvc *api.ClientService, iboxcg *csidriverinfinidatcomv1.Iboxcg, replicaFound bool) (*EntityPair, error) {
 	localPV, err := createpvc.GetLocalPV(ctx, iboxcg.Spec.LocalVolumeName)
 	if err != nil {
 		logger.Error(err, "error getting local PV")
 		return nil, err
 	}
 	// lookup remote volume so we can get the volume ID for it
-	remoteVolume, err := remoteClientsvc.IboxAPI.GetVolumeByName(ctx, iboxcg.Spec.LocalVolumeName)
+	remoteVolumeName := iboxcg.Spec.LocalVolumeName
+	if replicaFound {
+		// use the remote volume name as found in the replica
+		replica, err := localClientsvc.IboxAPI.GetReplicaForCG(ctx, iboxcg.Spec.LocalCGName)
+		if err != nil {
+			logger.Error(err, "error getting local replica for CG", "cg", iboxcg.Spec.LocalCGName)
+			return nil, err
+		}
+		var foundRemoteEntity bool
+		for _, v := range replica.EntityPairs {
+			if v.LocalEntity.Name == iboxcg.Spec.LocalVolumeName {
+				remoteVolumeName = v.RemoteEntityName
+				foundRemoteEntity = true
+				logger.Info("remote entities found", "foundRemoteEntity", foundRemoteEntity)
+				break
+			}
+		}
+		logger.Info("remote entities lookup", "localVolumeName", iboxcg.Spec.LocalVolumeName, "remoteVolumeName", remoteVolumeName, "foundRemoteEntity", foundRemoteEntity)
+	}
+	remoteVolume, err := remoteClientsvc.IboxAPI.GetVolumeByName(ctx, remoteVolumeName)
 	if err != nil {
 		logger.Error(err, "error getting remote volume")
 		return nil, err
