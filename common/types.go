@@ -115,6 +115,8 @@ const (
 	CSINodeExpandSecretName             = "csi.storage.k8s.io/node-expand-secret-name"
 	CSINodeExpandSecretNamespace        = "csi.storage.k8s.io/node-expand-secret-namespace"
 	CSISnapshotterSecretName            = "csi.storage.k8s.io/snapshotter-secret-name"
+	CSIPVCName                          = "csi.storage.k8s.io/pvc/name"
+	CSIPVCNamespace                     = "csi.storage.k8s.io/pvc/namespace"
 )
 
 const (

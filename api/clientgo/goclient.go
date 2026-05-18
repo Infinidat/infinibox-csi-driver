@@ -201,7 +201,7 @@ func (kc *KubeClient) GetAllStorageClasses(ctx context.Context) (*storagev1.Stor
 
 	return storageclasses, nil
 }
-func (kc *KubeClient) GetStorageClasse(ctx context.Context, scName string) (*storagev1.StorageClass, error) {
+func (kc *KubeClient) GetStorageClass(ctx context.Context, scName string) (*storagev1.StorageClass, error) {
 	storageclass, err := kc.KubeClientInterface.StorageV1().StorageClasses().Get(ctx, scName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err

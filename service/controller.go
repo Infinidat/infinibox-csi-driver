@@ -107,6 +107,13 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
+	err = validateStorageClassSecretParameters(ctx, reqParameters)
+	if err != nil {
+		e := common.Errorf("validateStorageClassSecretParameters error %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
+	}
+
 	volumeInfo := api.VolumeProtocolConfig{
 		StorageType: storageProtocol,
 	}
@@ -196,15 +203,21 @@ func (s *ControllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolu
 	for _, persistentVolume := range pvList.Items {
 		// we match the PV using the volumeHandle (aka volumeId from above)
 		if persistentVolume.Spec.CSI.VolumeHandle == volumeID {
-			annoPVCSecretName := persistentVolume.Spec.CSI.ControllerPublishSecretRef.Name
+			secretRef := persistentVolume.Spec.CSI.ControllerPublishSecretRef
+			if secretRef == nil || secretRef.Name == "" {
+				// No per-volume secret set on this PV. Fall back to request secrets.
+				break
+			}
+			annoPVCSecretName := secretRef.Name
 			annoPVCSecret, err := kubernetesClient.GetSecret(ctx, annoPVCSecretName, os.Getenv("POD_NAMESPACE"))
 			if err != nil {
 				e := common.Errorf("GetSecret - volume ID: %s anno %s error %w", volumeID, annoPVCSecretName, err)
 				slog.Error(e.Error())
 				return nil, status.Error(codes.InvalidArgument, e.Error())
 			}
-			slog.Debug("volume founc, using secret", "volume id", volumeID, "pvc anno name", annoPVCSecretName)
+			slog.Debug("volume found, using secret", "volume id", volumeID, "pvc anno name", annoPVCSecretName)
 			secretsToUse = annoPVCSecret
+			break
 		}
 	}
 
@@ -948,6 +961,52 @@ func validateExpandVolumeRequest(req *csi.ControllerExpandVolumeRequest) error {
 		e := common.Errorf("capacityRange cannot be empty")
 		slog.Error(e.Error())
 		return status.Error(codes.InvalidArgument, e.Error())
+	}
+	return nil
+}
+
+func validateStorageClassSecretParameters(ctx context.Context, reqParameters map[string]string) error {
+	pvcName := reqParameters[common.CSIPVCName]
+	pvcNamespace := reqParameters[common.CSIPVCNamespace]
+
+	kubernetesClient, err := clientgo.BuildClient()
+	if err != nil {
+		return fmt.Errorf("BuildClient error %w", err)
+	}
+
+	pvc, err := kubernetesClient.GetPVC(ctx, pvcNamespace, pvcName)
+	if err != nil {
+		return fmt.Errorf("GetPVC - name %s error %w", pvcName, err)
+	}
+
+	if pvc.Spec.StorageClassName == nil || *pvc.Spec.StorageClassName == "" {
+		return fmt.Errorf("PVC %s has no StorageClassName", pvcName)
+	}
+	storageClass, err := kubernetesClient.GetStorageClass(ctx, *pvc.Spec.StorageClassName)
+
+	if err != nil {
+		return fmt.Errorf("GetStorageClass - name %s error %w", *pvc.Spec.StorageClassName, err)
+	}
+
+	requiredParams := []string{
+		common.CSIProvisionerSecretName,
+		common.CSIProvisionerSecretNamespace,
+		common.CSIControllerPublishSecretName,
+		common.CSIControllerPublishSecretNamespace,
+		common.CSINodeStageSecretName,
+		common.CSINodeStageSecretNamespace,
+		common.CSINodePublishSecretName,
+		common.CSINodePublishSecretNamespace,
+		common.CSIControllerExpandSecretName,
+		common.CSIControllerExpandSecretNamespace,
+		common.CSINodeExpandSecretName,
+		common.CSINodeExpandSecretNamespace,
+	}
+	for _, param := range requiredParams {
+		if storageClass.Parameters[param] == "" {
+			return fmt.Errorf("required CSI parameter %q is missing - verify your StorageClass "+
+				"includes all csi.storage.k8s.io secret parameters", param)
+		}
 	}
 	return nil
 }
