@@ -31,7 +31,7 @@ spec:
         app: {{ .Release.Name }}-driver
     spec:
       serviceAccount: {{ .Release.Name }}-controller
-      dnsPolicy: Default
+      dnsPolicy: {{ .Values.dnsPolicy | default "Default" | quote }}
       containers:
         {{- if eq .Values.e2etesting "true" }}
         - name: socat

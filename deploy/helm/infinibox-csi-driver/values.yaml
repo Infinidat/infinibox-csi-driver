@@ -18,6 +18,9 @@ logLevel: "info"
 # log format, defaults is 'json', but 'text' is also valid
 logFormat: "json"
 
+# dnsPolicy to use for the CSI driver pods
+dnsPolicy: "Default"
+
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
