@@ -6,7 +6,7 @@ toolchain go1.25.4
 
 require (
 	github.com/container-storage-interface/spec v1.12.0
-	github.com/containerd/containerd v1.7.29
+	github.com/containerd/containerd v1.7.32
 	github.com/go-logr/logr v1.4.3
 	github.com/kubernetes-csi/csi-lib-utils v0.21.0
 	github.com/kubernetes-csi/external-snapshotter/client/v6 v6.3.0
