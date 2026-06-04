@@ -1,0 +1,2 @@
+this example creates an iscsi volume, then adds it to an existing
+consistency group using the custom resource iboxcg

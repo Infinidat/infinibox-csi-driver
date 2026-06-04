@@ -1,0 +1,3 @@
+this test creates an FC volume and deletes it, then it tests
+to make sure all the device files (multipath) are removed as part
+of volume cleanup

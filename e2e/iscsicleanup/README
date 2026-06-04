@@ -1,0 +1,2 @@
+this test creates an iscsi volume, then deletes it, and then tests
+to make sure all device files are removed
