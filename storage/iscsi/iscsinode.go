@@ -14,6 +14,7 @@ package iscsi
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -758,8 +759,14 @@ func (iscsi *ISCSIstorage) getISCSIDisk(req *csi.NodePublishVolumeRequest) (*isc
 	}, nil
 }
 
-func (iscsi *ISCSIstorage) getISCSIDiskUnmounter() *iscsiDiskUnmounter {
-	return &iscsiDiskUnmounter{
+func (iscsi *ISCSIstorage) getISCSIDiskUnmounter() (unmounter *iscsiDiskUnmounter) {
+
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
+	unmounter = &iscsiDiskUnmounter{
 		iscsiDiskInfo: &iscsiDevice{
 			VolName:  strconv.Itoa(iscsi.CS.VolProto.VolumeID),
 			VolumeID: iscsi.CS.VolProto.VolumeID,
@@ -767,6 +774,11 @@ func (iscsi *ISCSIstorage) getISCSIDiskUnmounter() *iscsiDiskUnmounter {
 		mounter: mount.NewWithoutSystemd(""),
 		exec:    utilexec.New(),
 	}
+
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
+	return unmounter
 }
 
 func (iscsi *ISCSIstorage) parseSessionSecret(useChap string, secretParams map[string]string) (map[string]string, error) {

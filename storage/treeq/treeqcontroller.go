@@ -15,6 +15,7 @@ package treeq
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -40,6 +41,11 @@ type Treeqstorage struct {
 }
 
 func NewTreeqstorage(capacity int64, commonService storagecommon.Commonservice) (treeq *Treeqstorage) {
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
 	nfs := nfs.NFSstorage{
 		Capacity:               capacity,
 		StorageClassParameters: make(map[string]string),
@@ -48,6 +54,9 @@ func NewTreeqstorage(capacity int64, commonService storagecommon.Commonservice) 
 		OSHelper:               helper.Service{},
 		Mounter:                mount.NewWithoutSystemd(""),
 	}
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
 	service := &Service{
 		NFSstorage: nfs,
 		CS:         commonService,

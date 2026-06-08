@@ -13,6 +13,7 @@ limitations under the License.
 package service
 
 import (
+	"flag"
 	"log/slog"
 	"os"
 	"runtime"
@@ -119,7 +120,16 @@ func (driver *Driver) Run(testMode bool) {
 		// it doesn't hurt to create it for the 'controller' but you
 		// will see an error in the logs when it tries to test the mounter
 		// since we don't mount / under /host on the controller
+
+		// quiet the klog output due to mount_linux.go logic producing erroneous log
+		// messages on initialization
+		beforeValue := flag.Lookup("v").Value.String()
+		_ = flag.Set("v", "1")
 		mounter = mount.New("")
+
+		// return to previous klog verbosity
+		_ = flag.Set("v", beforeValue)
+
 		if runtime.GOOS == "linux" {
 			// MounterForceUnmounter is only implemented on Linux now
 			mounter = mounter.(mount.MounterForceUnmounter)

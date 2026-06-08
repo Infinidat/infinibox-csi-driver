@@ -15,6 +15,7 @@ package nfs
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -83,6 +84,11 @@ const (
 )
 
 func NewNFSstorage(capacity int64, cs storagecommon.Commonservice) (nfs *NFSstorage) {
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
 	nfs = &NFSstorage{
 		Capacity:      capacity,
 		CS:            cs,
@@ -90,6 +96,10 @@ func NewNFSstorage(capacity int64, cs storagecommon.Commonservice) (nfs *NFSstor
 		OSHelper:      helper.Service{},
 		Mounter:       mount.NewWithoutSystemd(""),
 	}
+
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
 	return nfs
 }
 

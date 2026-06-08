@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -44,9 +45,19 @@ type DiskInfo struct {
 
 func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType string, mountOptions []string, isBlock, readOnly bool) error {
 	const function = "mountLogic"
+
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
 	mounter := &mount.SafeFormatAndMount{
 		Interface: mount.NewWithoutSystemd(""),
 		Exec:      utilexec.New()}
+
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
 	var mounted bool
 	mntPoints, err := mounter.List()
 	if err != nil {
@@ -221,7 +232,16 @@ func LoadDiskInfoFromFile(conf *DiskInfo, mnt string) error {
 func UnmountAndCleanUp(targetPath string) (err error) {
 	slog.Debug("unmounting and cleaning up", "path for targetPath", targetPath)
 
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
 	mounter := mount.NewWithoutSystemd("")
+
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
 	targetHostPath := path.Join("/host", targetPath)
 
 	slog.Debug("unmounting ", "targetPath", targetPath)
@@ -288,7 +308,17 @@ func isMountedByListMethod(targetHostPath string) (bool, error) {
 	// }
 
 	slog.Debug("checking mount path using mounter's List() and searching with", "targetHostPath", targetHostPath)
+
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
 	mounter := mount.NewWithoutSystemd("")
+
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
 	mountList, mountListErr := mounter.List()
 	if mountListErr != nil {
 		return true, common.Errorf("%w", mountListErr)
@@ -429,7 +459,12 @@ func GetDiskMounter(req *csi.NodePublishVolumeRequest) (*Mounter, error) {
 		return nil, common.Errorf("bad VolumeCapability parameters: both block and mount modes, for volume: %s", req.GetVolumeId())
 	}
 
-	return &Mounter{
+	// quiet the klog output due to mount_linux.go logic producing erroneous log
+	// messages on initialization
+	beforeValue := flag.Lookup("v").Value.String()
+	_ = flag.Set("v", "1")
+
+	m := &Mounter{
 		IsBlock:      isBlock,
 		ReadOnly:     readOnly,
 		FsType:       fstype,
@@ -439,5 +474,10 @@ func GetDiskMounter(req *csi.NodePublishVolumeRequest) (*Mounter, error) {
 		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
 		TargetPath:   req.GetTargetPath(),
 		StagePath:    req.GetStagingTargetPath(),
-	}, nil
+	}
+
+	// return to previous klog verbosity
+	_ = flag.Set("v", beforeValue)
+
+	return m, nil
 }

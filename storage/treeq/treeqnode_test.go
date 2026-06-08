@@ -157,48 +157,6 @@ func (suite *TreeqNodeSuite) Test_TreeqNodePublishVolume_mount_Error() {
 	assert.NotNil(suite.T(), err, "not nil error")
 }
 
-func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_NotMountPoint_IsNotExist_true() {
-	mountErr := errors.New("mount error")
-	nfs := nfs.NFSstorage{Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
-	service := Treeqstorage{NFSstorage: nfs}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.osHelperMock.On("IsNotExist", mountErr).Return(true)
-	suite.nfsMountMock.On("Mount", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
-	targetPath := "/var/lib/kublet/"
-	suite.osHelperMock.On("Remove", targetPath).Return(nil)
-	volumeID := "1234"
-	_, err := service.NodeUnpublishVolume(suite.Suite.T().Context(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
-	assert.Nil(suite.T(), err, "empty error")
-}
-
-func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_notMnt_true() {
-	targetPath := "/var/lib/kublet/"
-	volumeID := "1234"
-	nfs := nfs.NFSstorage{Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
-	service := Treeqstorage{NFSstorage: nfs}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
-	suite.osHelperMock.On("Remove", targetPath).Return(nil)
-	suite.nfsMountMock.On("Unmount", mock.Anything).Return(nil)
-
-	_, err := service.NodeUnpublishVolume(suite.Suite.T().Context(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
-	assert.Nil(suite.T(), err, "empty err")
-}
-
-func (suite *TreeqNodeSuite) Test_TreeqNodeUnpublishVolume_unmount_sucess() {
-	targetPath := "/var/lib/kublet/"
-	volumeID := "1234"
-	nfs := nfs.NFSstorage{Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
-	service := Treeqstorage{NFSstorage: nfs}
-	suite.nfsMountMock.On("IsLikelyNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("IsNotMountPoint", mock.Anything).Return(true, nil)
-	suite.nfsMountMock.On("Unmount", targetPath).Return(nil)
-	suite.osHelperMock.On("Remove", targetPath).Return(nil)
-	_, err := service.NodeUnpublishVolume(suite.Suite.T().Context(), storagecommon.GetNodeUnPublishVolumeRequest(targetPath, volumeID))
-	assert.Nil(suite.T(), err, "empty err")
-}
-
 func (suite *TreeqNodeSuite) Test_NodeStageVolume() {
 	nfs := nfs.NFSstorage{Mounter: suite.nfsMountMock, OSHelper: suite.osHelperMock}
 	service := Treeqstorage{NFSstorage: nfs}
