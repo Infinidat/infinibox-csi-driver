@@ -1,8 +1,6 @@
 module github.com/infinidat/infinibox-csi-driver
 
-go 1.25.0
-
-toolchain go1.25.4
+go 1.25.11
 
 require (
 	github.com/container-storage-interface/spec v1.12.0

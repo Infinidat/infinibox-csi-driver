@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"strconv"
 
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
@@ -41,7 +42,7 @@ func main() {
 	// this call effectively initializes the logging system based on environment variables
 	// and default configurations.
 
-	slog.Info("Infinidat CSI Driver is Starting", "version", version, "compile date", compileDate, "git hash", gitHash, "log level", os.Getenv("APP_LOG_LEVEL"))
+	slog.Info("Infinidat CSI Driver is Starting", "version", version, "compile date", compileDate, "git hash", gitHash, "log level", os.Getenv("APP_LOG_LEVEL"), "compiler version", runtime.Version())
 
 	log.SetupKlog()
 
