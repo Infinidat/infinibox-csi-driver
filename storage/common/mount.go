@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -119,11 +120,22 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 
 		options = append(options, "bind")
 
-		if err := mounter.Mount(devicePath, targetPath, "", options); err != nil {
-			e := common.Errorf("%s: failed to mount fc volume %s to %s, error %v", function, devicePath, targetPath, err)
+		slog.Debug(function, "sleeping 3s before mounting:", chrootPath)
+		time.Sleep(time.Second * 3)
+		LogPermissions("targetPath perms", "/host"+targetPath)
+		LogPermissions("devicePath perms", "/host"+devicePath)
+
+		// example:
+		// mount -o rw,bind /host/dev/mapper/mpathai /host/var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices/publish/csi-osv-d2930b0cd2/ddb3679c-9937-436d-93b7-f14844a05517
+
+		_, _, err := ExecCommand.Command("mount", fmt.Sprintf("-o %s %s %s", strings.Join(options, ","), devicePath, targetPath))
+		if err != nil {
+			e := common.Errorf("%s: failed to mount fc volume %s to %s, error %v, options %v", function, devicePath, targetPath, err, options)
+			slog.Error("error mounting block device", "error", e.Error())
 			return e
 		}
-		slog.Debug("volume mounted successfully")
+
+		slog.Debug("block volume mounted successfully")
 		return nil
 	}
 
