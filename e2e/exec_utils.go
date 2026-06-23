@@ -378,15 +378,16 @@ func MpathExists(ctx context.Context, clientSet *kubernetes.Clientset, config *r
 func CleanISCI(ctx context.Context, testConfig TestConfig) error {
 	// find the csi driver node pod
 	namespace := os.Getenv("_E2E_NAMESPACE")
-	fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
+	//fieldSelector := fmt.Sprintf("spec.nodeName=%s", testConfig.NodeName)
 	labelSelector := "app=infinidat-csi-driver-node"
 	listOptions := metav1.ListOptions{
-		FieldSelector: fieldSelector,
+		//FieldSelector: fieldSelector,
 		LabelSelector: labelSelector,
 	}
 	csiPods, err := testConfig.ClientSet.CoreV1().Pods(namespace).List(ctx, listOptions)
 	if err != nil {
-		return fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
+		//return fmt.Errorf("error getting csi driver pod for nodeName %s fieldSelector %s labelSelector %s error %s", testConfig.NodeName, fieldSelector, labelSelector, err.Error())
+		return fmt.Errorf("error getting csi driver pod for nodeName %s labelSelector %s error %s", testConfig.NodeName, labelSelector, err.Error())
 	}
 
 	for _, pod := range csiPods.Items {

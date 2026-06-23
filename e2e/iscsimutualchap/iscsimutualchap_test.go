@@ -16,6 +16,13 @@ func TestIscsiMutualChap(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
+	t.Log("before initial iscsi clean")
+	err = e2e.CleanISCI(t.Context(), *testConfig)
+	if err != nil {
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
+	t.Log("after initial iscsi clean")
+
 	e2e.Setup(t.Context(), testConfig)
 
 	/**

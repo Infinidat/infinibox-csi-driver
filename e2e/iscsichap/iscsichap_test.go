@@ -16,6 +16,11 @@ func TestIscsi(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
+	err = e2e.CleanISCI(t.Context(), *testConfig)
+	if err != nil {
+		t.Logf("error cleaning ISCSI %s on node %s\n", err.Error(), testConfig.NodeName)
+	}
+
 	e2e.Setup(t.Context(), testConfig)
 
 	if *e2e.CleanUp {
