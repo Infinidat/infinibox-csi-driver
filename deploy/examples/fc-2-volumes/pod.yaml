@@ -1,0 +1,24 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: $TEST_NAME
+  namespace: $_E2E_NAMESPACE
+spec:
+  imagePullSecrets:
+  - name: $_E2E_IMAGE_PULL_SECRET
+  containers:
+    - name: csitest
+      image: $_E2E_TEST_IMAGE
+      volumeMounts:
+      - mountPath: "/tmp/csitesting"
+        name: ibox-csi-volume
+      - mountPath: "/tmp/csitesting2"
+        name: ibox-csi-volume2
+      command: [ "csitestimage" ]
+  volumes:
+    - name: ibox-csi-volume
+      persistentVolumeClaim:
+        claimName: $TEST_NAME
+    - name: ibox-csi-volume2
+      persistentVolumeClaim:
+        claimName: $TEST_NAME-2

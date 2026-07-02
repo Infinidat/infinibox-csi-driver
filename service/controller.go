@@ -353,6 +353,14 @@ func (s *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
+	defer func() {
+		isLocking := false
+		_ = helper.ManageNodeVolumeMutex(isLocking, "ControllerPublishVolume", req.GetVolumeId())
+	}()
+
+	isLocking := true
+	_ = helper.ManageNodeVolumeMutex(isLocking, "ControllerPublishVolume", req.GetVolumeId())
+
 	publishVolResp, err = storageController.ControllerPublishVolume(ctx, req)
 	if err != nil {
 		e := common.Errorf("ControllerPublishVolume - failed proto: %v volume ID: %s node ID: %s error: %w", volumeInfo, req.GetVolumeId(), req.GetNodeId(), err)

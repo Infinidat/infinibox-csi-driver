@@ -14,6 +14,7 @@ package iscsi
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
@@ -139,10 +141,22 @@ func (iscsi *ISCSIstorage) NodeStageVolume(ctx context.Context, req *csi.NodeSta
 		}
 		return nil, e
 	}
-	if !strings.Contains(ports, initiatorName) {
-		slog.Debug("host port is not created, creating one")
-		err = iscsi.CS.AddPortForHost(ctx, hostID, "ISCSI", initiatorName)
-		if err != nil {
+	_, err = iscsi.CS.IboxAPI.GetHostPort(ctx, hostID, initiatorName)
+	if err != nil {
+		if errors.Is(err, iboxapi.ErrNotFound) {
+			//if !strings.Contains(ports, initiatorName) {
+			slog.Debug("host port is not created, creating one")
+			err = iscsi.CS.AddPortForHost(ctx, hostID, "ISCSI", initiatorName)
+			if err != nil {
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
+				return nil, e
+			}
+			slog.Debug("added iscsi port to host", "host", hostID, "initiatorName", initiatorName)
+		} else {
 			_, file, line, _ := runtime.Caller(0)
 			e := storagecommon.ImplementationError{
 				Code: int(codes.Internal),

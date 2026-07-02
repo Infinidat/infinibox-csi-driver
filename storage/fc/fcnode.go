@@ -14,6 +14,7 @@ package fc
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
@@ -49,7 +51,7 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	var err error
 	slog.Debug("start", "PublishContext", req.GetPublishContext(), "volume ID", req.GetVolumeId(), "iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), fc.CS.IboxAPI))
 
-	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
+	hostID, _, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		e := storagecommon.ImplementationError{
@@ -94,11 +96,22 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 	slog.Debug("publishing volume to host ", "host ID", hostID, "port state", fcOnline)
 
 	for _, fcp := range fcPorts {
-		slog.Debug("comparing", "ports", ports, "with", fcp)
-		if !strings.Contains(ports, fcp) {
-			slog.Debug("host port is not created, creating it", "host port", fcp)
-			err = fc.CS.AddPortForHost(ctx, hostID, "FC", fcp)
-			if err != nil {
+		slog.Debug("GetHostPort", "hostID", hostID, "with", fcp)
+		_, err = fc.CS.IboxAPI.GetHostPort(ctx, hostID, fcp)
+		if err != nil {
+			if errors.Is(err, iboxapi.ErrNotFound) {
+				//if !strings.Contains(ports, fcp) {
+				slog.Debug("host port is not created, creating it", "host port", fcp)
+				err = fc.CS.AddPortForHost(ctx, hostID, "FC", fcp)
+				if err != nil {
+					_, file, line, _ := runtime.Caller(0)
+					e := storagecommon.ImplementationError{
+						Code: int(codes.Internal),
+						Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+					}
+					return nil, e
+				}
+			} else {
 				_, file, line, _ := runtime.Caller(0)
 				e := storagecommon.ImplementationError{
 					Code: int(codes.Internal),
@@ -106,15 +119,8 @@ func (fc *FCstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolu
 				}
 				return nil, e
 			}
-			_, err := fc.CS.IboxAPI.GetHostPort(ctx, hostID, fcp)
-			if err != nil {
-				_, file, line, _ := runtime.Caller(0)
-				e := storagecommon.ImplementationError{
-					Code: int(codes.Internal),
-					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
-				}
-				return nil, e
-			}
+		} else {
+			slog.Debug("host port already created", "hostID", hostID, "host port", fcp)
 		}
 	}
 

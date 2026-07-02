@@ -14,12 +14,14 @@ package nvme
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"os"
@@ -51,7 +53,8 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 	slog.Debug("start", "publish context", req.GetPublishContext(),
 		"iboxInfo", storagecommon.GetHostInfo(ctx, req.GetSecrets(), nvme.CS.IboxAPI))
 
-	hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
+	//hostID, ports, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
+	hostID, _, err := storagecommon.ValidatePublishContext(req.GetPublishContext())
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		e := storagecommon.ImplementationError{
@@ -71,10 +74,22 @@ func (nvme *NVMEstorage) NodeStageVolume(ctx context.Context, req *csi.NodeStage
 		return nil, e
 	}
 
-	if !strings.Contains(ports, hostNQN) {
-		slog.Debug("host nqn is not created, creating one")
-		err = nvme.CS.AddPortForHost(ctx, hostID, "NVME", hostNQN)
-		if err != nil {
+	_, err = nvme.CS.IboxAPI.GetHostPort(ctx, hostID, hostNQN)
+	if err != nil {
+		if errors.Is(err, iboxapi.ErrNotFound) {
+			//if !strings.Contains(ports, hostNQN) {
+			slog.Debug("host nqn is not created, creating one")
+			err = nvme.CS.AddPortForHost(ctx, hostID, "NVME", hostNQN)
+			if err != nil {
+				_, file, line, _ := runtime.Caller(0)
+				e := storagecommon.ImplementationError{
+					Code: int(codes.Internal),
+					Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+				}
+				return nil, e
+			}
+			slog.Debug("host nqn added")
+		} else {
 			_, file, line, _ := runtime.Caller(0)
 			e := storagecommon.ImplementationError{
 				Code: int(codes.Internal),
