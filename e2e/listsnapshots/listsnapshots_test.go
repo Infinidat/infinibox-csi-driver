@@ -18,6 +18,7 @@ package listsnapshots
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
@@ -33,9 +34,21 @@ func TestIscsiListSnapshots(t *testing.T) {
 		t.Fatalf("error getting TestConfig %s\n", err.Error())
 	}
 
+	testConfig.UseSnapshot = true
+
 	e2e.Setup(t.Context(), testConfig)
 
-	// TODO need to create a snapshot here
+	time.Sleep(time.Second * 5)
+
+	err = e2e.CreateSnapshot(t.Context(), testConfig.TestNames.PVCName, testConfig.TestNames.VSCName, testConfig.TestNames.NSName, testConfig.SnapshotClient)
+	if err != nil {
+		t.Fatalf("error creating volumesnapshot pod %s", err.Error())
+	}
+	time.Sleep(time.Second * 5)
+	err = e2e.WaitForSnapshot(t, e2e.SNAPSHOT_NAME, testConfig.TestNames.NSName, testConfig.SnapshotClient)
+	if err != nil {
+		t.Fatalf("error waiting for volumesnapshot %s", err.Error())
+	}
 
 	cl, err := clientgo.BuildOffClusterClient(e2e.KubeConfigPath)
 	if err != nil {
