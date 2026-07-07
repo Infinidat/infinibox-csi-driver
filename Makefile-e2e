@@ -170,6 +170,13 @@ e2elistvolumes:  ## run the infinidat developed e2e iscsi tests
 	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/listvolumes -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2elistsnapshots
+e2elistsnapshots:  ## run the infinidat developed e2e iscsi tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/listsnapshots -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2eiscsitests
 e2eiscsitests:  e2eiscsi e2eiscsianno e2eiscsicleanup
 	@echo -e $(_begin)
