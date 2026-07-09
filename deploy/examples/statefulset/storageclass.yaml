@@ -22,8 +22,10 @@ parameters:
   csi.storage.k8s.io/fstype: ext4
 
   # InfiniBox configuration
+  network_space: $_E2E_ISCSI_NETWORK_SPACE
+  storage_protocol: "iscsi"
   pool_name: $_E2E_POOL
-  storage_protocol: "fc"
+  useCHAP: "none" # none / chap / mutual_chap
 
   # optional parameters
   #round_up_requested_size: "true"

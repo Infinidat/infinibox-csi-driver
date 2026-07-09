@@ -159,6 +159,11 @@ func (kc *KubeClient) GetSecrets(ctx context.Context, namespace string) ([]map[s
 		maps.Copy(newMap, secret.StringData)
 		secretMaps = append(secretMaps, newMap)
 	}
+
+	if len(secretMaps) == 0 {
+		return secretMaps, common.Errorf("error getting secrets , no secrets were found with the label %s in namespace: %s", options.LabelSelector, namespace)
+	}
+
 	return secretMaps, nil
 }
 
