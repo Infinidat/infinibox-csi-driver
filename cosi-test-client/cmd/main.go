@@ -16,9 +16,11 @@ limitations under the License.
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -91,9 +93,22 @@ func main() {
 		slog.Error("env var is not set and is a required env var", "value", BUCKET_NAME)
 		os.Exit(1)
 	}
+	// 1. Create a custom HTTP Transport that skips TLS verification
+	customTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // Disables SSL/TLS verification
+		},
+	}
+
+	// 2. Wrap it inside a standard http.Client
+	httpClient := &http.Client{
+		Transport: customTransport,
+	}
 
 	// 1. Load the default AWS configuration (~/.aws/config or Env Vars)
-	cfg, err := config.LoadDefaultConfig(ctx)
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithHTTPClient(httpClient),
+	)
 	if err != nil {
 		slog.Error("unable to load SDK config", "error", err)
 		os.Exit(1)

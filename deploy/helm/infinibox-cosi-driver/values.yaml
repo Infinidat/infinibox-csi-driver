@@ -17,6 +17,8 @@ SecretName: "ibox-s3-credentials"
 accessKey: "6xxxxxxxxxxxxxx"
 secretAccessKey: "Bxxxxxxxxx/CLzqvflFAUVdnrudHaylD+qFKQCM/WYYm7cD"
 endpoint: "http://192.168.38.142:9020"
+tls:
+  insecureSkipVerify: true
 
 # set cpu and memory limits for the COSI driver
 driverresources:

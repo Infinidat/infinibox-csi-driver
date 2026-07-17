@@ -50,6 +50,8 @@ spec:
           image: {{ required "cosi driver container image." .Values.images.driver }}
           imagePullPolicy: Always
           env:
+            - name: S3_INSECURE_SKIP_VERIFY
+              value: {{  .Values.tls.insecureSkipVerify | default "true" | quote }}
             - name: S3_CREDENTIALS_SECRET_NAME
               value: {{ required "s3 secret." .Values.SecretName }}
             - name: POD_NAMESPACE

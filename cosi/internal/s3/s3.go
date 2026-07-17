@@ -15,11 +15,14 @@ limitations under the License.
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -138,9 +141,29 @@ func LoadAWSConfigFromSecret(ctx context.Context, secret *v1.Secret) (aws.Config
 
 	region := secret.Data["AWS_REGION"] // optional
 
+	tmp := os.Getenv("S3_INSECURE_SKIP_VERIFY")
+	insecureSkipVerify, err := strconv.ParseBool(tmp)
+	if err != nil {
+		slog.Info("error getting S3_INSECURE_SKIP_VERIFY env var, using default of true")
+		insecureSkipVerify = true // the default
+	}
+
+	// 1. Create a custom HTTP Transport that skips TLS verification
+	customTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: insecureSkipVerify, // Disables SSL/TLS verification
+		},
+	}
+
+	// 2. Wrap it inside a standard http.Client
+	httpClient := &http.Client{
+		Transport: customTransport,
+	}
+
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithRegion(string(region)),
+		config.WithHTTPClient(httpClient),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
 				string(accessKeyID),
