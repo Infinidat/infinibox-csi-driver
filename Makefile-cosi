@@ -1,0 +1,81 @@
+# vim: set foldmethod=indent foldnestmax=1 foldcolumn=1:
+
+_COSI_DRIVER_IMAGE   = infinidat-cosi-driver
+_COSI_TEST_CLIENT_IMAGE   = infinidat-cosi-test-client
+
+ifneq (,$(wildcard ./Makefile-vars-git-ignored))
+    include ./Makefile-vars-git-ignored
+    export
+endif
+
+.PHONY: cosibuild
+cosibuild: ## Build source.
+	@echo -e $(_begin)
+	$(_GOBUILD) -o cosi/bin/infinidat-cosi-driver cosi/cmd/main.go
+	@echo -e $(_finish)
+
+.PHONY: cosiimage
+cosiimage: cosibuild ## Build and tag CSI driver docker image.
+	@echo -e $(_begin)
+	@echo "Pulling base image $(_DOCKER_BASE_IMAGE)"
+	@docker pull $(_DOCKER_BASE_IMAGE)
+	@export HEAD=$$(git rev-parse --short HEAD); \
+	export BLAME_MACHINE=$$(hostname); \
+	export BLAME_USER=$${USER}; \
+	export BLAME_BUILD_TIME="$$(date)"; \
+	echo "Building COSI driver image [$(_IMAGE_TAG)] from commit [$$HEAD] at [$$BLAME_BUILD_TIME]"; \
+	docker buildx build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG)" \
+		--build-arg IMAGE_TAG="$(_IMAGE_TAG)" \
+		--build-arg VCS_REF="$$HEAD" \
+		--build-arg BLAME_MACHINE="$$BLAME_MACHINE" \
+		--build-arg BLAME_USER="$$BLAME_USER" \
+		--build-arg BLAME_BUILD_TIME="$$BLAME_BUILD_TIME" \
+		--pull \
+		-f Dockerfile-cosi .
+	@# TODO tag cmd needs review.
+	docker tag $(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG) $(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_DRIVER_IMAGE):$(_IMAGE_TAG)
+	@echo -e $(_finish)
+
+.PHONY: cosiimagepush
+cosiimagepush:  ## Tag and push COSI driver image to gitlab.
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_DRIVER_IMAGE):$(_IMAGE_TAG))
+	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_DRIVER_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
+	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_DRIVER_IMAGE):$(_IMAGE_TAG)
+
+.PHONY: cosilint
+cosilint: cosibuild  ## Lint source.
+	cd ./cosi && $(_GOLINT) run
+
+.PHONY: cositestclientbuild
+cositestclientbuild:  ## Build source.
+	@echo -e $(_begin)
+	$(_GOBUILD) -o cosi-test-client/bin/infinidat-cosi-test-client cosi-test-client/cmd/main.go
+	@echo -e $(_finish)
+
+.PHONY: cositestclientimage
+cositestclientimage: cositestclientbuild ## Build and tag CSI driver docker image.
+	@echo -e $(_begin)
+	@echo "Pulling base image $(_DOCKER_BASE_IMAGE)"
+	@docker pull $(_DOCKER_BASE_IMAGE)
+	@export HEAD=$$(git rev-parse --short HEAD); \
+	export BLAME_MACHINE=$$(hostname); \
+	export BLAME_USER=$${USER}; \
+	export BLAME_BUILD_TIME="$$(date)"; \
+	echo "Building COSI test client image [$(_IMAGE_TAG)] from commit [$$HEAD] at [$$BLAME_BUILD_TIME]"; \
+	docker buildx build $(OPTIONAL_DOCKER_BUILD_FLAGS) -t "$(_DOCKER_USER)/$(_COSI_TEST_CLIENT_IMAGE):$(_IMAGE_TAG)" \
+		--build-arg IMAGE_TAG="$(_IMAGE_TAG)" \
+		--build-arg VCS_REF="$$HEAD" \
+		--build-arg BLAME_MACHINE="$$BLAME_MACHINE" \
+		--build-arg BLAME_USER="$$BLAME_USER" \
+		--build-arg BLAME_BUILD_TIME="$$BLAME_BUILD_TIME" \
+		--pull \
+		-f Dockerfile-cosi-test-client .
+	docker tag $(_DOCKER_USER)/$(_DRIVER_IMAGE):$(_IMAGE_TAG) $(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_TEST_CLIENT_IMAGE):$(_IMAGE_TAG)
+	@echo -e $(_finish)
+
+.PHONY: cosi-test-client-image-push
+cosi-test-client-image-push:  ## Tag and push COSI driver image to gitlab.
+	$(eval _TARGET_IMAGE=$(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_TEST_CLIENT_IMAGE):$(_IMAGE_TAG))
+	docker tag $(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_TEST_CLIENT_IMAGE):$(_IMAGE_TAG) $(_TARGET_IMAGE)
+	docker push $(_GITLAB_REPO)/$(_GITLAB_USER)/infinidat-csi-driver/$(_COSI_TEST_CLIENT_IMAGE):$(_IMAGE_TAG)
+

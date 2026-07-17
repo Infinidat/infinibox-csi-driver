@@ -348,3 +348,9 @@ e2ecleanup:  ## delete all e2e namespaces
 	@echo -e kubeconfig here is ${KUBECONFIG}
 	kubectl get namespaces --no-headers -o custom-columns=:metadata.name | grep "e2e-" | xargs -r kubectl delete namespace --wait=false
 	@echo -e $(_finish)
+.PHONY: e2e-s3-test
+e2e-s3-test: 
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=s3 && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/s3 -tags e2e
+	@echo -e $(_finish)

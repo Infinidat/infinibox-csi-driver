@@ -1,0 +1,9 @@
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketClaim
+metadata:
+  namespace: infinidat-csi
+  name: example1static
+spec:
+  bucketClassName: example1
+  protocols:
+    - s3

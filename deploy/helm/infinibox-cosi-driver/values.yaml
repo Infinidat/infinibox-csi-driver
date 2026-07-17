@@ -1,0 +1,39 @@
+replicaCount: 1
+
+instanceCount: 1
+
+# log level of driver
+logLevel: "info"
+
+# log format, defaults is 'json', but 'text' is also valid
+logFormat: "json"
+
+# name of the driver
+# note same name will be used for provisioner name
+cosiDriverName: "infinibox-cosi-driver"
+cosiDriverVersion: "2.29.0"
+
+SecretName: "ibox-s3-credentials"
+accessKey: "6xxxxxxxxxxxxxx"
+secretAccessKey: "Bxxxxxxxxx/CLzqvflFAUVdnrudHaylD+qFKQCM/WYYm7cD"
+endpoint: "http://192.168.38.142:9020"
+
+# set cpu and memory limits for the COSI driver
+driverresources:
+  resources:
+    requests:
+      cpu: "0.1"
+      memory: "150Mi"
+    limits:
+      cpu: "0.5"
+      memory: "450Mi"
+
+# Image paths
+images:
+  sidecar: "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65"
+  sidecar_pull_policy: "IfNotPresent"
+
+  driver: "docker.io/infinidat/infinidat-cosi-driver:v2.29.0"
+  driver_pull_policy: "Always"
+
+imagePullSecret: "private-docker-reg-secret"

@@ -1,0 +1,4 @@
+kubectl create -f ./bucketclass.yaml
+kubectl create -f ./bucketclaim.yaml
+kubectl create -f ./bucketaccessclass.yaml
+kubectl create -f ./bucketaccess.yaml

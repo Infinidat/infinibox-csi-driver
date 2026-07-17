@@ -709,6 +709,23 @@ func CreateImagePullSecret(t *testing.T, namespace string, clientset *kubernetes
 	return nil
 }
 
+func SetupNamespace(ctx context.Context, testConfig *TestConfig) {
+	testConfig.Testt.Log("SETUP STARTS")
+	testConfig.Testt.Log(GetEnvVars())
+
+	err := ValidateEnv(ctx, testConfig)
+	if err != nil {
+		testConfig.Testt.Fatalf("error validating E2E env vars %s\n", err.Error())
+	}
+	testConfig.Testt.Log("✓ Env Var validation passed")
+
+	err = CreateNamespace(ctx, testConfig.TestNames.NSName, testConfig.ClientSet)
+	if err != nil {
+		testConfig.Testt.Fatalf("error setting up e2e namespace %s\n", err.Error())
+	}
+	testConfig.Testt.Logf("✓ Namespace %s is created\n", testConfig.TestNames.NSName)
+}
+
 func Setup(ctx context.Context, testConfig *TestConfig) {
 	testConfig.Testt.Log("SETUP STARTS")
 	testConfig.Testt.Log(GetEnvVars())

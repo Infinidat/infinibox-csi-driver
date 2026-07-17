@@ -1,0 +1,5 @@
+kubectl delete -f ./bucketclaim.yaml
+kubectl delete -f ./bucketaccess.yaml
+kubectl delete -f ./bucketaccessclass.yaml
+kubectl delete -f ./bucketclass.yaml
+kubectl delete secret/example1-s3-credentials

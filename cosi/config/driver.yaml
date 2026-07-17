@@ -1,0 +1,84 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infinidat-cosi-driver
+  namespace: infinidat-csi
+  labels:
+    app.kubernetes.io/name: cosi-driver.infinidat.com
+    app.kubernetes.io/instance: cosi-driver.infinidat.com
+    app.kubernetes.io/part-of: cosi-driver-sample
+    app.kubernetes.io/component: cosi-driver
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  replicas: 1
+  minReadySeconds: 30
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cosi-driver.infinidat.com
+      app.kubernetes.io/instance: cosi-driver.infinidat.com
+      app.kubernetes.io/part-of: cosi-driver-sample
+      app.kubernetes.io/component: cosi-driver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cosi-driver.infinidat.com
+        app.kubernetes.io/instance: cosi-driver.infinidat.com
+        app.kubernetes.io/part-of: cosi-driver-sample
+        app.kubernetes.io/component: cosi-driver
+    spec:
+      serviceAccountName: infinidat-cosi-driver
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      imagePullSecrets:
+      - name: private-docker-reg-secret
+      containers:
+        - name: driver
+          securityContext:
+            readOnlyRootFilesystem: true
+          image: git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-cosi-driver:v2.29.0
+          imagePullPolicy: Always
+          env:
+            - name: S3_CREDENTIALS_SECRET_NAME
+              value: "ibox-s3-credentials"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: cosi-socket-dir
+              mountPath: /var/lib/cosi
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64M
+            limits: {}
+        - name: objectstorage-provisioner-sidecar
+          image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: cosi-socket-dir
+              mountPath: /var/lib/cosi
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64M
+            limits: {}
+      volumes:
+        - name: cosi-socket-dir
+          emptyDir: {}

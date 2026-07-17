@@ -13,6 +13,7 @@ endif
 include Makefile-help
 include Makefile-git
 include Makefile-e2e
+include Makefile-cosi
 include Makefile-release
 include Makefile-metrics
 
@@ -123,8 +124,10 @@ test-find-fails:  ## Find and summarize failing tests.
 	@echo -e $(_finish)
 
 .PHONY: lint
-lint: build  ## Lint source.
+lint: ## Lint source.
+	@echo -e $(_begin) 
 	@$(_GOLINT) run
+	@echo -e $(_finish) 
 
 .PHONY: fmt
 fmt: build  ## Format and simplify source.

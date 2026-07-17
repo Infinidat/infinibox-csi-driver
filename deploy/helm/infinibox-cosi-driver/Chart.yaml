@@ -1,0 +1,13 @@
+apiVersion: v2
+name: infinibox-cosi-driver
+description: A Helm chart for deploying the Infinidat COSI plugin
+
+type: application
+
+version: 2.29.0
+
+appVersion: 2.29.0
+
+# tested on these kube versions
+kubeVersion: '>=1.23.0-0'
+

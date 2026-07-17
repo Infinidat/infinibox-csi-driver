@@ -64,6 +64,9 @@ func ValidateEnv(ctx context.Context, testConfig *TestConfig) (err error) {
 	protocol := os.Getenv(ENV_PROTOCOL)
 
 	switch protocol {
+	case "s3":
+		fmt.Printf("using s3 as protocol only in terms of naming conventions...\n")
+		return nil
 	case common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNFS, common.ProtocolTreeq, common.ProtocolNVME:
 		fmt.Printf("valid protocol found in env vars [%s]\n", protocol)
 	default:

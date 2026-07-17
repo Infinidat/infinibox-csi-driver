@@ -1,0 +1,11 @@
+kind: BucketClass
+apiVersion: objectstorage.k8s.io/v1alpha1
+metadata:
+  name: example1
+driverName: cosi-driver.infinidat.com
+deletionPolicy: Delete
+parameters:
+  cosi-driver.infinidat.com/adminSecretName: ibox-s3-credentials
+  cosi-driver.infinidat.com/adminSecretNamespace: infinidat-csi
+  cosi-driver.infinidat.com/accessSecretName: ibox-s3-credentials
+  cosi-driver.infinidat.com/accessSecretNamespace: infinidat-csi

@@ -1,0 +1,9 @@
+this test exercises the cosi driver to create a bucket and tests that
+a Secret is created for that bucket, the following is performed by the
+test:
+* create a bucketclass (cluster resource)
+* create a bucketclaim
+* create a bucketaccessclass (cluster resource)
+* create a bucketaccess
+* verify that a Secret is created in the e2e test namespace
+* clean up all resources that were created

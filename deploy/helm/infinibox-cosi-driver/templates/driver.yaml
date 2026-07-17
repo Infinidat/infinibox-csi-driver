@@ -1,0 +1,87 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infinidat-cosi-driver
+  namespace: infinidat-csi
+  labels:
+    app.kubernetes.io/name: cosi-driver.infinidat.com
+    app.kubernetes.io/instance: cosi-driver.infinidat.com
+    app.kubernetes.io/part-of: cosi-driver-sample
+    app.kubernetes.io/component: cosi-driver
+spec:
+  replicas: 1
+  minReadySeconds: 30
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cosi-driver.infinidat.com
+      app.kubernetes.io/instance: cosi-driver.infinidat.com
+      app.kubernetes.io/part-of: cosi-driver-sample
+      app.kubernetes.io/component: cosi-driver
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cosi-driver.infinidat.com
+        app.kubernetes.io/instance: cosi-driver.infinidat.com
+        app.kubernetes.io/part-of: cosi-driver-sample
+        app.kubernetes.io/component: cosi-driver
+    spec:
+      serviceAccountName: infinidat-cosi-driver
+      securityContext:
+        runAsNonRoot: true
+{{- if ne .Values.openshift true }}
+        runAsUser: 65532
+{{- end }}
+{{- if .Values.imagePullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.imagePullSecret }}
+{{- end }}
+      containers:
+        - name: driver
+          securityContext:
+            readOnlyRootFilesystem: true
+          image: {{ required "cosi driver container image." .Values.images.driver }}
+          imagePullPolicy: Always
+          env:
+            - name: S3_CREDENTIALS_SECRET_NAME
+              value: {{ required "s3 secret." .Values.SecretName }}
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: cosi-socket-dir
+              mountPath: /var/lib/cosi
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64M
+            limits: {}
+        - name: objectstorage-provisioner-sidecar
+          image: {{ required "cosi provisioner sidecar container image." .Values.images.sidecar }}
+          imagePullPolicy: {{  .Values.images.sidecar_pull_policy | default "IfNotPresent" | quote }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          securityContext:
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: cosi-socket-dir
+              mountPath: /var/lib/cosi
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64M
+            limits: {}
+      volumes:
+        - name: cosi-socket-dir
+          emptyDir: {}

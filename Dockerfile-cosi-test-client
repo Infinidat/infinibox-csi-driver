@@ -1,0 +1,38 @@
+FROM redhat/ubi9:latest
+
+# Note: See "linux_host" note the IBox Ansible vars yaml
+# file in git.infinidat.com:PSUS/webinar-automate-sla.git.
+# This is affected by the base image choice.
+# Base image is specified in Makefile and must match.
+
+ARG   BLAME_MACHINE
+ARG   BLAME_USER
+ARG   BLAME_BUILD_TIME
+ARG   IMAGE_TAG
+ARG   VCS_REF
+ENV   BLAME_MACHINE=$BLAME_MACHINE
+ENV   BLAME_USER=$BLAME_USER
+ENV   BLAME_BUILD_TIME=$BLAME_BUILD_TIME
+ENV   IMAGE_TAG=$IMAGE_TAG
+ENV   VCS_REF=$VCS_REF
+LABEL maintainer="partners.infi@infinidat.com"
+LABEL BLAME_MACHINE=$BLAME_MACHINE
+LABEL BLAME_USER=$BLAME_USER
+LABEL BLAME_BUILD_TIME=$BLAME_BUILD_TIME
+LABEL IMAGE_TAG=$IMAGE_TAG
+LABEL VCS_REF=$VCS_REF
+LABEL description="A COSI test client image for InfiniBox"
+LABEL name="infinidat-cosi-driver"
+LABEL org.opencontainers.image.authors="partners.infi@infinidat.com"
+LABEL summary="Infinidat COSI test client"
+LABEL vendor="Infinidat"
+
+COPY licenses /licenses
+COPY cosi-test-client/bin/infinidat-cosi-test-client /infinidat-cosi-test-client
+RUN chmod +x /infinidat-cosi-test-client
+
+RUN yum -y install file lsof hostname && \
+	yum -y update && \
+    yum -y clean all && rm -rf /var/cache
+
+ENTRYPOINT ["/infinidat-cosi-test-client"]
