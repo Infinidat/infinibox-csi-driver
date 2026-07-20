@@ -13,7 +13,7 @@ setup:  devEnv teardown teardown-remote
 	@echo -e $(_finish)
 
 .PHONY: setup-remote
-setup-remote:  devEnv teardown-remote
+setup-remote:  devEnv 
 	@echo -e $(_begin)
 	envsubst < ./pod-remote.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)

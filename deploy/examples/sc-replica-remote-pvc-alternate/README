@@ -1,0 +1,3 @@
+NOTE:  this example requires you to create a Secret that holds the remote kube cluster kubeconfig (/tmp/csidev-sles15-sp7.kubeconfig) as follows:
+
+$ kubectl create secret generic csidev-sles15-sp7-kubeconfig --from-file=config=/tmp/csidev-sles15-sp7.kubeconfig
