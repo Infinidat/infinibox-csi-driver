@@ -55,7 +55,7 @@ type PoolResult struct {
 	Type                             string  `json:"type"`
 	FreePhysicalSpace                int64   `json:"free_physical_space"`
 	DataReductionRatio               float64 `json:"data_reduction_ratio"`
-	TotalDiskUsage                   any     `json:"total_disk_usage"`
+	TotalDiskUsage                   int64   `json:"total_disk_usage"`
 	VvolSnapshotsCount               int     `json:"vvol_snapshots_count"`
 	ThinCapacitySavings              any     `json:"thin_capacity_savings"`
 	EntitiesCount                    int     `json:"entities_count"`

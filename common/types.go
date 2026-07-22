@@ -126,12 +126,13 @@ const (
 	EnvVarKubeVersion      = "KUBE_VERSION"
 	EnvVarNodeCount        = "NODE_COUNT"
 
-	EnvVarProtocolSecret   = "PROTOCOL_SECRET"
-	EnvVarPodNamespace     = "POD_NAMESPACE"
-	EnvVarCleanupNFSPerms  = "CLEANUP_NFS_PERMS"
-	EnvVarKubeNodeName     = "KUBE_NODE_NAME"
-	EnvVarNodeIP           = "NODE_IP"
-	EnvVarRemoveDomainName = "REMOVE_DOMAIN_NAME"
+	EnvVarProtocolSecret        = "PROTOCOL_SECRET"
+	EnvVarPodNamespace          = "POD_NAMESPACE"
+	EnvVarCleanupNFSPerms       = "CLEANUP_NFS_PERMS"
+	EnvVarKubeNodeName          = "KUBE_NODE_NAME"
+	EnvVarNodeIP                = "NODE_IP"
+	EnvVarRemoveDomainName      = "REMOVE_DOMAIN_NAME"
+	EnvVarPrimaryIboxCredential = "PRIMARY_IBOX_CREDENTIAL"
 )
 
 const (

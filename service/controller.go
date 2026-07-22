@@ -163,8 +163,6 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	helper.EventAPIClient = commonService.API
-	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventCreatedVolumes++
 
 	return createVolResp, nil
@@ -670,7 +668,7 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		"nodeid": s.Driver.nodeID,
 	}
 
-	storageController, commonService, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
+	storageController, _, err := storage.NewStorageController(config, req.GetSecrets(), &volumeInfo, 0)
 	if err != nil {
 		e := common.Errorf("NewStorageController - snapshot name: %s source volume ID: %s error: %w", req.GetName(), req.GetSourceVolumeId(), err)
 		slog.Error(e.Error())
@@ -684,8 +682,6 @@ func (s *ControllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSn
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	helper.EventAPIClient = commonService.API
-	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventCreatedSnapshots++
 
 	return createSnapshotResp, nil

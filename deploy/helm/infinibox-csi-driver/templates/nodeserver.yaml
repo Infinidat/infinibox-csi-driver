@@ -91,6 +91,8 @@ spec:
               value: "node"
             - name: CSI_ENDPOINT
               value: unix:///var/lib/kubelet/plugins/infinibox.infinidat.com/csi.sock
+            - name: PRIMARY_IBOX_CREDENTIAL
+              value: {{ .Values.primaryIboxCredential }}
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
             - name: APP_LOG_FORMAT

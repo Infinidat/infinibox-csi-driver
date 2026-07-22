@@ -141,7 +141,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
-	storageNode, commonService, err := storage.NewStorageNodeAndCommonService(0, config, req.GetSecrets(), &volumeInfo)
+	storageNode, _, err := storage.NewStorageNodeAndCommonService(0, config, req.GetSecrets(), &volumeInfo)
 	if err != nil {
 		e := common.Errorf("NewStorageNode - volume ID: %s error: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
@@ -164,8 +164,6 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		helper.EventNFSVersions[nfsVersion]++
 	}
 
-	helper.EventAPIClient = commonService.API
-	helper.EventIboxAPIClient = commonService.IboxAPI
 	helper.EventPublishedVolumes[volumeInfo.StorageType]++
 
 	return response, nil
