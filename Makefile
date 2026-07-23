@@ -84,7 +84,7 @@ build-e2e:  ## Build e2e source.
 	go test -c ./e2e/iscsistress/iscsistress_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsivolumegroup/iscsivolumegroup_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsianno/iscsianno_test.go -o /tmp/e2e -v
-	go test -c ./e2e/iscsicleanup/iscsicleanup_test.go
+	go test -c ./e2e/iscsicleanup/iscsicleanup_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsichap/iscsichap_test.go -o /tmp/e2e -v
 	go test -c ./e2e/iscsimutualchap/iscsimutualchap_test.go -o /tmp/e2e -v
 	go test -c ./e2e/metrics/metrics_test.go -o /tmp/e2e -v
@@ -105,6 +105,9 @@ rebuild: clean ## Rebuild source (all packages)
 .PHONY: test
 test: build  ## Unit test source.
 	$(_GOTEST) -v ./... -tags unit
+
+cover: ## Unit test source.
+	$(_GOTEST) -cover ./... -tags unit
 
 .PHONY: test-one-thing
 test-one-thing: build lint  ## Unit test source, but just run one test.
