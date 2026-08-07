@@ -24,7 +24,7 @@ dnsPolicy: "Default"
 # name of the driver
 # note same name will be used for provisioner name
 csiDriverName: "infinibox-csi-driver"
-csiDriverVersion: "2.26.0"
+csiDriverVersion: "2.30.0"
 
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
@@ -112,7 +112,7 @@ images:
 
   attachersidecar_pull_policy: "IfNotPresent"
 
-  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.26.0"
+  csidriver: "docker.io/infinidat/infinidat-csi-driver:v2.30.0"
   csidriver_pull_policy: "Always"
 
   # https://kubernetes-csi.github.io/docs/external-provisioner.html
