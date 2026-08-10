@@ -11,7 +11,7 @@ logFormat: "json"
 # name of the driver
 # note same name will be used for provisioner name
 cosiDriverName: "infinibox-cosi-driver"
-cosiDriverVersion: "2.29.0"
+cosiDriverVersion: "2.30.0"
 
 SecretName: "ibox-s3-credentials"
 accessKey: "6xxxxxxxxxxxxxx"
@@ -35,7 +35,7 @@ images:
   sidecar: "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20250711-controllerv0.2.0-rc1-80-gc2f6e65"
   sidecar_pull_policy: "IfNotPresent"
 
-  driver: "docker.io/infinidat/infinidat-cosi-driver:v2.29.0"
+  driver: "docker.io/infinidat/infinidat-cosi-driver:v2.30.0"
   driver_pull_policy: "Always"
 
 imagePullSecret: "private-docker-reg-secret"

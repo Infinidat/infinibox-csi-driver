@@ -44,7 +44,7 @@ spec:
         - name: driver
           securityContext:
             readOnlyRootFilesystem: true
-          image: git.infinidat.com:4567/jmccormick/infinidat-csi-driver/infinidat-cosi-driver:v2.29.0
+          image: github.com/infinidat/infinidat-csi-driver/infinidat-cosi-driver:v2.30.0
           imagePullPolicy: Always
           env:
             - name: S3_CREDENTIALS_SECRET_NAME
