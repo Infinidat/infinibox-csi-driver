@@ -303,9 +303,12 @@ func updatePoolMetricsImpl() {
 	}
 
 	for _, pv := range pvList.Items {
-		poolName := pv.Spec.CSI.VolumeAttributes[common.StorageClassPoolName]
-		if poolName != "" {
-			EventPoolUsage[poolName] = PoolData{}
+		provisionedBy := pv.Annotations["pv.kubernetes.io/provisioned-by"]
+		if provisionedBy == "infinibox-csi-driver" {
+			poolName := pv.Spec.CSI.VolumeAttributes[common.StorageClassPoolName]
+			if poolName != "" {
+				EventPoolUsage[poolName] = PoolData{}
+			}
 		}
 	}
 
