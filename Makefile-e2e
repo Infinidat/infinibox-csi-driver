@@ -156,6 +156,20 @@ e2enfsanno:  ## run the infinidat developed e2e nfs tests
 	_E2E_PROTOCOL=nfs && $(_GOTEST) -timeout=20m -count=1 -v ./e2e/nfsanno -tags e2e
 	@echo -e $(_finish)
 
+.PHONY: e2ecsiaddons
+e2ecsiaddons:  ## run the infinidat developed e2e csiaddons tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=20m -count=1 -v ./e2e/csiaddons -tags e2e
+	@echo -e $(_finish)
+
+.PHONY: e2ecsiaddonsvg
+e2ecsiaddonsvg:  ## run the infinidat developed e2e csiaddons volume group tests
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=20m -count=1 -v ./e2e/csiaddons-volumegroup -tags e2e
+	@echo -e $(_finish)
+
 .PHONY: e2eiscsipromote
 e2eiscsipromote:  ## run the infinidat developed e2e iscsi tests
 	@echo -e $(_begin)

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"strings"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
 
@@ -139,6 +140,24 @@ func (kc *KubeClient) GetSecret(ctx context.Context, secretName, namespace strin
 	}
 	maps.Copy(secretMap, secret.StringData)
 	return secretMap, nil
+}
+
+func (kc *KubeClient) GetSecretContainsName(ctx context.Context, namespace, name string) (*v1.Secret, error) {
+	options := metav1.ListOptions{
+		LabelSelector: "app=infinidat-csi-driver",
+	}
+	secrets, err := kc.KubeClientInterface.CoreV1().Secrets(namespace).List(ctx, options)
+	if err != nil {
+		return nil, common.Errorf("error getting secrets - namespace: %s error: %w", namespace, err)
+	}
+	slog.Debug("got secrets for app=infinidat-csi-driver", "item count", len(secrets.Items), "namespace", namespace)
+	for _, secret := range secrets.Items {
+		if strings.Contains(secret.Name, name) {
+			return &secret, nil
+		}
+	}
+
+	return nil, common.Errorf("error getting secrets , no secrets were found with the string %s in namespace: %s", name, namespace)
 }
 
 func (kc *KubeClient) GetSecrets(ctx context.Context, namespace string) ([]map[string]string, error) {

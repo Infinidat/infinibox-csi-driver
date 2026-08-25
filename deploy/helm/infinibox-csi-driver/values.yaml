@@ -29,6 +29,10 @@ csiDriverVersion: "2.30.0"
 # set e2etesting to true if you want to expose the CSI socket (e.g. for e2e testing)
 e2etesting: "false"
 
+# set to true if you want to deploy the CSI Addons sidecar and start services
+# for processing CSI Addon rpc calls within the CSI driver
+installCSIAddons: false
+
 # set to true in order to strip off domain names from the host name that is registered on the ibox, this
 # is useful if you have really long domain names which can exceed what the ibox can support for host name length
 removeDomainName: "false"
@@ -104,6 +108,9 @@ controllerserver:
 
 # Image paths
 images:
+  csiaddonssidecar: "quay.io/csiaddons/k8s-sidecar:v0.14.0"
+  csiaddonssidecar_pull_policy: "IfNotPresent"
+
   # https://kubernetes-csi.github.io/docs/external-attacher.html
   #attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:033c2e5d3a190686c32298e0ae972a79aff903958db204a084c503356e66967d" # v4.4.1
   #attachersidecar: "registry.k8s.io/sig-storage/csi-attacher@sha256:b4d611100ece2f9bc980d1cb19c2285b8868da261e3b1ee8f45448ab5512ab94" # v4.6.1

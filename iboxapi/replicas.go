@@ -193,7 +193,7 @@ type Replica struct {
 	RemoteIPAddresses        any    `json:"_remote_ip_addresses"`
 	StartedAt                int64  `json:"started_at"`
 	SyncDuration             int    `json:"sync_duration"`
-	LastSynchronized         any    `json:"last_synchronized"`
+	LastSynchronized         int64  `json:"last_synchronized"`
 	Progress                 int    `json:"progress"`
 	RestorePoint             any    `json:"restore_point"`
 	ConsistentGUID           any    `json:"_consistent_guid"`
@@ -445,6 +445,38 @@ func (client *IboxClient) GetReplicaForCG(ctx context.Context, cgName string) (r
 	parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(common.IBOXDefaultQueryPageSize)
 	parameters[PARAMETER_PAGE] = strconv.Itoa(1)
 	parameters["local_cg_name"] = cgName
+
+	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
+	if err != nil {
+		return nil, common.Errorf("commonGetLogic - error: %w url: %s", err, url)
+	}
+	var response GetReplicasResponse
+	err = json.Unmarshal(bodyBytes, &response)
+	if err != nil {
+		return nil, common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+
+	if response.Error.Code != "" {
+		return nil, common.Errorf("ibox API - error: %v url: %s", response.Error, url)
+	}
+
+	if len(response.Result) == 0 {
+		return nil, ErrNotFound
+	}
+	replica = &response.Result[0]
+
+	return replica, nil
+
+}
+
+func (client *IboxClient) GetReplicaForLocalEntityName(ctx context.Context, localEntityName string) (replica *Replica, err error) {
+	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/replicas")
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
+
+	parameters := make(map[string]string)
+	parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(common.IBOXDefaultQueryPageSize)
+	parameters[PARAMETER_PAGE] = strconv.Itoa(1)
+	parameters["local_entity_name"] = localEntityName
 
 	bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 	if err != nil {

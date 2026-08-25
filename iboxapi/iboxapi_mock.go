@@ -410,6 +410,12 @@ func (m *MockAPIService) GetReplicaForCG(ctx context.Context, cgName string) (*R
 	err, _ := args.Get(1).(error)
 	return &resp, err
 }
+func (m *MockAPIService) GetReplicaForLocalEntityName(ctx context.Context, localEntityName string) (*Replica, error) {
+	args := m.Called(ctx, localEntityName)
+	resp, _ := args.Get(0).(Replica)
+	err, _ := args.Get(1).(error)
+	return &resp, err
+}
 
 func (m *MockAPIService) DeleteReplica(ctx context.Context, replicaID int) error {
 	args := m.Called(ctx, replicaID)

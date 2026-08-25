@@ -595,3 +595,105 @@ func GetMpathForBlockVolume(ctx context.Context, testConfig *TestConfig, pvcName
 
 	return configFile.MpathDevice, nil
 }
+
+type AddonsArgs struct {
+	Command         string
+	Secret          string
+	Params          string
+	VolumeGroupID   string
+	VolumeGroupName string
+	VolumeIds       string
+}
+
+func AddonsCommand(ctx context.Context, testConfig *TestConfig, args AddonsArgs) (output string, err error) {
+	containerName := "csiaddons"
+	podName := "infinidat-csi-driver-driver-0"
+	ns := "infinidat-csi"
+
+	params := []string{}
+	params = append(params, "-operation")
+	params = append(params, args.Command)
+
+	params = append(params, "-secret")
+	params = append(params, args.Secret)
+
+	params = append(params, "-endpoint")
+	params = append(params, "unix:///csi/csi-addons.sock")
+
+	command := "csi-addons"
+
+	if args.Params != "" {
+		params = append(params, "-parameters")
+		params = append(params, args.Params)
+	}
+	if args.VolumeGroupID != "" {
+		params = append(params, "-volumegroupid")
+		params = append(params, args.VolumeGroupID)
+	}
+	if args.VolumeIds != "" {
+		params = append(params, "-volumeids")
+		params = append(params, args.VolumeIds)
+	}
+	if args.VolumeGroupName != "" {
+		params = append(params, "-volumegroupname")
+		params = append(params, args.VolumeGroupName)
+	}
+
+	fmt.Printf("executing command %s %v\n", command, params)
+
+	stdOut, stdErr, err := execCmdInPodNoSh(ctx, testConfig.ClientSet, testConfig.RestConfig, podName, ns, command, containerName, params)
+	if err != nil {
+		fmt.Printf("error AddonsCommand error: %s stderr: %s stdout: %s\n", err.Error(), stdErr, stdOut)
+		return "", err
+	}
+	fmt.Printf("command output %s\n", stdOut)
+	// we expect something like this:
+	// {"rootdir":"/host","mpathdevice":"mpathc","isblock":false,"volumeid":1321676}
+
+	return stdOut, nil
+}
+
+// execCmdInPodNoSh - exec command on specific pod and wait the command's output.
+func execCmdInPodNoSh(ctx context.Context, clientSet *kubernetes.Clientset, config *restclient.Config, podName string, nameSpace string, command string, containerName string, params []string) (string, string, error) {
+	stdOut := &bytes.Buffer{}
+	stdErr := &bytes.Buffer{}
+
+	cmd := []string{
+		command,
+	}
+	cmd = append(cmd, params...)
+
+	req := clientSet.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(nameSpace).
+		SubResource("exec")
+	// need container name?
+
+	req.VersionedParams(
+		&v1.PodExecOptions{
+			Container: containerName,
+			Command:   cmd,
+			Stdin:     false,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		},
+		scheme.ParameterCodec,
+	)
+
+	// fmt.Printf("execCmdInPod - Running command: %s\n", command)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return stdOut.String(), stdErr.String(), err
+	}
+	err = exec.StreamWithContext(ctx,
+		remotecommand.StreamOptions{
+			Stdin:  nil,
+			Stdout: stdOut,
+			Stderr: stdErr,
+		})
+
+	return stdOut.String(), stdErr.String(), err
+}

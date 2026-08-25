@@ -19,6 +19,7 @@ import (
 	"runtime"
 
 	"github.com/infinidat/infinibox-csi-driver/helper"
+	addons "github.com/infinidat/infinibox-csi-driver/service/csiaddons"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"k8s.io/mount-utils"
@@ -28,6 +29,7 @@ type DriverOptions struct {
 	NodeID           string
 	DriverName       string
 	Endpoint         string
+	AddonsEndpoint   string
 	Version          string
 	MountPermissions uint64
 	WorkingMountDir  string
@@ -38,6 +40,7 @@ type Driver struct {
 	nodeID           string
 	version          string
 	endpoint         string
+	addonsEndpoint   string
 	mountPermissions uint64
 	workingMountDir  string
 
@@ -57,6 +60,7 @@ func NewDriver(options *DriverOptions) *Driver {
 		version:          options.Version,
 		nodeID:           options.NodeID,
 		endpoint:         options.Endpoint,
+		addonsEndpoint:   options.AddonsEndpoint,
 		mountPermissions: options.MountPermissions,
 		workingMountDir:  options.WorkingMountDir,
 	}
@@ -135,6 +139,41 @@ func (driver *Driver) Run(testMode bool) {
 			mounter = mounter.(mount.MounterForceUnmounter)
 		}
 	}
+
+	if driver.addonsEndpoint != "" {
+		slog.Info("starting csiaddons server", "endpoint", driver.addonsEndpoint)
+		//TODO figure out how to serve a different gRPC endpoint other than the normal csi endpoint
+		conf := &addons.Config{
+			DriverName:     driver.name,
+			DriverVersion:  driver.version,
+			AddonsEndpoint: driver.addonsEndpoint,
+		}
+		conf.IsControllerServer = true
+		conf.IsNodeServer = false
+		if role != "controller" {
+			conf.IsControllerServer = false
+			conf.IsNodeServer = true
+		}
+		addonsServer, err := addons.NewCSIAddonsServer(driver.addonsEndpoint)
+		if err != nil {
+			slog.Error("could not create addons server", "error", err.Error())
+		}
+
+		is := addons.NewIdentityServer(conf)
+		addonsServer.RegisterService(is)
+
+		if conf.IsControllerServer {
+			rs := addons.NewReplicationServer("instanceID")
+			addonsServer.RegisterService(rs)
+			vg := addons.NewVolumeGroupServer("instanceID")
+			addonsServer.RegisterService(vg)
+		}
+		err = addonsServer.Start()
+		if err != nil {
+			slog.Error("could not start addons server", "error", err.Error())
+		}
+	}
+
 	driver.ns = NewNodeServer(driver, mounter)
 	server := NewNonBlockingGRPCServer()
 	server.Start(driver.endpoint,

@@ -173,6 +173,7 @@ type Client interface {
 	DeleteReplica(ctx context.Context, id int) error
 	GetReplica(ctx context.Context, id int) (*Replica, error)
 	GetReplicaForCG(ctx context.Context, cg string) (*Replica, error)
+	GetReplicaForLocalEntityName(ctx context.Context, localEntityName string) (*Replica, error)
 
 	// system
 	GetSystem(ctx context.Context) (*SystemDetails, error)

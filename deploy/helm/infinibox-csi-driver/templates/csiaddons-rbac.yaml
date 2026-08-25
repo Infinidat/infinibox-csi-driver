@@ -1,0 +1,36 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-csiaddons-sidecar
+rules:
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["update", "create", "get", "list", "watch", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationclasses"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationcontents"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplications"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplicationclasses"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumereplications"]
+    verbs: ["get", "list", "watch", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-csiddons-sidecar
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-controller
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-csiaddons-sidecar
+  apiGroup: rbac.authorization.k8s.io

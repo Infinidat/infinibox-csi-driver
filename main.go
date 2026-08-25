@@ -61,6 +61,10 @@ func main() {
 		slog.Error("CSI_ENDPOINT not set")
 		os.Exit(1)
 	}
+	csiAddonsEndpoint := os.Getenv("CSI_ADDONS_ENDPOINT")
+	if csiAddonsEndpoint == "" {
+		slog.Info("CSI_ADDONS_ENDPOINT not set")
+	}
 	if version == "" {
 		slog.Error("version not set")
 		os.Exit(1)
@@ -103,10 +107,11 @@ func main() {
 	slog.Info("versionInfo continued", "Version", version, "OS Version", osVersion, "Kube Version", kubeVersion, "Kube Node Count", nodeCount)
 
 	driverOptions := service.DriverOptions{
-		NodeID:     nodeIP,
-		DriverName: driverName,
-		Endpoint:   csiEndpoint,
-		Version:    version,
+		NodeID:         nodeIP,
+		DriverName:     driverName,
+		Endpoint:       csiEndpoint,
+		AddonsEndpoint: csiAddonsEndpoint,
+		Version:        version,
 	}
 	d := service.NewDriver(&driverOptions)
 	d.Run(false)
