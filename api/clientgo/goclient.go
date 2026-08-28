@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"os"
+	"strconv"
 	"strings"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
@@ -68,6 +70,26 @@ func BuildClient() (kubeClient *KubeClient, err error) {
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			return nil, err
+		}
+		burstLimit := os.Getenv("BURST_LIMIT")
+		if burstLimit != "" {
+			value, err := strconv.Atoi(burstLimit)
+			if err != nil {
+				slog.Error("BURST_LIMIT is not a valid integer, using default", "value", burstLimit)
+			} else {
+				slog.Info("setting BURST_LIMIT", "value", burstLimit)
+				config.Burst = value
+			}
+		}
+		qpsLimit := os.Getenv("QPS_LIMIT")
+		if qpsLimit != "" {
+			value, err := strconv.Atoi(qpsLimit)
+			if err != nil {
+				slog.Error("QPS_LIMIT is not a valid integer, using default", "value", qpsLimit)
+			} else {
+				slog.Info("setting QPS_LIMIT", "value", qpsLimit)
+				config.QPS = float32(value)
+			}
 		}
 		// creates the clientset
 		clientset, err := kubernetes.NewForConfig(config)

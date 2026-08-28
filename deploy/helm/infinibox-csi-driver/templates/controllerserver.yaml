@@ -304,6 +304,10 @@ spec:
               value: "{{ .Values.createEvents }}"
             - name: PRIMARY_IBOX_CREDENTIAL
               value: "{{ .Values.primaryIboxCredential }}"
+            - name: BURST_LIMIT
+              value: "{{ .Values.burstLimit }}"
+            - name: QPS_LIMIT
+              value: "{{ .Values.qpsLimit }}"
             - name: PROTOCOL_SECRET
               value: {{ .Values.protocolSecret }}
             - name: APP_LOG_LEVEL

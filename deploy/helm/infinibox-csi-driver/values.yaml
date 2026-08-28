@@ -37,6 +37,11 @@ installCSIAddons: false
 # is useful if you have really long domain names which can exceed what the ibox can support for host name length
 removeDomainName: "false"
 
+# client-go limits to use (burst and queries per second), if not specified
+# the defaults are used (burst 10, qps 5)
+burstLimit: 10
+qpsLimit: 5
+
 # set to false to prevent events from being created on the ibox for CSI related events
 # the default is "true" when not set
 #createEvents: "false"

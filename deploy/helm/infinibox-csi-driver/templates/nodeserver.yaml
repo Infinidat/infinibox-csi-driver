@@ -95,6 +95,10 @@ spec:
               value: {{ .Values.primaryIboxCredential }}
             - name: APP_LOG_LEVEL
               value: {{ .Values.logLevel }}
+            - name: BURST_LIMIT
+              value: "{{ .Values.burstLimit }}"
+            - name: QPS_LIMIT
+              value: "{{ .Values.qpsLimit }}"
             - name: APP_LOG_FORMAT
               value: {{ .Values.logFormat }}
             - name: PROTOCOL_SECRET
