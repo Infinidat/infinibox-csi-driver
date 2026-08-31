@@ -93,7 +93,7 @@ Infinibox_Protocol_Secrets:
 # default it 5 seconds
 #resize2fsDelay: "5"
 
-# set cpu and memory limits for the CSI servers
+# set cpu and memory limits and optionally tolerations for the CSI servers
 nodeserver:
   resources:
     requests:
@@ -102,6 +102,11 @@ nodeserver:
     limits:
       cpu: "0.5"
       memory: "450Mi"
+# tolerations:
+# - key: "example-key"
+#   operator: "Equal"
+#   value: "true"
+#   effect: "PreferNoSchedule"
 controllerserver:
   resources:
     requests:
@@ -110,6 +115,11 @@ controllerserver:
     limits:
       cpu: "0.5"
       memory: "450Mi"
+# tolerations:
+# - key: "example-key"
+#   operator: "Equal"
+#   value: "true"
+#   effect: "PreferNoSchedule"
 
 # Image paths
 images:
@@ -169,7 +179,7 @@ images:
 
   livenesssidecar_pull_policy: "IfNotPresent"
 
-  #imagePullSecret: "private-docker-reg-secret"
+# imagePullSecret: "private-docker-reg-secret"
 
 # primaryIboxCredential is a required field, it should be
 # the credential name of the Infinibox that represents your

@@ -28,6 +28,10 @@ spec:
       labels:
         app: {{ .Release.Name }}-node
     spec:
+      {{- if .Values.nodeserver.tolerations }}
+      tolerations:
+        {{- toYaml .Values.nodeserver.tolerations | nindent 8 }}
+      {{- end }}
       serviceAccount: {{ .Release.Name }}-node
       hostNetwork: true
       dnsPolicy: {{ .Values.dnsPolicy | default "Default" | quote }}

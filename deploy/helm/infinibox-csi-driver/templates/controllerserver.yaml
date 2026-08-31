@@ -30,6 +30,10 @@ spec:
       labels:
         app: {{ .Release.Name }}-driver
     spec:
+      {{- if .Values.controllerserver.tolerations }}
+      tolerations:
+        {{- toYaml .Values.controllerserver.tolerations | nindent 8 }}
+      {{- end }}
       serviceAccount: {{ .Release.Name }}-controller
       dnsPolicy: {{ .Values.dnsPolicy | default "Default" | quote }}
       containers:
