@@ -9,6 +9,11 @@ replicaCount: 1
 
 instanceCount: 1
 
+# if you intend to use leaderElection, update the instanceCount to 2
+# to cause 2 statefulset members to start up, preferred pod affinity
+# will be used to schedule the statefulset members
+leaderElection: "false"
+
 # prefix for pv name
 volumeNamePrefix: ibox
 

@@ -56,11 +56,13 @@ func init() {
 
 func main() {
 	var metricsAddr string
+	var leaderElectionNamespace string
 	var enableLeaderElection bool
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	flag.StringVar(&leaderElectionNamespace, "leader-elect-namespace", "infinidat-csi", "The namespace for the leader lease")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8088", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager. "+"Enabling this will ensure there is only one active controller manager.")
@@ -77,6 +79,7 @@ func main() {
 	slog.Info("metrics-bind-address", "value", metricsAddr)
 	slog.Info("health-probe-bind-address", "value", probeAddr)
 	slog.Info("leader-elect", "value", enableLeaderElection)
+	slog.Info("leader-elect-namespace", "value", leaderElectionNamespace)
 	slog.Info("metrics-secure", "value", secureMetrics)
 	slog.Info("enable-http2", "value", enableHTTP2)
 
@@ -124,12 +127,14 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsServerOptions,
-		WebhookServer:          webhookServer,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "afeefbf6.infinidat.com",
+		Scheme:                     scheme,
+		Metrics:                    metricsServerOptions,
+		WebhookServer:              webhookServer,
+		HealthProbeBindAddress:     probeAddr,
+		LeaderElection:             enableLeaderElection,
+		LeaderElectionNamespace:    leaderElectionNamespace,
+		LeaderElectionResourceLock: "leases",
+		LeaderElectionID:           "afeefbf6.infinidat.com",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
