@@ -117,6 +117,10 @@ spec:
               value: "{{ .Values.multipathCleanupDelay }}"
             - name: MULTIPATH_WAIT
               value: "{{ .Values.multipathWait }}"
+            - name: MULTIPATH_FLUSH_RETRIES
+              value: "{{ .Values.multipathFlushRetries }}"
+            - name: MULTIPATH_FLUSH_RETRY_DELAY_SECONDS
+              value: "{{ .Values.multipathFlushRetryDelaySeconds }}"
             - name: FC_SEARCH_DISK_DELAY
               value: "{{ .Values.fcSearchDiskDelay }}"
             - name: RESIZE2FS_DELAY

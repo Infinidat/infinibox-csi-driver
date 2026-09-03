@@ -89,6 +89,12 @@ Infinibox_Protocol_Secrets:
 # default is 250, this value is in milliseconds, it represents a duration of time to delay between
 # interations
 #multipathWait: "250"
+#
+# set to override default values for retrying multipath flush commands 
+# when they error, default is retries: 5 and retrydelay: 6
+#multipathFlushRetries: 5
+#multipathFlushRetryDelaySeconds: 6
+
 
 # set to override default values for multipath search disk, default is 10 seconds to search for devicemapper
 # devices to show up as part of publishing a new volume on a node

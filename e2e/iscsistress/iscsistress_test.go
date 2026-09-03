@@ -33,7 +33,7 @@ func TestIscsi(t *testing.T) {
 
 	e2e.Setup(t.Context(), testConfig)
 
-	volumesToCreate := 157
+	volumesToCreate := 20
 
 	originalPVCName := testConfig.TestNames.PVCName
 

@@ -34,10 +34,14 @@ import (
 )
 
 const (
-	MultipathWait             = "MULTIPATH_WAIT"
-	mpathDeviceCount      int = 6
-	MultipathCleanupDelay     = "MULTIPATH_CLEANUP_DELAY"
-	FCSearchDiskDelay         = "FC_SEARCH_DISK_DELAY"
+	MultipathWait                           = "MULTIPATH_WAIT"
+	mpathDeviceCount                    int = 6
+	MultipathCleanupDelay                   = "MULTIPATH_CLEANUP_DELAY"
+	FCSearchDiskDelay                       = "FC_SEARCH_DISK_DELAY"
+	defaultFlushRetries                     = 6
+	defaultFlushRetriesDelaySeconds         = 5
+	MULTIPATH_FLUSH_RETRIES                 = "MULTIPATH_FLUSH_RETRIES"
+	MULTIPATH_FLUSH_RETRY_DELAY_SECONDS     = "MULTIPATH_FLUSH_RETRY_DELAY_SECONDS"
 )
 
 type PortInfo struct {
@@ -148,6 +152,9 @@ func FindMultipathDeviceFromVolumePath(volumePath string) (string, error) {
 		return "", common.Errorf("error reading /proc/mounts error %w", err)
 	}
 	fileScanner := bufio.NewScanner(readFile)
+	if fileScanner.Err() != nil {
+		return "", common.Errorf("error creating filescanner for reading /proc/mounts error %w", err)
+	}
 
 	fileScanner.Split(bufio.ScanLines)
 
@@ -558,7 +565,10 @@ func DetachMpathDevice(mpathDevice string, protocol string) error {
 	slog.Debug("mpath", "device is", mpath)
 
 	// 1
-	multipathFlush(mpath)
+	err = multipathFlush(mpath)
+	if err != nil {
+		return err
+	}
 
 	const defaultSleepAfterFlush = 1
 	sleepAfterFlushThisExecution := defaultSleepAfterFlush
@@ -707,16 +717,49 @@ func detachDiskByDeviceName(deviceName string) error {
 
 // Flush a multipath device map for device.
 
-func multipathFlush(mpath string) {
-	slog.Debug("Running", "multipath -f", mpath)
+func multipathFlush(mpath string) error {
+	slog.Debug("running", "multipath -f", mpath)
+
+	flushRetries := getIntEnvVar(MULTIPATH_FLUSH_RETRIES, defaultFlushRetries)
+	flushRetriesDelay := getIntEnvVar(MULTIPATH_FLUSH_RETRY_DELAY_SECONDS, defaultFlushRetriesDelaySeconds)
+
+	slog.Info("trying multipath flush", "retries", flushRetries, "retriesDelay", flushRetriesDelay)
 
 	isToLogOutput := true
-	if out, _, err := ExecCommand.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput); err != nil {
-		slog.Error(" multipath -f failed", "mpath", mpath, "error", err)
-	} else {
-		slog.Debug(" multipath -f succeeded", "mpath", mpath, "out", out)
+	for i := range flushRetries {
+		out, _, err := ExecCommand.Command("multipath", fmt.Sprintf("-f %s", mpath), isToLogOutput)
+		if err != nil && i == (flushRetries-1) {
+			// give up on retrying and return an error
+			slog.Info("giving up on multipath flush retries", "retryCount", i, "error", err)
+			return err
+		}
+		if err != nil {
+			slog.Error("multipath flush error, will retry", "retryCount", i, "retryDelaySeconds", defaultFlushRetriesDelaySeconds, "error", err)
+		}
+		if err == nil {
+			slog.Info("multipath flush success", "mpath", mpath, "out", out)
+			break
+		}
+		slog.Info("multipath flush - sleeping until next try...", "tries", i)
+		time.Sleep(time.Second * time.Duration(flushRetriesDelay))
 	}
+	return nil
 
 	// _, _ = execScsi.Command("ls", "-l /host/dev/mapper/*; echo", isToLogOutput)
 	// _, _ = execScsi.Command("ls", "/host/dev/sd*; echo", isToLogOutput)
+}
+
+func getIntEnvVar(envVar string, defaultInt int) int {
+	envVarValue := os.Getenv(envVar)
+	if envVarValue == "" {
+		slog.Warn("env var was empty, using default", "envvar", envVar, "default", defaultInt)
+		return defaultInt
+	}
+
+	x, err := strconv.Atoi(envVarValue)
+	if err != nil {
+		slog.Error("could not convert env var to int, using default", "env var", envVar, "error", err, "default", defaultInt)
+		return defaultInt
+	}
+	return x
 }

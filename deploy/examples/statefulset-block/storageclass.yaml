@@ -1,0 +1,37 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: $TEST_NAME
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+parameters:
+  csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+
+  # InfiniBox configuration
+  network_space: $_E2E_ISCSI_NETWORK_SPACE
+  storage_protocol: "iscsi"
+  pool_name: $_E2E_POOL
+  useCHAP: "none" # none / chap / mutual_chap
+
+  # optional parameters
+  #round_up_requested_size: "true"
+  #provision_type: "THIN"
+  #ssd_enabled: "true"
+  #max_vols_per_host: "20"
+  #uid: "3000"                 # optional: override default UID for filesystem mount
+  #gid: "3000"                 # optional: override default GID for filesystem mount
+  unix_permissions: "777"     # optional: override default permissions for filesystem mount

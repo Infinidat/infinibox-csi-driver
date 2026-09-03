@@ -1,0 +1,44 @@
+# k8s/block-app-statefulset.yaml
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: block-app
+spec:
+  serviceName: "block-app-service"
+  replicas: 4
+  selector:
+    matchLabels:
+      app: block-app
+  template:
+    metadata:
+      labels:
+        app: block-app
+    spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - csi-test1
+      containers:
+        - name: block-app
+          image: redhat/ubi9:latest
+          command: ["/bin/sh", "-c", "lsblk && tail -f /dev/null"]
+          volumeDevices:
+            - name: raw-storage
+              devicePath: /dev/xvdb-custom
+  volumeClaimTemplates:
+  - metadata:
+      name: raw-storage
+    spec:
+      storageClassName: $TEST_NAME
+      accessModes: [ "ReadWriteMany" ]
+      volumeMode: Block
+      resources:
+        requests:
+          storage: 1Gi
