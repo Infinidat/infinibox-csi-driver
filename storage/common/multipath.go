@@ -507,7 +507,7 @@ func findDevicesForMpath(mpath string) (devices []string, err error) {
 func FindMpathFromDevice(device string) (mpath string, err error) {
 	deviceName := strings.Replace(device, "/dev/", "", 1)
 	wildcards := "\"%n_%d_\""
-	command := fmt.Sprintf("multipathd show maps raw format %s | grep %s", wildcards, deviceName)
+	command := fmt.Sprintf("multipathd show maps raw format %s | grep _%s_", wildcards, deviceName)
 	out, _, err := ExecCommand.Command(command, "")
 	if err != nil {
 		return "", common.Errorf("command failed command: %s error: %w", command, err)
