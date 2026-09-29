@@ -1,6 +1,6 @@
 _GITLAB_USER=host-opensource
 _IMAGE_TAG = v2.30.0
-_IMAGE_NAMES = "infinidat-csi-driver infinidat-csi-metrics infinidat-csi-operator"
+_IMAGE_NAMES = "infinidat-cosi-driver infinidat-csi-driver infinidat-csi-metrics infinidat-csi-operator"
 
 _TEST_ONE_THING_DIR=storage
 _TEST_ONE_THING=TestISCSIControllerSuite/Test_CreateVolume_content_success
