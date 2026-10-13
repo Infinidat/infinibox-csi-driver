@@ -31,7 +31,7 @@ _GOLINT             = golangci-lint
 _LOCALDIR ?= $(shell pwd)
 
 # Docker image tag. Read from env or use default
-_IMAGE_TAG   ?= v2.31.0
+_IMAGE_TAG   ?= v2.30.1
 
 _GITLAB_REPO        = git.infinidat.com:4567
 _BINARY_NAME        = infinibox-csi-driver
