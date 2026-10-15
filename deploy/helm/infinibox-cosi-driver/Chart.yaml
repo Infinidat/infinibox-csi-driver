@@ -4,9 +4,9 @@ description: A Helm chart for deploying the Infinidat COSI plugin
 
 type: application
 
-version: 2.30.1
+version: 2.31.0
 
-appVersion: 2.30.1
+appVersion: 2.31.0
 
 # tested on these kube versions
 kubeVersion: '>=1.23.0-0'

@@ -8,5 +8,5 @@ metadata:
 spec:
   description: "test add member to cg"  # user defined description
   local_cg_name: $_E2E_IBOXREPLICA_CG
-  local_volume_name: csi-test-b202af2541
+  local_volume_name: csi-test-cb8a163b5d
   base_action: "ADD"                    # valid values: ADD, REMOVE

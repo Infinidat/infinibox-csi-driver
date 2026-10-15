@@ -165,10 +165,10 @@ type ReplicationPairInfo struct {
 }
 
 type AddMemberToCGRequest struct {
-	DatasetID            int                 `json:"dataset_id"`
-	AAInfo               ActiveActiveInfo    `json:"active_active_info"`
-	PairInfo             ReplicationPairInfo `json:"replication_pair_info,omitempty"`
-	ReplicationPairsInfo string              `json:"replication_pairs_info,omitempty"`
+	DatasetID int              `json:"dataset_id"`
+	AAInfo    ActiveActiveInfo `json:"active_active_info"`
+	//PairInfo             ReplicationPairInfo `json:"replication_pair_info,omitempty"`
+	ReplicationPairsInfo string `json:"replication_pairs_info,omitempty"`
 }
 type AddMemberToCGResponse struct {
 	Metadata Metadata             `json:"metadata"`
@@ -419,16 +419,18 @@ func (client *IboxClient) AddMemberToCG(ctx context.Context, volumeID, cgID int,
 		RemoteEntityName: volumeName,
 	}
 
+	/**
 	pairInfo := ReplicationPairInfo{
 		LocalEntityID:    volumeID,
 		RemoteEntityName: volumeName,
 		LocalBaseAction:  "NO_BASE_DATA",
 		RemoteBaseAction: "CREATE",
 	}
+	*/
 	req := AddMemberToCGRequest{
 		DatasetID: volumeID,
 		AAInfo:    aa,
-		PairInfo:  pairInfo,
+		//PairInfo:  pairInfo,
 	}
 
 	parameters := make(map[string]string)
