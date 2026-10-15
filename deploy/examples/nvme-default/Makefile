@@ -9,6 +9,8 @@ setup:  devEnv teardown
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ../volumesnapshotclass.yaml | $(_CLI) create -f -
+	sleep 10
+	oc annotate --overwrite storageprofile ibox-nvme-default  cdi.kubevirt.io/minimumSupportedPvcSize=1Gi
 	@echo -e $(_finish)
 
 .PHONY: teardown
