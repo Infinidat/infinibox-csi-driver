@@ -27,6 +27,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-node
+      {{- if .Values.podAnnotations }}
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      {{- end }}
     spec:
       {{- if .Values.nodeserver.tolerations }}
       tolerations:

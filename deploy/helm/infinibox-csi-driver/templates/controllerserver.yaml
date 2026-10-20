@@ -29,6 +29,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-driver
+      {{- if .Values.podAnnotations }}
+      annotations:
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+      {{- end }}
     spec:
       {{- if eq .Values.leaderElection "true" }}
       affinity:

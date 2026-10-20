@@ -215,3 +215,6 @@ Infinibox_Cred:
     outbound_user: "iqn.2020-06.com.csi-driver-iscsi.infinidat:commonin"
     outbound_secret: "0.0000000000001"
 
+# podAnnotations allows you to inject annotations into the driver pods
+# both Daemonset and StatefulSet pods
+podAnnotations:
