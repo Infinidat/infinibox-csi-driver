@@ -246,6 +246,19 @@ func (iscsi *ISCSIstorage) NodePublishVolume(ctx context.Context, req *csi.NodeP
 			}
 			return nil, e
 		}
+		var fsType string
+		block := req.GetVolumeCapability().GetBlock()
+		var isBlock bool
+		if block != nil {
+			isBlock = true
+		} else {
+			fsType = req.GetVolumeCapability().GetMount().FsType
+		}
+
+		err = storagecommon.ExpandSnapshotCloneLogic(ctx, diskMounter, fsType, isBlock, iscsi.CS, iscsi.CS.VolProto.VolumeID)
+		if err != nil {
+			slog.Error("error ExpandSnapshotCloneLogic", "error", err)
+		}
 	}
 
 	helper.PrettyKlogDebug("NodePublishVolume (iscsi) returning csi.NodePublishVolumeResponse:", csi.NodePublishVolumeResponse{})

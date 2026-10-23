@@ -90,6 +90,7 @@ type Client interface {
 	GetVolumeByName(ctx context.Context, volumeName string) (*Volume, error)
 	GetVolume(ctx context.Context, volumeID int) (*Volume, error)
 	UpdateVolume(ctx context.Context, volumeID int, volume Volume) (*Volume, error)
+	UpdateVolumeSize(ctx context.Context, volumeID int, sz int64) error
 	CreateSnapshotVolume(ctx context.Context, snapshotParam CreateSnapshotVolumeRequest) (*Snapshot, error)
 	PromoteSnapshot(ctx context.Context, snapshotID int) (*Volume, error)
 	GetVolumesByParentID(ctx context.Context, parentID int) ([]Volume, error)
@@ -163,7 +164,7 @@ type Client interface {
 	// metadata
 	PutMetadata(ctx context.Context, objectID int, metadata map[string]any) (*PutMetadataResponse, error)
 	GetMetadata(ctx context.Context, objectID int) ([]GetMetadataResult, error)
-	DeleteMetadata(ctx context.Context, objectID int) (*DeleteMetadataResponse, error)
+	DeleteMetadata(ctx context.Context, objectID int, key string) (*DeleteMetadataResponse, error)
 
 	// links and replication
 	GetLink(ctx context.Context, linkID int) (*Link, error)

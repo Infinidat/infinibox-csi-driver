@@ -223,7 +223,7 @@ func (c *ClientService) DeleteFileSystemComplete(ctx context.Context, fileSystem
 	slog.Log(ctx, common.LevelTrace, "Export path deleted successfully")
 
 	// 2.delete metadata
-	_, err = c.IboxAPI.DeleteMetadata(ctx, fileSystemID)
+	_, err = c.IboxAPI.DeleteMetadata(ctx, fileSystemID, "")
 	if err != nil {
 		if !strings.Contains(err.Error(), "METADATA_IS_NOT_SUPPORTED_FOR_ENTITY") {
 			slog.Error("failed to delete metadata", "error", err)

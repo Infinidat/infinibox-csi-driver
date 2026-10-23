@@ -110,12 +110,11 @@ cover: ## Unit test source.
 	$(_GOTEST) -cover ./... -tags unit
 
 .PHONY: test-one-thing
-test-one-thing: build lint  ## Unit test source, but just run one test.
+test-one-thing: ## Unit test source, but just run one test.
 	@echo -e $(_begin)
 	@printf "\nFrom $(_TEST_ONE_THING_DIR)/, running test $(_TEST_ONE_THING)\n\n"
 	@sleep 1
-	@cd "$(_TEST_ONE_THING_DIR)" && \
-		$(_GOTEST) -v -run "$(_TEST_ONE_THING)" \
+	go test -tags=unit -run=^$(_TEST_ONE_THING)$$ ./... \
 		&&  printf "\nTest passed = From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n" \
 		|| (printf "\nTest failed - From $(_TEST_ONE_THING_DIR)/, ran test $(_TEST_ONE_THING)\n\n"; false)
 	@echo -e $(_finish)

@@ -190,7 +190,7 @@ func (suite *NVMEControllerSuite) Test_CreateVolume_metadataError() {
 func (suite *NVMEControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 	createVolReq := storagecommon.GetDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.DeleteVolume(suite.Suite.T().Context(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: nvme DeleteVolume storagecommon.GetVolume")
@@ -199,7 +199,7 @@ func (suite *NVMEControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 func (suite *NVMEControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
 	createVolReq := storagecommon.GetDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", suite.Suite.T().Context(), mock.Anything).Return(deleteVolumeResponse, suite.someError)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
@@ -215,7 +215,7 @@ func (suite *NVMEControllerSuite) Test_DeleteVolume_Error() {
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.iboxapi.On("GetVolumesByParentID", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.Volume{}, nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", suite.Suite.T().Context(), mock.Anything).Return(deleteVolumeResponse, suite.someError)
 
@@ -227,7 +227,7 @@ func (suite *NVMEControllerSuite) Test_DeleteVolume_success() {
 	createVolReq := storagecommon.GetDeleteRequest()
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	suite.iboxapi.On("GetVolumesByParentID", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
@@ -358,7 +358,7 @@ func (suite *NVMEControllerSuite) Test_DeleteSnapshot() {
 	suite.iboxapi.On("GetVolumesByParentID", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", suite.Suite.T().Context(), mock.Anything).Return(deleteVolumeResponse, nil)
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)

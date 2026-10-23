@@ -13,6 +13,7 @@ limitations under the License.
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -25,6 +26,7 @@ import (
 )
 
 const Resize2FSDelay = "RESIZE2FS_DELAY"
+const ResizeRequired = "resizeRequired"
 
 /*
 BlockExpandVolume
@@ -182,5 +184,49 @@ func ExpandFileSystem(multipathDevice string, fsType string) error {
 		return common.Errorf("command %s - error: %w", command, err)
 	}
 	slog.Debug("command", "output", strings.TrimSpace(out))
+	return nil
+}
+
+func ExpandSnapshotCloneLogic(ctx context.Context, diskMounter *Mounter, fsType string, isBlock bool, cs Commonservice, volumeID int) (err error) {
+	targetPath := diskMounter.TargetPath
+	stagePath := diskMounter.StagePath
+	multipathDevice, err := FindMultipathDeviceFromVolumePath(targetPath)
+	if err != nil {
+		slog.Error("error finding mpath device from targetpath", "error", err, "targetPath", targetPath)
+		return err
+	}
+	slog.Debug("before expand", "multipathDevice", multipathDevice, "isBlock", isBlock, "targetPath", targetPath, "stagePath", stagePath, "fsType", fsType)
+	volumePath := targetPath
+	metadata, err := cs.IboxAPI.GetMetadata(ctx, volumeID)
+	if err != nil {
+		slog.Error("error getting metadata", "error", err, "volumeID", volumeID, "targetPath", targetPath)
+		return err
+	}
+
+	slog.Debug("metadata for volume", "metadata", metadata)
+	for _, v := range metadata {
+		if v.Key == ResizeRequired && v.Value == "true" {
+			slog.Info("this volume's file system needs to be resized")
+			// resize the filesystem or block
+			if isBlock {
+				slog.Debug("info", "block string", isBlock)
+				err = BlockExpandVolume(volumePath)
+				if err != nil {
+					slog.Error("error expanding block volume", "error", err, "device", multipathDevice, "fstype", fsType)
+				}
+			} else {
+				err = ExpandFileSystem(multipathDevice, fsType)
+				if err != nil {
+					slog.Error("error expanding filesystem", "error", err, "device", multipathDevice, "fstype", fsType)
+				}
+			}
+
+			// delete the resize metadata key
+			_, err := cs.IboxAPI.DeleteMetadata(ctx, volumeID, ResizeRequired)
+			if err != nil {
+				slog.Error("error deleting metadata key", "error", err, "key", ResizeRequired)
+			}
+		}
+	}
 	return nil
 }

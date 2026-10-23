@@ -80,51 +80,51 @@ func ValidateSnapshotLockingParameter(nowTime int64, input string) (timeInUnixMi
 	return futureTime, nil
 }
 
-func CreateVolumeFromVolumeContent(ctx context.Context, cs Commonservice, req *csi.CreateVolumeRequest, name string, sizeInBytes int64, storagePool string) (*csi.CreateVolumeResponse, error) {
+func CreateVolumeFromVolumeContent(ctx context.Context, cs Commonservice, req *csi.CreateVolumeRequest, volumeName string, requestedSize int64, storagePool string) (*csi.CreateVolumeResponse, error) {
 	var err error
-
-	volumecontent := req.GetVolumeContentSource()
 	var volumeContentID string
-	var restoreType string
-	if volumecontent.GetSnapshot() != nil {
-		restoreType = RestoreTypeSnapshot
-		volumeContentID = volumecontent.GetSnapshot().GetSnapshotId()
-	} else if volumecontent.GetVolume() != nil {
-		volumeContentID = volumecontent.GetVolume().GetVolumeId()
+	var resizeRequired bool
+	restoreType := RestoreTypeSnapshot
+
+	if req.GetVolumeContentSource().GetSnapshot() != nil {
+		volumeContentID = req.GetVolumeContentSource().GetSnapshot().GetSnapshotId()
+	} else if req.GetVolumeContentSource().GetVolume() != nil {
+		volumeContentID = req.GetVolumeContentSource().GetVolume().GetVolumeId()
 		restoreType = RestoreTypeVolume
 	}
-	slog.Debug("info", "volume content id", volumeContentID, "restore type", restoreType, "size", sizeInBytes)
+	slog.Debug("info", "volume content id", volumeContentID, "restore type", restoreType, "size", requestedSize)
 
-	// Validate the source content id
-	volproto, err := ValidateVolumeID(volumeContentID)
+	volumeInfo, err := ValidateVolumeID(volumeContentID)
 	if err != nil {
 		e := fmt.Sprintf("error from ValidateVolumeID - restoreType: %s volumeContentID: %s, error: %s", restoreType, volumeContentID, err.Error())
 		slog.Error(e)
 		return nil, status.Error(codes.NotFound, e)
 	}
 
-	srcVol, err := cs.IboxAPI.GetVolume(ctx, volproto.VolumeID)
+	sourceVolume, err := cs.IboxAPI.GetVolume(ctx, volumeInfo.VolumeID)
 	if err != nil {
-		e := fmt.Sprintf("error from GetVolume - restoreType: %s volumeID: %d error: %s", restoreType, volproto.VolumeID, err.Error())
+		e := fmt.Sprintf("error from GetVolume - restoreType: %s volumeID: %d error: %s", restoreType, volumeInfo.VolumeID, err.Error())
 		slog.Error(e)
 		return nil, status.Error(codes.NotFound, e)
 	}
 
-	// Validate the size is the same.
-	if srcVol.Size != sizeInBytes {
-		return nil, status.Errorf(codes.InvalidArgument,
-			restoreType+" %s has incompatible size %d bytes with requested %d bytes",
-			volumeContentID, srcVol.Size, sizeInBytes)
+	if sourceVolume.Size > requestedSize {
+		slog.Error("source volume size is greater than requested size, which is not supported", "volume", volumeInfo.VolumeID, "restore type", restoreType, "source volume size", sourceVolume.Size, "requested size", requestedSize)
+		return nil, status.Error(codes.Internal, "invalid restore sizes")
+	}
+	if sourceVolume.Size < requestedSize {
+		slog.Debug("info", "resizeRequired - source volume size is less than requested size", sourceVolume.Size, "sizeInBytes", requestedSize)
+		resizeRequired = true
 	}
 
 	// Validate the storagePool is the same.
 	pool, err := cs.IboxAPI.GetPoolByName(ctx, storagePool)
 	if err != nil {
-		e := fmt.Sprintf("error from GetPoolByName - storagePool: %s  error: %s", storagePool, err.Error())
+		e := fmt.Sprintf("GetPoolByName - storagePool: %s  error: %s", storagePool, err.Error())
 		slog.Error(e)
 		return nil, status.Error(codes.Internal, e)
 	}
-	if pool.ID != srcVol.PoolID {
+	if pool.ID != sourceVolume.PoolID {
 		e := fmt.Sprintf("volume storage pool is different than requested storagePool: %s", storagePool)
 		slog.Error(e)
 		return nil, status.Error(codes.InvalidArgument, e)
@@ -134,62 +134,78 @@ func CreateVolumeFromVolumeContent(ctx context.Context, cs Commonservice, req *c
 		ssd = strconv.FormatBool(false)
 	}
 	ssdEnabled, _ := strconv.ParseBool(ssd)
-	snapshotParam := iboxapi.CreateSnapshotVolumeRequest{
-		ParentID:       volproto.VolumeID,
-		SnapshotName:   name,
+
+	// for clones or restores we create a Snapshot to base the restored volume or clone volume on
+	createSnapshotRequest := iboxapi.CreateSnapshotVolumeRequest{
+		ParentID:       volumeInfo.VolumeID,
+		SnapshotName:   volumeName,
 		WriteProtected: false,
 		SSDEnabled:     ssdEnabled,
 		LockExpiresAt:  0,
 	}
-	// Create snapshot
-	snapResponse, err := cs.IboxAPI.CreateSnapshotVolume(ctx, snapshotParam)
+
+	createSnapshotResponse, err := cs.IboxAPI.CreateSnapshotVolume(ctx, createSnapshotRequest)
 	if err != nil {
-		e := fmt.Sprintf("error from CreateSnapshotVolume - error: %s", err.Error())
+		e := fmt.Sprintf("CreateSnapshotVolume - error: %s", err.Error())
 		slog.Error(e)
 		return nil, status.Error(codes.Internal, e)
 	}
 
 	// Retrieve created destination volume
-	volID := snapResponse.SnapShotID
-	dstVol, err := cs.IboxAPI.GetVolume(ctx, volID)
+	newSnapshotVolumeID := createSnapshotResponse.SnapShotID
+	newSnapshotVolume, err := cs.IboxAPI.GetVolume(ctx, newSnapshotVolumeID)
 	if err != nil {
-		e := fmt.Sprintf("error from GetVolume - volumeID: %d error: %s", volID, err.Error())
+		e := fmt.Sprintf("GetVolume - volumeID: %d error: %s", newSnapshotVolumeID, err.Error())
 		slog.Error(e)
 		return nil, status.Error(codes.Internal, e)
 	}
 
 	// ibox 7.x doesn't support snapshot promote so we check for ibox feature support for it
-	enabled, err := featureEnabled(ctx, cs.IboxAPI, common.IboxFeaturePromoteSnapshot)
+	snapshotPromoteEnabled, err := featureEnabled(ctx, cs.IboxAPI, common.IboxFeaturePromoteSnapshot)
 	if err != nil {
-		e := fmt.Errorf("from featureEnabled - error: %s", err.Error())
+		e := fmt.Errorf("featureEnabled - error: %s", err.Error())
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
 	}
 
-	slog.Debug("snapshot promote feature", "enabled", enabled)
-	if enabled {
-		// promote the snapshot created just now to a MASTER volume
-		_, err = cs.IboxAPI.PromoteSnapshot(ctx, dstVol.ID)
+	slog.Debug("snapshot promote feature", "enabled", snapshotPromoteEnabled)
+	if snapshotPromoteEnabled {
+		// promote the newly created snapshot to a MASTER volume
+		_, err = cs.IboxAPI.PromoteSnapshot(ctx, newSnapshotVolume.ID)
 		if err != nil {
 			e := fmt.Errorf("from PromoteSnapshot - error: %s", err.Error())
 			slog.Error(e.Error())
 			return nil, status.Error(codes.Internal, e.Error())
 		}
-		slog.Debug("snapshot promoted to volume", "volume id", dstVol.ID)
+		slog.Debug("snapshot promoted to volume", "volume id", newSnapshotVolume.ID)
+
+		// resize the new volume if the requested size is larger than the new volume
+		if resizeRequired {
+			err = cs.IboxAPI.UpdateVolumeSize(ctx, newSnapshotVolume.ID, requestedSize)
+			if err != nil {
+				e := fmt.Sprintf("UpdateVolumeSize - volumeID: %d error: %s", newSnapshotVolumeID, err.Error())
+				slog.Error(e)
+				return nil, status.Error(codes.Internal, e)
+			}
+			newSnapshotVolume.Size = requestedSize
+			slog.Info("updated volume size", "size", requestedSize)
+		}
 	} else {
-		slog.Debug("snapshot promoted not enabled on this ibox, so not promoting volume", "volume id", dstVol.ID)
+		slog.Debug("snapshot promoted not enabled on this ibox, so not promoting volume", "volume id", newSnapshotVolume.ID)
 	}
 
 	// Create a volume response and return it
-	csiVolume := cs.GetCSIResponse(ctx, dstVol, req)
+	csiVolume := cs.GetCSIResponse(ctx, newSnapshotVolume, req)
 	CopyRequestParameters(req.GetParameters(), csiVolume.VolumeContext)
+	slog.Info("size of response", "size", csiVolume.CapacityBytes)
 
 	metadata := map[string]any{
-		"host.k8s.pvname": dstVol.Name,
+		"host.k8s.pvname": newSnapshotVolume.Name,
+		ResizeRequired:    resizeRequired,
 	}
-	_, err = cs.IboxAPI.PutMetadata(ctx, dstVol.ID, metadata)
+	_, err = cs.IboxAPI.PutMetadata(ctx, newSnapshotVolume.ID, metadata)
 	if err != nil {
-		e := fmt.Sprintf("error from PutMetadata - volumeName: %s, error: %s", dstVol.Name, err.Error())
+		e := fmt.Sprintf("PutMetadata - volumeName: %s, error: %s", newSnapshotVolume.Name, err.Error())
 		slog.Error(e)
 		return nil, status.Error(codes.Internal, e)
 	}

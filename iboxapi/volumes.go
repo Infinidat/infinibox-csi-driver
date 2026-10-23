@@ -430,3 +430,56 @@ func (client *IboxClient) PromoteSnapshot(ctx context.Context, snapshotID int) (
 	slog.Log(ctx, common.LevelTrace, "info", "Volume ID", responseObject.Result.ID)
 	return &responseObject.Result, nil
 }
+
+func (client *IboxClient) UpdateVolumeSize(ctx context.Context, volumeID int, sizeInBytes int64) error {
+	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/volumes/", volumeID)
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "volume ID", volumeID)
+
+	type VolumeSize struct {
+		Size int64 `json:"size"`
+	}
+	vs := VolumeSize{
+		Size: sizeInBytes,
+	}
+	jsonBytes, err := json.Marshal(vs)
+	if err != nil {
+		return common.Errorf("marshal - error: %w url: %s", err, url)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return common.Errorf("newRequest - error: %w url: %s", err, url)
+	}
+
+	SetAuthHeader(request, client.Creds)
+
+	request.Header.Set(CONTENT_TYPE, JSON_CONTENT_TYPE)
+
+	response, err := client.HTTPClient.Do(request)
+	if err != nil {
+		return common.Errorf("do - error: %w url: %s", err, url)
+	}
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			slog.Error("close", "error", err.Error())
+		}
+	}()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return common.Errorf("readAll - error: %w url: %s", err, url)
+	}
+
+	var responseObject UpdateVolumeResponse
+	err = json.Unmarshal(body, &responseObject)
+	if err != nil {
+		return common.Errorf("unmarshal - error: %w url: %s", err, url)
+	}
+	if responseObject.Error.Code != "" {
+		if responseObject.Error.Code == "VOLUME_NOT_FOUND" {
+			return common.Errorf("errorCode: %s - error: %w url: %s", responseObject.Error.Code, ErrNotFound, url)
+		}
+		slog.Log(ctx, common.LevelTrace, "info", "URL", url, "error code", responseObject.Error.Code)
+		return common.Errorf("ibox API - error: %v url: %s", responseObject.Error, url)
+	}
+	return nil
+}

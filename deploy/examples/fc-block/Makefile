@@ -22,16 +22,16 @@ teardown: devEnv
 	envsubst < ./storageclass.yaml | $(_CLI) delete --wait --ignore-not-found=true -f -
 	@echo -e $(_finish)
 
-.PHONY: setup-block-clone
-setup-block-clone:  devEnv teardown-block-clone
+.PHONY: setup-clone
+setup-clone:  devEnv teardown-clone
 	@echo -e $(_begin)
 	envsubst < ./storageclass.yaml | $(_CLI) create -f -
 	envsubst < ./pvc-block-clone.yaml | $(_CLIN) create -f -
 	envsubst < ./pod-block-clone.yaml | $(_CLIN) create -f -
 	@echo -e $(_finish)
 
-.PHONY: teardown-block-clone
-teardown-block-clone:  devEnv 
+.PHONY: teardown-clone
+teardown-clone:  devEnv 
 	@echo -e $(_begin)
 	envsubst < ./pod-block-clone.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -
 	envsubst < ./pvc-block-clone.yaml | $(_CLIN) delete --wait --ignore-not-found=true -f -

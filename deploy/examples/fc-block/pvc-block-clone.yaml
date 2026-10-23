@@ -10,7 +10,7 @@ spec:
   storageClassName: $TEST_NAME
   resources:
     requests:
-      storage: 1Gi
+      storage: 2Gi
   dataSource:
     kind: PersistentVolumeClaim
     name: $TEST_NAME

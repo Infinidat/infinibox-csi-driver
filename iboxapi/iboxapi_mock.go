@@ -90,8 +90,8 @@ func (m *MockAPIService) PutMetadata(ctx context.Context, objectID int, metadata
 	return &res, err
 }
 
-func (m *MockAPIService) DeleteMetadata(ctx context.Context, objectID int) (*DeleteMetadataResponse, error) {
-	args := m.Called(ctx, objectID)
+func (m *MockAPIService) DeleteMetadata(ctx context.Context, objectID int, key string) (*DeleteMetadataResponse, error) {
+	args := m.Called(ctx, objectID, key)
 	res, _ := args.Get(0).(DeleteMetadataResponse)
 	err, _ := args.Get(1).(error)
 	return &res, err
@@ -135,6 +135,11 @@ func (m *MockAPIService) UpdateVolume(ctx context.Context, volumeID int, volume 
 	res, _ := args.Get(0).(Volume)
 	err, _ := args.Get(1).(error)
 	return &res, err
+}
+func (m *MockAPIService) UpdateVolumeSize(ctx context.Context, volumeID int, sz int64) error {
+	args := m.Called(ctx, volumeID, sz)
+	err, _ := args.Get(0).(error)
+	return err
 }
 
 func (m *MockAPIService) GetVolume(ctx context.Context, volumeID int) (*Volume, error) {

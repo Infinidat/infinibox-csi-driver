@@ -182,7 +182,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_metadataError() {
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 	createVolReq := storagecommon.GetDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(nil, suite.someError)
 	_, err := suite.service.DeleteVolume(suite.Suite.T().Context(), createVolReq)
 	assert.NotNil(suite.T(), err, "expected to fail: iscsi DeleteVolume storagecommon.GetVolume")
@@ -191,7 +191,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolume_Error() {
 func (suite *ISCSIControllerSuite) Test_DeleteVolume_GetVolumeSnapshot_metadataError() {
 	createVolReq := storagecommon.GetDeleteRequest()
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", suite.Suite.T().Context(), mock.Anything).Return(deleteVolumeResponse, suite.someError)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
@@ -207,7 +207,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_Error() {
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	suite.iboxapi.On("GetVolumesByParentID", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.Volume{}, nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", suite.Suite.T().Context(), mock.Anything).Return(deleteVolumeResponse, suite.someError)
 
@@ -219,7 +219,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteVolume_success() {
 	createVolReq := storagecommon.GetDeleteRequest()
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	suite.iboxapi.On("GetVolumesByParentID", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
@@ -245,6 +245,7 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
 	features[0].Enabled = true
 	features[0].Name = common.IboxFeaturePromoteSnapshot
 	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("UpdateVolumeSize", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetPoolByName", suite.Suite.T().Context(), mock.Anything).Return(poolResult, nil)
 	suite.iboxapi.On("GetSystem", suite.Suite.T().Context()).Return(storagecommon.GetSystem(), nil)
 	suite.iboxapi.On("GetFeatures", suite.Suite.T().Context()).Return(features, nil)
@@ -262,8 +263,16 @@ func (suite *ISCSIControllerSuite) Test_CreateVolume_content_success() {
 }
 
 func (suite *ISCSIControllerSuite) Test_CreateVolume_content_AttachMetadataToObject_err() {
+	features := make([]iboxapi.FeatureResult, 1)
+	features[0].Enabled = true
+	features[0].Name = common.IboxFeaturePromoteSnapshot
 	parameterMap := getISCSICreateVolumeParameters()
 	createVolReq := testhelper.GetCreateVolumeRequest("volumeName", parameterMap, "1$$iscsi")
+	poolResult := &iboxapi.PoolResult{ID: 10}
+	suite.iboxapi.On("PromoteSnapshot", suite.Suite.T().Context(), mock.Anything).Return(nil, nil)
+	suite.iboxapi.On("GetFeatures", suite.Suite.T().Context()).Return(features, nil)
+	suite.iboxapi.On("GetPoolByName", suite.Suite.T().Context(), mock.Anything).Return(poolResult, nil)
+	suite.iboxapi.On("UpdateVolumeSize", suite.Suite.T().Context(), mock.Anything, mock.Anything).Return(nil)
 	suite.iboxapi.On("GetVolumeByName", suite.Suite.T().Context(), mock.Anything).Return(nil, nil)
 	suite.api.On("GetNetworkSpaceByName", mock.Anything).Return(storagecommon.GetNetworkspace(), nil)
 	suite.iboxapi.On("GetVolume", suite.Suite.T().Context(), mock.Anything).Return(storagecommon.GetVolume(), nil)
@@ -403,7 +412,7 @@ func (suite *ISCSIControllerSuite) Test_DeleteSnapshot() {
 	suite.iboxapi.On("GetVolumesByParentID", suite.Suite.T().Context(), mock.Anything).Return([]iboxapi.Volume{}, nil)
 	suite.iboxapi.On("GetMetadata", suite.Suite.T().Context(), mock.Anything).Return(testhelper.GetHostMetadata(), nil)
 	deleteMetadataResponse := &iboxapi.DeleteMetadataResponse{}
-	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything).Return(deleteMetadataResponse, nil)
+	suite.iboxapi.On("DeleteMetadata", suite.Suite.T().Context(), mock.Anything, "").Return(deleteMetadataResponse, nil)
 	deleteVolumeResponse := iboxapi.DeleteVolumeResponse{}
 	suite.iboxapi.On("DeleteVolume", suite.Suite.T().Context(), mock.Anything).Return(deleteVolumeResponse, nil)
 	suite.api.On("GetMetadataStatus", mock.Anything).Return(false)

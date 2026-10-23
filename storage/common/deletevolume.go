@@ -57,7 +57,7 @@ func DeleteVolume(ctx context.Context, cs Commonservice, volumeID int) (response
 		return &csi.DeleteVolumeResponse{}, nil
 	}
 	slog.Debug("deleting volume", "name", vol.Name, "ID", vol.ID)
-	_, err = cs.IboxAPI.DeleteMetadata(ctx, vol.ID)
+	_, err = cs.IboxAPI.DeleteMetadata(ctx, vol.ID, "")
 	if err != nil {
 		return nil, common.Errorf("%w", err)
 	}

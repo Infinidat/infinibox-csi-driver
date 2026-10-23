@@ -206,6 +206,19 @@ func (fc *FCstorage) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 		}
 	}
 
+	var fsType string
+	block := req.GetVolumeCapability().GetBlock()
+	var isBlock bool
+	if block != nil {
+		isBlock = true
+	} else {
+		fsType = req.GetVolumeCapability().GetMount().FsType
+	}
+	err = storagecommon.ExpandSnapshotCloneLogic(ctx, diskMounter, fsType, isBlock, fc.CS, fc.CS.VolProto.VolumeID)
+	if err != nil {
+		slog.Error("error ExpandSnapshotCloneLogic", "error", err)
+	}
+
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 

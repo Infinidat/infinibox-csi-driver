@@ -138,9 +138,12 @@ func (client *IboxClient) GetMetadata(ctx context.Context, objectID int) (result
 	return results, nil
 }
 
-func (client *IboxClient) DeleteMetadata(ctx context.Context, objectID int) (response *DeleteMetadataResponse, err error) {
+func (client *IboxClient) DeleteMetadata(ctx context.Context, objectID int, key string) (response *DeleteMetadataResponse, err error) {
 	url := fmt.Sprintf("%s%s/%d", client.Creds.URL, "api/rest/metadata", objectID)
-	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "object ID", objectID)
+	if key != "" {
+		url = url + "/" + key
+	}
+	slog.Log(ctx, common.LevelTrace, "info", "URL", url, "object ID", objectID, "key", key)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil {
