@@ -15,12 +15,15 @@ package service
 import (
 	"context"
 	"log/slog"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/infinidat/infinibox-csi-driver/api"
 	"github.com/infinidat/infinibox-csi-driver/api/clientgo"
 	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -32,6 +35,16 @@ import (
 
 func ListSnapshotsImplementation(ctx context.Context, req *csi.ListSnapshotsRequest, client *clientgo.KubeClient, namespace string) (*csi.ListSnapshotsResponse, error) {
 	slog.Info("Started", "MaxEntries", req.MaxEntries)
+
+	var poolNames []string
+	poolNames = make([]string, 0)
+	tmp := os.Getenv("LIST_SNAPSHOTS_POOL_NAMES")
+	if tmp == "" {
+		poolNames = append(poolNames, "")
+	} else {
+		poolNames = strings.Split(tmp, ",")
+	}
+	slog.Info("ListSnapshots", "PoolNames", poolNames)
 
 	res := &csi.ListSnapshotsResponse{
 		Entries: make([]*csi.ListSnapshotsResponse_Entry, 0),
@@ -60,13 +73,17 @@ func ListSnapshotsImplementation(ctx context.Context, req *csi.ListSnapshotsRequ
 		}
 		slog.Info("got connection to ibox", "hostname", secret["hostname"])
 
-		snapshots, err := clientService.IboxAPI.GetAllSnapshots(ctx)
-		if err != nil {
-			e := common.Errorf("GetAllSnapshots - error: %w", err)
-			slog.Error(e.Error())
-			return nil, status.Error(codes.Unavailable, e.Error())
+		var allSnapshots []iboxapi.Volume
+		for _, poolName := range poolNames {
+			snapshots, err := clientService.IboxAPI.GetAllSnapshots(ctx, poolName)
+			if err != nil {
+				e := common.Errorf("GetAllSnapshots - error: %w", err)
+				slog.Error(e.Error())
+				return nil, status.Error(codes.Unavailable, e.Error())
+			}
+			slog.Info("got back", "snapshots", len(snapshots), "poolName", poolName)
+			allSnapshots = append(allSnapshots, snapshots...)
 		}
-		slog.Info("got back", "snapshots", len(snapshots))
 
 		// handle the optional case where a SnapshotId is passed in the ListSnapshots request
 		var volumeInfo api.VolumeProtocolConfig
@@ -81,7 +98,7 @@ func ListSnapshotsImplementation(ctx context.Context, req *csi.ListSnapshotsRequ
 			volumeID = volumeInfo.VolumeID
 		}
 
-		for _, snapshot := range snapshots {
+		for _, snapshot := range allSnapshots {
 			createdAtValue := snapshot.CreatedAt / 1000
 			timeValue := time.Unix(createdAtValue, 0)
 			timestampValue := tspb.New(timeValue)

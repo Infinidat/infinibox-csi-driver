@@ -351,6 +351,8 @@ spec:
         {{- end }}
             - name: CREATE_EVENTS
               value: "{{ .Values.createEvents }}"
+            - name: LIST_SNAPSHOTS_POOL_NAMES
+              value: "{{ .Values.listSnapshotsPoolNames }}"
             - name: PRIMARY_IBOX_CREDENTIAL
               value: "{{ .Values.primaryIboxCredential }}"
             - name: BURST_LIMIT

@@ -99,7 +99,7 @@ type Client interface {
 	GetNetworkSpaceByName(ctx context.Context, networkSpaceName string) (nspace *NetworkSpace, err error)
 
 	// datasets
-	GetAllSnapshots(ctx context.Context) ([]Volume, error)
+	GetAllSnapshots(ctx context.Context, poolName string) ([]Volume, error)
 
 	// hosts
 	GetAllHosts(ctx context.Context) (host []Host, err error)

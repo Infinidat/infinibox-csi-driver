@@ -28,7 +28,7 @@ type GetAllSnapshotsResponse struct {
 	Error    Error    `json:"error"`
 }
 
-func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume, err error) {
+func (client *IboxClient) GetAllSnapshots(ctx context.Context, poolName string) (results []Volume, err error) {
 	url := fmt.Sprintf("%s%s", client.Creds.URL, "api/rest/datasets")
 	slog.Log(ctx, common.LevelTrace, "info", "URL", url)
 
@@ -41,6 +41,9 @@ func (client *IboxClient) GetAllSnapshots(ctx context.Context) (results []Volume
 		parameters[PARAMETER_PAGE_SIZE] = strconv.Itoa(pageSize)
 		parameters[PARAMETER_PAGE] = strconv.Itoa(page)
 		parameters["type"] = "SNAPSHOT"
+		if poolName != "" {
+			parameters["pool_name"] = poolName
+		}
 
 		bodyBytes, err := commonGetLogic(ctx, url, client, parameters)
 		if err != nil {
