@@ -1,6 +1,6 @@
 ##@ release targets
 
-LIST_ITEMS := infinidat-csi-driver infinidat-csi-metrics
+LIST_ITEMS := infinidat-csi-driver infinidat-csi-metrics infinidat-cosi-driver
 
 .PHONY: release-backup-pull-tag
 release-backup-pull-tag:
