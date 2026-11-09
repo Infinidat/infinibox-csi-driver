@@ -16,7 +16,9 @@ limitations under the License.
 package s3test
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"testing"
@@ -60,7 +62,7 @@ func TestS3BucketCreate(t *testing.T) {
 	}
 
 	bucketAccessName := testConfig.TestNames.NSName
-	secretName := "s3-test"
+	secretName := "s3-test" + "-" + testConfig.TestNames.NSName
 	err = createBucketAccess(t, testConfig.DynamicClient, bucketAccessName, testConfig.TestNames.NSName, bucketAccessClassName, bucketClaimName, secretName)
 	if err != nil {
 		t.Fatalf("error creating BucketAccess %s\n", err.Error())
@@ -98,6 +100,26 @@ func TestS3BucketCreate(t *testing.T) {
 
 func createBucketClass(t *testing.T, dynamicClient *dynamic.DynamicClient, bucketClassName string) error {
 
+	s3AccessSecretName := os.Getenv(e2e.ENV_S3_ACCESS_SECRET_NAME)
+	if s3AccessSecretName == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ACCESS_SECRET_NAME)
+		return errors.New("missing env var")
+	}
+	s3AccessSecretNamespace := os.Getenv(e2e.ENV_S3_ACCESS_SECRET_NAMESPACE)
+	if s3AccessSecretNamespace == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ACCESS_SECRET_NAMESPACE)
+		return errors.New("missing env var")
+	}
+	s3AdminSecretName := os.Getenv(e2e.ENV_S3_ADMIN_SECRET_NAME)
+	if s3AdminSecretName == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ADMIN_SECRET_NAME)
+		return errors.New("missing env var")
+	}
+	s3AdminSecretNamespace := os.Getenv(e2e.ENV_S3_ADMIN_SECRET_NAMESPACE)
+	if s3AdminSecretNamespace == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ADMIN_SECRET_NAMESPACE)
+		return errors.New("missing env var")
+	}
 	// Define the GVR (Group, Version, Resource) for COSI BucketClass
 	bucketClassGVR := schema.GroupVersionResource{
 		Group:    "objectstorage.k8s.io",
@@ -115,10 +137,10 @@ func createBucketClass(t *testing.T, dynamicClient *dynamic.DynamicClient, bucke
 			},
 			"driverName": "cosi-driver.infinidat.com",
 			"parameters": map[string]any{
-				"cosi-driver.infinidat.com/adminSecretName":       "ibox-s3-credentials",
-				"cosi-driver.infinidat.com/adminSecretNamespace":  "infinidat-csi",
-				"cosi-driver.infinidat.com/accessSecretName":      "ibox-s3-credentials",
-				"cosi-driver.infinidat.com/accessSecretNamespace": "infinidat-csi",
+				"cosi-driver.infinidat.com/adminSecretName":       s3AdminSecretName,
+				"cosi-driver.infinidat.com/adminSecretNamespace":  s3AdminSecretNamespace,
+				"cosi-driver.infinidat.com/accessSecretName":      s3AccessSecretName,
+				"cosi-driver.infinidat.com/accessSecretNamespace": s3AccessSecretNamespace,
 			},
 			"deletionPolicy": "Delete",
 		},
@@ -187,6 +209,26 @@ func createBucketAccessClass(t *testing.T, dynamicClient *dynamic.DynamicClient,
 		Resource: "bucketaccessclasses",
 	}
 
+	s3AccessSecretName := os.Getenv(e2e.ENV_S3_ACCESS_SECRET_NAME)
+	if s3AccessSecretName == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ACCESS_SECRET_NAME)
+		return errors.New("missing env var")
+	}
+	s3AccessSecretNamespace := os.Getenv(e2e.ENV_S3_ACCESS_SECRET_NAMESPACE)
+	if s3AccessSecretNamespace == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ACCESS_SECRET_NAMESPACE)
+		return errors.New("missing env var")
+	}
+	s3AdminSecretName := os.Getenv(e2e.ENV_S3_ADMIN_SECRET_NAME)
+	if s3AdminSecretName == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ADMIN_SECRET_NAME)
+		return errors.New("missing env var")
+	}
+	s3AdminSecretNamespace := os.Getenv(e2e.ENV_S3_ADMIN_SECRET_NAMESPACE)
+	if s3AdminSecretNamespace == "" {
+		t.Logf("env var required name %s", e2e.ENV_S3_ADMIN_SECRET_NAMESPACE)
+		return errors.New("missing env var")
+	}
 	// 5. Define the BucketAccessClass structure
 	bucketAccessClass := &unstructured.Unstructured{
 		Object: map[string]any{
@@ -198,10 +240,10 @@ func createBucketAccessClass(t *testing.T, dynamicClient *dynamic.DynamicClient,
 			"driverName":         "cosi-driver.infinidat.com",
 			"authenticationType": "KEY",
 			"parameters": map[string]any{
-				"cosi-driver.infinidat.com/adminSecretName":       "ibox-s3-credentials",
-				"cosi-driver.infinidat.com/adminSecretNamespace":  "infinidat-csi",
-				"cosi-driver.infinidat.com/accessSecretName":      "ibox-s3-credentials",
-				"cosi-driver.infinidat.com/accessSecretNamespace": "infinidat-csi",
+				"cosi-driver.infinidat.com/adminSecretName":       s3AdminSecretName,
+				"cosi-driver.infinidat.com/adminSecretNamespace":  s3AdminSecretNamespace,
+				"cosi-driver.infinidat.com/accessSecretName":      s3AccessSecretName,
+				"cosi-driver.infinidat.com/accessSecretNamespace": s3AccessSecretNamespace,
 			},
 		},
 	}

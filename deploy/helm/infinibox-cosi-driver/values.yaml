@@ -39,3 +39,4 @@ images:
   driver_pull_policy: "Always"
 
 imagePullSecret: "private-docker-reg-secret"
+#openshift: true
