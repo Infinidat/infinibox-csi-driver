@@ -65,7 +65,7 @@ func (kc *KubeClient) GetIboxreplica(ctx context.Context, name string) (v1.Iboxr
 }
 
 func (kc *KubeClient) CreateIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
-	slog.Debug("CreateIboxreplica", "replica", replica)
+	slog.Debug("CreateIboxreplica", "replica", replica.Name)
 	crClient, err := crclient.New(kc.KubeRestConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err
@@ -79,7 +79,7 @@ func (kc *KubeClient) CreateIboxreplica(ctx context.Context, replica v1.Iboxrepl
 }
 
 func (kc *KubeClient) DeleteIboxreplica(ctx context.Context, replica v1.Iboxreplica) error {
-	slog.Debug("DeleteIboxreplica", "replica", replica)
+	slog.Debug("DeleteIboxreplica", "replica", replica.Name)
 	crClient, err := crclient.New(kc.KubeRestConfig, crclient.Options{Scheme: schemeForReplica})
 	if err != nil {
 		return err

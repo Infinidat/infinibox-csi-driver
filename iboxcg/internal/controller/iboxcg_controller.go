@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -170,19 +171,28 @@ func (r *IboxcgReconciler) handleNewCR(ctx context.Context, cr *csidriverinfinid
 		return err
 	}
 
-	// look up the volume by name
-	localVolume, err := clientsvc.IboxAPI.GetVolumeByName(ctx, cr.Spec.LocalVolumeName)
-	if err != nil {
-		logger.Error(err, "error getting volume by ibox snapshot name", "LocalVolumeName", cr.Spec.LocalVolumeName)
-		cr.Status = csidriverinfinidatcomv1.IboxcgStatus{
-			State: err.Error(),
+	var localVolume *iboxapi.Volume
+	MAX_TRIES := 4
+	for i := 0; i < MAX_TRIES; i++ {
+		slog.Info("sleeping 5s before looking up volume name")
+		time.Sleep(time.Second * 5)
+		// look up the volume by name
+		localVolume, err = clientsvc.IboxAPI.GetVolumeByName(ctx, cr.Spec.LocalVolumeName)
+		if err != nil {
+			logger.Error(err, "error getting volume by ibox snapshot name", "LocalVolumeName", cr.Spec.LocalVolumeName)
+			if i >= MAX_TRIES {
+				cr.Status = csidriverinfinidatcomv1.IboxcgStatus{
+					State: err.Error(),
+				}
+				if e := r.Status().Update(ctx, cr); e != nil {
+					logger.Error(e, "unable to update iboxcg state")
+				}
+				return err
+			}
+		} else {
+			logger.Info("validated volume exists", "local volume", localVolume.Name)
 		}
-		if e := r.Status().Update(ctx, cr); e != nil {
-			logger.Error(e, "unable to update iboxcg state")
-		}
-		return err
 	}
-	logger.Info("validated volume exists", "local volume", localVolume.Name)
 
 	// look up the cg by name
 	localCG, err := clientsvc.IboxAPI.GetConsistencyGroupByName(ctx, cr.Spec.LocalCGName)

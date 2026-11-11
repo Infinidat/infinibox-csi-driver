@@ -1,0 +1,3 @@
+this example creates an ISCSI volume using a storage class
+that specifies to create a replica for new volumes and it also
+specifies to create a PVC for the replica volume.

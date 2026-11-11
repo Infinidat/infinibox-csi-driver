@@ -93,6 +93,8 @@ type TestConfig struct {
 	Protocol              string
 	NodeName              string
 	FSType                string
+	CGName                string
+	RemoteCreatePVC       bool
 	Testt                 *testing.T
 	ClientSet             *kubernetes.Clientset
 	DynamicClient         *dynamic.DynamicClient

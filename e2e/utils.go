@@ -17,6 +17,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"os"
 	"strconv"
@@ -24,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/infinidat/infinibox-csi-driver/common"
 
 	"k8s.io/client-go/rest"
@@ -45,6 +47,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
@@ -260,6 +263,9 @@ func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string
 	if testConfig.FSType != "" {
 		storageClass.Parameters[common.CSIFSType] = testConfig.FSType
 	}
+	if testConfig.CGName != "" {
+		storageClass.Parameters[common.IboxReplicaCGNameParameter] = testConfig.CGName
+	}
 	storageClass.Parameters[common.CSIProvisionerSecretName] = secretToUse
 	storageClass.Parameters[common.CSIControllerPublishSecretName] = secretToUse
 	storageClass.Parameters[common.CSINodeStageSecretName] = secretToUse
@@ -281,8 +287,8 @@ func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string
 		storageClass.Parameters[common.IboxReplicaRemoteIboxCredNamespaceParameter] = os.Getenv(ENV_IBOXREPLICA_REMOTE_IBOX_SECRET_NAMESPACE)
 		storageClass.Parameters[common.IboxReplicaCreatePVC] = os.Getenv(ENV_IBOXREPLICA_REMOTE_CREATE_PVC)
 		// we append on the unique suffix so we can uniqly identify PVCs/iboxreplicas for tests
-		storageClass.Parameters[common.IboxReplicaCreatePVCSuffix] = os.Getenv(ENV_IBOXREPLICA_REMOTE_PVC_NAME_SUFFIX) + testConfig.TestNames.UniqueSuffix
-		storageClass.Parameters[common.IboxReplicaCreatePVCNamespace] = os.Getenv(ENV_IBOXREPLICA_REMOTE_PVC_NAMESPACE)
+		storageClass.Parameters[common.IboxReplicaCreatePVCSuffix] = os.Getenv(ENV_IBOXREPLICA_LINK_REMOTE_SYSTEM_NAME)
+		storageClass.Parameters[common.IboxReplicaCreatePVCNamespace] = testConfig.TestNames.NSName
 		storageClass.Parameters[common.IboxReplicaCreatePVCNetworkSpace] = os.Getenv(ENV_IBOXREPLICA_REMOTE_NETWORK_SPACE)
 		storageClass.Parameters[common.IboxReplicaCreatePVCPoolName] = os.Getenv(ENV_IBOXREPLICA_REMOTE_POOL_NAME)
 	}
@@ -294,10 +300,15 @@ func CreateStorageClass(ctx context.Context, testConfig *TestConfig, path string
 		storageClass.ReclaimPolicy = &rp
 	}
 
+	if testConfig.RemoteCreatePVC {
+		storageClass.Parameters[common.IboxReplicaCreatePVC] = "true"
+	}
+
 	allowExpand := true
 	storageClass.AllowVolumeExpansion = &allowExpand
 
 	protocol := os.Getenv(ENV_PROTOCOL)
+	storageClass.Parameters[common.StorageClassStorageProtocol] = protocol
 
 	nfsV4 := os.Getenv(ENV_USE_NFS_V4)
 	if nfsV4 != "" {
@@ -750,11 +761,13 @@ func Setup(ctx context.Context, testConfig *TestConfig) {
 	}
 	testConfig.Testt.Logf("✓ StorageClass %s is created\n", testConfig.TestNames.SCName)
 
-	err = CreateVolumeSnapshotClass(ctx, testConfig, VolumeSnapshotClassPath)
-	if err != nil {
-		testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
+	if testConfig.UseSnapshot || testConfig.UseSnapshotLock {
+		err = CreateVolumeSnapshotClass(ctx, testConfig, VolumeSnapshotClassPath)
+		if err != nil {
+			testConfig.Testt.Fatalf("error creating VolumeSnapshotClass %s\n", err.Error())
+		}
+		testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is created\n", testConfig.TestNames.VSCName)
 	}
-	testConfig.Testt.Logf("✓ VolumeSnapshotClass %s is created\n", testConfig.TestNames.VSCName)
 
 	time.Sleep(time.Second * SLEEP_BETWEEN_STEPS)
 
@@ -1124,4 +1137,29 @@ func ExpandPVC(t *testing.T, testConfig *TestConfig) (int64, int64, error) {
 	t.Logf("pvc size doubled which is expected")
 
 	return size, updatedsize, nil
+}
+
+func SetupSlog() {
+	opts := &slog.HandlerOptions{
+		Level:       slog.LevelDebug,
+		AddSource:   true,
+		ReplaceAttr: customTimeFormatter,
+	}
+
+	ThisLogger := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+
+	// Set the default logger
+	slog.SetDefault(ThisLogger)
+
+	ctrl.SetLogger(logr.FromSlogHandler(ThisLogger.Handler()))
+}
+
+func customTimeFormatter(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		// Cast the value to time.Time
+		t := a.Value.Any().(time.Time)
+		// Format the time as desired (e.g., "2006-01-02 15:04:05 MST")
+		a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05.000 MST"))
+	}
+	return a
 }

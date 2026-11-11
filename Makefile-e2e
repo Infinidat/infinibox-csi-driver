@@ -368,3 +368,10 @@ e2e-s3-test:
 	@echo -e kubeconfig here is ${KUBECONFIG}
 	_E2E_PROTOCOL=s3 && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/s3 -tags e2e
 	@echo -e $(_finish)
+
+.PHONY: e2escreplica
+e2escreplica:  ## test sc replica
+	@echo -e $(_begin)
+	@echo -e kubeconfig here is ${KUBECONFIG}
+	_E2E_PROTOCOL=iscsi && $(_GOTEST) -timeout=45m -count=1 -v ./e2e/screplica -tags e2e
+	@echo -e $(_finish)
