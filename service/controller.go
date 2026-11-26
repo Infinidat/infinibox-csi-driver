@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
 	"github.com/infinidat/infinibox-csi-driver/storage"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/luks"
 	"github.com/infinidat/infinibox-csi-driver/storage/nvme"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -112,6 +114,14 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
+	// host-side LUKS encryption: check the parameters before creating the volume
+	encryptionVolumeContext, err := luks.VolumeContextFromParameters(storageProtocol, reqParameters)
+	if err != nil {
+		e := common.Errorf("encryption parameters error %w", err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
+	}
+
 	volumeInfo := api.VolumeProtocolConfig{
 		StorageType: storageProtocol,
 	}
@@ -148,6 +158,16 @@ func (s *ControllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		e := common.Errorf("sc.CreateVolume response is nil")
 		slog.Error(e.Error())
 		return nil, status.Error(codes.Internal, e.Error())
+	}
+	if encryptionVolumeContext != nil {
+		// the node plugin reads the passphrase from this Secret, templates already resolved
+		if createVolResp.Volume.VolumeContext == nil {
+			createVolResp.Volume.VolumeContext = map[string]string{}
+		}
+		maps.Copy(createVolResp.Volume.VolumeContext, encryptionVolumeContext)
+		slog.Info("volume is encrypted on the node with LUKS", "volume", volName,
+			"secret name", encryptionVolumeContext[common.StorageClassEncryptionSecretName],
+			"secret namespace", encryptionVolumeContext[common.StorageClassEncryptionSecretNamespace])
 	}
 	volumeIDString := createVolResp.Volume.VolumeId
 	createVolResp.Volume.VolumeId = createVolResp.Volume.VolumeId + "$$" + storageProtocol

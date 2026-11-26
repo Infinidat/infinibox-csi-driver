@@ -35,6 +35,12 @@ cd to examples/nfs and run `make help` to see these and other recipes:
 ## iscsi/
 - TODO
 
+## iscsi-luks/
+Block volumes encrypted on the node with LUKS2, one passphrase per PVC kept in a Secret. Also for fc and nvme. See [iscsi-luks/README.md](iscsi-luks/README.md).
+
+cd to examples/iscsi-luks and run `make help` to see these and other recipes:
+- setup
+
 ## fc/
 - TODO
 
