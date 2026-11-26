@@ -83,8 +83,8 @@ func VolumeContextFromParameters(storageProtocol string, params map[string]strin
 	if err != nil || !encrypted {
 		return nil, err
 	}
-	if err := CheckProtocol(storageProtocol, params); err != nil {
-		return nil, err
+	if !isBlockProtocol(storageProtocol) {
+		return nil, protocolError(storageProtocol)
 	}
 
 	name, err := resolveTemplate(params[common.StorageClassEncryptionSecretName], params)
@@ -106,37 +106,63 @@ func VolumeContextFromParameters(storageProtocol string, params map[string]strin
 	}, nil
 }
 
-// CheckProtocol fails if the parameters (or volume context) ask for encryption with a
-// protocol that does not support it: only block volumes can be encrypted.
-func CheckProtocol(storageProtocol string, params map[string]string) error {
-	encrypted, err := IsEncrypted(params)
-	if err != nil || !encrypted {
-		return err
-	}
-	switch storageProtocol {
-	case common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNVME:
-		return nil
-	}
-	return common.Errorf("%s is supported only for block protocols (%s, %s, %s), not for %q",
-		common.StorageClassEncrypted, common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNVME, storageProtocol)
-}
-
 // SecretRefFromVolumeContext returns the Secret reference of an encrypted volume, and
-// false for a volume that is not encrypted. A volume that asks for encryption without a
-// valid reference is an error: it must never be mounted without encryption.
+// false for a volume that is not encrypted.
+//
+// A volume is encrypted when its volume context has encrypted=true and a Secret reference,
+// which CreateVolume always writes for encrypted volumes. The driver copies all the
+// StorageClass parameters into the volume context, so a volume provisioned before
+// encryption existed can carry an "encrypted" parameter that the driver ignored: without
+// a Secret reference it keeps being mounted as before. A volume with a Secret reference
+// that is not valid is an error: it is never mounted without encryption.
 func SecretRefFromVolumeContext(volumeContext map[string]string) (SecretRef, bool, error) {
-	encrypted, err := IsEncrypted(volumeContext)
-	if err != nil || !encrypted {
-		return SecretRef{}, false, err
-	}
 	ref := SecretRef{
 		Name:      volumeContext[common.StorageClassEncryptionSecretName],
 		Namespace: volumeContext[common.StorageClassEncryptionSecretNamespace],
+	}
+	if ref.Name == "" && ref.Namespace == "" {
+		if value := volumeContext[common.StorageClassEncrypted]; value != "" {
+			slog.Warn("the volume context has an encrypted parameter but no encryption Secret: "+
+				"the volume was provisioned without host-side encryption and is mounted as before",
+				common.StorageClassEncrypted, value)
+		}
+		return SecretRef{}, false, nil
+	}
+	encrypted, err := IsEncrypted(volumeContext)
+	if err != nil || !encrypted {
+		return SecretRef{}, false, err
 	}
 	if err := ref.Validate(); err != nil {
 		return SecretRef{}, true, err
 	}
 	return ref, true, nil
+}
+
+// CheckVolumeContext fails for a volume that is encrypted (see SecretRefFromVolumeContext)
+// with a protocol that does not support encryption, or whose Secret reference is not valid.
+func CheckVolumeContext(storageProtocol string, volumeContext map[string]string) error {
+	_, encrypted, err := SecretRefFromVolumeContext(volumeContext)
+	if err != nil {
+		return err
+	}
+	if encrypted && !isBlockProtocol(storageProtocol) {
+		return protocolError(storageProtocol)
+	}
+	return nil
+}
+
+// only block volumes can be encrypted
+func isBlockProtocol(storageProtocol string) bool {
+	switch storageProtocol {
+	case common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNVME:
+		return true
+	}
+	return false
+}
+
+func protocolError(storageProtocol string) error {
+	return common.Errorf("%s is supported only for block protocols (%s, %s, %s), not for %q",
+		common.StorageClassEncrypted, common.ProtocolFC, common.ProtocolISCSI, common.ProtocolNVME, storageProtocol)
 }
 
 var templateRe = regexp.MustCompile(`\$\{[^}]*\}`)

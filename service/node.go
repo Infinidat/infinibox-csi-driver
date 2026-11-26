@@ -134,7 +134,7 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 	}
 
 	// never mount without encryption a volume that asks for it
-	if err := luks.CheckProtocol(volumeInfo.StorageType, req.GetVolumeContext()); err != nil {
+	if err := luks.CheckVolumeContext(volumeInfo.StorageType, req.GetVolumeContext()); err != nil {
 		e := common.Errorf("volume ID %s: %w", req.GetVolumeId(), err)
 		slog.Error(e.Error())
 		return nil, status.Error(codes.InvalidArgument, e.Error())

@@ -133,22 +133,53 @@ func TestSecretRefFromVolumeContext(t *testing.T) {
 	assert.True(t, encrypted)
 	assert.Equal(t, SecretRef{Name: "data-luks", Namespace: "tenant-a"}, ref)
 
-	// a volume that asks for encryption without a usable Secret must fail, not be mounted in clear
+	// a volume with a Secret reference that cannot be used must fail, not be mounted in clear
 	for _, vc := range []map[string]string{
-		{common.StorageClassEncrypted: "true"},
+		{common.StorageClassEncrypted: "true", common.StorageClassEncryptionSecretName: "data-luks"},
+		{common.StorageClassEncrypted: "true", common.StorageClassEncryptionSecretNamespace: "tenant-a"},
 		{common.StorageClassEncrypted: "true", common.StorageClassEncryptionSecretName: "${pvc.name}", common.StorageClassEncryptionSecretNamespace: "ns"},
 	} {
 		_, encrypted, err := SecretRefFromVolumeContext(vc)
-		assert.True(t, encrypted)
-		assert.Error(t, err)
+		assert.True(t, encrypted, vc)
+		assert.Error(t, err, vc)
+	}
+	_, _, err = SecretRefFromVolumeContext(map[string]string{common.StorageClassEncrypted: "yes",
+		common.StorageClassEncryptionSecretName: "data-luks", common.StorageClassEncryptionSecretNamespace: "tenant-a"})
+	assert.Error(t, err)
+
+	// StorageClass with encrypted=false: the Secret parameters are copied as they are, templates included
+	_, encrypted, err = SecretRefFromVolumeContext(map[string]string{common.StorageClassEncrypted: "false",
+		common.StorageClassEncryptionSecretName: "${pvc.name}-luks", common.StorageClassEncryptionSecretNamespace: "${pvc.namespace}"})
+	require.NoError(t, err)
+	assert.False(t, encrypted)
+}
+
+// Volumes provisioned before host-side encryption existed have all their StorageClass
+// parameters in the volume context, including an "encrypted" parameter that the driver
+// ignored: they must keep being mounted exactly as before.
+func TestSecretRefFromVolumeContextLegacyVolumes(t *testing.T) {
+	for _, value := range []string{"true", "false", "yes", "TRUE", "aws-kms"} {
+		vc := map[string]string{
+			common.StorageClassStorageProtocol: common.ProtocolISCSI,
+			common.StorageClassEncrypted:       value,
+		}
+		_, encrypted, err := SecretRefFromVolumeContext(vc)
+		require.NoError(t, err, value)
+		assert.False(t, encrypted, value)
+		assert.NoError(t, CheckVolumeContext(common.ProtocolNFS, vc), value)
+		assert.NoError(t, CheckVolumeContext(common.ProtocolISCSI, vc), value)
 	}
 }
 
-func TestCheckProtocol(t *testing.T) {
-	encrypted := map[string]string{common.StorageClassEncrypted: "true"}
-	assert.NoError(t, CheckProtocol(common.ProtocolNFS, map[string]string{}))
-	assert.NoError(t, CheckProtocol(common.ProtocolNVME, encrypted))
-	assert.Error(t, CheckProtocol(common.ProtocolNFS, encrypted))
+func TestCheckVolumeContext(t *testing.T) {
+	encrypted := map[string]string{common.StorageClassEncrypted: "true",
+		common.StorageClassEncryptionSecretName: "data-luks", common.StorageClassEncryptionSecretNamespace: "tenant-a"}
+	assert.NoError(t, CheckVolumeContext(common.ProtocolNFS, map[string]string{}))
+	assert.NoError(t, CheckVolumeContext(common.ProtocolNVME, encrypted))
+	assert.Error(t, CheckVolumeContext(common.ProtocolNFS, encrypted))
+	assert.Error(t, CheckVolumeContext(common.ProtocolTreeq, encrypted))
+	assert.Error(t, CheckVolumeContext(common.ProtocolISCSI, map[string]string{common.StorageClassEncrypted: "true",
+		common.StorageClassEncryptionSecretName: "data-luks"}))
 }
 
 func TestGetPassphrase(t *testing.T) {

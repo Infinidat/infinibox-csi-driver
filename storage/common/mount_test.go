@@ -118,11 +118,17 @@ func (suite *MountSuite) Test_GetDiskMounter_Encryption() {
 	assert.Nil(suite.T(), err)
 	assert.Nil(suite.T(), m.Encryption, "not encrypted")
 
+	// a volume provisioned before encryption existed, from a StorageClass that had an
+	// "encrypted" parameter (ignored then): it is mounted as before
 	req.VolumeContext[common.StorageClassEncrypted] = "true"
-	_, err = GetDiskMounter(req)
-	assert.NotNil(suite.T(), err, "an encrypted volume without its Secret must not be mounted")
+	m, err = GetDiskMounter(req)
+	assert.Nil(suite.T(), err)
+	assert.Nil(suite.T(), m.Encryption, "legacy volume, not encrypted")
 
 	req.VolumeContext[common.StorageClassEncryptionSecretName] = "data-luks"
+	_, err = GetDiskMounter(req)
+	assert.NotNil(suite.T(), err, "an encrypted volume with an incomplete Secret reference must not be mounted")
+
 	req.VolumeContext[common.StorageClassEncryptionSecretNamespace] = "tenant-a"
 	m, err = GetDiskMounter(req)
 	assert.Nil(suite.T(), err)
@@ -133,4 +139,17 @@ func (suite *MountSuite) Test_FindEncryptedVolume_NotEncrypted() {
 	v, err := FindEncryptedVolume(suite.T().TempDir(), 42)
 	assert.Nil(suite.T(), err)
 	assert.Nil(suite.T(), v, "no disk info: not encrypted")
+}
+
+// the disk info of a volume that is not encrypted is written exactly as before
+func (suite *MountSuite) Test_VolumeConfigFile_NotEncrypted_Unchanged() {
+	rootDir := suite.T().TempDir()
+	assert.Nil(suite.T(), os.Mkdir(rootDir+"/globalmount", os.ModePerm))
+	config := DiskInfo{RootDir: "/host", MpathDevice: "mpatha", IsBlock: true, VolumeID: 7}
+	config.SetEncryption(nil)
+	config.RootDir = rootDir
+	assert.Nil(suite.T(), CreateConfigFile(config, "globalmount"))
+	content, err := os.ReadFile(rootDir + "/globalmount/7.json")
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), `{"rootdir":"`+rootDir+`","mpathdevice":"mpatha","isblock":true,"volumeid":7}`+"\n", string(content))
 }

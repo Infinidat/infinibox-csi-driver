@@ -81,8 +81,22 @@ Safety rules:
   pod events) and does not modify the device;
 - a LUKS device already open on the node is reused only if it sits on the same device and the
   passphrase opens it, so a device left open never lets a wrong passphrase through;
-- a volume that asks for encryption is never mounted without it: a missing or invalid Secret
-  reference fails the mount.
+- a volume created with encryption is never mounted without it: an invalid Secret reference,
+  or a Secret without a usable `passphrase`, fails the mount; a StorageClass with
+  `encrypted: "true"` and no valid Secret parameters fails `CreateVolume`.
+
+## Upgrading
+
+Volumes that are not encrypted are handled exactly as before. The driver copies all the
+StorageClass parameters into the volumes it creates, so a StorageClass of an older version
+could already contain a parameter named `encrypted`, which was ignored. The existing volumes
+of such a StorageClass keep being mounted without encryption, as before (the node server logs
+a warning): a volume is encrypted only when it also has the Secret reference written by
+`CreateVolume`. New PVCs of such a StorageClass fail, unless the value is `"false"`, until the
+parameter is removed, or the Secret parameters are added to encrypt the new volumes.
+
+Do not downgrade the driver while encrypted volumes are in use on the nodes: older versions do
+not close the LUKS device before removing the multipath device.
 
 ## Node requirements
 
