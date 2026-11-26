@@ -16,14 +16,19 @@ limitations under the License.
 package common
 
 import (
+	"flag"
 	"os"
 	"testing"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/infinidat/infinibox-csi-driver/api"
+	"github.com/infinidat/infinibox-csi-driver/common"
 	"github.com/infinidat/infinibox-csi-driver/helper"
 	"github.com/infinidat/infinibox-csi-driver/iboxapi"
+	"github.com/infinidat/infinibox-csi-driver/storage/luks"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/klog/v2"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -65,4 +70,67 @@ func (suite *MountSuite) Test_VolumeConfigFile_Success() {
 	err = os.RemoveAll(config.RootDir + "/" + "foo")
 	assert.Nil(suite.T(), err, "expected nil returned on remove dir ")
 
+}
+
+func (suite *MountSuite) Test_VolumeConfigFile_Encryption_Success() {
+	rootDir := suite.T().TempDir()
+	stagePath := "globalmount"
+	err := os.Mkdir(rootDir+"/"+stagePath, os.ModePerm)
+	assert.Nil(suite.T(), err, "expected nil returned on mkdir ")
+
+	config := DiskInfo{RootDir: rootDir, MpathDevice: "mpatha", VolumeID: 42}
+	config.SetEncryption(nil)
+	assert.Equal(suite.T(), "", config.LuksDevice, "not encrypted")
+	assert.Nil(suite.T(), config.encryptionSecret())
+
+	config.SetEncryption(&luks.SecretRef{Name: "data-luks", Namespace: "tenant-a"})
+	err = CreateConfigFile(config, stagePath)
+	assert.Nil(suite.T(), err, "expected nil returned on createConfigFile ")
+
+	loaded := DiskInfo{RootDir: rootDir, VolumeID: 42}
+	err = LoadDiskInfoFromFile(&loaded, stagePath)
+	assert.Nil(suite.T(), err, "expected nil returned on loadDiskInfoFromFile ")
+	assert.Equal(suite.T(), "infinibox-luks-42", loaded.LuksDevice)
+	assert.Equal(suite.T(), &luks.SecretRef{Name: "data-luks", Namespace: "tenant-a"}, loaded.encryptionSecret())
+
+	// disk info written by a driver without encryption support
+	err = os.WriteFile(rootDir+"/"+stagePath+"/7.json", []byte(`{"rootdir":"/host","mpathdevice":"mpathb","isblock":false,"volumeid":7}`), 0o600)
+	assert.Nil(suite.T(), err)
+	old := DiskInfo{RootDir: rootDir, VolumeID: 7}
+	assert.Nil(suite.T(), LoadDiskInfoFromFile(&old, stagePath))
+	assert.Nil(suite.T(), old.encryptionSecret())
+	assert.Nil(suite.T(), CloseEncryptedDevice(old, true), "nothing to close for a volume that is not encrypted")
+}
+
+func (suite *MountSuite) Test_GetDiskMounter_Encryption() {
+	if flag.Lookup("v") == nil {
+		klog.InitFlags(nil) // GetDiskMounter sets the klog verbosity, as the driver does in main
+	}
+	req := &csi.NodePublishVolumeRequest{
+		VolumeId: "42$$iscsi",
+		VolumeCapability: &csi.VolumeCapability{
+			AccessType: &csi.VolumeCapability_Mount{Mount: &csi.VolumeCapability_MountVolume{FsType: "xfs"}},
+			AccessMode: &csi.VolumeCapability_AccessMode{Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER},
+		},
+		VolumeContext: map[string]string{},
+	}
+	m, err := GetDiskMounter(req)
+	assert.Nil(suite.T(), err)
+	assert.Nil(suite.T(), m.Encryption, "not encrypted")
+
+	req.VolumeContext[common.StorageClassEncrypted] = "true"
+	_, err = GetDiskMounter(req)
+	assert.NotNil(suite.T(), err, "an encrypted volume without its Secret must not be mounted")
+
+	req.VolumeContext[common.StorageClassEncryptionSecretName] = "data-luks"
+	req.VolumeContext[common.StorageClassEncryptionSecretNamespace] = "tenant-a"
+	m, err = GetDiskMounter(req)
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), &luks.SecretRef{Name: "data-luks", Namespace: "tenant-a"}, m.Encryption)
+}
+
+func (suite *MountSuite) Test_FindEncryptedVolume_NotEncrypted() {
+	v, err := FindEncryptedVolume(suite.T().TempDir(), 42)
+	assert.Nil(suite.T(), err)
+	assert.Nil(suite.T(), v, "no disk info: not encrypted")
 }

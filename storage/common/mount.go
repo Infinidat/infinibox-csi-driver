@@ -30,6 +30,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/luks"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,6 +49,7 @@ type Mounter struct {
 	TargetPath   string
 	StagePath    string
 	IsBlock      bool
+	Encryption   *luks.SecretRef // Secret with the LUKS passphrase, nil when the volume is not encrypted
 }
 
 type DiskInfo struct {
@@ -55,6 +57,30 @@ type DiskInfo struct {
 	MpathDevice string `json:"mpathdevice"`
 	IsBlock     bool   `json:"isblock"`
 	VolumeID    int    `json:"volumeid"`
+
+	// set for encrypted volumes: the decrypted device, closed by NodeUnstageVolume, and the
+	// Secret with its passphrase, read again by NodeExpandVolume
+	LuksDevice                string `json:"luksdevice,omitempty"`
+	EncryptionSecretName      string `json:"encryptionsecretname,omitempty"`
+	EncryptionSecretNamespace string `json:"encryptionsecretnamespace,omitempty"`
+}
+
+// SetEncryption records that the volume is encrypted with the passphrase in the given
+// Secret. It does nothing when ref is nil.
+func (d *DiskInfo) SetEncryption(ref *luks.SecretRef) {
+	if ref == nil {
+		return
+	}
+	d.LuksDevice = luks.MapperName(d.VolumeID)
+	d.EncryptionSecretName = ref.Name
+	d.EncryptionSecretNamespace = ref.Namespace
+}
+
+func (d DiskInfo) encryptionSecret() *luks.SecretRef {
+	if d.LuksDevice == "" {
+		return nil
+	}
+	return &luks.SecretRef{Name: d.EncryptionSecretName, Namespace: d.EncryptionSecretNamespace}
 }
 
 func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType string, mountOptions []string, isBlock, readOnly bool) error {
@@ -91,6 +117,11 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 	if mounted {
 		slog.Debug(function, "path already mounted", chrootPath)
 		return nil
+	}
+
+	devicePath, err = openEncryptedDevice(config, devicePath, stagePath, readOnly)
+	if err != nil {
+		return err
 	}
 
 	mode := "0750"
@@ -201,6 +232,46 @@ func MountLogic(config DiskInfo, targetPath, devicePath, stagePath, fsType strin
 		}
 	}
 	return nil
+}
+
+// openEncryptedDevice returns the device to mount: devicePath itself, or for an encrypted
+// volume its decrypted device, after opening it (and formatting it with LUKS if blank).
+func openEncryptedDevice(config DiskInfo, devicePath, stagePath string, readOnly bool) (string, error) {
+	ref := config.encryptionSecret()
+	if ref == nil {
+		return devicePath, nil
+	}
+	// persist first, so that NodeUnstageVolume finds the LUKS device to close even if a
+	// later step fails
+	if err := CreateConfigFile(config, stagePath); err != nil {
+		return "", err
+	}
+	ctx := context.Background()
+	passphrase, err := luks.GetPassphrase(ctx, *ref)
+	if err != nil {
+		return "", err
+	}
+	return luks.Open(ctx, luks.OpenOptions{
+		Device:     strings.TrimPrefix(devicePath, config.RootDir),
+		Name:       config.LuksDevice,
+		Passphrase: passphrase,
+		ReadOnly:   readOnly,
+	})
+}
+
+// CloseEncryptedDevice closes the decrypted device of an encrypted volume, if it is open on
+// this node. It must run before the device below it is detached. diskInfoLoaded tells
+// whether config was read from the staging path: if not, the default device name of the
+// volume is closed if it exists.
+func CloseEncryptedDevice(config DiskInfo, diskInfoLoaded bool) error {
+	name := config.LuksDevice
+	if !diskInfoLoaded {
+		name = luks.MapperName(config.VolumeID)
+	}
+	if name == "" {
+		return nil
+	}
+	return luks.Close(context.Background(), name)
 }
 
 func CreateConfigFile(conf DiskInfo, mnt string) error {
@@ -484,6 +555,15 @@ func GetDiskMounter(req *csi.NodePublishVolumeRequest) (*Mounter, error) {
 		return nil, common.Errorf("bad VolumeCapability parameters: both block and mount modes, for volume: %s", req.GetVolumeId())
 	}
 
+	var encryption *luks.SecretRef
+	secretRef, encrypted, err := luks.SecretRefFromVolumeContext(req.GetVolumeContext())
+	if err != nil {
+		return nil, common.Errorf("volume %s: %w", req.GetVolumeId(), err)
+	}
+	if encrypted {
+		encryption = &secretRef
+	}
+
 	// quiet the klog output due to mount_linux.go logic producing erroneous log
 	// messages on initialization
 	beforeValue := flag.Lookup("v").Value.String()
@@ -499,6 +579,7 @@ func GetDiskMounter(req *csi.NodePublishVolumeRequest) (*Mounter, error) {
 		DeviceUtil:   util.NewDeviceHandler(util.NewIOHandler()),
 		TargetPath:   req.GetTargetPath(),
 		StagePath:    req.GetStagingTargetPath(),
+		Encryption:   encryption,
 	}
 
 	// return to previous klog verbosity

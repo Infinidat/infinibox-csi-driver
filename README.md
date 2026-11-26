@@ -17,6 +17,7 @@
   - Latest Fibre Channel initiator software for your operating system (for FC connectivity)
   - Virtualized environments must use pass-through mode for Fibre Channel connectivity
   - Latest NFS software package for your operating system (for NFS / NFS TreeQs)
+  - cryptsetup 2.x, for block volumes encrypted on the node with LUKS (StorageClass parameter `encrypted`, see [deploy/examples/iscsi-luks](deploy/examples/iscsi-luks/README.md))
  
 # Installation
   Helm and Operator based installation is available. Refer to the InfiniBox CSI Driver [user guide](https://support.infinidat.com/hc/en-us/articles/10106070174749) for details.

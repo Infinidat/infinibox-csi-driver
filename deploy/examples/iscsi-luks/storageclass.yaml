@@ -1,0 +1,37 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ibox-iscsi-luks
+provisioner: infinibox-csi-driver
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+# mountOptions: []
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/controller-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/controller-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-publish-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-publish-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-stage-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/provisioner-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/provisioner-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/node-expand-secret-name: $_E2E_IBOX_SECRET
+  csi.storage.k8s.io/node-expand-secret-namespace: $_E2E_NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+
+  network_space: $_E2E_ISCSI_NETWORK_SPACE
+  pool_name: $_E2E_POOL
+  #provision_type: "THIN"
+  storage_protocol: "iscsi" # also fc or nvme, not nfs or nfs_treeq
+  useCHAP: "none" # none / chap / mutual_chap
+
+  # Host-side LUKS2 encryption: the node formats the volume with LUKS2 the first time it is
+  # used, then opens it before mounting it. The passphrase is the "passphrase" key of the
+  # Secret below, one Secret per PVC. ${pvc.name}, ${pvc.namespace} and ${pv.name} are
+  # replaced when the volume is created; fixed names work too (one passphrase for many PVCs).
+  encrypted: "true"
+  encryption_secret_name: "${pvc.name}-luks"
+  encryption_secret_namespace: "${pvc.namespace}"

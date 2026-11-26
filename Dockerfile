@@ -49,6 +49,7 @@ RUN \
     && ln -s /ibox/host-chroot.sh /ibox/cat \
     && ln -s /ibox/host-chroot.sh /ibox/chown \
     && ln -s /ibox/host-chroot.sh /ibox/chmod \
+    && ln -s /ibox/host-chroot.sh /ibox/cryptsetup \
     && ln -s /ibox/host-chroot.sh /ibox/dmsetup \
     && ln -s /ibox/host-chroot.sh /ibox/file \
     && ln -s /ibox/host-chroot.sh /ibox/find \

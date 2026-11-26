@@ -24,6 +24,7 @@ import (
 	"github.com/infinidat/infinibox-csi-driver/helper"
 	"github.com/infinidat/infinibox-csi-driver/storage"
 	storagecommon "github.com/infinidat/infinibox-csi-driver/storage/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/luks"
 	"github.com/infinidat/infinibox-csi-driver/storage/nfs"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -130,6 +131,13 @@ func (s *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublish
 			}
 			req.VolumeContext[common.StorageClassNetworkSpace] = networkSpace
 		}
+	}
+
+	// never mount without encryption a volume that asks for it
+	if err := luks.CheckProtocol(volumeInfo.StorageType, req.GetVolumeContext()); err != nil {
+		e := common.Errorf("volume ID %s: %w", req.GetVolumeId(), err)
+		slog.Error(e.Error())
+		return nil, status.Error(codes.InvalidArgument, e.Error())
 	}
 
 	// the storageclass is required to specify node-publish secrets as a parameter,this will cause

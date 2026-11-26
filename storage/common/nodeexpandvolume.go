@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/infinidat/infinibox-csi-driver/common"
+	"github.com/infinidat/infinibox-csi-driver/storage/luks"
 )
 
 const Resize2FSDelay = "RESIZE2FS_DELAY"
@@ -95,11 +96,19 @@ func BlockExpandVolume(volumePath string) error {
 	multipathDevice := "/dev" + deviceNameParts[0]
 	slog.Debug("findmnt", "output", output, "mpath device", multipathDevice)
 
+	return blockExpandMultipath(deviceNameParts[0])
+}
+
+// blockExpandMultipath rescans the paths of a multipath device and resizes its map.
+// devicePart is the kernel name of the multipath device after a slash, e.g. /dm-1.
+func blockExpandMultipath(devicePart string) error {
+	deviceNameParts := []string{devicePart}
+
 	// multipathCommand := fmt.Sprintf("multipath -ll %s", multipathDevice)
 	wildcards := "\"%n_/%d_\""
 	multipathCommand := fmt.Sprintf("multipathd show maps raw format %s 2> /dev/null | grep %s", wildcards, deviceNameParts[0]+"_")
 	slog.Debug("executing", "command", multipathCommand)
-	out, _, err = ExecCommand.Command(multipathCommand, "")
+	out, _, err := ExecCommand.Command(multipathCommand, "")
 	if err != nil {
 		return common.Errorf("error running multipath command name %s - %w", multipathCommand, err)
 	}
@@ -208,7 +217,10 @@ func ExpandSnapshotCloneLogic(ctx context.Context, diskMounter *Mounter, fsType 
 		if v.Key == ResizeRequired && v.Value == "true" {
 			slog.Info("this volume's file system needs to be resized")
 			// resize the filesystem or block
-			if isBlock {
+			if isBlock && diskMounter.Encryption != nil {
+				// the LUKS device was opened on the device at its current size: nothing to grow
+				slog.Debug("encrypted block volume, nothing to resize", "device", multipathDevice)
+			} else if isBlock {
 				slog.Debug("info", "block string", isBlock)
 				err = BlockExpandVolume(volumePath)
 				if err != nil {
@@ -229,4 +241,51 @@ func ExpandSnapshotCloneLogic(ctx context.Context, diskMounter *Mounter, fsType 
 		}
 	}
 	return nil
+}
+
+// EncryptedVolume is the LUKS layer of an encrypted volume that is open on this node.
+type EncryptedVolume struct {
+	Mapping luks.Mapping
+	Secret  luks.SecretRef
+}
+
+// FindEncryptedVolume returns the LUKS layer of a volume, using the disk info that
+// NodePublishVolume saved in the staging path. It returns nil for a volume that is not
+// encrypted.
+func FindEncryptedVolume(stagePath string, volumeID int) (*EncryptedVolume, error) {
+	dskInfo := DiskInfo{
+		VolumeID: volumeID,
+		RootDir:  common.NodeRootDir,
+	}
+	if err := LoadDiskInfoFromFile(&dskInfo, stagePath); err != nil {
+		slog.Debug("no disk info in the staging path, assuming the volume is not encrypted", "stagePath", stagePath, "error", err)
+		return nil, nil
+	}
+	secret := dskInfo.encryptionSecret()
+	if secret == nil {
+		return nil, nil
+	}
+	mapping, err := luks.Find(dskInfo.LuksDevice)
+	if err != nil {
+		return nil, err
+	}
+	return &EncryptedVolume{Mapping: *mapping, Secret: *secret}, nil
+}
+
+// Resize grows the LUKS device once the device below it is at least requiredBytes large.
+func (v *EncryptedVolume) Resize(ctx context.Context, requiredBytes int64) error {
+	passphrase, err := luks.GetPassphrase(ctx, v.Secret)
+	if err != nil {
+		return err
+	}
+	return luks.Resize(ctx, v.Mapping, passphrase, requiredBytes)
+}
+
+// BlockExpandEncryptedVolume is BlockExpandVolume for an encrypted block volume on a
+// multipath device: it grows the multipath device below the LUKS device, then the LUKS device.
+func BlockExpandEncryptedVolume(ctx context.Context, v *EncryptedVolume, requiredBytes int64) error {
+	if err := blockExpandMultipath("/" + v.Mapping.BackingKernelName); err != nil {
+		return err
+	}
+	return v.Resize(ctx, requiredBytes)
 }

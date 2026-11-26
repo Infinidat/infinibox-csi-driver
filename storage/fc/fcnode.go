@@ -262,7 +262,9 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 
 	// load fc disk config from json file
 	slog.Debug("read fc config from staging path", "volume ID", req.GetVolumeId())
+	diskInfoLoaded := false
 	if err := storagecommon.LoadDiskInfoFromFile(&dskInfo, stagePath); err == nil {
+		diskInfoLoaded = true
 		mpathDevice = dskInfo.MpathDevice
 		slog.Debug("fc config", "mpathDevice", mpathDevice)
 	} else {
@@ -286,6 +288,17 @@ func (fc *FCstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstage
 			}
 		}
 		slog.Warn("fc detach disk: failed to get fc config", "path", stagePath, "error", err)
+	}
+
+	// encrypted volume: close the LUKS device first, the device below it cannot be
+	// detached while it is open
+	if err := storagecommon.CloseEncryptedDevice(dskInfo, diskInfoLoaded); err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
 	}
 
 	// remove multipath device
@@ -323,8 +336,24 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 
 	response := csi.NodeExpandVolumeResponse{}
 
+	// an encrypted volume: the device to expand is below its LUKS device
+	encrypted, err := storagecommon.FindEncryptedVolume(req.GetStagingTargetPath(), fc.CS.VolProto.VolumeID)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
+	}
+
 	if req.GetVolumeCapability().GetBlock() != nil {
-		err := storagecommon.BlockExpandVolume(req.GetVolumePath())
+		var err error
+		if encrypted != nil {
+			err = storagecommon.BlockExpandEncryptedVolume(ctx, encrypted, req.GetCapacityRange().GetRequiredBytes())
+		} else {
+			err = storagecommon.BlockExpandVolume(req.GetVolumePath())
+		}
 		if err != nil {
 			_, file, line, _ := runtime.Caller(0)
 			e := storagecommon.ImplementationError{
@@ -347,6 +376,12 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 		return nil, e
 	}
 	slog.Debug("info", "multipathDevice", multipathDevice)
+	fsDevice := multipathDevice
+	if encrypted != nil {
+		// the filesystem is on the LUKS device, the multipath device is below it
+		fsDevice = encrypted.Mapping.DevicePath()
+		multipathDevice = encrypted.Mapping.BackingDevicePath()
+	}
 
 	// 2 - run multipath -l multipathDevice  to look up the particular device names (sda, sdb, sdx, ....)
 	multipathDeviceBase := filepath.Base(multipathDevice)
@@ -422,9 +457,21 @@ func (fc *FCstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVo
 	}
 	slog.Debug("multipathd resize map", "output", strings.TrimSpace(out))
 
-	// 5 - run resize2fs or xfs_growfs on /dev/mapper/mpathwi
+	// encrypted volume: grow the LUKS device to the new size of the multipath device
+	if encrypted != nil {
+		if err := encrypted.Resize(ctx, req.GetCapacityRange().GetRequiredBytes()); err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
+		}
+	}
+
+	// 5 - run resize2fs or xfs_growfs on /dev/mapper/mpathwi (or on the LUKS device)
 	fsType := req.GetVolumeCapability().GetMount().FsType
-	err = storagecommon.ExpandFileSystem(multipathDevice, fsType)
+	err = storagecommon.ExpandFileSystem(fsDevice, fsType)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		e := storagecommon.ImplementationError{
@@ -447,20 +494,15 @@ func (fc *FCstorage) mountFCDisk(mounter storagecommon.Mounter, devicePath strin
 		VolumeID:    volumeID,
 		RootDir:     common.NodeRootDir,
 	}
+	diskInfo.SetEncryption(mounter.Encryption)
 	err := storagecommon.MountLogic(diskInfo, mounter.TargetPath, devicePath, mounter.StagePath, mounter.FsType, mounter.MountOptions, mounter.IsBlock, mounter.ReadOnly)
 	if err != nil {
 		return common.Errorf("%w", err)
 	}
 
 	if strings.HasPrefix(devicePath, "/dev/dm-") && !mounter.ReadOnly {
-		dskinfo := storagecommon.DiskInfo{
-			RootDir:     common.NodeRootDir,
-			MpathDevice: devicePath,
-			IsBlock:     mounter.IsBlock,
-			VolumeID:    volumeID,
-		}
-		slog.Debug("attempting to create FC config file", "dskinfo", dskinfo, "stagePath", mounter.StagePath, "targetPath", mounter.TargetPath)
-		if err := storagecommon.CreateConfigFile(dskinfo, mounter.StagePath); err != nil {
+		slog.Debug("attempting to create FC config file", "dskinfo", diskInfo, "stagePath", mounter.StagePath, "targetPath", mounter.TargetPath)
+		if err := storagecommon.CreateConfigFile(diskInfo, mounter.StagePath); err != nil {
 			return common.Errorf("%w", err)
 		}
 		slog.Debug("created FC config file", "path", mounter.StagePath)

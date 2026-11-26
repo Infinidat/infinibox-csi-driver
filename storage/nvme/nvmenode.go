@@ -209,6 +209,23 @@ func (nvme *NVMEstorage) NodeUnstageVolume(ctx context.Context, req *csi.NodeUns
 
 	_ = storagecommon.DebugWalkDir(removePath)
 
+	dskInfo := storagecommon.DiskInfo{
+		VolumeID: nvme.CS.VolProto.VolumeID,
+		RootDir:  common.NodeRootDir,
+	}
+	diskInfoLoaded := storagecommon.LoadDiskInfoFromFile(&dskInfo, stagePath) == nil
+
+	// encrypted volume: close the LUKS device first, the device below it cannot be
+	// detached while it is open
+	if err := storagecommon.CloseEncryptedDevice(dskInfo, diskInfoLoaded); err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
+	}
+
 	// Remove directory contents
 	jsonPath := fmt.Sprintf("%s/%d.json", removePath, nvme.CS.VolProto.VolumeID)
 	pathExists, pathErr := nvme.CS.PathExists(jsonPath)
@@ -282,6 +299,27 @@ func (nvme *NVMEstorage) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGe
 
 func (nvme *NVMEstorage) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (response *csi.NodeExpandVolumeResponse, err error) {
 	slog.Info("start", "volume id", req.GetVolumeId(), "volume path", req.GetVolumePath())
+
+	// an encrypted volume: its LUKS device must grow with the namespace below it
+	encrypted, err := storagecommon.FindEncryptedVolume(req.GetStagingTargetPath(), nvme.CS.VolProto.VolumeID)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		e := storagecommon.ImplementationError{
+			Code: int(codes.Internal),
+			Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+		}
+		return nil, e
+	}
+	if encrypted != nil {
+		if err := encrypted.Resize(ctx, req.GetCapacityRange().GetRequiredBytes()); err != nil {
+			_, file, line, _ := runtime.Caller(0)
+			e := storagecommon.ImplementationError{
+				Code: int(codes.Internal),
+				Msg:  fmt.Sprintf("%s:%d: %s", file, line, err.Error()),
+			}
+			return nil, e
+		}
+	}
 
 	if req.GetVolumeCapability().GetBlock() != nil {
 		slog.Debug("block volume resize on node")
@@ -367,6 +405,7 @@ func (nvme *NVMEstorage) AttachDisk(diskMounter storagecommon.Mounter, targets [
 		IsBlock:     diskMounter.IsBlock,
 		RootDir:     common.NodeRootDir,
 	}
+	diskinf.SetEncryption(diskMounter.Encryption)
 
 	slog.Debug("info", "diskinf", diskinf)
 

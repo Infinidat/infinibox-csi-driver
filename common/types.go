@@ -54,6 +54,11 @@ const (
 	StorageClassMaxFilesystemSize = "max_filesystem_size"
 
 	StorageClassProtocolSecretAutoOrder = "preferred_auto_order" // a comma separated list of protocols
+
+	// host-side LUKS encryption of block volumes (fc, iscsi, nvme)
+	StorageClassEncrypted                 = "encrypted"                   // "true" to encrypt the volume with LUKS2 on the node
+	StorageClassEncryptionSecretName      = "encryption_secret_name"      // Secret holding the passphrase, supports ${pvc.name}, ${pvc.namespace}, ${pv.name}
+	StorageClassEncryptionSecretNamespace = "encryption_secret_namespace" // namespace of that Secret, same templates
 )
 
 // storage protocols
@@ -117,6 +122,7 @@ const (
 	CSISnapshotterSecretName            = "csi.storage.k8s.io/snapshotter-secret-name"
 	CSIPVCName                          = "csi.storage.k8s.io/pvc/name"
 	CSIPVCNamespace                     = "csi.storage.k8s.io/pvc/namespace"
+	CSIPVName                           = "csi.storage.k8s.io/pv/name"
 )
 
 const (

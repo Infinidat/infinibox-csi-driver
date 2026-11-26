@@ -104,6 +104,13 @@ Infinibox_Protocol_Secrets:
 # default it 5 seconds
 #resize2fsDelay: "5"
 
+# host-side LUKS encryption of block volumes (StorageClass parameter encrypted: "true"):
+# memory used by the argon2id key derivation, in KiB, default 262144 (256 MiB).
+# cryptsetup runs in the node server container, so nodeserver.resources.limits.memory must stay
+# well above this value. It is written in the LUKS header when a volume is formatted: a change
+# only applies to volumes formatted afterwards.
+#luksPbkdfMemoryKiB: "262144"
+
 # set cpu and memory limits and optionally tolerations for the CSI servers
 nodeserver:
   resources:

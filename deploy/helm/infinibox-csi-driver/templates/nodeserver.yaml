@@ -129,6 +129,8 @@ spec:
               value: "{{ .Values.fcSearchDiskDelay }}"
             - name: RESIZE2FS_DELAY
               value: "{{ .Values.resize2fsDelay }}"
+            - name: LUKS_PBKDF_MEMORY_KIB
+              value: "{{ .Values.luksPbkdfMemoryKiB }}"
             - name: CSI_DRIVER_NAME
               value: {{ required "Provide CSI Driver Name"  .Values.csiDriverName }}
             - name: KUBE_NODE_NAME
